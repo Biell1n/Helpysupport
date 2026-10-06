@@ -187,3 +187,15 @@ $$;
 
 revoke execute on function public.helpy_primeiras_perguntas(uuid, integer) from public, anon, authenticated;
 grant execute on function public.helpy_primeiras_perguntas(uuid, integer) to service_role;
+
+-- ------------------------------------------------------------
+-- As tabelas antigas do Horizons (esquema legado) ficam guardadas,
+-- mas fora do alcance da API.
+-- ------------------------------------------------------------
+do $$ begin
+  if exists (select 1 from pg_namespace where nspname = 'legado') then
+    revoke all on schema legado from public, anon, authenticated;
+    revoke all on all tables in schema legado from public, anon, authenticated;
+    revoke all on all functions in schema legado from public, anon, authenticated;
+  end if;
+end $$;
