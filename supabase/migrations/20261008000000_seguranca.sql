@@ -111,3 +111,13 @@ alter policy "Users can delete their own knowledge documents" on storage.objects
 -- 4. limite por IP no chat público ------------------------------------
 alter table public.conversations add column if not exists ip_hash text;
 create index if not exists conversations_ip_hash_idx on public.conversations (ip_hash, created_at) where ip_hash is not null;
+
+-- funções do schema legado com search_path fixo (aviso do Supabase)
+do $$
+declare f record;
+begin
+  for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'legado' and p.prokind = 'f' and p.proconfig is null loop
+    execute format('alter function %s set search_path = legado, public', f.sig);
+  end loop;
+end $$;
