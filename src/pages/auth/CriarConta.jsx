@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { MailCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { destinoSeguro, ehVisitante } from '@/lib/destino';
 import AuthLayout from './AuthLayout';
 import GoogleBotao from './GoogleBotao';
 
@@ -12,8 +13,12 @@ export default function CriarConta() {
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
+  const [params] = useSearchParams();
+  const destino = destinoSeguro(params.get('de'));
+  const visitante = ehVisitante(destino);
+  const deQuery = destino === '/painel' ? '' : `?de=${encodeURIComponent(destino)}`;
 
-  if (user) return <Navigate to="/painel" replace />;
+  if (user) return <Navigate to={destino} replace />;
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   const enviar = async (e) => {
@@ -26,7 +31,7 @@ export default function CriarConta() {
       password: f.senha,
       options: {
         data: { full_name: f.nome.trim(), company_name: f.empresa.trim() },
-        emailRedirectTo: `${window.location.origin}/painel`,
+        emailRedirectTo: `${window.location.origin}${destino}`,
       },
     });
     setEnviando(false);
@@ -41,9 +46,9 @@ export default function CriarConta() {
         <MailCheck size={36} />
         <h1>Confira seu e-mail</h1>
         <p className="muted">
-          Mandamos um link de confirmação para <b>{f.email}</b>. Clique nele e você cai direto no painel.
+          Mandamos um link de confirmação para <b>{f.email}</b>. {visitante ? 'Clique nele e você volta para a conversa.' : 'Clique nele e você cai direto no painel.'}
         </p>
-        <Link to="/entrar" className="btn btn-ghost btn-block">Voltar para entrar</Link>
+        <Link to={`/entrar${deQuery}`} className="btn btn-ghost btn-block">Voltar para entrar</Link>
       </AuthLayout>
     );
   }
@@ -51,23 +56,26 @@ export default function CriarConta() {
   return (
     <AuthLayout>
       <div>
-        <h1>Comece o teste grátis</h1>
+        <h1>{visitante ? 'Crie sua conta para falar com a equipe' : 'Comece o teste grátis'}</h1>
         <p className="muted" style={{ marginTop: 6 }}>
-          14 dias com tudo liberado. Já tem conta? <Link to="/entrar">Entrar</Link>
+          {visitante ? 'É rápido, e a conversa continua de onde parou.' : '14 dias com tudo liberado.'} Já tem conta?{' '}
+          <Link to={`/entrar${deQuery}`}>Entrar</Link>
         </p>
       </div>
-      <GoogleBotao texto="Criar conta com Google" />
+      <GoogleBotao texto="Criar conta com Google" destino={destino} />
       <div className="ou">ou com e-mail</div>
       <form className="stack" onSubmit={enviar}>
-        <div className="grid-2">
+        <div className={visitante ? 'stack' : 'grid-2'}>
           <label className="field">
             <span className="label">Seu nome</span>
             <input className="input" autoComplete="name" required value={f.nome} onChange={set('nome')} />
           </label>
-          <label className="field">
-            <span className="label">Empresa</span>
-            <input className="input" autoComplete="organization" value={f.empresa} onChange={set('empresa')} />
-          </label>
+          {!visitante && (
+            <label className="field">
+              <span className="label">Empresa</span>
+              <input className="input" autoComplete="organization" value={f.empresa} onChange={set('empresa')} />
+            </label>
+          )}
         </div>
         <label className="field">
           <span className="label">E-mail</span>

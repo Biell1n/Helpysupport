@@ -9,19 +9,29 @@
 //
 // Proteções, já que o endereço é público:
 //   - só responde com token válido e link ligado
-//   - cota mensal de atendimentos do plano; estourou, vira recado
-//   - até 8 conversas novas por visitante por dia
+//   - conversa nova sem login exige uma prova de trabalho feita pelo
+//     navegador (meio segundo para uma pessoa, caro para um robô)
+//   - até 8 conversas novas por visitante e 20 por rede (hash do IP) por dia
+//   - enxurrada no mesmo assistente (30 conversas anônimas em 10 min):
+//     daí em diante só com login, para não queimar a cota do dono
 //   - até 6 mensagens por minuto, e um teto por atendimento
+//   - chamado para a equipe e recado só com login; sem login é só conversa
 // ============================================================
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
-import { admin, profileOf, userFrom } from '../_shared/db.ts';
+import { admin, profileOf, requireUser, userFrom } from '../_shared/db.ts';
 import { logUsage } from '../_shared/ai.ts';
 import { type Assistant, responder } from '../_shared/atendimento.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { normalizeConfig, valueOf } from '../_shared/schema.ts';
 
 const MAX_CHARS = 2000;
+const BITS_DESAFIO = 17;
+const RAJADA_ANONIMA = 30;
+const PEDE_LOGIN =
+  'Para falar com a equipe, entre com sua conta tocando em "Entrar para falar com a equipe", aqui embaixo. Leva poucos segundos e a conversa continua de onde parou.';
+const MUITA_PROCURA =
+  'Estamos recebendo muitas conversas agora. Para continuar, entre com sua conta tocando em "Entrar", aqui embaixo. Leva poucos segundos.';
 
 const RECADO =
   'Obrigado pela mensagem! No momento o atendimento automático está indisponível, mas sua mensagem já chegou para a equipe. Se quiser, deixe aqui seu nome e um contato (WhatsApp ou e-mail) que respondemos por esta mesma conversa.';
@@ -39,6 +49,32 @@ type Conversa = {
   teste: boolean;
   last_message_at: string;
 };
+
+/**
+ * Prova de trabalho: o navegador acha um número que, junto do link, do
+ * visitante e da hora que o servidor deu, gera um SHA-256 com
+ * BITS_DESAFIO zeros no começo. Para quem conversa é invisível; para quem
+ * quer abrir milhares de conversas, custa caro.
+ */
+async function provaOk(token: string, visitorId: string, prova: unknown): Promise<boolean> {
+  const p = (prova ?? {}) as { ts?: unknown; nonce?: unknown };
+  const ts = Number(p.ts);
+  const nonce = Number(p.nonce);
+  if (!Number.isSafeInteger(ts) || !Number.isSafeInteger(nonce)) return false;
+  const idade = Date.now() - ts;
+  if (idade < -60_000 || idade > 6 * 3600_000) return false;
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${token}:${visitorId}:${ts}:${nonce}`)));
+  let zeros = 0;
+  for (const b of h) {
+    if (b === 0) {
+      zeros += 8;
+      continue;
+    }
+    zeros += Math.clz32(b) - 24;
+    break;
+  }
+  return zeros >= BITS_DESAFIO;
+}
 
 /** IP do visitante virado em hash (com sal do servidor): dá para contar, não dá para saber quem é. */
 async function hashDoIp(req: Request): Promise<string | null> {
@@ -82,8 +118,7 @@ Deno.serve(async (req) => {
     let assistant: (Assistant & { is_public: boolean; public_token: string }) | null = null;
 
     if (teste) {
-      const user = await userFrom(req);
-      if (!user) throw new UserError('Entre na sua conta para testar o assistente.', 401);
+      const user = await requireUser(req);
       const { data } = await admin.from('assistants').select('*').eq('id', String(body.assistant_id ?? '')).eq('owner_id', user.id).maybeSingle();
       assistant = data;
     } else {
@@ -102,6 +137,7 @@ Deno.serve(async (req) => {
         negocio: valueOf(cfg, 'nome_negocio'),
         saudacao: valueOf(cfg, 'saudacao'),
         business_model: assistant.business_model,
+        desafio: { agora: Date.now(), bits: BITS_DESAFIO },
       });
     }
 
@@ -167,11 +203,27 @@ Deno.serve(async (req) => {
 
     const profile = await profileOf(assistant.owner_id);
     const plan = planOf(profile);
+    // visitante que entrou com a conta: pode abrir chamado e deixar recado
+    const cliente = teste ? null : await userFrom(req);
+    const clienteInfo = cliente
+      ? { id: cliente.id, email: cliente.email ?? null, nome: String(cliente.user_metadata?.full_name ?? cliente.user_metadata?.name ?? '') || null }
+      : null;
     let c = await conversaDo(assistant.id, visitorId, body.conversation_id);
     let recado = false;
     const ipHash = c ? null : await hashDoIp(req);
 
     if (!c) {
+      if (!teste && !cliente) {
+        if (!(await provaOk(assistant.public_token, visitorId, body.prova))) {
+          return json({ error: 'Não consegui confirmar seu navegador. Recarregue a página e tente de novo.', desafio: true }, 400);
+        }
+        const dezMin = new Date(Date.now() - 10 * 60_000).toISOString();
+        const { count: rajada } = await admin.from('conversations').select('id', { count: 'exact', head: true })
+          .eq('assistant_id', assistant.id).eq('teste', false).is('cliente_id', null).gte('created_at', dezMin);
+        if ((rajada ?? 0) >= RAJADA_ANONIMA) {
+          return json({ conversation_id: null, status: 'bot', message: MUITA_PROCURA, modo: 'login', precisa_login: true });
+        }
+      }
       if (!teste) {
         const umDia = new Date(Date.now() - 864e5).toISOString();
         const { count: hoje } = await admin.from('conversations').select('id', { count: 'exact', head: true })
@@ -181,7 +233,7 @@ Deno.serve(async (req) => {
         if (ipHash) {
           const { count: doIp } = await admin.from('conversations').select('id', { count: 'exact', head: true })
             .eq('ip_hash', ipHash).gte('created_at', umDia);
-          if ((doIp ?? 0) >= 40) throw new UserError('Muitas conversas novas a partir desta rede. Tente de novo mais tarde.', 429);
+          if ((doIp ?? 0) >= 20) throw new UserError('Muitas conversas novas a partir desta rede. Tente de novo mais tarde.', 429);
         }
 
         const { count: mes } = await admin.from('conversations').select('id', { count: 'exact', head: true })
@@ -191,6 +243,16 @@ Deno.serve(async (req) => {
           if (profile.creditos_extra > 0) {
             await admin.from('profiles').update({ creditos_extra: profile.creditos_extra - 1 }).eq('id', profile.id);
           } else recado = true;
+        }
+        // sem login não vira recado na fila da equipe (seria a porta do spam)
+        if (recado && !cliente) {
+          return json({
+            conversation_id: null,
+            status: 'bot',
+            message: 'O atendimento automático está indisponível no momento. Para deixar um recado para a equipe, entre com sua conta tocando em "Entrar para falar com a equipe", aqui embaixo.',
+            modo: 'login',
+            precisa_login: true,
+          });
         }
       }
 
@@ -202,6 +264,7 @@ Deno.serve(async (req) => {
           visitor_id: visitorId,
           ip_hash: ipHash,
           teste,
+          ...(clienteInfo ? { cliente_id: clienteInfo.id, cliente_email: clienteInfo.email, lead_nome: clienteInfo.nome, lead_contato: clienteInfo.email } : {}),
           ...(recado
             ? { status: 'waiting', titulo: 'Recado', motivo: 'Chegou com a cota do plano esgotada: o assistente não respondeu.', escalado_em: new Date().toISOString() }
             : {}),
@@ -215,6 +278,10 @@ Deno.serve(async (req) => {
       const { count: recentes } = await admin.from('conversation_messages').select('id', { count: 'exact', head: true })
         .eq('conversation_id', c.id).eq('role', 'user').gte('created_at', minuto);
       if ((recentes ?? 0) >= 6) throw new UserError('Calma aí, ainda estou respondendo as anteriores.', 429);
+      if (clienteInfo) {
+        await admin.from('conversations').update({ cliente_id: clienteInfo.id, cliente_email: clienteInfo.email })
+          .eq('id', c.id).is('cliente_id', null);
+      }
 
       if (c.status === 'closed') {
         // escreveu numa conversa encerrada: reabre no lugar certo
@@ -240,6 +307,13 @@ Deno.serve(async (req) => {
     const { count: doVisitante } = await admin.from('conversation_messages').select('id', { count: 'exact', head: true })
       .eq('conversation_id', c.id).eq('role', 'user');
     if ((doVisitante ?? 0) > plan.msgsPorAtendimento) {
+      if (!cliente && !teste) {
+        // sem login a conversa longa termina aqui, em vez de virar chamado
+        await admin.from('conversations').update({ status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'assistente' }).eq('id', c.id);
+        const fimTexto = `Nossa conversa chegou ao limite por aqui. ${PEDE_LOGIN}`;
+        await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: fimTexto });
+        return json({ ...estado(c), status: 'closed', message: fimTexto, modo: 'login', precisa_login: true });
+      }
       await admin.from('conversations').update({
         status: 'waiting', titulo: 'Conversa longa', motivo: 'Passou do limite de mensagens por atendimento.', escalado_em: new Date().toISOString(),
       }).eq('id', c.id);
@@ -257,6 +331,7 @@ Deno.serve(async (req) => {
       .limit(24);
 
     let resposta: string;
+    const sinais: { pedirLogin?: boolean } = {};
     try {
       // o plano decide o que dos chamados vale, não importa o que está no documento
       const cfgDoPlano = structuredClone(cfg);
@@ -266,7 +341,15 @@ Deno.serve(async (req) => {
         delete cfgDoPlano.fields.nunca_chamar_humano;
       }
       const r = await responder(
-        { db: admin, assistant: { ...assistant, config: cfgDoPlano }, conversationId: c.id, maxTicketsAbertos: plan.ticketsAbertos },
+        {
+          db: admin,
+          assistant: { ...assistant, config: cfgDoPlano },
+          conversationId: c.id,
+          maxTicketsAbertos: plan.ticketsAbertos,
+          cliente: clienteInfo,
+          teste,
+          sinais,
+        },
         (hist ?? []).reverse(),
       );
       resposta = r.texto;
@@ -278,7 +361,12 @@ Deno.serve(async (req) => {
 
     await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: resposta });
     const atual = (await conversaDo(assistant.id, visitorId, c.id)) ?? c;
-    return json({ ...estado(atual), message: resposta, modo: atual.status === 'bot' || atual.status === 'closed' ? 'bot' : 'humano' });
+    return json({
+      ...estado(atual),
+      message: resposta,
+      modo: atual.status === 'bot' || atual.status === 'closed' ? 'bot' : 'humano',
+      precisa_login: sinais.pedirLogin === true,
+    });
   } catch (err) {
     if (err instanceof UserError) return json({ error: err.message }, err.status);
     console.error('[public-chat]', err);

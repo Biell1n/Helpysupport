@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { ArrowUp, Star } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
+import { ArrowUp, LogIn, Star } from 'lucide-react';
 import { chamar } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolverDesafio } from '@/lib/prova';
 import { Marca } from '@/components/Logo';
 import { numero } from '@/lib/format';
 
@@ -55,6 +57,9 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
   const [nota, setNota] = useState(0);
   const [comentario, setComentario] = useState('');
   const [avaliou, setAvaliou] = useState(false);
+  const [pedeLogin, setPedeLogin] = useState(false);
+  const { user } = useAuth() ?? {};
+  const prova = useRef(null);
   const ultimoAgente = useRef(null);
   const fim = useRef(null);
   const area = useRef(null);
@@ -73,6 +78,10 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         const i = await chamar('public-chat', { ...base, action: 'info' });
         if (!vivo) return;
         setInfo(i);
+        // a barreira contra robôs roda enquanto a pessoa lê e digita
+        if (!modoTeste && i.desafio) {
+          prova.current = resolverDesafio({ token, visitante: visitorId, agora: i.desafio.agora, bits: i.desafio.bits });
+        }
         const salva = ler(chaveConversa);
         if (salva) {
           const h = await chamar('public-chat', { ...base, action: 'history', conversation_id: salva, visitor_id: visitorId });
@@ -133,13 +142,25 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
     setMensagens((p) => [...p, { role: 'user', content }]);
     setPensando(true);
     try {
-      const d = await chamar('public-chat', { ...base, action: 'message', content, conversation_id: conversa, visitor_id: visitorId });
+      const pedido = { ...base, action: 'message', content, conversation_id: conversa, visitor_id: visitorId };
+      if (!conversa && prova.current) pedido.prova = await prova.current;
+      let d;
+      try {
+        d = await chamar('public-chat', pedido);
+      } catch (e) {
+        // prova velha (página aberta há horas): pega uma hora nova e refaz uma vez
+        if (conversa || modoTeste || !/navegador/i.test(e.message)) throw e;
+        const i = await chamar('public-chat', { ...base, action: 'info' });
+        prova.current = resolverDesafio({ token, visitante: visitorId, agora: i.desafio.agora, bits: i.desafio.bits });
+        d = await chamar('public-chat', { ...pedido, prova: await prova.current });
+      }
+      if (d.precisa_login) setPedeLogin(true);
       if (d.conversation_id && d.conversation_id !== conversa) {
         setConversa(d.conversation_id);
         lembrar(chaveConversa, d.conversation_id);
       }
       absorver(d);
-      if (d.message) setMensagens((p) => [...p, { role: d.modo === 'recado' ? 'system' : 'assistant', content: d.message }]);
+      if (d.message) setMensagens((p) => [...p, { role: d.modo === 'recado' || d.modo === 'login' ? 'system' : 'assistant', content: d.message }]);
     } catch (e) {
       setMensagens((p) => [...p, { role: 'system', content: e.message }]);
     } finally {
@@ -281,6 +302,20 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
             </div>
           </div>
         )}
+        {pedeLogin && !user && !modoTeste && (
+          <div className="card stack ticket-aviso">
+            <b>Para falar com a equipe, entre com sua conta</b>
+            <p className="muted" style={{ fontSize: 13 }}>
+              Assim a equipe sabe quem é você e pode responder também por e-mail. Depois de entrar, você volta para esta conversa.
+            </p>
+            <div className="row row-wrap">
+              <Link className="btn btn-primary" to={`/entrar?de=${encodeURIComponent(`/c/${token}`)}`}>
+                <LogIn size={16} /> Entrar para falar com a equipe
+              </Link>
+              <Link className="btn btn-ghost" to={`/criar-conta?de=${encodeURIComponent(`/c/${token}`)}`}>Criar conta</Link>
+            </div>
+          </div>
+        )}
         <div ref={fim} />
       </div>
 
@@ -311,8 +346,13 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
               <span>Modo teste: não conta na cota nem aparece nos atendimentos. <button type="button" className="link-btn" onClick={novaConversa}>Recomeçar</button></span>
             ) : mensagens.length > 1 && !fechado ? (
               <span>Resolvido? <button type="button" className="link-btn" onClick={encerrar}>Encerrar atendimento</button></span>
+            ) : user ? (
+              <span>Conectado como {user.email}. A equipe pode responder por aqui.</span>
             ) : (
-              <span>Atendimento automático com apoio da equipe.</span>
+              <span>
+                Atendimento automático.{' '}
+                <Link className="link-btn" to={`/entrar?de=${encodeURIComponent(`/c/${token}`)}`}>Entrar</Link> para falar com a equipe.
+              </span>
             )}
           </div>
           {!modoTeste && (

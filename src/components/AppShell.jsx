@@ -2,6 +2,7 @@ import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, Table2, Ticket } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
+import { VerificarCodigo } from '@/components/DuasEtapas';
 import { useUso } from '@/lib/useUso';
 import { diasDeTeste, planOf } from '@/lib/plans';
 import { iniciais } from '@/lib/format';
@@ -26,10 +27,11 @@ export function Carregando() {
 
 /** Só deixa passar quem está logado. */
 export function ExigeLogin({ children }) {
-  const { loading, user } = useAuth();
+  const { loading, user, precisaCodigo } = useAuth();
   const loc = useLocation();
   if (loading) return <Carregando />;
   if (!user) return <Navigate to="/entrar" replace state={{ de: loc.pathname }} />;
+  if (precisaCodigo) return <VerificarCodigo />;
   return children;
 }
 

@@ -18,9 +18,25 @@ export async function userFrom(req: Request): Promise<User | null> {
   return data.user ?? null;
 }
 
+/** Nível da sessão no token ("aal1" = só senha, "aal2" = passou pelo código de duas etapas). */
+function nivelDoToken(req: Request): string {
+  try {
+    const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+    const meio = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return String(JSON.parse(atob(meio)).aal ?? '');
+  } catch {
+    return '';
+  }
+}
+
+/** Dono da conta logado. Quem ativou duas etapas só passa depois do código. */
 export async function requireUser(req: Request): Promise<User> {
   const user = await userFrom(req);
   if (!user) throw new UserError('Sua sessão expirou. Entre de novo.', 401);
+  const temFator = (user.factors ?? []).some((f) => f.status === 'verified');
+  if (temFator && nivelDoToken(req) !== 'aal2') {
+    throw new UserError('Confirme o código de verificação em duas etapas para continuar.', 401);
+  }
   return user;
 }
 

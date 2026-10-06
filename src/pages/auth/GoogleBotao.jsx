@@ -1,10 +1,10 @@
 import { supabase } from '@/lib/supabase';
 
-export default function GoogleBotao({ texto = 'Entrar com Google' }) {
+export default function GoogleBotao({ texto = 'Entrar com Google', destino = '/painel' }) {
   const entrar = () =>
     supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/painel` },
+      options: { redirectTo: `${window.location.origin}${destino}` },
     });
 
   return (

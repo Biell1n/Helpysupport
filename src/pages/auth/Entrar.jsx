@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { destinoSeguro, ehVisitante } from '@/lib/destino';
 import AuthLayout from './AuthLayout';
 import GoogleBotao from './GoogleBotao';
 
@@ -16,12 +17,16 @@ export default function Entrar() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const loc = useLocation();
+  const [params] = useSearchParams();
+  const destino = destinoSeguro(params.get('de') || loc.state?.de);
+  const visitante = ehVisitante(destino);
+  const deQuery = destino === '/painel' ? '' : `?de=${encodeURIComponent(destino)}`;
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  if (user) return <Navigate to={loc.state?.de || '/painel'} replace />;
+  if (user) return <Navigate to={destino} replace />;
 
   const enviar = async (e) => {
     e.preventDefault();
@@ -30,18 +35,19 @@ export default function Entrar() {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
     setEnviando(false);
     if (error) return setErro(traduz(error.message));
-    navigate(loc.state?.de || '/painel', { replace: true });
+    navigate(destino, { replace: true });
   };
 
   return (
     <AuthLayout>
       <div>
-        <h1>Entrar</h1>
+        <h1>{visitante ? 'Entre para falar com a equipe' : 'Entrar'}</h1>
         <p className="muted" style={{ marginTop: 6 }}>
-          Ainda não tem conta? <Link to="/criar-conta">Comece o teste grátis</Link>
+          {visitante ? 'Depois de entrar, você volta para a conversa. ' : ''}
+          Ainda não tem conta? <Link to={`/criar-conta${deQuery}`}>{visitante ? 'Criar conta' : 'Comece o teste grátis'}</Link>
         </p>
       </div>
-      <GoogleBotao />
+      <GoogleBotao destino={destino} />
       <div className="ou">ou com e-mail</div>
       <form className="stack" onSubmit={enviar}>
         <label className="field">

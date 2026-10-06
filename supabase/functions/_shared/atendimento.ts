@@ -168,7 +168,8 @@ ${materiais.map((m) => `<material nome="${m.nome}">\n${m.texto}\n</material>`).j
 
   const blocoChamados = chamados.ativos
     ? `CHAMADOS
-- Pedido de uma pessoa, reclamação, negociação, ou informação importante que você não tem: chame chamar_atendente. A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui. Peça um contato também, caso ela feche a página.
+- Pedido de uma pessoa, reclamação, negociação, ou informação importante que você não tem: chame chamar_atendente. A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui.
+- Só abre chamado quem está com a conta conectada. Se a ferramenta avisar que falta entrar, explique em uma frase que é só tocar em "Entrar para falar com a equipe", logo abaixo do chat, e pedir de novo. O chamado ainda não existe nesse caso: nunca diga que já foi aberto.
 ${chamados.quando ? `- O dono quer chamado nestes casos: ${chamados.quando}\n` : ''}${chamados.nunca ? `- NÃO abra chamado nestes casos (resolva você ou explique com educação): ${chamados.nunca}\n` : ''}${chamados.codigo ? '- Para abrir chamado a pessoa precisa informar a senha de atendimento. Peça a senha antes; nunca diga qual é, nem dê dicas. Sem a senha certa, não há chamado: ajude no que puder.\n' : ''}`
     : `SEM EQUIPE NESTE ATENDIMENTO
 Não existe ninguém para assumir a conversa: você resolve sozinho. Nunca prometa que alguém vai responder, não anote recado e não diga que vai repassar nada.${contatos ? ` Se a pessoa precisar mesmo falar com alguém, passe os contatos: ${contatos}.` : ' Se pedirem para falar com uma pessoa, diga com gentileza que por aqui não dá e que é preciso procurar diretamente (por exemplo, na aula ou no local).'}`;
@@ -374,6 +375,12 @@ export interface Rodada {
   assistant: Assistant;
   conversationId: string;
   maxTicketsAbertos: number | null;
+  /** visitante logado (só quem entrou com a conta abre chamado) */
+  cliente: { id: string; email: string | null; nome: string | null } | null;
+  /** o dono testando pelo painel */
+  teste: boolean;
+  /** recados da rodada para quem chamou (ex.: mostrar o botão de entrar) */
+  sinais: { pedirLogin?: boolean };
 }
 
 /** Tabela ligada à API do sistema da empresa: pergunta ao vivo. */
@@ -477,6 +484,14 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   if (nome === 'chamar_atendente') {
     const chamados = regrasDeChamado(cfg);
     if (!chamados.ativos) return { ok: false, mensagem: 'Este atendimento não abre chamados. Resolva você mesmo.' };
+    if (!r.teste && !r.cliente) {
+      r.sinais.pedirLogin = true;
+      return {
+        ok: false,
+        precisa_login: true,
+        mensagem: 'O chamado NÃO foi aberto: a pessoa não está com a conta conectada. Diga que, para falar com a equipe, é só tocar em "Entrar para falar com a equipe" abaixo do chat e pedir de novo. Enquanto isso, continue ajudando no que puder.',
+      };
+    }
     if (chamados.codigo && semAcento(String(args.senha ?? '').trim()) !== semAcento(chamados.codigo)) {
       return { ok: false, mensagem: 'Senha de atendimento incorreta ou não informada. Peça para a pessoa conferir. Não revele a senha nem dê dicas.' };
     }
@@ -500,8 +515,9 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       resumo: String(args.resumo ?? '').slice(0, 1200) || null,
       prioridade: ['baixa', 'normal', 'alta'].includes(String(args.prioridade)) ? args.prioridade : 'normal',
       escalado_em: new Date().toISOString(),
+      ...(r.cliente ? { cliente_id: r.cliente.id, cliente_email: r.cliente.email } : {}),
     }).eq('id', conversationId);
-    return { ok: true, mensagem: 'Chamado aberto. Avise que alguém da equipe vai responder nesta mesma conversa, e peça um contato se ainda não tiver.' };
+    return { ok: true, mensagem: 'Chamado aberto. Avise que alguém da equipe vai responder nesta mesma conversa (e pelo e-mail da conta, se ela sair da página).' };
   }
 
   if (nome === 'encerrar_atendimento') {
