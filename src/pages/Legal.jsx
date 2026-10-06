@@ -31,7 +31,7 @@ export default function Legal({ tipo }) {
           <Link to="/" aria-label="Helpy, início"><Logo size={28} /></Link>
         </div>
       </header>
-      <main className="lp-in" style={{ maxWidth: 720, padding: '48px 24px 80px' }}>
+      <main className="lp-in" style={{ maxWidth: 720, padding: '128px 24px 96px' }}>
         <h1 style={{ fontSize: 40, marginBottom: 8 }}>{t.titulo}</h1>
         <p className="faint" style={{ marginBottom: 32 }}>Versão resumida. Revise com um advogado antes de cobrar clientes.</p>
         <div className="stack stack-lg">

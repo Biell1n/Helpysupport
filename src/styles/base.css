@@ -1,47 +1,47 @@
 /* ============================================================
    Helpy — sistema visual
-   Conceito: a senha de atendimento. Tinta verde-petróleo, papel claro,
-   e o amarelo do canhoto picotado como assinatura.
+   Conceito: a senha de atendimento. Carvão quente, texto cor de papel,
+   e o amarelo do canhoto picotado só onde existe senha.
    ============================================================ */
 
 :root {
   color-scheme: dark;
 
-  /* superfícies, do fundo para cima */
-  --noite: #07080b;
-  --papel: #0c0e13;
-  --papel-2: #181b23;
-  --branco: #12151c;
+  /* superfícies, do fundo para cima: carvão quente, não preto azulado */
+  --noite: #0a0908;
+  --papel: #0e0d0c;
+  --branco: #151412;
+  --papel-2: #1c1a18;
 
-  /* texto */
-  --tinta: #eceef2;
-  --tinta-2: #a4aab7;
-  --tinta-3: #6d7383;
+  /* texto: papel envelhecido, areia, pedra */
+  --tinta: #ece7de;
+  --tinta-2: #a39c90;
+  --tinta-3: #6f695f;
 
-  --linha: #22262f;
-  --linha-forte: #333946;
+  --linha: #262420;
+  --linha-forte: #38352f;
 
-  /* o amarelo do canhoto é a assinatura; texto sobre ele é sempre escuro */
+  /* o amarelo do canhoto: só onde existe senha (marca, chamado, número) */
   --senha: #ffcf33;
   --senha-escura: #e8b200;
-  --senha-clara: rgba(255, 207, 51, 0.12);
-  --sobre-senha: #0c0e13;
+  --senha-clara: rgba(255, 207, 51, 0.1);
+  --sobre-senha: #14120e;
 
-  --folha: #4ad59a;
-  --folha-clara: rgba(74, 213, 154, 0.12);
-  --brasa: #ff7452;
-  --brasa-clara: rgba(255, 116, 82, 0.13);
+  --folha: #8fcfa3;
+  --folha-clara: rgba(143, 207, 163, 0.12);
+  --brasa: #ee8c70;
+  --brasa-clara: rgba(238, 140, 112, 0.13);
 
-  --f-display: 'Archivo Variable', system-ui, sans-serif;
-  --f-body: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --f-mono: 'Martian Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --f-display: 'Bodoni Moda Variable', 'Bodoni 72', Didot, Georgia, serif;
+  --f-body: 'Hanken Grotesk Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
-  --r-sm: 8px;
-  --r: 12px;
-  --r-lg: 18px;
-  --sombra: 0 1px 0 rgba(255, 255, 255, 0.03), 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+  --r-sm: 2px;
+  --r: 4px;
+  --r-lg: 6px;
+  --sombra: 0 1px 0 rgba(255, 255, 255, 0.02), 0 18px 40px -24px rgba(0, 0, 0, 0.8);
   --sombra-alta: 0 30px 80px -30px rgba(0, 0, 0, 0.9);
-  --foco: 0 0 0 3px rgba(255, 207, 51, 0.55);
+  --foco: 0 0 0 2px var(--papel), 0 0 0 3px rgba(236, 231, 222, 0.75);
 }
 
 *,
@@ -60,18 +60,26 @@ body {
   color: var(--tinta);
   font-family: var(--f-body);
   font-size: 15px;
+  font-weight: 400;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 h1, h2, h3, h4 {
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-stretch: 112%;
-  line-height: 1.04;
-  letter-spacing: -0.02em;
+  font-family: var(--f-body);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.005em;
   margin: 0;
+}
+
+/* títulos de página em Bodoni; títulos de bloco ficam no texto */
+h1 {
+  font-family: var(--f-display);
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: -0.015em;
 }
 
 p {
@@ -201,7 +209,7 @@ button, input, select, textarea {
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  border-radius: 10px;
+  border-radius: var(--r);
   border: 1px solid transparent;
   background: none;
   font-size: 14px;
@@ -234,18 +242,18 @@ button, input, select, textarea {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #ffffff;
+  background: #fffaf1;
 }
 
+/* chamada principal: mesmo peso do primário, para o amarelo ficar com a senha */
 .btn-senha {
-  background: var(--senha);
-  color: var(--sobre-senha);
-  font-weight: 650;
+  background: var(--tinta);
+  color: var(--papel);
+  font-weight: 600;
 }
 
 .btn-senha:hover:not(:disabled) {
-  background: #ffd84f;
-  box-shadow: 0 0 0 6px rgba(255, 207, 51, 0.12);
+  background: #fffaf1;
 }
 
 .btn-ghost {
@@ -281,14 +289,14 @@ button, input, select, textarea {
   height: 32px;
   padding: 0 12px;
   font-size: 13px;
-  border-radius: 8px;
+  border-radius: var(--r);
 }
 
 .btn-lg {
   height: 50px;
   padding: 0 24px;
   font-size: 16px;
-  border-radius: 12px;
+  border-radius: var(--r);
 }
 
 .btn-icon {
@@ -332,7 +340,7 @@ button, input, select, textarea {
   width: 100%;
   border: 1px solid var(--linha-forte);
   background: var(--branco);
-  border-radius: 10px;
+  border-radius: var(--r);
   padding: 10px 12px;
   font-size: 14.5px;
   line-height: 1.4;
@@ -341,7 +349,7 @@ button, input, select, textarea {
 
 .input::placeholder,
 .textarea::placeholder {
-  color: #555b69;
+  color: #5c574f;
 }
 
 .input:focus,
@@ -402,10 +410,10 @@ button, input, select, textarea {
 }
 
 .card-title {
-  font-family: var(--f-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-family: var(--f-body);
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
 }
 
 .divider {
@@ -423,7 +431,7 @@ button, input, select, textarea {
   gap: 6px;
   height: 24px;
   padding: 0 9px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   font-size: 12px;
   font-weight: 600;
   background: var(--papel-2);
@@ -473,7 +481,7 @@ button, input, select, textarea {
   display: grid;
   grid-template-columns: auto 1fr;
   background: var(--branco);
-  border-radius: 14px;
+  border-radius: var(--r);
   -webkit-mask:
     radial-gradient(circle var(--notch) at 0 50%, transparent 97%, #000) left / 51% 100% no-repeat,
     radial-gradient(circle var(--notch) at 100% 50%, transparent 97%, #000) right / 51% 100% no-repeat;
@@ -528,8 +536,8 @@ button, input, select, textarea {
 /* ---------- medidor de uso ---------- */
 
 .meter {
-  height: 8px;
-  border-radius: 99px;
+  height: 3px;
+  border-radius: 0;
   background: var(--papel-2);
   overflow: hidden;
 }
@@ -538,8 +546,8 @@ button, input, select, textarea {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--senha);
-  transition: width 0.4s ease;
+  background: var(--tinta);
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .meter[data-nivel='alto'] > span {
@@ -549,7 +557,7 @@ button, input, select, textarea {
 /* ---------- estados ---------- */
 
 .empty {
-  border: 1.5px dashed var(--linha-forte);
+  border: 1px dashed var(--linha-forte);
   border-radius: var(--r-lg);
   padding: 36px 24px;
   text-align: center;
@@ -570,7 +578,7 @@ button, input, select, textarea {
 
 .skeleton {
   border-radius: var(--r);
-  background: linear-gradient(90deg, var(--papel-2), #232733, var(--papel-2));
+  background: linear-gradient(90deg, var(--papel-2), #26231f, var(--papel-2));
   background-size: 200% 100%;
   animation: brilho 1.4s infinite linear;
   min-height: 18px;
@@ -589,20 +597,20 @@ button, input, select, textarea {
   padding: 12px 14px;
   border-radius: var(--r);
   font-size: 14px;
-  background: var(--senha-clara);
-  border: 1px solid rgba(255, 207, 51, 0.25);
+  background: var(--branco);
+  border: 1px solid var(--linha-forte);
 }
 
 .alert-erro {
   background: var(--brasa-clara);
-  border-color: rgba(255, 116, 82, 0.3);
-  color: #ffb8a6;
+  border-color: rgba(238, 140, 112, 0.3);
+  color: #f3b9a6;
 }
 
 .alert-ok {
   background: var(--folha-clara);
-  border-color: rgba(74, 213, 154, 0.3);
-  color: #9be8c4;
+  border-color: rgba(143, 207, 163, 0.3);
+  color: #b5e0c1;
 }
 
 .alert svg {

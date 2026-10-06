@@ -32,12 +32,22 @@ Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
 - Conceito: a **senha de atendimento** — o papelzinho numerado do balcão.
   Cada conversa ganha um número (Nº 0042) e os chamados aparecem como
   canhotos picotados.
-- Tema escuro: fundo `#0C0E13`, superfícies `#12151C` / `#181B23`,
-  texto `#ECEEF2`, amarelo da senha `#FFCF33` como única cor de destaque.
-- Tipos: Archivo (largura expandida nos títulos, normal no texto) e
-  Martian Mono só nos números de senha.
-- Landing: vídeo de fundo do Storage (`landing-videos/videofundo.mp4`,
-  ou `VITE_VIDEO_FUNDO`) escurecido, e seções que surgem ao rolar.
+- Direção (outubro/2026, a partir das referências do dono: FORMA,
+  EARTH, Museum of Ancient Art, Aurelia, Hestia): cinema à noite.
+  Vídeo em tela cheia escurecido, tipografia fina, linhas de 1px no
+  lugar de cartões, cantos quase retos (2–6 px).
+- Cores: carvão quente `#0E0D0C`, superfícies `#151412` / `#1C1A18`,
+  texto cor de papel `#ECE7DE`, areia `#A39C90`, pedra `#6F695F`.
+  O amarelo `#FFCF33` fica só onde existe senha: a marca, o canhoto do
+  chamado, o que o atendente fez, o "atendendo agora".
+- Tipos: Bodoni Moda (títulos, com itálico para ênfase), Hanken Grotesk
+  (texto e interface), DM Mono (rótulos em caixa-alta e números de
+  senha). A palavra "helpy" do logo continua em Archivo larga.
+- Landing: hero com vídeo e relógio de São Paulo ("atendendo agora"),
+  manifesto que acende palavra a palavra, uma conversa real das 23h
+  transcrita com o que o atendente fez na margem, índice de recursos,
+  intervalo com o vídeo, planos em colunas. Rolagem suave com Lenis
+  (desligada para quem pede menos movimento).
 - Gráficos dos relatórios: cores validadas para fundo escuro e
   daltonismo (`#B78D00` assistente / `#5889E6` equipe; rampa de amarelo
   no mapa de calor).

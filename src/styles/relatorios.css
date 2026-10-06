@@ -41,9 +41,8 @@
 
 .rel-numero-valor {
   font-family: var(--f-display);
-  font-size: 34px;
-  font-weight: 700;
-  font-stretch: 112%;
+  font-size: 38px;
+  font-weight: 400;
   letter-spacing: -0.02em;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
@@ -167,7 +166,7 @@
   min-width: 170px;
   max-width: 260px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--r);
   background: #1f232d;
   border: 1px solid var(--linha-forte);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
@@ -315,8 +314,8 @@
 }
 
 .rel-barras-trilho {
-  height: 8px;
-  border-radius: 4px;
+  height: 4px;
+  border-radius: 0;
   background: var(--papel-2);
   overflow: hidden;
 }
@@ -324,7 +323,7 @@
 .rel-barras-trilho span {
   display: block;
   height: 100%;
-  border-radius: 0 4px 4px 0;
+  border-radius: 0;
   background: var(--senha);
   transition: width 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
