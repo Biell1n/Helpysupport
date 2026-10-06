@@ -18,19 +18,7 @@ cd helpysupport
 # 2. instalar as dependências
 npm install
 
-# 3. criar o arquivo de configuração
-cp .env.example .env.local      # no Windows: copy .env.example .env.local
-```
-
-Abra o `.env.local` e preencha com os dados do Supabase (Supabase → Project Settings → API):
-
-```
-VITE_SUPABASE_URL=https://cdscurcwcyzeagincjdv.supabase.co
-VITE_SUPABASE_ANON_KEY=a chave "anon" ou "publishable"
-```
-
-```bash
-# 4. rodar
+# 3. rodar
 npm run dev
 ```
 
