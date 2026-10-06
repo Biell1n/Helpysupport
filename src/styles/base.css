@@ -5,32 +5,43 @@
    ============================================================ */
 
 :root {
-  --tinta: #12302e;
-  --tinta-2: #46605c;
-  --tinta-3: #7e8f8b;
-  --papel: #eef1ec;
-  --papel-2: #e3e8e2;
-  --branco: #ffffff;
-  --linha: #d6ddd6;
-  --linha-forte: #b9c4bc;
-  --senha: #ffcf33;
-  --senha-escura: #b88a00;
-  --senha-clara: #fff4cc;
-  --folha: #1e7a5a;
-  --folha-clara: #dcefe5;
-  --brasa: #d9481f;
-  --brasa-clara: #fbe2d8;
+  color-scheme: dark;
 
-  --f-display: 'Bricolage Grotesque Variable', 'Onest Variable', system-ui, sans-serif;
-  --f-body: 'Onest Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* superfícies, do fundo para cima */
+  --noite: #07080b;
+  --papel: #0c0e13;
+  --papel-2: #181b23;
+  --branco: #12151c;
+
+  /* texto */
+  --tinta: #eceef2;
+  --tinta-2: #a4aab7;
+  --tinta-3: #6d7383;
+
+  --linha: #22262f;
+  --linha-forte: #333946;
+
+  /* o amarelo do canhoto é a assinatura; texto sobre ele é sempre escuro */
+  --senha: #ffcf33;
+  --senha-escura: #e8b200;
+  --senha-clara: rgba(255, 207, 51, 0.12);
+  --sobre-senha: #0c0e13;
+
+  --folha: #4ad59a;
+  --folha-clara: rgba(74, 213, 154, 0.12);
+  --brasa: #ff7452;
+  --brasa-clara: rgba(255, 116, 82, 0.13);
+
+  --f-display: 'Archivo Variable', system-ui, sans-serif;
+  --f-body: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --f-mono: 'Martian Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
   --r-sm: 8px;
   --r: 12px;
   --r-lg: 18px;
-  --sombra: 0 1px 0 rgba(18, 48, 46, 0.04), 0 10px 30px -18px rgba(18, 48, 46, 0.35);
-  --sombra-alta: 0 24px 60px -24px rgba(18, 48, 46, 0.45);
-  --foco: 0 0 0 3px var(--senha);
+  --sombra: 0 1px 0 rgba(255, 255, 255, 0.03), 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+  --sombra-alta: 0 30px 80px -30px rgba(0, 0, 0, 0.9);
+  --foco: 0 0 0 3px rgba(255, 207, 51, 0.55);
 }
 
 *,
@@ -57,10 +68,10 @@ body {
 h1, h2, h3, h4 {
   font-family: var(--f-display);
   font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: -0.025em;
+  font-stretch: 112%;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
   margin: 0;
-  font-optical-sizing: auto;
 }
 
 p {
@@ -87,7 +98,7 @@ button, input, select, textarea {
 
 ::selection {
   background: var(--senha);
-  color: var(--tinta);
+  color: var(--sobre-senha);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -106,11 +117,9 @@ button, input, select, textarea {
 }
 
 .eyebrow {
-  font-family: var(--f-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: var(--tinta-3);
 }
 
@@ -225,22 +234,23 @@ button, input, select, textarea {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0b211f;
+  background: #ffffff;
 }
 
 .btn-senha {
   background: var(--senha);
-  color: var(--tinta);
-  font-weight: 600;
+  color: var(--sobre-senha);
+  font-weight: 650;
 }
 
 .btn-senha:hover:not(:disabled) {
-  background: #ffc61a;
+  background: #ffd84f;
+  box-shadow: 0 0 0 6px rgba(255, 207, 51, 0.12);
 }
 
 .btn-ghost {
   border-color: var(--linha-forte);
-  background: var(--branco);
+  background: transparent;
 }
 
 .btn-ghost:hover:not(:disabled) {
@@ -331,14 +341,14 @@ button, input, select, textarea {
 
 .input::placeholder,
 .textarea::placeholder {
-  color: #a3b0ac;
+  color: #555b69;
 }
 
 .input:focus,
 .textarea:focus,
 .select:focus {
   outline: none;
-  border-color: var(--tinta);
+  border-color: var(--senha);
   box-shadow: var(--foco);
 }
 
@@ -349,7 +359,7 @@ button, input, select, textarea {
 
 .select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%2346605C' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%23A4AAB7' stroke-width='1.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 34px;
@@ -365,7 +375,7 @@ button, input, select, textarea {
 
 .check input {
   margin-top: 3px;
-  accent-color: var(--tinta);
+  accent-color: var(--senha);
   width: 16px;
   height: 16px;
 }
@@ -445,7 +455,7 @@ button, input, select, textarea {
 
 .badge-human {
   background: var(--senha-clara);
-  color: #8a6400;
+  color: var(--senha);
 }
 
 .badge-closed {
@@ -484,9 +494,9 @@ button, input, select, textarea {
 }
 
 .stub-num small {
-  font-size: 9.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--f-body);
+  font-size: 11px;
+  font-weight: 600;
   color: var(--tinta-3);
 }
 
@@ -503,14 +513,16 @@ button, input, select, textarea {
 
 .stub-senha {
   background: var(--senha);
+  color: var(--sobre-senha);
 }
 
 .stub-senha .stub-num {
   border-right-color: rgba(18, 48, 46, 0.35);
 }
 
-.stub-senha .stub-num small {
-  color: var(--tinta-2);
+.stub-senha .stub-num small,
+.stub-senha p {
+  color: rgba(12, 14, 19, 0.7);
 }
 
 /* ---------- medidor de uso ---------- */
@@ -526,7 +538,7 @@ button, input, select, textarea {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--tinta);
+  background: var(--senha);
   transition: width 0.4s ease;
 }
 
@@ -558,7 +570,7 @@ button, input, select, textarea {
 
 .skeleton {
   border-radius: var(--r);
-  background: linear-gradient(90deg, var(--papel-2), #f1f4f0, var(--papel-2));
+  background: linear-gradient(90deg, var(--papel-2), #232733, var(--papel-2));
   background-size: 200% 100%;
   animation: brilho 1.4s infinite linear;
   min-height: 18px;
@@ -578,19 +590,19 @@ button, input, select, textarea {
   border-radius: var(--r);
   font-size: 14px;
   background: var(--senha-clara);
-  border: 1px solid #f2dc8a;
+  border: 1px solid rgba(255, 207, 51, 0.25);
 }
 
 .alert-erro {
   background: var(--brasa-clara);
-  border-color: #f2c0ad;
-  color: #8e2c0f;
+  border-color: rgba(255, 116, 82, 0.3);
+  color: #ffb8a6;
 }
 
 .alert-ok {
   background: var(--folha-clara);
-  border-color: #b5dcc8;
-  color: #13573f;
+  border-color: rgba(74, 213, 154, 0.3);
+  color: #9be8c4;
 }
 
 .alert svg {
@@ -624,8 +636,9 @@ button, input, select, textarea {
 }
 
 .toast {
-  background: var(--tinta);
-  color: var(--papel);
+  background: #232836;
+  color: var(--tinta);
+  border: 1px solid var(--linha-forte);
   padding: 12px 16px;
   border-radius: var(--r);
   box-shadow: var(--sombra-alta);
@@ -656,7 +669,8 @@ button, input, select, textarea {
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: rgba(18, 48, 46, 0.42);
+  background: rgba(3, 4, 6, 0.7);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -666,6 +680,7 @@ button, input, select, textarea {
 
 .modal {
   background: var(--branco);
+  border: 1px solid var(--linha);
   border-radius: var(--r-lg);
   box-shadow: var(--sombra-alta);
   width: min(480px, 100%);
@@ -694,6 +709,7 @@ button, input, select, textarea {
 
 .drawer {
   background: var(--branco);
+  border-left: 1px solid var(--linha);
   width: min(440px, 100%);
   height: 100%;
   overflow: auto;
@@ -747,11 +763,8 @@ button, input, select, textarea {
 
 .table th {
   text-align: left;
-  font-family: var(--f-mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--tinta-3);
   padding: 10px 12px;
   border-bottom: 1px solid var(--linha);

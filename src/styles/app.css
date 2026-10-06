@@ -14,8 +14,9 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  background: var(--tinta);
-  color: var(--papel);
+  background: var(--noite);
+  border-right: 1px solid var(--linha);
+  color: var(--tinta);
   display: flex;
   flex-direction: column;
   padding: 20px 14px;
@@ -40,7 +41,7 @@
   height: 40px;
   padding: 0 10px;
   border-radius: 10px;
-  color: rgba(238, 241, 236, 0.72);
+  color: var(--tinta-2);
   text-decoration: none;
   font-size: 14.5px;
   font-weight: 500;
@@ -55,12 +56,12 @@
 }
 
 .side-link:hover {
-  color: var(--papel);
-  background: rgba(238, 241, 236, 0.07);
+  color: var(--tinta);
+  background: var(--papel-2);
 }
 
 .side-link.active {
-  color: var(--tinta);
+  color: var(--sobre-senha);
   background: var(--senha);
 }
 
@@ -87,21 +88,21 @@
 }
 
 .side-plan {
-  border: 1px solid rgba(238, 241, 236, 0.14);
+  border: 1px solid var(--linha);
   border-radius: var(--r);
   padding: 12px;
   font-size: 13px;
-  color: rgba(238, 241, 236, 0.78);
+  color: var(--tinta-2);
   text-decoration: none;
   display: block;
 }
 
 .side-plan b {
-  color: var(--papel);
+  color: var(--tinta);
 }
 
 .side-plan .meter {
-  background: rgba(238, 241, 236, 0.14);
+  background: var(--papel-2);
   margin: 8px 0 6px;
 }
 
@@ -115,7 +116,7 @@
   gap: 10px;
   padding: 6px 8px;
   font-size: 13px;
-  color: rgba(238, 241, 236, 0.75);
+  color: var(--tinta-2);
 }
 
 .avatar {
@@ -123,7 +124,7 @@
   height: 30px;
   border-radius: 50%;
   background: var(--senha);
-  color: var(--tinta);
+  color: var(--sobre-senha);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -291,10 +292,8 @@
 }
 
 .msg-who {
-  font-family: var(--f-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--tinta-3);
   padding: 0 4px;
 }
@@ -314,8 +313,8 @@
 }
 
 .msg-user .msg-body {
-  background: var(--tinta);
-  color: var(--papel);
+  background: #2a3040;
+  color: var(--tinta);
   border-bottom-right-radius: 5px;
 }
 
@@ -327,7 +326,7 @@
 
 .msg-agent .msg-body {
   background: var(--senha-clara);
-  border: 1px solid #f0d978;
+  border: 1px solid rgba(255, 207, 51, 0.35);
   border-bottom-left-radius: 5px;
 }
 
@@ -380,7 +379,7 @@
 .composer {
   border-top: 1px solid var(--linha);
   padding: 12px 14px 14px;
-  background: var(--branco);
+  background: var(--papel);
 }
 
 .composer-row {
@@ -395,7 +394,7 @@
 }
 
 .composer-row:focus-within {
-  border-color: var(--tinta);
+  border-color: var(--senha);
   box-shadow: var(--foco);
 }
 
@@ -468,7 +467,7 @@
   position: sticky;
   top: 0;
   z-index: 5;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(18, 21, 28, 0.92);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--linha);
   padding: 12px 28px;
@@ -548,10 +547,8 @@
 }
 
 .flag {
-  font-family: var(--f-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--brasa);
 }
 
@@ -685,9 +682,8 @@
 }
 
 .tab[aria-selected='true'] {
-  background: var(--branco);
+  background: var(--linha-forte);
   color: var(--tinta);
-  box-shadow: 0 1px 2px rgba(18, 48, 46, 0.12);
 }
 
 .inbox-items {
@@ -719,10 +715,17 @@
 
 .ticket[aria-current='true'] .stub {
   background: var(--senha);
+  color: var(--sobre-senha);
 }
 
 .ticket[aria-current='true'] .stub-num {
-  border-right-color: rgba(18, 48, 46, 0.35);
+  border-right-color: rgba(12, 14, 19, 0.35);
+}
+
+.ticket[aria-current='true'] .ticket-sub,
+.ticket[aria-current='true'] .ticket-meta,
+.ticket[aria-current='true'] .stub-num small {
+  color: rgba(12, 14, 19, 0.7);
 }
 
 .ticket-title {
@@ -761,7 +764,7 @@
 .detail-head {
   padding: 18px 24px;
   border-bottom: 1px solid var(--linha);
-  background: var(--branco);
+  background: var(--noite);
   display: flex;
   align-items: flex-start;
   gap: 16px;
@@ -778,15 +781,13 @@
   gap: 12px 20px;
   padding: 14px 24px;
   border-bottom: 1px solid var(--linha);
-  background: var(--branco);
+  background: var(--noite);
   font-size: 13.5px;
 }
 
 .detail-info dt {
-  font-family: var(--f-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--tinta-3);
   margin-bottom: 2px;
 }
@@ -876,10 +877,7 @@
 }
 
 .sheet-col span {
-  font-family: var(--f-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 11.5px;
   color: var(--tinta-3);
 }
 
@@ -911,7 +909,7 @@
 
 .sheet-cell:focus {
   background: var(--senha-clara);
-  box-shadow: inset 0 0 0 2px var(--tinta);
+  box-shadow: inset 0 0 0 2px var(--senha);
 }
 
 .sheet-cell.numero {
@@ -949,9 +947,9 @@
 }
 
 .chip[aria-pressed='true'] {
-  background: var(--tinta);
-  border-color: var(--tinta);
-  color: var(--papel);
+  background: var(--senha);
+  border-color: var(--senha);
+  color: var(--sobre-senha);
 }
 
 .chip small {
@@ -990,14 +988,13 @@
 }
 
 .cal-head span {
-  font-family: var(--f-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--tinta-3);
 }
 
 .cal-head.hoje b {
+  color: var(--sobre-senha);
   display: flex;
   margin: 0 auto;
   align-items: center;
@@ -1045,11 +1042,11 @@
 
 .cal-slot {
   height: 52px;
-  border-bottom: 1px solid #edf0ec;
+  border-bottom: 1px solid #1a1d25;
 }
 
 .cal-slot.fechado {
-  background: repeating-linear-gradient(-45deg, #f5f7f4, #f5f7f4 6px, #eef1ec 6px, #eef1ec 12px);
+  background: repeating-linear-gradient(-45deg, #0f1117, #0f1117 6px, #13161d 6px, #13161d 12px);
 }
 
 .cal-ev {
@@ -1061,8 +1058,8 @@
   font-size: 12px;
   line-height: 1.3;
   overflow: hidden;
-  background: var(--tinta);
-  color: var(--papel);
+  background: #2a3040;
+  color: var(--tinta);
   border: 0;
   text-align: left;
   cursor: pointer;
@@ -1070,7 +1067,7 @@
 
 .cal-ev[data-origem='assistente'] {
   background: var(--senha);
-  color: var(--tinta);
+  color: var(--sobre-senha);
 }
 
 .cal-ev[data-status='cancelado'] {
@@ -1123,7 +1120,7 @@
 }
 
 .publico-top {
-  background: var(--branco);
+  background: var(--noite);
   border-bottom: 1px solid var(--linha);
   padding: 12px 16px;
 }
@@ -1145,8 +1142,8 @@
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: var(--tinta);
-  color: var(--senha);
+  background: var(--senha);
+  color: var(--sobre-senha);
   display: inline-flex;
   align-items: center;
   justify-content: center;

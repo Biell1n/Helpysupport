@@ -5,10 +5,10 @@ import { useId } from 'react';
  * atendimento. Conversa que vira chamado.
  * tom="claro" para fundo escuro.
  */
-export function Marca({ size = 32, tom = 'escuro' }) {
+export function Marca({ size = 32, tom = 'claro' }) {
   const id = useId().replace(/:/g, '');
-  const corpo = tom === 'claro' ? '#EEF1EC' : '#12302E';
-  const linhas = tom === 'claro' ? '#12302E' : '#EEF1EC';
+  const corpo = tom === 'claro' ? '#ECEEF2' : '#0C0E13';
+  const linhas = tom === 'claro' ? '#0C0E13' : '#ECEEF2';
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
       <defs>
@@ -26,13 +26,13 @@ export function Marca({ size = 32, tom = 'escuro' }) {
         <path d="M14 43 L11 57 L27 43 Z" fill={corpo} />
         <rect x="5" y="9" width="54" height="36" rx="9" fill="#FFCF33" clipPath={`url(#c${id})`} />
       </g>
-      <path d="M44 13.5v27" stroke="#12302E" strokeWidth="2.4" strokeDasharray="2.6 3.2" />
+      <path d="M44 13.5v27" stroke="#0C0E13" strokeWidth="2.4" strokeDasharray="2.6 3.2" />
       <path d="M15.5 21.5h18M15.5 31h11" stroke={linhas} strokeWidth="4.2" strokeLinecap="round" />
     </svg>
   );
 }
 
-export default function Logo({ size = 30, tom = 'escuro' }) {
+export default function Logo({ size = 30, tom = 'claro' }) {
   return (
     <span className="row" style={{ gap: size * 0.3 }}>
       <Marca size={size} tom={tom} />
@@ -41,10 +41,11 @@ export default function Logo({ size = 30, tom = 'escuro' }) {
         style={{
           fontFamily: 'var(--f-display)',
           fontWeight: 800,
-          fontSize: size * 0.86,
-          letterSpacing: '-0.045em',
+          fontStretch: '118%',
+          fontSize: size * 0.82,
+          letterSpacing: '-0.04em',
           lineHeight: 1,
-          color: tom === 'claro' ? 'var(--papel)' : 'var(--tinta)',
+          color: tom === 'claro' ? '#ECEEF2' : '#0C0E13',
         }}
       >
         helpy
