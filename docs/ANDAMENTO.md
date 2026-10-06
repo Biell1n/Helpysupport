@@ -41,19 +41,23 @@ Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
 
 - [x] Esquema do banco: `supabase/migrations/20261005000000_helpy_schema.sql`
 - [x] `_shared/` (cors, db, ai, plans, schema do documento, agenda)
-- [x] `assistant-builder-chat` reescrita com Claude + ferramentas
+- [x] `assistant-builder-chat` reescrita com Claude + ferramentas,
+      aproveitando o builder v34 do Horizons (lido pelo conector do
+      Supabase): núcleo universal, 8 modelos de negócio, catálogo sob
+      medida, fila de assuntos sem repetição, filtro de "Consultar",
+      oferta de levar a lista para uma tabela
+- [x] `public-chat` + núcleo `_shared/atendimento.ts` (o ofício por
+      modelo, qualificação pelo catálogo, tabelas, lacunas, encerrar,
+      chamado, agenda, recado quando a cota acaba, modo teste do dono)
 
 ## Falta
 
-- [ ] `public-chat` (atendimento com ferramentas: consultar dados, ver
-      horários, agendar, abrir chamado, registrar contato; recado quando
-      a cota acaba; modo teste para o dono)
 - [ ] Frontend novo: landing com planos, auth, painel, builder (chat +
       formulário), atendimentos (fluxo de chamado com assumir/encerrar/
       reabrir), dados, agenda, plano, conta, chat público
 - [ ] README com passo a passo para rodar local e publicar
-- [ ] Comparar com as funções que estão hoje no Supabase do Horizons
-      (principalmente o prompt do builder) e aproveitar o que for melhor
+- [ ] Decidir: projeto Supabase novo (recomendado) ou migrar o atual
+      ("Assistent bot", hoje pausado, com 28 funções e tabelas antigas)
 
 ## Próximos canais (estudo)
 

@@ -87,8 +87,11 @@ create table if not exists public.assistants (
   owner_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   business_type text,
+  business_model text,
   schema jsonb not null default '{"sections": []}',
   config jsonb not null default '{}',
+  -- memória do builder: modelo de negócio, catálogo, campos criados
+  meta jsonb not null default '{}',
   public_token text unique,
   is_public boolean not null default true,
   created_at timestamptz not null default now(),
@@ -108,6 +111,7 @@ create table if not exists public.builder_sessions (
   business_type text,
   schema jsonb not null default '{"sections": []}',
   config jsonb not null default '{}',
+  meta jsonb not null default '{}',
   messages jsonb not null default '[]',
   status text not null default 'active' check (status in ('active', 'done')),
   created_at timestamptz not null default now(),
@@ -142,6 +146,7 @@ create table if not exists public.conversations (
   prioridade text not null default 'normal' check (prioridade in ('baixa', 'normal', 'alta')),
   lead_nome text,
   lead_contato text,
+  lead_interesse text,
   assumido_por uuid references auth.users(id) on delete set null,
   assumido_nome text,
   assumido_em timestamptz,
@@ -206,7 +211,6 @@ create table if not exists public.tabelas (
   owner_id uuid not null references auth.users(id) on delete cascade,
   nome text not null,
   proposito text default '',
-  visivel_assistente boolean not null default true,
   criada_em timestamptz not null default now(),
   alterada_em timestamptz not null default now()
 );
@@ -250,6 +254,30 @@ end $$;
 drop trigger if exists tabela_linhas_alterada on public.tabela_linhas;
 create trigger tabela_linhas_alterada after insert or update or delete on public.tabela_linhas
   for each row execute function public.helpy_tabela_alterada();
+
+-- quais tabelas cada assistente consulta
+create table if not exists public.assistente_tabelas (
+  assistant_id uuid not null references public.assistants(id) on delete cascade,
+  tabela_id uuid not null references public.tabelas(id) on delete cascade,
+  primary key (assistant_id, tabela_id)
+);
+
+-- ------------------------------------------------------------
+-- Lacunas: o que perguntaram e o assistente não soube responder.
+-- É o dado mais útil para o dono melhorar o assistente.
+-- ------------------------------------------------------------
+create table if not exists public.assistant_gaps (
+  id uuid primary key default gen_random_uuid(),
+  assistant_id uuid not null references public.assistants(id) on delete cascade,
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  assunto text not null,
+  pergunta text,
+  vezes integer not null default 1,
+  resolvida boolean not null default false,
+  criada_em timestamptz not null default now(),
+  ultima_em timestamptz not null default now(),
+  unique (assistant_id, assunto)
+);
 
 -- ------------------------------------------------------------
 -- Agenda
@@ -319,6 +347,8 @@ alter table public.conversation_messages enable row level security;
 alter table public.tabelas enable row level security;
 alter table public.tabela_colunas enable row level security;
 alter table public.tabela_linhas enable row level security;
+alter table public.assistente_tabelas enable row level security;
+alter table public.assistant_gaps enable row level security;
 alter table public.agenda_config enable row level security;
 alter table public.agendamentos enable row level security;
 alter table public.usage_events enable row level security;
@@ -366,6 +396,17 @@ drop policy if exists "linhas das tabelas próprias" on public.tabela_linhas;
 create policy "linhas das tabelas próprias" on public.tabela_linhas
   for all using (exists (select 1 from public.tabelas t where t.id = tabela_id and t.owner_id = auth.uid()))
   with check (exists (select 1 from public.tabelas t where t.id = tabela_id and t.owner_id = auth.uid()));
+
+drop policy if exists "vínculos próprios" on public.assistente_tabelas;
+create policy "vínculos próprios" on public.assistente_tabelas
+  for all using (exists (select 1 from public.assistants a where a.id = assistant_id and a.owner_id = auth.uid()))
+  with check (
+    exists (select 1 from public.assistants a where a.id = assistant_id and a.owner_id = auth.uid())
+    and exists (select 1 from public.tabelas t where t.id = tabela_id and t.owner_id = auth.uid()));
+
+drop policy if exists "lacunas próprias" on public.assistant_gaps;
+create policy "lacunas próprias" on public.assistant_gaps
+  for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 drop policy if exists "agenda própria" on public.agenda_config;
 create policy "agenda própria" on public.agenda_config

@@ -1,0 +1,493 @@
+// ============================================================
+// O atendente em ação: prompt, ferramentas e uma rodada de resposta.
+//
+// Independe de canal. O chat público usa isto hoje; WhatsApp, Telegram
+// ou Discord entram como outras portas chamando responder().
+//
+// Herdado do public-chat do Horizons (v12): o "ofício" por modelo de
+// negócio, as perguntas de qualificação tiradas do catálogo, tabelas
+// como fonte de verdade, lacunas, e as regras de quando encerrar.
+// ============================================================
+
+import type Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
+import { type AgendaConfig, carregarAgenda, hojeNoFuso, horariosLivres, marcar } from './agenda.ts';
+import {
+  allCollections, type CollectionDef, type Config, describeConfig, normalizeConfig, type Schema, slug, valueOf, VENDE,
+} from './schema.ts';
+
+export interface Assistant {
+  id: string;
+  owner_id: string;
+  name: string;
+  business_model: string | null;
+  schema: Schema;
+  config: Config;
+}
+
+interface Tabela {
+  id: string;
+  nome: string;
+  proposito: string | null;
+  colunas: Array<{ chave: string; rotulo: string }>;
+}
+
+const semAcento = (s: string) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+// ------------------------------------------------------------
+// O ofício
+// ------------------------------------------------------------
+
+function missao(model: string, negocio: string) {
+  if (model === 'educacional') {
+    return `Você é PROFESSOR. Ninguém aqui está comprando nada — estão aprendendo.
+- Descubra ONDE a pessoa travou antes de explicar.
+- Vocabulário do nível dela. Um passo por vez: explique, dê um exemplo e cheque se ficou claro.
+- Nunca entregue resposta pronta de exercício: dê a pista seguinte e deixe a pessoa fechar o raciocínio.
+- Erro é informação: aponte onde e por quê, sem constranger.`;
+  }
+  if (model === 'suporte') {
+    return `Você é SUPORTE. Quem chega aqui já é cliente e está com um problema.
+- Entenda o sintoma antes de sugerir: o que fez, o que aconteceu, o que esperava.
+- Uma tentativa por vez; espere o resultado antes da próxima.
+- Reconheça a frustração uma vez, sem exagero, e vá para a solução.
+- Duas tentativas sem resolver, ou problema fora do que você conhece: chame um atendente.`;
+  }
+  if (model === 'agendamento') {
+    return `Você é RECEPÇÃO. Sua missão é levar a pessoa até um horário marcado.
+- Descubra o que ela precisa antes de falar de horário: o procedimento muda duração e preço.
+- Ofereça poucos horários por vez — dois ou três.
+- Confirme antes de fechar: serviço, dia, hora, nome.
+- Conversa que termina sem horário marcado nem encaminhamento é uma conversa perdida.`;
+  }
+  if (model === 'informativo') {
+    return `Você INFORMA. Precisão importa mais que simpatia.
+- Entenda a situação da pessoa antes de explicar.
+- Informação errada custa caro: na dúvida, diga que não tem certeza e encaminhe.
+- Explique o porquê, não só o quê.`;
+  }
+  return `Você é VENDEDOR${negocio ? ` de ${negocio}` : ''} — e vendedor bom não é catálogo falante.
+- Pergunta antes de oferecer. Quem oferece antes de entender, oferece errado.
+- Fala do benefício para aquela pessoa, não da característica solta.
+- Recomenda pouco: duas ou três opções decidem, dez paralisam.
+- Ancora o preço no valor antes de dizer o número.
+- Oferece o complemento natural depois que a pessoa decidiu, nunca antes.
+- Trata objeção com pergunta, não com desconto.
+- Sempre propõe o próximo passo concreto.
+- Não pressiona, não inventa urgência, não promete o que a ficha não garante, não empurra o mais caro: empurra o certo.`;
+}
+
+/** Perguntas de qualificação nascem dos atributos do catálogo. */
+function eixos(schema: Schema, cfg: Config) {
+  const out: string[] = [];
+  for (const c of catalogos(schema, cfg)) {
+    const itens = cfg.collections[c.key] ?? [];
+    c.item_fields.forEach((f, idx) => {
+      const k = f.key;
+      if (idx === 0 || /descricao|observac|conteudo|resposta|explicacao/.test(k)) return;
+      if (!itens.some((i) => String(i?.[k] ?? '').trim())) return;
+      if (/preco|valor|mensalidade|parcela|investimento/.test(k)) out.push(`orçamento que ela tem em mente (o catálogo varia em ${f.label})`);
+      else if (/categoria|tipo|linha|segmento|modalidade/.test(k)) out.push(`para que ela vai usar (o catálogo se divide em ${f.label})`);
+      else if (/tamanho|numeracao|variac|cor|medida|volume/.test(k)) out.push(`${f.label.toLowerCase()} que ela precisa`);
+      else if (/marca|fabricante/.test(k)) out.push(`se tem preferência de ${f.label.toLowerCase()}`);
+      else if (/duracao|carga|prazo|periodicidade/.test(k)) out.push(`${f.label.toLowerCase()} que faz sentido para ela`);
+    });
+  }
+  return [...new Set(out)].slice(0, 6);
+}
+
+const catalogos = (schema: Schema, cfg: Config): CollectionDef[] =>
+  allCollections(schema).filter((c) => !['contatos', 'faq'].includes(c.key) && (cfg.collections[c.key]?.length ?? 0) > 0);
+
+const toolName = (nome: string) => `consultar_${slug(nome) || 'tabela'}`.slice(0, 60);
+
+function contatosDiretos(cfg: Config) {
+  return (cfg.collections.contatos ?? [])
+    .map((c) => `${c.tipo ?? 'Contato'}: ${c.valor ?? ''}`)
+    .filter((s) => s.length > 8)
+    .join(' | ');
+}
+
+export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null): string {
+  const cfg = a.config;
+  const model = a.business_model || a.schema?.business_model || 'produto';
+  const nome = valueOf(cfg, 'nome_assistente') || a.name;
+  const negocio = valueOf(cfg, 'nome_negocio');
+  const tom = valueOf(cfg, 'tom_de_voz');
+  const regras = valueOf(cfg, 'regras');
+  const saudacao = valueOf(cfg, 'saudacao');
+  const escalar = valueOf(cfg, 'quando_chamar_humano');
+  const horario = valueOf(cfg, 'horario');
+  const contatos = contatosDiretos(cfg);
+  const ex = eixos(a.schema, cfg);
+  const vende = VENDE.includes(model as never);
+
+  const blocoTabelas = tabelas.length
+    ? `DADOS AO VIVO — a fonte de verdade
+${tabelas.map((t) => `- ${t.nome}${t.proposito ? `: ${t.proposito}` : ''} (colunas: ${t.colunas.map((c) => c.rotulo).join(', ')}) → ${toolName(t.nome)}`).join('\n')}
+Nunca afirme preço, disponibilidade, quantidade ou detalhe destes itens sem consultar a tabela antes, na mesma resposta. Se a consulta não achar, diga que não encontrou.`
+    : '';
+
+  const blocoAgenda = agenda
+    ? `AGENDA
+Você pode ver horários livres (ver_horarios) e marcar (agendar). Antes de marcar, confirme serviço, dia, hora, nome e um contato. Nunca diga que marcou sem a ferramenta confirmar.`
+    : '';
+
+  return `Você é ${nome}${negocio ? `, atendente de ${negocio}` : ''}. Você conversa com quem procura o negócio. Fale na primeira pessoa do plural quando falar do negócio ("a gente entrega").
+
+SUA MISSÃO
+${missao(model, negocio)}
+
+${ex.length ? `ANTES DE RECOMENDAR, DESCUBRA. Quando o pedido for genérico, puxe uma ou duas destas informações primeiro, uma de cada vez:\n${ex.map((e) => `- ${e}`).join('\n')}` : 'Faça uma pergunta para entender a necessidade antes de responder de forma genérica.'}
+${vende ? '\nCOMO RECOMENDAR: no máximo três opções, com o nome exato e o preço quando houver; diga por que serve para o caso da pessoa; termine com um próximo passo concreto.' : ''}
+
+${blocoTabelas}
+
+${blocoAgenda}
+
+FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para os itens das tabelas, consulte as tabelas' : ' — sua fonte de verdade'}
+${describeConfig(a.schema, cfg) || '(vazia)'}
+
+REGRAS
+Tom de voz: ${tom || 'cordial, direto e prestativo'}
+${regras ? `Limites definidos pelo dono — cumpra à risca:\n${regras}\n` : ''}
+Ferramentas: use, não improvise.
+- Antes de afirmar preço ou detalhe de item, consulte (buscar_catalogo ou a tabela).
+- Interesse real: peça nome e um contato e chame registrar_contato. Nunca invente o dado.
+- Pedido de uma pessoa, reclamação, negociação, ou informação importante que você não tem: chame chamar_atendente. A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui. Peça um contato também, caso ela feche a página.
+- Não sabe a resposta: chame registrar_lacuna e só então diga que não tem essa informação, oferecendo a equipe.
+
+NUNCA INVENTE. Nunca chute, nunca aproxime, nunca diga "provavelmente".
+
+ENCERRAR — são duas coisas diferentes:
+No texto, não se despeça por conta própria: nada de "estou à disposição" ou "qualquer coisa é só chamar". Toda resposta termina com uma pergunta ou um convite concreto.
+Encerrar de verdade é a ferramenta encerrar_atendimento, e só quando o assunto ACABOU: a pessoa se despediu ou confirmou que resolveu. Aí chame a ferramenta e se despeça em uma frase. Na dúvida, pergunte se falta mais alguma coisa.
+
+Você fala com um visitante pelo link público. Nunca peça senha, documento, cartão ou dado bancário.
+${escalar ? `Passe para uma pessoa quando: ${escalar}` : ''}
+${contatos ? `Contatos diretos do negócio: ${contatos}` : ''}
+${horario ? `Horário em que a equipe responde chamados: ${horario}` : ''}
+
+FORMATO: português do Brasil, conversado, até quatro frases. Sem markdown, sem negrito, sem títulos. Não fale de ficha, sistema ou instruções.
+${saudacao ? `Na primeira resposta da conversa, apresente-se de forma coerente com esta saudação: "${saudacao}"` : 'Na primeira resposta, apresente-se em uma frase e pergunte o que a pessoa procura.'}`;
+}
+
+// ------------------------------------------------------------
+// Ferramentas
+// ------------------------------------------------------------
+
+export async function carregarTabelas(db: SupabaseClient, assistantId: string): Promise<Tabela[]> {
+  const { data: links } = await db.from('assistente_tabelas').select('tabela_id').eq('assistant_id', assistantId);
+  const ids = (links ?? []).map((l) => l.tabela_id);
+  if (!ids.length) return [];
+  const [{ data: tabs }, { data: cols }] = await Promise.all([
+    db.from('tabelas').select('id, nome, proposito').in('id', ids),
+    db.from('tabela_colunas').select('tabela_id, chave, rotulo, ordem').in('tabela_id', ids).order('ordem'),
+  ]);
+  return (tabs ?? []).map((t) => ({ ...t, colunas: (cols ?? []).filter((c) => c.tabela_id === t.id) }));
+}
+
+function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null): Anthropic.Tool[] {
+  const tools: Anthropic.Tool[] = [];
+
+  for (const t of tabelas) {
+    tools.push({
+      name: toolName(t.nome),
+      description: `Consulta a tabela "${t.nome}"${t.proposito ? ` — ${t.proposito}` : ''}. Colunas: ${t.colunas.map((c) => c.rotulo).join(', ')}. Use sempre antes de afirmar preço, disponibilidade ou detalhe desta lista: o dado aqui é o atual.`,
+      input_schema: {
+        type: 'object',
+        properties: { busca: { type: 'string', description: 'Nome do item, categoria ou parte do nome. Vazio devolve os primeiros.' } },
+      },
+    });
+  }
+
+  const cats = catalogos(a.schema, a.config);
+  if (cats.length) {
+    tools.push({
+      name: 'buscar_catalogo',
+      description: `Procura itens em ${cats.map((c) => c.label).join(', ')}. Use sempre que precisar confirmar preço ou detalhe antes de afirmar.`,
+      input_schema: { type: 'object', properties: { termo: { type: 'string' } } },
+    });
+  }
+
+  tools.push(
+    {
+      name: 'registrar_contato',
+      description: 'Grava nome e contato que a PESSOA informou, para a equipe retornar. Peça antes; nunca invente.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          nome: { type: 'string' },
+          contato: { type: 'string', description: 'Telefone, WhatsApp ou e-mail informado pela pessoa' },
+          interesse: { type: 'string', description: 'Em uma frase, o que ela quer' },
+        },
+        required: ['nome', 'contato'],
+      },
+    },
+    {
+      name: 'registrar_lacuna',
+      description: 'Registra uma pergunta que você não tinha como responder. Chame sempre que for dizer "não tenho essa informação" — avisa o dono do que falta no assistente.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          assunto: { type: 'string', description: 'O tema em 2 a 5 palavras. Ex.: entrega no Norte' },
+          pergunta: { type: 'string', description: 'Como a pessoa perguntou' },
+        },
+        required: ['assunto', 'pergunta'],
+      },
+    },
+    {
+      name: 'chamar_atendente',
+      description: 'Abre um chamado para a equipe assumir esta conversa. Use quando a pessoa pedir, reclamar, negociar, ou quando faltar informação importante para a decisão dela.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          titulo: { type: 'string', description: 'Título curto, até 60 caracteres. Ex.: Troca de tênis 42 com defeito' },
+          motivo: { type: 'string', description: 'O problema, em uma frase' },
+          resumo: { type: 'string', description: 'O que foi conversado, para quem assumir' },
+          prioridade: { type: 'string', enum: ['baixa', 'normal', 'alta'] },
+        },
+        required: ['titulo', 'motivo'],
+      },
+    },
+    {
+      name: 'encerrar_atendimento',
+      description: 'Encerra a conversa quando o assunto foi resolvido: a pessoa se despediu ou confirmou que está satisfeita. Nunca use com pergunta em aberto nem para se livrar de alguém.',
+      input_schema: {
+        type: 'object',
+        properties: { motivo: { type: 'string', description: 'O que ficou resolvido, em uma frase' } },
+        required: ['motivo'],
+      },
+    },
+  );
+
+  if (agenda) {
+    tools.push(
+      {
+        name: 'ver_horarios',
+        description: 'Lista os horários livres de um dia na agenda do negócio.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            data: { type: 'string', description: 'AAAA-MM-DD' },
+            duracao_min: { type: 'integer', description: 'Duração do serviço em minutos, se souber' },
+          },
+          required: ['data'],
+        },
+      },
+      {
+        name: 'agendar',
+        description: 'Marca um horário livre na agenda. Só chame depois que a pessoa confirmar serviço, dia, hora, nome e contato.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            data: { type: 'string', description: 'AAAA-MM-DD' },
+            hora: { type: 'string', description: 'HH:MM' },
+            nome: { type: 'string' },
+            contato: { type: 'string' },
+            servico: { type: 'string' },
+            duracao_min: { type: 'integer' },
+            observacao: { type: 'string' },
+          },
+          required: ['data', 'hora', 'nome', 'contato'],
+        },
+      },
+    );
+  }
+  return tools;
+}
+
+export interface Rodada {
+  db: SupabaseClient;
+  assistant: Assistant;
+  conversationId: string;
+  maxTicketsAbertos: number | null;
+}
+
+async function executar(r: Rodada, nome: string, args: Record<string, unknown>, tabelas: Tabela[], agenda: AgendaConfig | null) {
+  const { db, assistant, conversationId } = r;
+  const cfg = assistant.config;
+
+  if (nome.startsWith('consultar_')) {
+    const t = tabelas.find((x) => toolName(x.nome) === nome);
+    if (!t) return { erro: 'tabela não encontrada' };
+    const termo = semAcento(String(args.busca ?? '').trim());
+    const { data } = await db.from('tabela_linhas').select('dados').eq('tabela_id', t.id).limit(termo ? 500 : 12);
+    const todas = data ?? [];
+    const texto = (l: { dados: Record<string, unknown> }) => semAcento(Object.values(l.dados ?? {}).join(' '));
+    let achou = termo ? todas.filter((l) => texto(l).includes(termo)) : todas;
+    if (termo && !achou.length) {
+      const palavras = termo.split(/\s+/).filter((w) => w.length >= 3);
+      achou = palavras.length ? todas.filter((l) => palavras.every((w) => texto(l).includes(w))) : [];
+    }
+    if (!achou.length) {
+      return { encontrados: 0, aviso: termo ? `Nada em "${t.nome}" corresponde a "${args.busca}". Não invente.` : `A tabela "${t.nome}" está vazia.` };
+    }
+    return {
+      tabela: t.nome,
+      encontrados: achou.length,
+      itens: achou.slice(0, 12).map((l) => {
+        const o: Record<string, string> = {};
+        for (const c of t.colunas) {
+          const v = String(l.dados?.[c.chave] ?? '').trim();
+          if (v) o[c.rotulo] = v;
+        }
+        return o;
+      }),
+    };
+  }
+
+  if (nome === 'buscar_catalogo') {
+    const termo = semAcento(String(args.termo ?? ''));
+    const achados: Record<string, string>[] = [];
+    for (const c of catalogos(assistant.schema, cfg)) {
+      for (const it of cfg.collections[c.key] ?? []) {
+        if (termo && !semAcento(Object.values(it ?? {}).join(' ')).includes(termo)) continue;
+        const linha: Record<string, string> = { lista: c.label };
+        for (const f of c.item_fields) if (String(it?.[f.key] ?? '').trim()) linha[f.label] = String(it[f.key]);
+        achados.push(linha);
+        if (achados.length >= 10) break;
+      }
+    }
+    return achados.length ? { encontrados: achados.length, itens: achados } : { encontrados: 0, aviso: 'Nada corresponde. Não invente: diga que não encontrou.' };
+  }
+
+  if (nome === 'registrar_contato') {
+    const n = String(args.nome ?? '').trim().slice(0, 120);
+    const c = String(args.contato ?? '').trim().slice(0, 160);
+    if (!n || !c) return { ok: false, erro: 'Faltou nome ou contato. Pergunte à pessoa.' };
+    await db.from('conversations').update({ lead_nome: n, lead_contato: c, lead_interesse: String(args.interesse ?? '').slice(0, 400) || null }).eq('id', conversationId);
+    return { ok: true, mensagem: 'Contato registrado. Confirme à pessoa.' };
+  }
+
+  if (nome === 'registrar_lacuna') {
+    const assunto = String(args.assunto ?? '').trim().toLowerCase().slice(0, 120);
+    if (!assunto) return { ok: false };
+    const { data: ex } = await db.from('assistant_gaps').select('id, vezes').eq('assistant_id', assistant.id).eq('assunto', assunto).maybeSingle();
+    if (ex) await db.from('assistant_gaps').update({ vezes: ex.vezes + 1, ultima_em: new Date().toISOString(), resolvida: false }).eq('id', ex.id);
+    else await db.from('assistant_gaps').insert({ assistant_id: assistant.id, owner_id: assistant.owner_id, assunto, pergunta: String(args.pergunta ?? '').slice(0, 400) });
+    return { ok: true, mensagem: 'Anotado para o dono. Diga que não tem essa informação e ofereça a equipe.' };
+  }
+
+  if (nome === 'chamar_atendente') {
+    if (r.maxTicketsAbertos != null) {
+      const { count } = await db.from('conversations').select('id', { count: 'exact', head: true })
+        .eq('owner_id', assistant.owner_id).in('status', ['waiting', 'human']).eq('teste', false);
+      if ((count ?? 0) >= r.maxTicketsAbertos) {
+        const ct = contatosDiretos(cfg);
+        return {
+          ok: false,
+          mensagem: ct
+            ? `A fila da equipe está cheia agora. Passe os contatos diretos: ${ct}.`
+            : 'A fila da equipe está cheia agora. Peça nome e contato (registrar_contato) e diga que a equipe retorna.',
+        };
+      }
+    }
+    await db.from('conversations').update({
+      status: 'waiting',
+      titulo: String(args.titulo ?? args.motivo ?? 'Atendimento').slice(0, 80),
+      motivo: String(args.motivo ?? '').slice(0, 300),
+      resumo: String(args.resumo ?? '').slice(0, 1200) || null,
+      prioridade: ['baixa', 'normal', 'alta'].includes(String(args.prioridade)) ? args.prioridade : 'normal',
+      escalado_em: new Date().toISOString(),
+    }).eq('id', conversationId);
+    return { ok: true, mensagem: 'Chamado aberto. Avise que alguém da equipe vai responder nesta mesma conversa, e peça um contato se ainda não tiver.' };
+  }
+
+  if (nome === 'encerrar_atendimento') {
+    await db.from('conversations').update({
+      status: 'closed',
+      fechado_em: new Date().toISOString(),
+      encerrado_por: 'assistente',
+      resumo: String(args.motivo ?? '').slice(0, 500) || null,
+    }).eq('id', conversationId);
+    return { ok: true, mensagem: 'Conversa encerrada. Agora pode se despedir em uma frase curta.' };
+  }
+
+  if (agenda && nome === 'ver_horarios') {
+    return await horariosLivres(db, agenda, String(args.data ?? ''), Number(args.duracao_min) || undefined);
+  }
+  if (agenda && nome === 'agendar') {
+    return await marcar(db, agenda, {
+      dia: String(args.data ?? ''),
+      hora: String(args.hora ?? ''),
+      nome: String(args.nome ?? ''),
+      contato: String(args.contato ?? ''),
+      servico: args.servico ? String(args.servico) : undefined,
+      observacao: args.observacao ? String(args.observacao) : undefined,
+      duracao_min: Number(args.duracao_min) || undefined,
+      assistant_id: assistant.id,
+      conversation_id: conversationId,
+    });
+  }
+
+  return { erro: 'ferramenta desconhecida' };
+}
+
+// ------------------------------------------------------------
+// Uma rodada de resposta
+// ------------------------------------------------------------
+
+export async function responder(r: Rodada, historico: Array<{ role: string; content: string }>) {
+  const a = { ...r.assistant, config: normalizeConfig(r.assistant.config) };
+  const rr = { ...r, assistant: a };
+  const usarAgenda = /^sim/i.test(valueOf(a.config, 'usar_agenda'));
+  const [tabelas, agenda] = await Promise.all([
+    carregarTabelas(r.db, a.id),
+    usarAgenda ? carregarAgenda(r.db, a.owner_id) : Promise.resolve(null),
+  ]);
+
+  const fuso = agenda?.fuso ?? 'America/Sao_Paulo';
+  const agora = new Intl.DateTimeFormat('pt-BR', { timeZone: fuso, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
+  const system: Anthropic.TextBlockParam[] = [
+    { type: 'text', text: systemPrompt(a, tabelas, agenda) },
+    { type: 'text', text: `Agora: ${agora} (hoje é ${hojeNoFuso(fuso)}).` },
+  ];
+  const tools = ferramentas(a, tabelas, agenda);
+
+  // a API quer papéis alternados, começando pelo usuário
+  const msgs: Anthropic.MessageParam[] = [];
+  for (const m of historico) {
+    const role = m.role === 'user' ? 'user' : 'assistant';
+    const content = m.role === 'agent' ? `[mensagem da equipe] ${m.content}` : m.content;
+    const last = msgs.at(-1);
+    if (last && last.role === role) last.content = `${last.content}\n\n${content}`;
+    else msgs.push({ role, content });
+  }
+  while (msgs.length && msgs[0].role !== 'user') msgs.shift();
+  if (!msgs.length) throw new Error('sem mensagem do usuário');
+
+  const usage: UsageTotals = emptyUsage();
+  let texto = '';
+  for (let i = 0; i < 4; i++) {
+    const res = await anthropic.messages.create({
+      model: MODELS.atendimento,
+      max_tokens: 1024,
+      system,
+      tools,
+      messages: msgs,
+    });
+    addUsage(usage, res.usage);
+    const t = textOf(res.content as Array<{ type: string; text?: string }>);
+    if (t) texto = t;
+    if (res.stop_reason !== 'tool_use') break;
+
+    msgs.push({ role: 'assistant', content: res.content });
+    const results: Anthropic.ToolResultBlockParam[] = [];
+    for (const b of res.content) {
+      if (b.type !== 'tool_use') continue;
+      let out: unknown;
+      try {
+        out = await executar(rr, b.name, b.input as Record<string, unknown>, tabelas, agenda);
+      } catch (e) {
+        console.error('[ferramenta]', b.name, e);
+        out = { erro: 'Falha ao executar. Não invente o resultado.' };
+      }
+      results.push({ type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(out) });
+    }
+    msgs.push({ role: 'user', content: results });
+  }
+
+  return { texto: texto || 'Desculpe, me perdi aqui. Pode repetir de outro jeito?', usage, model: MODELS.atendimento };
+}

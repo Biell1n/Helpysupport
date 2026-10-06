@@ -63,7 +63,12 @@ async function ocupados(db: SupabaseClient, ownerId: string, de: Date, ate: Date
   return (data ?? []).map((a) => [new Date(a.inicio).getTime(), new Date(a.fim).getTime()] as const);
 }
 
-export async function horariosLivres(db: SupabaseClient, cfg: AgendaConfig, dia: string, duracaoMin?: number) {
+export async function horariosLivres(
+  db: SupabaseClient,
+  cfg: AgendaConfig,
+  dia: string,
+  duracaoMin?: number,
+): Promise<{ dia?: string; duracao_min?: number; livres?: string[]; aviso?: string; erro?: string }> {
   if (!DIA_RE.test(dia)) return { erro: 'Data inválida. Use AAAA-MM-DD.' };
   const dur = Math.max(5, Math.min(480, duracaoMin || cfg.duracao_min));
   const semana = new Date(`${dia}T12:00:00Z`).getUTCDay();
