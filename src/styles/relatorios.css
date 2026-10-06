@@ -7,13 +7,13 @@
 .rel-page {
   --g-assistente: #b78d00;
   --g-equipe: #5889e6;
-  /* rampa sequencial em uma só cor: do fundo ao amarelo da marca */
+  /* rampa sequencial em uma só cor: do fundo ao azul forte */
   --g-seq-0: var(--papel-2);
-  --g-seq-1: color-mix(in oklab, var(--senha) 18%, var(--papel-2));
-  --g-seq-2: color-mix(in oklab, var(--senha) 34%, var(--papel-2));
-  --g-seq-3: color-mix(in oklab, var(--senha) 54%, var(--papel-2));
-  --g-seq-4: color-mix(in oklab, var(--senha) 76%, var(--papel-2));
-  --g-seq-5: var(--senha);
+  --g-seq-1: color-mix(in oklab, var(--azul-forte) 18%, var(--papel-2));
+  --g-seq-2: color-mix(in oklab, var(--azul-forte) 34%, var(--papel-2));
+  --g-seq-3: color-mix(in oklab, var(--azul-forte) 54%, var(--papel-2));
+  --g-seq-4: color-mix(in oklab, var(--azul-forte) 76%, var(--papel-2));
+  --g-seq-5: var(--azul-forte);
 }
 
 .rel-periodo {
@@ -41,6 +41,7 @@
 
 .rel-numero-valor {
   font-family: var(--f-display);
+  font-stretch: 125%;
   font-size: 38px;
   font-weight: 400;
   letter-spacing: -0.02em;
@@ -167,9 +168,9 @@
   max-width: 260px;
   padding: 10px 12px;
   border-radius: var(--r);
-  background: #1f232d;
+  background: var(--branco);
   border: 1px solid var(--linha-forte);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 14px 34px rgba(11, 26, 44, 0.25);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -324,12 +325,12 @@
   display: block;
   height: 100%;
   border-radius: 0;
-  background: var(--senha);
+  background: var(--azul-forte);
   transition: width 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .rel-barras li:hover .rel-barras-trilho span {
-  background: var(--senha-escura);
+  background: var(--tinta);
 }
 
 /* ---------- tabela ---------- */

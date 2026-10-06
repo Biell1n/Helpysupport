@@ -1,20 +1,18 @@
 import { Link } from 'react-router-dom';
 import Logo from '@/components/Logo';
-import VideoFundo from '@/components/VideoFundo';
 
 export default function AuthLayout({ children }) {
   return (
     <div className="auth">
       <div className="auth-arte">
-        <VideoFundo />
         <Link to="/" aria-label="Helpy, início">
-          <Logo size={28} tom="claro" />
+          <Logo size={28} />
         </Link>
         <div>
           <h2>
             Seu cliente pergunta às 23h.
             <br />
-            <em>Seu atendente responde às 23h.</em>
+            <span>Seu atendente responde às 23h.</span>
           </h2>
           <div className="lp-senha">
             <div className="lp-senha-num">

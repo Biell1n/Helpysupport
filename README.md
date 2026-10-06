@@ -24,6 +24,17 @@ npm run dev
 
 Abra **http://localhost:5173**. O site roda no seu computador e conversa com o banco e as funções que estão no Supabase.
 
+## Vídeo de demonstração
+
+O vídeo da página inicial é feito em HTML (`video/demo.html`) e gerado quadro a quadro:
+
+```bash
+npm run dev                 # em um terminal
+node video/render.mjs       # em outro; precisa do ffmpeg instalado
+```
+
+O resultado vai para `public/videos/helpy-demo.mp4`, `.webm` e `.jpg` (pôster). Para ver tocando sem gerar, abra http://localhost:5173/video/demo.html.
+
 ## Configurar o Supabase (uma vez)
 
 1. **Banco:** rode os arquivos de `supabase/migrations/` em ordem no SQL Editor (no projeto atual isto já foi feito; as tabelas antigas do Horizons estão guardadas no esquema `legado`).

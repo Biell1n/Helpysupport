@@ -62,8 +62,7 @@
 
 .side-link.active {
   color: var(--tinta);
-  background: var(--papel-2);
-  box-shadow: inset 2px 0 0 var(--senha);
+  background: var(--azul-claro);
 }
 
 .side-count {
@@ -227,6 +226,7 @@
 
 .kpi-valor {
   font-family: var(--f-display);
+  font-stretch: 125%;
   font-size: 38px;
   font-weight: 400;
   letter-spacing: -0.02em;
@@ -316,7 +316,7 @@
 }
 
 .msg-user .msg-body {
-  background: #24221e;
+  background: var(--azul-claro);
   color: var(--tinta);
   border-bottom-right-radius: var(--r-sm);
 }
@@ -471,7 +471,7 @@
   position: sticky;
   top: 0;
   z-index: 5;
-  background: rgba(21, 20, 18, 0.92);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--linha);
   padding: 12px 28px;
@@ -535,7 +535,7 @@
 }
 
 .doc-field[data-fresh='true'] {
-  background: var(--senha-clara);
+  background: var(--azul-claro);
   transition: none;
 }
 
@@ -912,7 +912,7 @@
 }
 
 .sheet-cell:focus {
-  background: rgba(236, 231, 222, 0.05);
+  background: rgba(44, 93, 143, 0.05);
   box-shadow: inset 0 0 0 1px var(--tinta-2);
 }
 
@@ -942,7 +942,7 @@
   gap: 8px;
   height: 36px;
   padding: 0 14px;
-  border-radius: var(--r-sm);
+  border-radius: 999px;
   border: 1px solid var(--linha-forte);
   background: var(--branco);
   font-size: 13.5px;
@@ -953,6 +953,7 @@
 .chip[aria-pressed='true'] {
   background: var(--tinta);
   border-color: var(--tinta);
+  color: var(--sobre-tinta);
   color: var(--sobre-senha);
 }
 
@@ -987,6 +988,7 @@
 .cal-head b {
   display: block;
   font-family: var(--f-display);
+  font-stretch: 125%;
   font-weight: 400;
   font-size: 24px;
   letter-spacing: -0.02em;
@@ -999,7 +1001,7 @@
 }
 
 .cal-head.hoje b {
-  color: var(--papel);
+  color: var(--sobre-tinta);
   display: flex;
   margin: 0 auto;
   align-items: center;
@@ -1047,11 +1049,11 @@
 
 .cal-slot {
   height: 52px;
-  border-bottom: 1px solid #1e1c19;
+  border-bottom: 1px solid var(--linha);
 }
 
 .cal-slot.fechado {
-  background: repeating-linear-gradient(-45deg, #110f0e, #110f0e 6px, #151311 6px, #151311 12px);
+  background: repeating-linear-gradient(-45deg, #f2f6fa, #f2f6fa 6px, #eaf0f6 6px, #eaf0f6 12px);
 }
 
 .cal-ev {
@@ -1063,7 +1065,7 @@
   font-size: 12px;
   line-height: 1.3;
   overflow: hidden;
-  background: #24221e;
+  background: var(--azul-claro);
   color: var(--tinta);
   border: 0;
   text-align: left;
@@ -1154,6 +1156,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--f-display);
+  font-stretch: 125%;
   font-weight: 400;
   font-size: 20px;
 }
@@ -1233,7 +1236,7 @@
 
 .fonte-opcao:hover {
   border-color: var(--tinta-2);
-  background: rgba(236, 231, 222, 0.03);
+  background: rgba(44, 93, 143, 0.04);
   transform: translateY(-1px);
 }
 
@@ -1272,7 +1275,7 @@
 .fonte-soltar:hover,
 .fonte-soltar[data-arrastando] {
   border-color: var(--tinta-2);
-  background: rgba(236, 231, 222, 0.03);
+  background: rgba(44, 93, 143, 0.04);
 }
 
 .fonte-soltar svg {

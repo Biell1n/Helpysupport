@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Lenis from 'lenis';
-import Logo from '@/components/Logo';
-import Reveal, { useNaTela } from '@/components/Reveal';
-import VideoFundo, { reduzido } from '@/components/VideoFundo';
+import {
+  ArrowRight, CalendarCheck, ChartColumn, Database, FileSpreadsheet, Link2, MessageSquareText, Plus, PlugZap, Sparkles, Ticket,
+} from 'lucide-react';
+import Logo, { Marca } from '@/components/Logo';
+import Reveal from '@/components/Reveal';
+import VideoDemo, { reduzido } from '@/components/VideoDemo';
 import { useAuth } from '@/contexts/AuthContext';
 import { PLANS, reais } from '@/lib/plans';
 
@@ -12,7 +15,7 @@ function useRolagemSuave() {
   const lenis = useRef(null);
   useEffect(() => {
     if (reduzido()) return;
-    const l = new Lenis({ duration: 1.15, easing: (t) => 1 - Math.pow(1 - t, 4), smoothWheel: true });
+    const l = new Lenis({ duration: 1.1, easing: (t) => 1 - Math.pow(1 - t, 4), smoothWheel: true });
     lenis.current = l;
     let raf = requestAnimationFrame(function quadro(t) {
       l.raf(t);
@@ -32,28 +35,30 @@ function useRolagemSuave() {
     e.preventDefault();
     const el = document.querySelector(alvo);
     if (!el) return;
-    if (lenis.current) lenis.current.scrollTo(el, { offset: -64 });
+    if (lenis.current) lenis.current.scrollTo(el, { offset: -80 });
     else el.scrollIntoView({ behavior: reduzido() ? 'auto' : 'smooth' });
   };
 }
 
-/** Quanto do elemento já passou pela tela, de 0 a 1. Escreve em --p. */
-function useProgresso(ref, { inicio = 1, fim = 0 } = {}) {
+/**
+ * Quanto da seção já rolou, de 0 a 1, escrito em --p.
+ * Para seções altas com conteúdo preso (sticky): 0 no topo, 1 quando o fim chega.
+ */
+function useProgresso(ref) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     if (reduzido()) {
-      el.style.setProperty('--p', '1');
+      el.style.setProperty('--p', '0');
       return;
     }
     let pendente = false;
     const medir = () => {
       pendente = false;
       const r = el.getBoundingClientRect();
-      const h = window.innerHeight;
-      // 0 quando o topo do elemento está em `inicio` da tela, 1 quando chega em `fim`
-      const p = (h * inicio - r.top) / (h * inicio - h * fim + r.height * 0.6);
-      el.style.setProperty('--p', Math.min(1, Math.max(0, p)).toFixed(3));
+      const curso = Math.max(1, r.height - window.innerHeight);
+      const p = Math.min(1, Math.max(0, -r.top / curso));
+      el.style.setProperty('--p', p.toFixed(4));
     };
     const pedir = () => {
       if (!pendente) {
@@ -68,25 +73,7 @@ function useProgresso(ref, { inicio = 1, fim = 0 } = {}) {
       window.removeEventListener('scroll', pedir);
       window.removeEventListener('resize', pedir);
     };
-  }, [ref, inicio, fim]);
-}
-
-// ------------------------------------------------------------
-// Relógio do hero: o horário de agora, para lembrar que ele atende agora
-// ------------------------------------------------------------
-function Relogio() {
-  const [agora, setAgora] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setAgora(new Date()), 15_000);
-    return () => clearInterval(t);
-  }, []);
-  const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
-  return (
-    <span className="lp-relogio">
-      <i aria-hidden="true" />
-      São Paulo {hora} · atendendo agora
-    </span>
-  );
+  }, [ref]);
 }
 
 // ------------------------------------------------------------
@@ -109,17 +96,17 @@ function Topo({ user, deslizar }) {
         </Link>
         <nav className="lp-nav" aria-label="Principal">
           <a href="#como" onClick={deslizar}>Como funciona</a>
+          <a href="#recursos" onClick={deslizar}>Recursos</a>
           <a href="#dados" onClick={deslizar}>Integrações</a>
           <a href="#planos" onClick={deslizar}>Planos</a>
-          <a href="#perguntas" onClick={deslizar}>Perguntas</a>
         </nav>
         <div className="lp-top-acoes">
           {user ? (
-            <Link to="/painel" className="lp-btn">Ir para o painel</Link>
+            <Link to="/painel" className="lp-btn lp-btn-contorno">Ir para o painel</Link>
           ) : (
             <>
               <Link to="/entrar" className="lp-link">Entrar</Link>
-              <Link to="/criar-conta" className="lp-btn">Testar grátis</Link>
+              <Link to="/criar-conta" className="lp-btn lp-btn-contorno">Testar grátis</Link>
             </>
           )}
         </div>
@@ -128,103 +115,56 @@ function Topo({ user, deslizar }) {
   );
 }
 
+// ------------------------------------------------------------
+// Hero: o título se abre em volta do vídeo, e o vídeo cresce ao rolar
+// ------------------------------------------------------------
 function Hero({ user, deslizar }) {
   const ref = useRef(null);
-  useProgresso(ref, { inicio: 0, fim: -1 });
+  useProgresso(ref);
 
   return (
-    <section className="lp-hero" ref={ref}>
-      <VideoFundo />
-      <div className="lp-hero-veu" aria-hidden="true" />
+    <>
+      <section className="lp-hero" ref={ref}>
+        <div className="lp-hero-preso">
+          <h1 className="lp-hero-titulo" aria-label="Seu atendimento nunca fecha.">
+            <span className="lp-hero-a" aria-hidden="true"><span className="lp-entra" style={{ '--d': '0.1s' }}>Seu atendimento</span></span>
+            <span className="lp-hero-b" aria-hidden="true"><span className="lp-entra" style={{ '--d': '0.25s' }}>nunca fecha.</span></span>
+          </h1>
 
-      <div className="lp-in lp-hero-conteudo">
-        <p className="lp-micro lp-entra" style={{ '--d': '0.15s' }}>Helpy · atendente virtual para pequenos negócios</p>
-        <h1 className="lp-titulo">
-          <span className="lp-mascara"><span style={{ '--d': '0.25s' }}>Seu atendimento</span></span>
-          <span className="lp-mascara"><span style={{ '--d': '0.4s' }}><em>nunca</em> fecha.</span></span>
-        </h1>
-        <p className="lp-lead lp-entra" style={{ '--d': '0.85s' }}>
-          Conte como o seu negócio funciona. O Helpy responde seus clientes a qualquer hora, consulta seus preços, marca
-          horários e chama você quando precisa de gente.
-        </p>
-        <div className="lp-hero-acoes lp-entra" style={{ '--d': '1s' }}>
+          <div className="lp-hero-midia">
+            <div className="lp-hero-midia-in lp-entra" style={{ '--d': '0.4s' }}>
+              <VideoDemo className="lp-hero-video" />
+            </div>
+          </div>
+          <span className="lp-ponto lp-ponto-1"><i /><b>Responde às 23h</b></span>
+          <span className="lp-ponto lp-ponto-2"><i /><b>Marca na sua agenda</b></span>
+
+          <p className="lp-hero-lado">
+            <span className="lp-entra" style={{ '--d': '0.6s' }}>
+              Conte como o seu negócio funciona. O Helpy monta um atendente que responde seus clientes, consulta seus preços e
+              chama você quando precisa de gente.
+            </span>
+          </p>
+        </div>
+      </section>
+
+      <div className="lp-in lp-hero-faixa">
+        <div className="lp-faixa-cel">
+          <Sparkles aria-hidden="true" />
+          <p>Para barbearias, lojas, clínicas, escolas e quem mais atende cliente.</p>
+        </div>
+        <div className="lp-faixa-cel lp-faixa-centro">
           <Link to={user ? '/painel' : '/criar-conta'} className="lp-btn lp-btn-cheio">
-            {user ? 'Ir para o painel' : 'Testar grátis por 14 dias'}
+            {user ? 'Ir para o painel' : 'Testar grátis por 14 dias'} <ArrowRight />
           </Link>
-          <a href="#como" className="lp-link lp-link-seta" onClick={deslizar}>Ver como funciona</a>
+          <a href="#como" className="lp-link" onClick={deslizar}>Ver como funciona</a>
+        </div>
+        <div className="lp-faixa-cel lp-faixa-fim">
+          <b>14 dias</b>
+          <p>grátis, sem cartão. Pronto em uma tarde.</p>
         </div>
       </div>
-
-      <div className="lp-in lp-hero-rodape lp-entra" style={{ '--d': '1.25s' }}>
-        <span className="lp-descer"><i aria-hidden="true" /> Role para descer</span>
-        <span className="lp-hero-meio">Sem cartão para testar</span>
-        <Relogio />
-      </div>
-    </section>
-  );
-}
-
-// ------------------------------------------------------------
-// O que é: o texto acende conforme a leitura
-// ------------------------------------------------------------
-function TextoQueAcende({ partes }) {
-  const ref = useRef(null);
-  useProgresso(ref, { inicio: 0.85, fim: 0.35 });
-  const palavras = partes.flatMap(([texto, enfase]) => texto.split(' ').filter(Boolean).map((p) => [p, enfase]));
-  return (
-    <p className="lp-manifesto" ref={ref} style={{ '--n': palavras.length }}>
-      {palavras.map(([p, enfase], i) => {
-        const Tag = enfase ? 'em' : 'span';
-        return (
-          <Tag key={i} style={{ '--i': i }}>
-            {p}{' '}
-          </Tag>
-        );
-      })}
-    </p>
-  );
-}
-
-// ------------------------------------------------------------
-// Uma conversa de verdade, às 23h, com o que ele fez à margem
-// ------------------------------------------------------------
-const CONVERSA = [
-  { quem: 'Cliente', hora: '23:12', texto: 'Vocês têm horário sábado de manhã?' },
-  { quem: 'Helpy', hora: '23:12', texto: 'Tenho 9h, 9h40 e 10h20. O corte sai por R$ 45. Qual fica melhor?', nota: 'consultou a tabela Serviços' },
-  { quem: 'Cliente', hora: '23:13', texto: '9h40. Dá pra pagar no pix?' },
-  { quem: 'Helpy', hora: '23:13', texto: 'Dá sim. Marquei sábado, 9h40, corte. Te espero.', nota: 'marcou na agenda' },
-  { quem: 'Cliente', hora: '23:15', texto: 'Ah, e o corte da semana passada ficou torto.' },
-  { quem: 'Helpy', hora: '23:15', texto: 'Sinto muito por isso. Abri o chamado Nº 0042 e o Gabriel te responde por aqui amanhã cedo.', nota: 'chamou a equipe' },
-];
-
-function Transcricao() {
-  const [ref, visto] = useNaTela({ threshold: 0.25, rootMargin: '0px 0px -10% 0px' });
-  return (
-    <div className="lp-conversa" ref={ref} data-visto={visto}>
-      <div className="lp-conversa-cab">
-        <span>Barbearia do Zé</span>
-        <span>Atendimento pelo link · sábado, 23:12</span>
-      </div>
-      <ol className="lp-transcricao">
-        {CONVERSA.map((l, i) => (
-          <li key={i} data-quem={l.quem} style={{ '--i': i }}>
-            <span className="lp-fala-quem">{l.quem}<small>{l.hora}</small></span>
-            <p>{l.texto}</p>
-            {l.nota ? <span className="lp-fala-nota">{l.nota}</span> : <span />}
-          </li>
-        ))}
-      </ol>
-      <div className="lp-senha" style={{ '--i': CONVERSA.length }}>
-        <div className="lp-senha-num">
-          <small>Senha</small>
-          <b>Nº 0042</b>
-        </div>
-        <div className="lp-senha-corpo">
-          <b>Reclamação do serviço</b>
-          <span>Aberto às 23:15 · resumo pronto para a equipe</span>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -232,34 +172,63 @@ function Transcricao() {
 // Conteúdo
 // ------------------------------------------------------------
 const PASSOS = [
-  ['Conte do seu jeito', 'Escreva como falaria com um funcionário novo, ou cole sua tabela de preços. O Helpy pergunta só o que falta.'],
-  ['Revise o que ele aprendeu', 'Tudo vira um documento que você corrige à mão. O que você não disse fica em branco: nada é inventado.'],
-  ['Publique o link', 'Coloque na bio, no site ou no QR do balcão. A partir daí, ele atende e você acompanha pelo painel.'],
+  {
+    titulo: 'Conte do seu jeito',
+    texto: 'Escreva como falaria com um funcionário novo, ou cole sua tabela de preços. O Helpy pergunta só o que falta.',
+    tela: (
+      <div className="lp-mini-chat">
+        <span className="eu">Corte R$ 45, barba R$ 35.</span>
+        <span className="ele">Anotado! Atendem só com horário?</span>
+        <span className="eu">Só com horário.</span>
+      </div>
+    ),
+  },
+  {
+    titulo: 'Revise o que ele sabe',
+    texto: 'Tudo vira um documento que você corrige à mão. O que você não disse fica em branco: nada é inventado.',
+    tela: (
+      <ul className="lp-mini-doc">
+        <li><span>Corte</span><b>R$ 45</b></li>
+        <li><span>Barba</span><b>R$ 35</b></li>
+        <li><span>Horário</span><b>9h–19h</b></li>
+      </ul>
+    ),
+  },
+  {
+    titulo: 'Publique o link',
+    texto: 'Coloque na bio, no site ou no QR do balcão. A partir daí ele atende, e você acompanha pelo painel.',
+    tela: (
+      <div className="lp-mini-link">
+        <Link2 aria-hidden="true" />
+        <span>…/c/barbearia-do-ze</span>
+        <b>No ar</b>
+      </div>
+    ),
+  },
 ];
 
-const FAZ = [
-  ['Responde do jeito da casa', 'Vendedor numa loja, recepção numa clínica, professor para alunos. Sem inventar preço nem prazo.', 'Atendimento'],
-  ['Marca horários', 'Vê os horários livres da sua agenda, confirma com o cliente e deixa marcado.', 'Agenda'],
-  ['Consulta seus dados', 'Preço, estoque, cardápio, status de pedido: ele lê a tabela antes de responder.', 'Dados'],
-  ['Chama você quando precisa', 'Reclamação ou negociação vira chamado numerado, com o resumo do que aconteceu.', 'Chamados'],
-  ['Mostra o que não sabia', 'Toda pergunta sem resposta aparece no painel. Você ensina uma vez e pronto.', 'Lacunas'],
-  ['Conta o que os clientes querem', 'Assuntos mais perguntados, horários de pico e a nota de cada atendimento.', 'Relatórios'],
+const RECURSOS = [
+  { icone: MessageSquareText, titulo: 'Responde do jeito da casa', texto: 'Vendedor numa loja, recepção numa clínica, professor para alunos. Sem inventar preço nem prazo.' },
+  { icone: CalendarCheck, titulo: 'Marca horários', texto: 'Vê os horários livres da sua agenda, confirma com o cliente e deixa marcado.' },
+  { icone: Database, titulo: 'Consulta seus dados', texto: 'Preço, estoque, cardápio, status de pedido: ele lê a tabela antes de responder.' },
+  { icone: Ticket, titulo: 'Chama você quando precisa', texto: 'Reclamação ou negociação vira chamado numerado, com o resumo do que aconteceu.' },
+  { icone: Sparkles, titulo: 'Mostra o que não sabia', texto: 'Toda pergunta sem resposta aparece no painel. Você ensina uma vez e pronto.' },
+  { icone: ChartColumn, titulo: 'Conta o que querem', texto: 'Assuntos mais perguntados, horários de pico e a nota de cada atendimento.' },
 ];
 
 const FONTES = [
-  ['Excel e CSV', 'Envie a planilha e ela vira uma tabela que o atendente consulta.'],
-  ['Google Planilhas', 'Ligue a planilha publicada. Mudou lá, ele já responde com o novo.'],
-  ['TOTVS Protheus', 'Pelo REST do Protheus: estoque, preço e pedido consultados ao vivo.'],
-  ['SAP', 'Por serviço OData do SAP Gateway ou do Service Layer.'],
-  ['Seu banco ou ERP', 'Qualquer sistema com uma API em JSON. Banco SQL, com uma API na frente.'],
+  { icone: FileSpreadsheet, nome: 'Excel e CSV' },
+  { icone: Link2, nome: 'Google Planilhas' },
+  { icone: PlugZap, nome: 'TOTVS Protheus' },
+  { icone: PlugZap, nome: 'SAP' },
+  { icone: Database, nome: 'Seu banco, por API' },
 ];
 
 const ASSUNTOS = [
-  ['Preço e formas de pagamento', 34],
-  ['Horários disponíveis', 27],
-  ['Estacionamento', 14],
-  ['Corte infantil', 9],
-  ['Promoções', 6],
+  ['Preço e formas de pagamento', 58],
+  ['Horário livre no sábado', 41],
+  ['Remarcar horário', 27],
+  ['Estacionamento', 19],
 ];
 
 const FAQ = [
@@ -270,30 +239,10 @@ const FAQ = [
   ['Funciona no WhatsApp?', 'Hoje o atendimento é pelo link do Helpy. A integração com WhatsApp está no nosso caminho.'],
 ];
 
-function Intervalo() {
-  const ref = useRef(null);
-  useProgresso(ref, { inicio: 1, fim: 0 });
-  return (
-    <section className="lp-intervalo" ref={ref}>
-      <VideoFundo className="lp-video-intervalo" />
-      <div className="lp-intervalo-veu" aria-hidden="true" />
-      <Reveal className="lp-in lp-intervalo-texto">
-        <p className="lp-micro">23h de uma sexta-feira</p>
-        <h2 className="lp-h2">
-          A loja fechou.
-          <br />
-          <em>O atendimento, não.</em>
-        </h2>
-      </Reveal>
-    </section>
-  );
-}
-
 export default function Landing() {
   const { user } = useAuth();
   const deslizar = useRolagemSuave();
   const pagos = [PLANS.essencial, PLANS.profissional, PLANS.business];
-  const maxAssunto = Math.max(...ASSUNTOS.map((a) => a[1]));
   const destino = user ? '/painel' : '/criar-conta';
 
   return (
@@ -301,152 +250,166 @@ export default function Landing() {
       <Topo user={user} deslizar={deslizar} />
       <Hero user={user} deslizar={deslizar} />
 
-      <section className="lp-sec lp-sec-manifesto">
-        <div className="lp-in lp-grade">
-          <p className="lp-micro lp-rotulo">O que é</p>
-          <TextoQueAcende
-            partes={[
-              ['Um atendente que aprende o seu negócio numa conversa, responde seus clientes do jeito da casa e'],
-              ['sabe a hora de chamar você.', true],
-            ]}
-          />
-        </div>
-      </section>
-
       <section id="como" className="lp-sec">
-        <div className="lp-in lp-grade">
-          <p className="lp-micro lp-rotulo">Como funciona</p>
-          <div>
-            <Reveal as="h2" className="lp-h2">Uma tarde para ficar pronto.</Reveal>
-            <ol className="lp-passos">
-              {PASSOS.map(([t, d], i) => (
-                <Reveal as="li" key={t} atraso={i * 120}>
-                  <span className="lp-passo-n">{String(i + 1).padStart(2, '0')}</span>
-                  <h3>{t}</h3>
-                  <p>{d}</p>
-                </Reveal>
-              ))}
-            </ol>
-          </div>
-        </div>
         <div className="lp-in">
-          <Transcricao />
-        </div>
-      </section>
-
-      <section className="lp-sec">
-        <div className="lp-in lp-grade">
-          <p className="lp-micro lp-rotulo">O que ele faz</p>
-          <ul className="lp-indice">
-            {FAZ.map(([t, d, tag], i) => (
-              <Reveal as="li" key={t} atraso={i * 60}>
-                <h3>{t}</h3>
-                <p>{d}</p>
-                <span className="lp-micro">{tag}</span>
+          <Reveal className="lp-cab">
+            <span className="lp-etiqueta">Como funciona</span>
+            <h2 className="lp-h2">Uma tarde para<br />ficar pronto.</h2>
+          </Reveal>
+          <ol className="lp-passos">
+            {PASSOS.map((p, i) => (
+              <Reveal as="li" key={p.titulo} atraso={i * 120} className="lp-passo">
+                <div className="lp-passo-tela">{p.tela}</div>
+                <span className="lp-passo-n">{String(i + 1).padStart(2, '0')}</span>
+                <h3>{p.titulo}</h3>
+                <p>{p.texto}</p>
               </Reveal>
             ))}
-          </ul>
+          </ol>
         </div>
       </section>
 
-      <Intervalo />
-
-      <section id="dados" className="lp-sec">
-        <div className="lp-in lp-grade">
-          <p className="lp-micro lp-rotulo">Integrações</p>
-          <div className="lp-duas">
-            <Reveal>
-              <h2 className="lp-h2">Lê o que você <em>já usa.</em></h2>
-              <p className="lp-lead">
-                O atendente responde com o dado de agora, não com o que estava certo no mês passado. Ele consulta na hora de
-                responder.
-              </p>
-            </Reveal>
-            <ul className="lp-fontes">
-              {FONTES.map(([n, d], i) => (
-                <Reveal as="li" key={n} atraso={i * 80}>
-                  <b>{n}</b>
-                  <span>{d}</span>
-                </Reveal>
-              ))}
-            </ul>
+      <section id="recursos" className="lp-sec lp-sec-24">
+        <span className="lp-gigante" aria-hidden="true">24h</span>
+        <div className="lp-in">
+          <Reveal className="lp-cab">
+            <span className="lp-etiqueta">O que ele faz</span>
+            <h2 className="lp-h2">Atende a noite toda.<br />Sem robô engessado.</h2>
+          </Reveal>
+          <div className="lp-recursos">
+            {RECURSOS.map(({ icone: Icone, titulo, texto }, i) => (
+              <Reveal as="article" key={titulo} atraso={(i % 3) * 90}>
+                <span className="lp-recurso-icone"><Icone aria-hidden="true" /></span>
+                <h3>{titulo}</h3>
+                <p>{texto}</p>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
 
       <section className="lp-sec">
-        <div className="lp-in lp-grade">
-          <p className="lp-micro lp-rotulo">Relatórios</p>
-          <div className="lp-duas">
-            <Reveal>
-              <h2 className="lp-h2">Saiba o que os seus clientes <em>querem saber.</em></h2>
-              <p className="lp-lead">
-                A IA agrupa as perguntas por assunto. Junto vêm os horários de pico, quanto ele resolveu sozinho e a nota que os
-                clientes deram.
-              </p>
-            </Reveal>
-            <Reveal className="lp-relatorio" atraso={120} aria-label="Exemplo de relatório: assuntos mais perguntados">
-              <div className="lp-relatorio-cab">
-                <span>O que mais perguntaram</span>
-                <span>Últimos 30 dias</span>
+        <div className="lp-in lp-chamado">
+          <Reveal className="lp-chamado-texto">
+            <span className="lp-etiqueta">Chamados</span>
+            <h2 className="lp-h2">Quando precisa de gente, chama você.</h2>
+            <p className="lp-lead">
+              Reclamação, negociação ou um pedido fora do comum vira um chamado com número e resumo do que aconteceu. Você
+              assume e responde na mesma conversa.
+            </p>
+          </Reveal>
+          <Reveal className="lp-chamado-arte" atraso={150}>
+            <div className="lp-senha">
+              <div className="lp-senha-num">
+                <small>Senha</small>
+                <b>Nº 0042</b>
               </div>
-              <ul>
-                {ASSUNTOS.map(([a, n], i) => (
-                  <li key={a} style={{ '--i': i, '--w': n / maxAssunto }}>
-                    <span>{a}</span>
-                    <b>{n}</b>
-                    <i aria-hidden="true" />
-                  </li>
-                ))}
-              </ul>
-            </Reveal>
-          </div>
+              <div className="lp-senha-corpo">
+                <b>Reclamação do serviço</b>
+                <span>Aberto às 23:15 · resumo pronto para a equipe</span>
+              </div>
+            </div>
+            <div className="lp-chamado-caixa">
+              <small>Resumo do atendente</small>
+              <p>Cliente marcou corte sábado às 9h40 e reclamou do corte anterior. Pediu retorno da equipe.</p>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section id="dados" className="lp-sec">
+        <div className="lp-in lp-duas">
+          <Reveal>
+            <span className="lp-etiqueta">Integrações</span>
+            <h2 className="lp-h2">Lê o que você já usa.</h2>
+            <p className="lp-lead">
+              O atendente responde com o dado de agora. Suba uma planilha, ligue uma planilha online ou conecte o seu sistema: ele
+              consulta na hora de responder.
+            </p>
+          </Reveal>
+          <Reveal className="lp-fontes" atraso={120}>
+            <span className="lp-fontes-centro"><Marca size={52} /></span>
+            {FONTES.map(({ icone: Icone, nome }, i) => (
+              <span key={nome} className={`lp-fonte lp-fonte-${i + 1}`}>
+                <Icone aria-hidden="true" /> {nome}
+              </span>
+            ))}
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="lp-sec">
+        <div className="lp-in lp-duas lp-duas-inverte">
+          <Reveal className="lp-relatorio" aria-label="Exemplo de relatório: assuntos mais perguntados">
+            <div className="lp-relatorio-cab">
+              <b>O que mais perguntaram</b>
+              <span>Últimos 30 dias</span>
+            </div>
+            <ul>
+              {ASSUNTOS.map(([a, n], i) => (
+                <li key={a} style={{ '--i': i, '--w': n / ASSUNTOS[0][1] }}>
+                  <span>{a}</span>
+                  <b>{n}</b>
+                  <i aria-hidden="true" />
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+          <Reveal atraso={120}>
+            <span className="lp-etiqueta">Relatórios</span>
+            <h2 className="lp-h2">Saiba o que seus clientes querem.</h2>
+            <p className="lp-lead">
+              A IA agrupa as perguntas por assunto. Junto vêm os horários de pico, quanto ele resolveu sozinho e a nota que os
+              clientes deram.
+            </p>
+          </Reveal>
         </div>
       </section>
 
       <section id="planos" className="lp-sec">
-        <div className="lp-in lp-grade">
-          <p className="lp-micro lp-rotulo">Planos</p>
-          <div>
-            <Reveal>
-              <h2 className="lp-h2">Paga por atendimento, <em>não por mensagem.</em></h2>
-              <p className="lp-lead">Todos começam com 14 dias grátis, sem cartão.</p>
-            </Reveal>
-            <div className="lp-planos">
-              {pagos.map((p, i) => (
-                <Reveal as="article" key={p.id} atraso={i * 100} className={`lp-plano${p.id === 'profissional' ? ' lp-plano-destaque' : ''}`}>
-                  <div className="lp-plano-topo">
-                    <h3>{p.nome}</h3>
-                    {p.id === 'profissional' && <span className="lp-plano-tag">Mais escolhido</span>}
-                  </div>
-                  <p className="lp-preco">{reais(p.preco)}<small>/mês</small></p>
-                  <ul>
-                    <li>{p.atendimentos.toLocaleString('pt-BR')} atendimentos por mês</li>
-                    <li>{p.assistentes} {p.assistentes > 1 ? 'assistentes' : 'assistente'}</li>
-                    <li>{p.builderIA ? 'Montagem conversando com a IA' : 'Montagem por formulário'}</li>
-                    <li>{p.ticketsAbertos ? `${p.ticketsAbertos} chamados abertos ao mesmo tempo` : 'Chamados sem limite'}</li>
-                    <li>{p.tabelas} tabelas, agenda e relatórios</li>
-                  </ul>
-                  <Link to="/criar-conta" className={`lp-btn lp-btn-bloco${p.id === 'profissional' ? ' lp-btn-cheio' : ''}`}>
-                    Começar o teste
-                  </Link>
-                </Reveal>
-              ))}
-            </div>
-            <p className="lp-nota">Precisa de mais? Pacotes de +100 atendimentos por R$ 29, sem trocar de plano.</p>
+        <div className="lp-in">
+          <Reveal className="lp-cab lp-cab-centro">
+            <span className="lp-etiqueta">Planos</span>
+            <h2 className="lp-h2">Paga por atendimento,<br />não por mensagem.</h2>
+            <p className="lp-lead">Todos começam com 14 dias grátis, sem cartão.</p>
+          </Reveal>
+          <div className="lp-planos">
+            {pagos.map((p, i) => (
+              <Reveal as="article" key={p.id} atraso={i * 100} className={`lp-plano${p.id === 'profissional' ? ' lp-plano-destaque' : ''}`}>
+                <div className="lp-plano-topo">
+                  <h3>{p.nome}</h3>
+                  {p.id === 'profissional' && <span className="lp-plano-tag">Mais escolhido</span>}
+                </div>
+                <p className="lp-preco">{reais(p.preco)}<small>/mês</small></p>
+                <ul>
+                  <li>{p.atendimentos.toLocaleString('pt-BR')} atendimentos por mês</li>
+                  <li>{p.assistentes} {p.assistentes > 1 ? 'assistentes' : 'assistente'}</li>
+                  <li>{p.builderIA ? 'Montagem conversando com a IA' : 'Montagem por formulário'}</li>
+                  <li>{p.ticketsAbertos ? `${p.ticketsAbertos} chamados abertos ao mesmo tempo` : 'Chamados sem limite'}</li>
+                  <li>{p.tabelas} tabelas, agenda e relatórios</li>
+                </ul>
+                <Link to="/criar-conta" className={`lp-btn lp-btn-bloco ${p.id === 'profissional' ? 'lp-btn-claro' : 'lp-btn-cheio'}`}>
+                  Começar o teste
+                </Link>
+              </Reveal>
+            ))}
           </div>
+          <p className="lp-nota">Precisa de mais? Pacotes de +100 atendimentos por R$ 29, sem trocar de plano.</p>
         </div>
       </section>
 
       <section id="perguntas" className="lp-sec">
-        <div className="lp-in lp-grade">
-          <p className="lp-micro lp-rotulo">Perguntas</p>
+        <div className="lp-in lp-duas">
+          <Reveal>
+            <span className="lp-etiqueta">Perguntas</span>
+            <h2 className="lp-h2">O que perguntam pra gente.</h2>
+          </Reveal>
           <div className="lp-faq">
             {FAQ.map(([p, r], i) => (
               <Reveal as="details" key={p} atraso={i * 60}>
                 <summary>
                   {p}
-                  <i aria-hidden="true" />
+                  <Plus aria-hidden="true" />
                 </summary>
                 <p>{r}</p>
               </Reveal>
@@ -455,23 +418,21 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="lp-final">
+      <section className="lp-sec lp-sec-final">
         <div className="lp-in">
-          <Reveal as="h2" className="lp-final-titulo">
-            Abra o seu balcão
-            <br />
-            <em>hoje à noite.</em>
-          </Reveal>
-          <Reveal className="lp-final-acoes" atraso={150}>
-            <Link to={destino} className="lp-btn lp-btn-cheio">{user ? 'Ir para o painel' : 'Criar meu atendente'}</Link>
-            <span className="lp-micro">14 dias grátis · sem cartão</span>
+          <Reveal className="lp-final">
+            <h2>Teste grátis<br />por 14 dias.</h2>
+            <p>Em uma tarde o seu atendente está no ar. Sem cartão para testar.</p>
+            <Link to={destino} className="lp-btn lp-btn-claro">
+              {user ? 'Ir para o painel' : 'Criar meu atendente'} <ArrowRight />
+            </Link>
           </Reveal>
         </div>
       </section>
 
       <footer className="lp-foot">
         <div className="lp-in lp-foot-in">
-          <Logo size={20} />
+          <Logo size={22} />
           <nav aria-label="Rodapé">
             <a href="#como" onClick={deslizar}>Como funciona</a>
             <a href="#planos" onClick={deslizar}>Planos</a>

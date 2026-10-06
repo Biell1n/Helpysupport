@@ -45,7 +45,7 @@ export default function AppShell() {
     <div className="shell">
       <aside className="side">
         <Link to="/painel" className="side-brand" aria-label="Helpy, início do painel">
-          <Logo size={28} tom="claro" />
+          <Logo size={28} />
         </Link>
 
         <nav className="side-nav" aria-label="Seções do painel">

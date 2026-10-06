@@ -32,25 +32,28 @@ Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
 - Conceito: a **senha de atendimento** — o papelzinho numerado do balcão.
   Cada conversa ganha um número (Nº 0042) e os chamados aparecem como
   canhotos picotados.
-- Direção (outubro/2026, a partir das referências do dono: FORMA,
-  EARTH, Museum of Ancient Art, Aurelia, Hestia): cinema à noite.
-  Vídeo em tela cheia escurecido, tipografia fina, linhas de 1px no
-  lugar de cartões, cantos quase retos (2–6 px).
-- Cores: carvão quente `#0E0D0C`, superfícies `#151412` / `#1C1A18`,
-  texto cor de papel `#ECE7DE`, areia `#A39C90`, pedra `#6F695F`.
-  O amarelo `#FFCF33` fica só onde existe senha: a marca, o canhoto do
-  chamado, o que o atendente fez, o "atendendo agora".
-- Tipos: Bodoni Moda (títulos, com itálico para ênfase), Hanken Grotesk
-  (texto e interface), DM Mono (rótulos em caixa-alta e números de
-  senha). A palavra "helpy" do logo continua em Archivo larga.
-- Landing: hero com vídeo e relógio de São Paulo ("atendendo agora"),
-  manifesto que acende palavra a palavra, uma conversa real das 23h
-  transcrita com o que o atendente fez na margem, índice de recursos,
-  intervalo com o vídeo, planos em colunas. Rolagem suave com Lenis
-  (desligada para quem pede menos movimento).
-- Gráficos dos relatórios: cores validadas para fundo escuro e
-  daltonismo (`#B78D00` assistente / `#5889E6` equipe; rampa de amarelo
-  no mapa de calor).
+- Direção atual (escolhida pelo dono a partir das referências "Jesko
+  Jets" e "MetaLeaf"): céu claro. Azul de céu e branco, tinta
+  azul-marinho `#0B1A2C`, azul forte `#2C5D8F`, azul de céu `#9DBBD8`.
+  O amarelo `#FFCF33` fica só onde existe senha (logo, canhoto do
+  chamado, "mais escolhido").
+- Tipos: Archivo (a mesma da logo) — expandida 125% e peso 500 nos
+  títulos, normal no texto; DM Mono em rótulos e números de senha.
+  Botões em pílula, cartões brancos arredondados (14–28 px).
+- Já testadas e descartadas pelo dono: tema escuro com Archivo grossa
+  (cara de IA) e tema escuro com Bodoni fina (não combinou com o
+  negócio).
+- Landing: hero preso enquanto rola — título dividido em volta do
+  vídeo, que abre de cartão até a tela inteira; pontos de destaque com
+  linha; "24h" gigante ao fundo dos recursos; fontes de dados em volta
+  da logo; planos com o do meio em azul-marinho. Rolagem suave (Lenis).
+- Vídeo de demonstração: feito em HTML (`video/demo.html`, `demo.css`,
+  `demo.js`) e gerado quadro a quadro com `node video/render.mjs`
+  (Playwright + ffmpeg) em `public/videos/helpy-demo.{mp4,webm,jpg}`.
+  Para mudar textos ou tempos, edite o HTML e rode o render de novo.
+- Gráficos dos relatórios: cores validadas para fundo claro e
+  daltonismo (`#B78D00` assistente / `#5889E6` equipe; rampa de azul
+  forte no mapa de calor).
 
 ## Feito
 

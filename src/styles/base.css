@@ -1,47 +1,55 @@
 /* ============================================================
    Helpy — sistema visual
-   Conceito: a senha de atendimento. Carvão quente, texto cor de papel,
-   e o amarelo do canhoto picotado só onde existe senha.
+   Conceito: a senha de atendimento. Branco e azul de céu claro, tinta
+   azul-marinho, letra larga da logo, e o amarelo do canhoto só onde
+   existe senha.
    ============================================================ */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* superfícies, do fundo para cima: carvão quente, não preto azulado */
-  --noite: #0a0908;
-  --papel: #0e0d0c;
-  --branco: #151412;
-  --papel-2: #1c1a18;
+  /* superfícies: branco e azul de céu claro */
+  --noite: #ffffff;
+  --papel: #f2f6fa;
+  --branco: #ffffff;
+  --papel-2: #e8eff6;
 
-  /* texto: papel envelhecido, areia, pedra */
-  --tinta: #ece7de;
-  --tinta-2: #a39c90;
-  --tinta-3: #6f695f;
+  /* texto: tinta azul-marinho */
+  --tinta: #0b1a2c;
+  --tinta-2: #4a5c71;
+  --tinta-3: #8394a8;
+  --sobre-tinta: #ffffff;
 
-  --linha: #262420;
-  --linha-forte: #38352f;
+  --linha: #e1e9f1;
+  --linha-forte: #c8d6e4;
+
+  /* o azul do Helpy */
+  --azul: #9dbbd8;
+  --azul-claro: #dbe8f4;
+  --azul-forte: #2c5d8f;
 
   /* o amarelo do canhoto: só onde existe senha (marca, chamado, número) */
   --senha: #ffcf33;
   --senha-escura: #e8b200;
-  --senha-clara: rgba(255, 207, 51, 0.1);
+  --senha-clara: rgba(255, 207, 51, 0.18);
   --sobre-senha: #14120e;
 
-  --folha: #8fcfa3;
-  --folha-clara: rgba(143, 207, 163, 0.12);
-  --brasa: #ee8c70;
-  --brasa-clara: rgba(238, 140, 112, 0.13);
+  --folha: #1d8656;
+  --folha-clara: rgba(29, 134, 86, 0.1);
+  --brasa: #c9492c;
+  --brasa-clara: rgba(201, 73, 44, 0.09);
 
-  --f-display: 'Bodoni Moda Variable', 'Bodoni 72', Didot, Georgia, serif;
-  --f-body: 'Hanken Grotesk Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Archivo é a família da logo: larga nos títulos, normal no texto */
+  --f-display: 'Archivo Variable', system-ui, sans-serif;
+  --f-body: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --f-mono: 'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
-  --r-sm: 2px;
-  --r: 4px;
-  --r-lg: 6px;
-  --sombra: 0 1px 0 rgba(255, 255, 255, 0.02), 0 18px 40px -24px rgba(0, 0, 0, 0.8);
-  --sombra-alta: 0 30px 80px -30px rgba(0, 0, 0, 0.9);
-  --foco: 0 0 0 2px var(--papel), 0 0 0 3px rgba(236, 231, 222, 0.75);
+  --r-sm: 8px;
+  --r: 14px;
+  --r-lg: 22px;
+  --sombra: 0 1px 2px rgba(11, 26, 44, 0.04), 0 14px 34px -16px rgba(11, 26, 44, 0.14);
+  --sombra-alta: 0 30px 70px -28px rgba(11, 26, 44, 0.3);
+  --foco: 0 0 0 2px var(--branco), 0 0 0 4px rgba(44, 93, 143, 0.55);
 }
 
 *,
@@ -74,12 +82,14 @@ h1, h2, h3, h4 {
   margin: 0;
 }
 
-/* títulos de página em Bodoni; títulos de bloco ficam no texto */
+/* títulos de página na Archivo larga; títulos de bloco ficam no texto */
 h1 {
   font-family: var(--f-display);
-  font-weight: 400;
+  font-stretch: 125%;
+  font-weight: 500;
+  font-stretch: 125%;
   line-height: 1.02;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.035em;
 }
 
 p {
@@ -208,8 +218,8 @@ button, input, select, textarea {
   justify-content: center;
   gap: 8px;
   height: 40px;
-  padding: 0 16px;
-  border-radius: var(--r);
+  padding: 0 18px;
+  border-radius: 999px;
   border: 1px solid transparent;
   background: none;
   font-size: 14px;
@@ -238,22 +248,22 @@ button, input, select, textarea {
 
 .btn-primary {
   background: var(--tinta);
-  color: var(--papel);
+  color: var(--sobre-tinta);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #fffaf1;
+  background: #1c3450;
 }
 
 /* chamada principal: mesmo peso do primário, para o amarelo ficar com a senha */
 .btn-senha {
   background: var(--tinta);
-  color: var(--papel);
+  color: var(--sobre-tinta);
   font-weight: 600;
 }
 
 .btn-senha:hover:not(:disabled) {
-  background: #fffaf1;
+  background: #1c3450;
 }
 
 .btn-ghost {
@@ -289,14 +299,14 @@ button, input, select, textarea {
   height: 32px;
   padding: 0 12px;
   font-size: 13px;
-  border-radius: var(--r);
+  border-radius: 999px;
 }
 
 .btn-lg {
   height: 50px;
   padding: 0 24px;
   font-size: 16px;
-  border-radius: var(--r);
+  border-radius: 999px;
 }
 
 .btn-icon {
@@ -349,14 +359,14 @@ button, input, select, textarea {
 
 .input::placeholder,
 .textarea::placeholder {
-  color: #5c574f;
+  color: #9aa9b9;
 }
 
 .input:focus,
 .textarea:focus,
 .select:focus {
   outline: none;
-  border-color: var(--senha);
+  border-color: var(--azul-forte);
   box-shadow: var(--foco);
 }
 
@@ -383,7 +393,7 @@ button, input, select, textarea {
 
 .check input {
   margin-top: 3px;
-  accent-color: var(--senha);
+  accent-color: var(--azul-forte);
   width: 16px;
   height: 16px;
 }
@@ -462,8 +472,8 @@ button, input, select, textarea {
 }
 
 .badge-human {
-  background: var(--senha-clara);
-  color: var(--senha);
+  background: var(--azul-claro);
+  color: var(--azul-forte);
 }
 
 .badge-closed {
@@ -536,8 +546,8 @@ button, input, select, textarea {
 /* ---------- medidor de uso ---------- */
 
 .meter {
-  height: 3px;
-  border-radius: 0;
+  height: 6px;
+  border-radius: 99px;
   background: var(--papel-2);
   overflow: hidden;
 }
@@ -578,7 +588,7 @@ button, input, select, textarea {
 
 .skeleton {
   border-radius: var(--r);
-  background: linear-gradient(90deg, var(--papel-2), #26231f, var(--papel-2));
+  background: linear-gradient(90deg, var(--papel-2), #f5f9fc, var(--papel-2));
   background-size: 200% 100%;
   animation: brilho 1.4s infinite linear;
   min-height: 18px;
@@ -603,14 +613,14 @@ button, input, select, textarea {
 
 .alert-erro {
   background: var(--brasa-clara);
-  border-color: rgba(238, 140, 112, 0.3);
-  color: #f3b9a6;
+  border-color: rgba(201, 73, 44, 0.3);
+  color: #a3361f;
 }
 
 .alert-ok {
   background: var(--folha-clara);
-  border-color: rgba(143, 207, 163, 0.3);
-  color: #b5e0c1;
+  border-color: rgba(29, 134, 86, 0.3);
+  color: #17603f;
 }
 
 .alert svg {

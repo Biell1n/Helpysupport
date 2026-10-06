@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>Helpy — vídeo de demonstração</title>
+  <!--
+    Vídeo de demonstração do Helpy, feito de HTML.
+    Abra em http://localhost:5173/video/demo.html para ver tocando.
+    Para gerar o arquivo de vídeo: node video/render.mjs (veja o README do vídeo no topo de render.mjs).
+  -->
+  <script type="module">
+    import '@fontsource-variable/archivo/wdth.css';
+    import '@fontsource/dm-mono/400.css';
+    import '@fontsource/dm-mono/500.css';
+    import './demo.css';
+    import { iniciar } from './demo.js';
+    iniciar();
+  </script>
+</head>
+<body>
+  <div class="quadro" id="quadro">
+    <!-- fundo permanente: céu claro com manchas de luz que andam devagar -->
+    <div class="ceu" aria-hidden="true">
+      <i class="mancha m1"></i>
+      <i class="mancha m2"></i>
+      <i class="mancha m3"></i>
+    </div>
+
+    <!-- moldura: logo, capítulos e progresso -->
+    <header class="moldura-topo">
+      <span class="marca" data-marca="44"></span>
+      <ol class="capitulos">
+        <li data-de="4000" data-ate="12000">Conte</li>
+        <li data-de="12000" data-ate="20000">Publique</li>
+        <li data-de="20000" data-ate="26000">Chamados</li>
+        <li data-de="26000" data-ate="31500">Relatórios</li>
+        <li data-de="31500" data-ate="37000">Planos</li>
+      </ol>
+    </header>
+    <div class="progresso"><span></span></div>
+
+    <!-- 1. abertura -->
+    <section class="cena" data-ini="0" data-fim="3600">
+      <div class="abertura">
+        <span class="marca grande anim a-escala" data-marca="132" style="--d: 150ms"></span>
+        <h1 class="titulo-gigante">
+          <span class="linha"><span class="anim a-sobe" style="--d: 500ms">Seu atendimento</span></span>
+          <span class="linha"><span class="anim a-sobe" style="--d: 700ms">nunca <b>fecha.</b></span></span>
+        </h1>
+        <p class="sub anim a-fade" style="--d: 1400ms">Um atendente virtual para pequenos negócios, montado numa conversa.</p>
+      </div>
+    </section>
+
+    <!-- 2. conte do seu jeito -->
+    <section class="cena" data-ini="3600" data-fim="11600">
+      <div class="duas">
+        <div class="texto">
+          <span class="capitulo anim a-fade" style="--d: 3900ms">01</span>
+          <h2 class="anim a-sobe" style="--d: 4000ms">Conte do<br />seu jeito.</h2>
+          <p class="anim a-fade" style="--d: 4400ms">Escreva como falaria com um funcionário novo. O Helpy pergunta só o que falta e vai montando tudo.</p>
+        </div>
+        <div class="janela anim a-direita" style="--d: 4100ms">
+          <div class="janela-topo"><i></i><i></i><i></i><span>Montar assistente</span></div>
+          <div class="construtor">
+            <div class="chat">
+              <div class="bolha eu anim a-sobe-p" style="--d: 4700ms"><span data-digita data-t0="4700" data-dur="1300">Tenho uma barbearia no Centro. Corte R$ 45, barba R$ 35.</span></div>
+              <div class="bolha ele anim a-sobe-p" style="--d: 6300ms"><small>Helpy</small>Anotado! Vocês atendem só com horário marcado?</div>
+              <div class="bolha eu anim a-sobe-p" style="--d: 7500ms"><span data-digita data-t0="7500" data-dur="900">Só com horário, seg a sáb, 9h às 19h.</span></div>
+              <div class="bolha ele anim a-sobe-p" style="--d: 8900ms"><small>Helpy</small>Fechado: ele marca direto na sua agenda.</div>
+            </div>
+            <div class="documento">
+              <div class="doc-topo">
+                <b>O que o Zeca sabe</b>
+                <span class="barra"><span class="anim a-barra" style="--d: 6000ms; --dur: 4200ms"></span></span>
+                <em data-conta data-de="0" data-para="100" data-t0="6000" data-dur="4200" data-sufixo="%">0%</em>
+              </div>
+              <ul>
+                <li class="anim a-campo" style="--d: 6400ms"><span>Nome</span><b>Zeca</b></li>
+                <li class="anim a-campo" style="--d: 6900ms"><span>Ramo</span><b>Barbearia</b></li>
+                <li class="anim a-campo" style="--d: 7700ms"><span>Corte</span><b>R$ 45</b></li>
+                <li class="anim a-campo" style="--d: 8100ms"><span>Barba</span><b>R$ 35</b></li>
+                <li class="anim a-campo" style="--d: 8900ms"><span>Horário</span><b>Seg a sáb, 9h–19h</b></li>
+                <li class="anim a-campo" style="--d: 9500ms"><span>Agenda</span><b>Marca sozinho</b></li>
+              </ul>
+              <span class="botao-pilula anim a-pulso" style="--d: 10300ms">Publicar</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. publique o link -->
+    <section class="cena" data-ini="11600" data-fim="19600">
+      <div class="duas">
+        <div class="texto">
+          <span class="capitulo anim a-fade" style="--d: 11900ms">02</span>
+          <h2 class="anim a-sobe" style="--d: 12000ms">Publique<br />o link.</h2>
+          <div class="link-pilula anim a-sobe" style="--d: 12500ms">
+            <span class="cadeado"></span>
+            <span data-digita data-t0="12800" data-dur="1200">helpy.app/c/barbearia-do-ze</span>
+          </div>
+          <p class="anim a-fade" style="--d: 13900ms">Na bio, no site ou no QR do balcão. A partir daí ele atende, a qualquer hora.</p>
+        </div>
+        <div class="palco-celular">
+          <div class="celular anim a-celular" style="--d: 13800ms">
+            <div class="cel-topo"><span class="avatar">Z</span><div><b>Zeca</b><small>Barbearia do Zé</small></div><em>23:12</em></div>
+            <div class="cel-chat">
+              <div class="bolha eu anim a-sobe-p" style="--d: 14600ms">Tem horário sábado de manhã?</div>
+              <div class="digitando anim a-digitando" style="--d: 15200ms"><i></i><i></i><i></i></div>
+              <div class="bolha ele anim a-sobe-p" style="--d: 16200ms">Tenho 9h, 9h40 e 10h20. O corte sai por R$ 45.</div>
+              <div class="bolha eu anim a-sobe-p" style="--d: 17200ms">9h40!</div>
+              <div class="bolha ele anim a-sobe-p" style="--d: 17900ms">Marquei sábado, 9h40. Te espero.</div>
+            </div>
+          </div>
+          <div class="ponto p1 anim a-ponto" style="--d: 16600ms"><i></i><span>Consultou a tabela de serviços</span></div>
+          <div class="ponto p2 anim a-ponto" style="--d: 18300ms"><i></i><span>Marcou na agenda</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. chamados -->
+    <section class="cena" data-ini="19600" data-fim="25600">
+      <div class="duas">
+        <div class="texto">
+          <span class="capitulo anim a-fade" style="--d: 19900ms">03</span>
+          <h2 class="anim a-sobe" style="--d: 20000ms">Chama você<br />quando precisa.</h2>
+          <p class="anim a-fade" style="--d: 20400ms">Reclamação ou negociação vira chamado com número e resumo. Você responde na mesma conversa.</p>
+        </div>
+        <div class="palco-chamado">
+          <div class="senha anim a-senha" style="--d: 20600ms">
+            <div class="senha-num"><small>Senha</small><b>Nº 0042</b></div>
+            <div class="senha-corpo"><b>Reclamação do serviço</b><span>Aberto às 23:15</span></div>
+          </div>
+          <div class="caixa anim a-sobe" style="--d: 21300ms">
+            <div class="caixa-topo"><b>Atendimentos</b><span class="pilula-cinza">Na fila · 3</span></div>
+            <div class="caixa-linha anim a-sobe-p" style="--d: 21700ms">
+              <span class="mini-senha">0042</span>
+              <div><b>Corte da semana passada ficou torto</b><small>Rafael · há 2 min</small></div>
+              <span class="estado e1">Aguardando</span>
+              <span class="estado e2 anim a-troca" style="--d: 23600ms">Em atendimento</span>
+            </div>
+            <div class="caixa-linha anim a-sobe-p" style="--d: 21950ms">
+              <span class="mini-senha cinza">0041</span>
+              <div><b>Quer remarcar fora do horário</b><small>Marcos · há 1 h</small></div>
+              <span class="estado e1">Aguardando</span>
+            </div>
+            <div class="resumo anim a-fade" style="--d: 22600ms">
+              <small>Resumo do atendente</small>
+              Cliente marcou corte sábado 9h40 e reclamou do corte anterior. Pediu retorno da equipe.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. relatórios -->
+    <section class="cena" data-ini="25600" data-fim="31100">
+      <div class="duas">
+        <div class="texto">
+          <span class="capitulo anim a-fade" style="--d: 25900ms">Relatórios</span>
+          <h2 class="anim a-sobe" style="--d: 26000ms">Saiba o que<br />perguntam.</h2>
+          <div class="numeros">
+            <div class="anim a-sobe" style="--d: 26500ms"><b data-conta data-de="0" data-para="84" data-t0="26600" data-dur="1800" data-sufixo="%">0%</b><span>resolvidas sem a equipe</span></div>
+            <div class="anim a-sobe" style="--d: 26700ms"><b data-conta data-de="0" data-para="281" data-t0="26800" data-dur="1800">0</b><span>conversas no mês</span></div>
+          </div>
+        </div>
+        <div class="painel-rel anim a-direita" style="--d: 26200ms">
+          <div class="rel-topo"><b>O que mais perguntaram</b><span>Últimos 30 dias</span></div>
+          <ul>
+            <li style="--w: 1"><span>Preço e formas de pagamento</span><b>58</b><i class="anim a-barra" style="--d: 26800ms; --dur: 1400ms"></i></li>
+            <li style="--w: 0.7"><span>Horário livre no sábado</span><b>41</b><i class="anim a-barra" style="--d: 26950ms; --dur: 1400ms"></i></li>
+            <li style="--w: 0.46"><span>Remarcar horário</span><b>27</b><i class="anim a-barra" style="--d: 27100ms; --dur: 1400ms"></i></li>
+            <li style="--w: 0.33"><span>Estacionamento</span><b>19</b><i class="anim a-barra" style="--d: 27250ms; --dur: 1400ms"></i></li>
+          </ul>
+          <div class="calor">
+            <span>Horários de pico</span>
+            <div class="calor-grade" data-calor></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. planos -->
+    <section class="cena" data-ini="31100" data-fim="36800">
+      <div class="planos-cena">
+        <div class="texto centro">
+          <span class="capitulo anim a-fade" style="--d: 31400ms">Planos</span>
+          <h2 class="anim a-sobe" style="--d: 31500ms">Paga por atendimento.</h2>
+        </div>
+        <div class="planos">
+          <div class="plano anim a-sobe" style="--d: 32000ms"><span>Essencial</span><b>R$ 79<small>/mês</small></b><ul><li>200 atendimentos</li><li>1 assistente</li><li>Montagem por formulário</li></ul></div>
+          <div class="plano destaque anim a-sobe" style="--d: 32250ms"><span>Profissional <em>Mais escolhido</em></span><b>R$ 197<small>/mês</small></b><ul><li>600 atendimentos</li><li>3 assistentes</li><li>Montagem conversando</li></ul></div>
+          <div class="plano anim a-sobe" style="--d: 32500ms"><span>Business</span><b>R$ 497<small>/mês</small></b><ul><li>1.500 atendimentos</li><li>10 assistentes</li><li>Chamados sem limite</li></ul></div>
+        </div>
+        <p class="nota anim a-fade" style="--d: 33400ms">14 dias grátis em qualquer plano · sem cartão</p>
+      </div>
+    </section>
+
+    <!-- 7. fechamento -->
+    <section class="cena" data-ini="36800" data-fim="99999">
+      <div class="abertura">
+        <span class="marca grande anim a-escala" data-marca="120" style="--d: 37000ms"></span>
+        <h1 class="titulo-gigante menor">
+          <span class="linha"><span class="anim a-sobe" style="--d: 37300ms">Teste grátis</span></span>
+          <span class="linha"><span class="anim a-sobe" style="--d: 37450ms">por <b>14 dias.</b></span></span>
+        </h1>
+        <span class="botao-pilula grande anim a-fade" style="--d: 38000ms">Criar meu atendente</span>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
