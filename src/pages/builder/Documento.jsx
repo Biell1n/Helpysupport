@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Plus, RotateCcw, X } from 'lucide-react';
+import { FileText, Plus, RotateCcw, X } from 'lucide-react';
 import { useBuilder } from './BuilderContext';
-import { MODELOS } from '@/lib/documento';
+import { MODELOS, semNoItem } from '@/lib/documento';
 import { useToast } from '@/components/Toasts';
 
 function Controle({ def, value, onChange, id }) {
@@ -29,18 +29,18 @@ function Campo({ def }) {
   const id = `f-${def.key}`;
 
   return (
-    <div className="doc-field" data-fresh={b.fresh.includes(def.key) ? 'true' : 'false'}>
+    <div className="doc-field" data-off={pulado ? 'true' : undefined} data-fresh={b.fresh.includes(def.key) ? 'true' : 'false'}>
       <div className="doc-field-top">
         <label className="label" htmlFor={id}>
           {def.label}
           {def.importance === 'critical' && <span className="req" aria-label="obrigatório">*</span>}
         </label>
         {falta && def.importance === 'critical' && <span className="flag">falta</span>}
-        {pulado && <span className="flag flag-mute">não se aplica</span>}
+        {pulado && <span className="flag flag-mute">dispensado</span>}
       </div>
       <div className="doc-control">
         {pulado ? (
-          <div className="doc-skipped">Você marcou que isto não se aplica.</div>
+          <div className="doc-skipped">Não vai ser informado. Clique em ↺ para voltar a preencher.</div>
         ) : (
           <Controle def={def} id={id} value={entry?.value} onChange={(v) => b.setField(def.key, v)} />
         )}
@@ -90,10 +90,26 @@ function Lista({ def }) {
       </div>
       {def.note && <span className="hint">{def.note}</span>}
 
+      {!dispensada && pulados.length > 0 && (
+        <div className="row row-wrap" style={{ gap: 6 }}>
+          {def.item_fields
+            .filter((f) => pulados.includes(f.key))
+            .map((f) => (
+              <span key={f.key} className="chip-off">
+                <s>{f.label}</s> dispensado em todos
+                <button type="button" aria-label={`Voltar a pedir ${f.label}`} title="Voltar a pedir" onClick={() => b.restoreListAttr(def.key, f.key)}>
+                  <RotateCcw size={13} />
+                </button>
+              </span>
+            ))}
+        </div>
+      )}
+
       {!dispensada && (
         <div className="items">
           {itens.map((item, i) => {
             const faltam = b.incomplete[`${def.key}:${i}`];
+            const semAqui = semNoItem(item);
             return (
               <div className="item" key={i}>
                 <div className="item-head">
@@ -105,16 +121,34 @@ function Lista({ def }) {
                   </button>
                 </div>
                 <div className="item-fields">
-                  {atributos.map((f) => {
+                  {atributos.map((f, j) => {
                     const id = `i-${def.key}-${i}-${f.key}`;
+                    const off = semAqui.includes(f.key);
                     return (
-                      <label key={f.key} className={`field${f.type === 'textarea' ? ' wide' : ''}`} htmlFor={id}>
-                        <span className="label" style={{ fontSize: 12.5 }}>
-                          {f.label}
-                          {f.required && <span className="req">*</span>}
+                      <div key={f.key} className={`field item-attr${f.type === 'textarea' ? ' wide' : ''}`} data-off={off ? 'true' : undefined}>
+                        <span className="label item-attr-top" style={{ fontSize: 12.5 }}>
+                          <label htmlFor={id}>
+                            {f.label}
+                            {f.required && !off && <span className="req">*</span>}
+                          </label>
+                          {j > 0 && (
+                            <button
+                              type="button"
+                              className="item-attr-x"
+                              title={off ? 'Voltar a preencher' : 'Não informar neste item'}
+                              aria-label={off ? `Voltar a preencher ${f.label}` : `Não informar ${f.label} neste item`}
+                              onClick={() => (off ? b.restoreItemAttr(def.key, i, f.key) : b.skipItemAttr(def.key, i, f.key))}
+                            >
+                              {off ? <RotateCcw size={12} /> : <X size={12} />}
+                            </button>
+                          )}
                         </span>
-                        <Controle def={f} id={id} value={item[f.key]} onChange={(v) => b.setItemField(def.key, i, f.key, v)} />
-                      </label>
+                        {off ? (
+                          <div className="doc-skipped">não informado</div>
+                        ) : (
+                          <Controle def={f} id={id} value={item[f.key]} onChange={(v) => b.setItemField(def.key, i, f.key, v)} />
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -214,6 +248,42 @@ export function EscolherModelo({ compacto }) {
 
 const SECOES_COM_CAMPO_NOVO = ['assistente', 'conhecimento', 'operacao', 'escalonamento', 'catalogo'];
 
+function Materiais() {
+  const b = useBuilder();
+  const avisar = useToast();
+  if (!b.materiais.length) return null;
+  const tamanho = (n) => (n >= 1000 ? `${Math.round(n / 1000)} mil caracteres` : `${n} caracteres`);
+  return (
+    <section className="doc-section" aria-labelledby="sec-materiais">
+      <div className="doc-section-head">
+        <div>
+          <h2 id="sec-materiais">Materiais de apoio</h2>
+          <p>Arquivos que você mandou. O assistente lê o conteúdo completo na hora de atender.</p>
+        </div>
+      </div>
+      <ul className="materiais">
+        {b.materiais.map((m) => (
+          <li key={m.id}>
+            <FileText aria-hidden="true" />
+            <div>
+              <b>{m.nome}</b>
+              <span>{tamanho(m.caracteres)} lidos</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-quiet btn-icon btn-sm"
+              aria-label={`Tirar ${m.nome}`}
+              onClick={() => b.removerMaterial(m.id).catch((e) => avisar('Não deu para tirar', { erro: true, texto: e.message }))}
+            >
+              <X size={15} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default function Documento() {
   const b = useBuilder();
 
@@ -230,6 +300,7 @@ export default function Documento() {
 
   return (
     <div className="doc">
+      <Materiais />
       {b.schema.sections.map((sec) => (
         <section key={sec.key} className="doc-section" aria-labelledby={`sec-${sec.key}`}>
           <div className="doc-section-head">

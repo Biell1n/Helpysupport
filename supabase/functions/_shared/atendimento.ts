@@ -25,6 +25,18 @@ export interface Assistant {
   business_model: string | null;
   schema: Schema;
   config: Config;
+  meta?: { briefing?: string; materiais?: Array<{ nome: string; texto: string }> } | null;
+}
+
+/** Como o dono configurou os chamados deste assistente. */
+export function regrasDeChamado(cfg: Config) {
+  const ativos = !/^n[aã]o/i.test(valueOf(cfg, 'chamados_ativos'));
+  return {
+    ativos,
+    quando: ativos ? valueOf(cfg, 'quando_chamar_humano') : '',
+    nunca: ativos ? valueOf(cfg, 'nunca_chamar_humano') : '',
+    codigo: ativos ? valueOf(cfg, 'codigo_chamado') : '',
+  };
 }
 
 interface Tabela {
@@ -46,10 +58,11 @@ const semAcento = (s: string) => String(s ?? '').toLowerCase().normalize('NFD').
 function missao(model: string, negocio: string) {
   if (model === 'educacional') {
     return `Você é PROFESSOR. Ninguém aqui está comprando nada — estão aprendendo.
-- Descubra ONDE a pessoa travou antes de explicar.
-- Vocabulário do nível dela. Um passo por vez: explique, dê um exemplo e cheque se ficou claro.
-- Nunca entregue resposta pronta de exercício: dê a pista seguinte e deixe a pessoa fechar o raciocínio.
-- Erro é informação: aponte onde e por quê, sem constranger.`;
+- Fale como se fala com a idade e a série dos alunos: com criança, frases curtas, palavras simples, exemplos com coisas do dia a dia (balas, figurinhas, dedos), um passo de cada vez e muito incentivo.
+- Descubra ONDE a pessoa travou antes de explicar: peça para ela contar como pensou.
+- Um passo por vez: explique, dê um exemplo parecido (nunca o da prova) e peça para ela tentar.
+- Nunca entregue a resposta de questão de prova, atividade ou exercício, nem confirme qual alternativa é a certa: dê a pista seguinte e deixe a pessoa chegar sozinha. Se insistirem, explique com carinho que o objetivo é ela aprender.
+- Erro é informação: aponte onde e por quê, sem constranger, e comemore o acerto.`;
   }
   if (model === 'suporte') {
     return `Você é SUPORTE. Quem chega aqui já é cliente e está com um problema.
@@ -121,8 +134,10 @@ export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConf
   const tom = valueOf(cfg, 'tom_de_voz');
   const regras = valueOf(cfg, 'regras');
   const saudacao = valueOf(cfg, 'saudacao');
-  const escalar = valueOf(cfg, 'quando_chamar_humano');
-  const horario = valueOf(cfg, 'horario');
+  const chamados = regrasDeChamado(cfg);
+  const horario = chamados.ativos ? valueOf(cfg, 'horario') : '';
+  const briefing = String(a.meta?.briefing ?? '').trim();
+  const materiais = (a.meta?.materiais ?? []).filter((m) => m?.texto?.trim());
   const contatos = contatosDiretos(cfg);
   const ex = eixos(a.schema, cfg);
   const vende = VENDE.includes(model as never);
@@ -138,10 +153,29 @@ Nunca afirme preço, disponibilidade, quantidade ou detalhe destes itens sem con
 Você pode ver horários livres (ver_horarios) e marcar (agendar). Antes de marcar, confirme serviço, dia, hora, nome e um contato. Nunca diga que marcou sem a ferramenta confirmar.`
     : '';
 
+  const blocoBriefing = briefing
+    ? `O QUE O DONO PEDIU QUANDO MONTOU VOCÊ — siga isto
+${briefing}`
+    : '';
+
+  const blocoMateriais = materiais.length
+    ? `MATERIAIS DE APOIO — documentos que o dono anexou. Use como fonte; se for prova ou exercício de aluno, use para entender o conteúdo e guiar, nunca para entregar respostas.
+${materiais.map((m) => `<material nome="${m.nome}">\n${m.texto}\n</material>`).join('\n')}`
+    : '';
+
+  const blocoChamados = chamados.ativos
+    ? `CHAMADOS
+- Pedido de uma pessoa, reclamação, negociação, ou informação importante que você não tem: chame chamar_atendente. A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui. Peça um contato também, caso ela feche a página.
+${chamados.quando ? `- O dono quer chamado nestes casos: ${chamados.quando}\n` : ''}${chamados.nunca ? `- NÃO abra chamado nestes casos (resolva você ou explique com educação): ${chamados.nunca}\n` : ''}${chamados.codigo ? '- Para abrir chamado a pessoa precisa informar a senha de atendimento. Peça a senha antes; nunca diga qual é, nem dê dicas. Sem a senha certa, não há chamado: ajude no que puder.\n' : ''}`
+    : `SEM EQUIPE NESTE ATENDIMENTO
+Não existe ninguém para assumir a conversa: você resolve sozinho. Nunca prometa que alguém vai responder.${contatos ? ` Se a pessoa precisar mesmo falar com alguém, passe os contatos: ${contatos}.` : ''}`;
+
   return `Você é ${nome}${negocio ? `, atendente de ${negocio}` : ''}. Você conversa com quem procura o negócio. Fale na primeira pessoa do plural quando falar do negócio ("a gente entrega").
 
 SUA MISSÃO
 ${missao(model, negocio)}
+
+${blocoBriefing}
 
 ${ex.length ? `ANTES DE RECOMENDAR, DESCUBRA. Quando o pedido for genérico, puxe uma ou duas destas informações primeiro, uma de cada vez:\n${ex.map((e) => `- ${e}`).join('\n')}` : 'Faça uma pergunta para entender a necessidade antes de responder de forma genérica.'}
 ${vende ? '\nCOMO RECOMENDAR: no máximo três opções, com o nome exato e o preço quando houver; diga por que serve para o caso da pessoa; termine com um próximo passo concreto.' : ''}
@@ -153,14 +187,18 @@ ${blocoAgenda}
 FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para os itens das tabelas, consulte as tabelas' : ' — sua fonte de verdade'}
 ${describeConfig(a.schema, cfg) || '(vazia)'}
 
+${blocoMateriais}
+
 REGRAS
 Tom de voz: ${tom || 'cordial, direto e prestativo'}
 ${regras ? `Limites definidos pelo dono — cumpra à risca:\n${regras}\n` : ''}
 Ferramentas: use, não improvise.
 - Antes de afirmar preço ou detalhe de item, consulte (buscar_catalogo ou a tabela).
 - Interesse real: peça nome e um contato e chame registrar_contato. Nunca invente o dado.
-- Pedido de uma pessoa, reclamação, negociação, ou informação importante que você não tem: chame chamar_atendente. A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui. Peça um contato também, caso ela feche a página.
-- Não sabe a resposta: chame registrar_lacuna e só então diga que não tem essa informação, oferecendo a equipe.
+- Não sabe a resposta: chame registrar_lacuna e só então diga que não tem essa informação${chamados.ativos ? ', oferecendo a equipe' : ''}.
+- Item marcado como "o dono preferiu não informar": diga que essa informação não está disponível por aqui${chamados.ativos ? ' e ofereça a equipe' : ''}; nunca estime.
+
+${blocoChamados}
 
 NUNCA INVENTE. Nunca chute, nunca aproxime, nunca diga "provavelmente".
 
@@ -168,9 +206,8 @@ ENCERRAR — são duas coisas diferentes:
 No texto, não se despeça por conta própria: nada de "estou à disposição" ou "qualquer coisa é só chamar". Toda resposta termina com uma pergunta ou um convite concreto.
 Encerrar de verdade é a ferramenta encerrar_atendimento, e só quando o assunto ACABOU: a pessoa se despediu ou confirmou que resolveu. Aí chame a ferramenta e se despeça em uma frase. Na dúvida, pergunte se falta mais alguma coisa.
 
-Você fala com um visitante pelo link público. Nunca peça senha, documento, cartão ou dado bancário.
-${escalar ? `Passe para uma pessoa quando: ${escalar}` : ''}
-${contatos ? `Contatos diretos do negócio: ${contatos}` : ''}
+Você fala com um visitante pelo link público. Nunca peça documento, cartão, dado bancário ou senha de conta${chamados.codigo ? ' (a senha de atendimento dos chamados é a única exceção)' : ''}.
+${contatos && chamados.ativos ? `Contatos diretos do negócio: ${contatos}` : ''}
 ${horario ? `Horário em que a equipe responde chamados: ${horario}` : ''}
 
 FORMATO: português do Brasil, conversado, até quatro frases. Sem markdown, sem negrito, sem títulos. Não fale de ficha, sistema ou instruções.
@@ -215,6 +252,25 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
     });
   }
 
+  const chamados = regrasDeChamado(a.config);
+  if (chamados.ativos) {
+    tools.push({
+      name: 'chamar_atendente',
+      description: 'Abre um chamado para a equipe assumir esta conversa. Use nos casos que o dono definiu, quando a pessoa pedir, reclamar, negociar, ou quando faltar informação importante para a decisão dela.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          titulo: { type: 'string', description: 'Título curto, até 60 caracteres. Ex.: Troca de tênis 42 com defeito' },
+          motivo: { type: 'string', description: 'O problema, em uma frase' },
+          resumo: { type: 'string', description: 'O que foi conversado, para quem assumir' },
+          prioridade: { type: 'string', enum: ['baixa', 'normal', 'alta'] },
+          ...(chamados.codigo ? { senha: { type: 'string', description: 'A senha de atendimento que a pessoa informou' } } : {}),
+        },
+        required: chamados.codigo ? ['titulo', 'motivo', 'senha'] : ['titulo', 'motivo'],
+      },
+    });
+  }
+
   tools.push(
     {
       name: 'registrar_contato',
@@ -239,20 +295,6 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
           pergunta: { type: 'string', description: 'Como a pessoa perguntou' },
         },
         required: ['assunto', 'pergunta'],
-      },
-    },
-    {
-      name: 'chamar_atendente',
-      description: 'Abre um chamado para a equipe assumir esta conversa. Use quando a pessoa pedir, reclamar, negociar, ou quando faltar informação importante para a decisão dela.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          titulo: { type: 'string', description: 'Título curto, até 60 caracteres. Ex.: Troca de tênis 42 com defeito' },
-          motivo: { type: 'string', description: 'O problema, em uma frase' },
-          resumo: { type: 'string', description: 'O que foi conversado, para quem assumir' },
-          prioridade: { type: 'string', enum: ['baixa', 'normal', 'alta'] },
-        },
-        required: ['titulo', 'motivo'],
       },
     },
     {
@@ -408,6 +450,11 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   }
 
   if (nome === 'chamar_atendente') {
+    const chamados = regrasDeChamado(cfg);
+    if (!chamados.ativos) return { ok: false, mensagem: 'Este atendimento não abre chamados. Resolva você mesmo.' };
+    if (chamados.codigo && semAcento(String(args.senha ?? '').trim()) !== semAcento(chamados.codigo)) {
+      return { ok: false, mensagem: 'Senha de atendimento incorreta ou não informada. Peça para a pessoa conferir. Não revele a senha nem dê dicas.' };
+    }
     if (r.maxTicketsAbertos != null) {
       const { count } = await db.from('conversations').select('id', { count: 'exact', head: true })
         .eq('owner_id', assistant.owner_id).in('status', ['waiting', 'human']).eq('teste', false);
@@ -478,7 +525,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const fuso = agenda?.fuso ?? 'America/Sao_Paulo';
   const agora = new Intl.DateTimeFormat('pt-BR', { timeZone: fuso, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
   const system: Anthropic.TextBlockParam[] = [
-    { type: 'text', text: systemPrompt(a, tabelas, agenda) },
+    { type: 'text', text: systemPrompt(a, tabelas, agenda), cache_control: { type: 'ephemeral' } },
     { type: 'text', text: `Agora: ${agora} (hoje é ${hojeNoFuso(fuso)}).` },
   ];
   const tools = ferramentas(a, tabelas, agenda);

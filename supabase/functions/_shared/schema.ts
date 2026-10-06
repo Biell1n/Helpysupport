@@ -70,9 +70,25 @@ export interface Schema {
 
 export interface Config {
   fields: Record<string, { value: string; status: 'confirmado' | 'vazio' | 'ignorado' }>;
+  /**
+   * Itens das listas. Chaves que começam com "_" são internas: `_sem` guarda,
+   * separados por vírgula, os atributos que o dono não quis informar
+   * naquele item (ex.: o preço de um produto específico).
+   */
   collections: Record<string, Array<Record<string, string>>>;
   declined: { collections: string[]; item_fields: Record<string, string[]>; more: string[] };
 }
+
+/** Documento anexado na montagem (PDF, imagem, planilha), transcrito em texto. */
+export interface Material {
+  id: string;
+  nome: string;
+  tipo: string;
+  texto: string;
+  em: string;
+}
+
+export type MensagemBuilder = { role: 'user' | 'assistant'; content: string; anexos?: string[] };
 
 /** O que o builder lembra entre mensagens e não aparece na tela. */
 export interface Meta {
@@ -90,6 +106,12 @@ export interface Meta {
   tabela_oferecida: boolean;
   tabela_recusada: boolean;
   tabelas_criadas?: string[];
+  /** documentos anexados, já em texto, que o assistente consulta ao atender */
+  materiais?: Material[];
+  /** o que o dono quer, resumido da conversa de montagem */
+  briefing?: string;
+  /** a conversa de montagem, para retomar ao editar */
+  conversa?: MensagemBuilder[];
 }
 
 export const EMPTY_CONFIG: Config = {
@@ -97,6 +119,10 @@ export const EMPTY_CONFIG: Config = {
   collections: {},
   declined: { collections: [], item_fields: {}, more: [] },
 };
+
+/** Atributos que o dono não quis informar neste item. */
+export const semNoItem = (item: Record<string, string> | undefined) =>
+  String(item?._sem ?? '').split(',').map((x) => x.trim()).filter(Boolean);
 
 export const EMPTY_META: Meta = {
   business_model: null,
@@ -164,17 +190,34 @@ const CORE_HEAD: Section[] = [
 const CORE_TAIL: Section[] = [
   {
     key: 'escalonamento',
-    label: 'Quando ele não dá conta',
-    note: 'O que acontece quando o assistente chega no limite.',
+    label: 'Chamados e equipe',
+    note: 'Quando o assistente passa a conversa para uma pessoa. Dá para desligar: aí ele resolve tudo sozinho.',
     fields: [
       {
-        key: 'quando_chamar_humano', label: 'Quando parar e chamar uma pessoa', type: 'textarea', importance: 'important',
+        key: 'chamados_ativos', label: 'Ele pode abrir chamado para a equipe?', type: 'select', importance: 'important',
+        options: ['Sim', 'Não, ele resolve sozinho'],
+        hint: 'Desligue se não houver ninguém para responder (ex.: um monitor de estudos).',
+      },
+      {
+        key: 'quando_chamar_humano', label: 'Quando abrir chamado', type: 'textarea', importance: 'important',
         hint: 'Ex.: reclamação, negociação de preço, pedido de reembolso, assunto fora do escopo',
+        depende: { campo: 'chamados_ativos', valores: ['Sim'] },
+      },
+      {
+        key: 'nunca_chamar_humano', label: 'Quando NÃO abrir chamado', type: 'textarea', importance: 'optional',
+        hint: 'Ex.: pedido de desconto (ele mesmo explica que não tem); dúvida que está no FAQ',
+        depende: { campo: 'chamados_ativos', valores: ['Sim'] },
+      },
+      {
+        key: 'codigo_chamado', label: 'Senha para abrir chamado', type: 'text', importance: 'optional',
+        hint: 'Se preencher, a pessoa precisa informar esta senha para abrir chamado (ex.: código da turma). Em branco, qualquer um abre.',
+        depende: { campo: 'chamados_ativos', valores: ['Sim'] },
       },
       {
         key: 'horario', label: 'Quando tem gente disponível', type: 'text', importance: 'optional',
         // O assistente funciona sempre; isto é quando existe um humano para assumir.
         hint: 'O assistente responde 24 horas. Aqui é quando você ou sua equipe conseguem assumir um chamado. Ex.: dias úteis, 9h às 18h',
+        depende: { campo: 'chamados_ativos', valores: ['Sim'] },
       },
     ],
     collections: [
@@ -243,6 +286,20 @@ const OPERACAO: Record<string, FieldDef[]> = {
       hint: 'Se sim, ele consulta os horários livres da sua agenda e marca.',
     },
   ],
+  educacional: [
+    {
+      key: 'nivel_alunos', label: 'Para quem ele ensina', type: 'text', importance: 'critical',
+      hint: 'Ano, série ou idade. Ex.: 2º ano do fundamental, 7 e 8 anos',
+    },
+    {
+      key: 'metodo_ensino', label: 'Como ele deve ensinar', type: 'textarea', importance: 'important',
+      hint: 'Ex.: frases curtas, exemplos com objetos do dia a dia, nunca entregar a resposta, perguntar antes de explicar',
+    },
+    {
+      key: 'materia', label: 'Matéria e conteúdo', type: 'textarea', importance: 'important',
+      hint: 'O que está sendo estudado agora. Ex.: adição e subtração com dezenas; prova do 2º bimestre',
+    },
+  ],
   servico: [
     { key: 'agendamento_como', label: 'Como o cliente contrata', type: 'textarea', importance: 'important', hint: 'Orçamento, agendamento, prazo até começar' },
     {
@@ -254,7 +311,7 @@ const OPERACAO: Record<string, FieldDef[]> = {
 };
 
 function camposDeOperacao(model: Modelo | null): FieldDef[] {
-  const out = [...OPERACAO._comum];
+  const out = model === 'educacional' ? [] : [...OPERACAO._comum];
   if (!model) return out;
   if (VENDE.includes(model)) out.push(...OPERACAO.vende);
   if (OPERACAO[model]) out.push(...OPERACAO[model]);
@@ -488,9 +545,10 @@ export function computeState(schema: Schema, cfg: Config) {
     const skip = cfg.declined.item_fields[c.key] ?? [];
     const reqs = c.item_fields.filter((f) => f.required && !skip.includes(f.key));
     list.forEach((item, index) => {
-      const faltam = reqs.filter((f) => !String(item?.[f.key] ?? '').trim()).map((f) => f.label);
+      const sem = semNoItem(item);
+      const faltam = reqs.filter((f) => !sem.includes(f.key) && !String(item?.[f.key] ?? '').trim()).map((f) => f.label);
       if (faltam.length) {
-        incomplete.push({ collection: c.key, label: c.label, index, item: String(Object.values(item ?? {})[0] ?? `item ${index + 1}`), fields: faltam });
+        incomplete.push({ collection: c.key, label: c.label, index, item: String(item?.[c.item_fields[0]?.key] ?? `item ${index + 1}`), fields: faltam });
       }
     });
     if (list.length > 0 && !cfg.declined.more.includes(c.key) && !['contatos', 'faq'].includes(c.key)) askMore.push(c.key);
@@ -518,9 +576,17 @@ export function describeConfig(schema: Schema, cfg: Config): string {
       const list = cfg.collections[c.key] ?? [];
       if (!list.length) continue;
       linhas.push(`${c.label}:`);
+      const semNaLista = cfg.declined.item_fields[c.key] ?? [];
       list.forEach((item, i) => {
+        const sem = semNoItem(item);
         const partes = c.item_fields
-          .map((f) => (String(item?.[f.key] ?? '').trim() ? `${f.label}: ${String(item[f.key]).trim()}` : ''))
+          .map((f) => {
+            const v = String(item?.[f.key] ?? '').trim();
+            if (v) return `${f.label}: ${v}`;
+            // dito de propósito, para ele não inventar nem prometer
+            if (sem.includes(f.key) && !semNaLista.includes(f.key)) return `${f.label}: o dono preferiu não informar`;
+            return '';
+          })
           .filter(Boolean);
         if (partes.length) linhas.push(`  ${i + 1}. ${partes.join(' | ')}`);
       });

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUp, Check, Loader2, Lock, RotateCcw } from 'lucide-react';
-import { BuilderProvider, useBuilder } from './BuilderContext';
+import { ArrowLeft, ArrowUp, Check, FileText, Loader2, Lock, Paperclip, RotateCcw, Undo2, X } from 'lucide-react';
+import { ANEXO_ACEITA, BuilderProvider, useBuilder } from './BuilderContext';
 import Documento, { EscolherModelo } from './Documento';
 import { Marca } from '@/components/Logo';
 import { Confirmar } from '@/components/Modal';
@@ -11,14 +11,30 @@ import { labelOf } from '@/lib/documento';
 const SUGESTOES = [
   'Tenho uma loja de roupas femininas, vendo pelo Instagram e entrego na cidade.',
   'Sou dentista, quero que ele marque consultas e explique os procedimentos.',
-  'Sou professor de matemática e quero um monitor para tirar dúvidas dos alunos.',
+  'Sou professora do 2º ano e quero um monitor que ajude meus alunos na prova de matemática, sem dar as respostas.',
 ];
+
+const MAX_ANEXOS = 4;
 
 function Conversa() {
   const b = useBuilder();
+  const avisar = useToast();
   const [texto, setTexto] = useState('');
+  const [arquivos, setArquivos] = useState([]);
+  const [arrastando, setArrastando] = useState(false);
   const fim = useRef(null);
   const area = useRef(null);
+  const seletor = useRef(null);
+
+  const anexar = (lista) => {
+    const novos = [...(lista || [])];
+    if (!novos.length) return;
+    setArquivos((p) => {
+      const juntos = [...p, ...novos];
+      if (juntos.length > MAX_ANEXOS) avisar(`Até ${MAX_ANEXOS} arquivos por mensagem`, { erro: true });
+      return juntos.slice(0, MAX_ANEXOS);
+    });
+  };
 
   useEffect(() => {
     const caixa = fim.current?.parentElement;
@@ -33,22 +49,39 @@ function Conversa() {
   }, [texto]);
 
   const enviar = (t = texto) => {
-    if (!t.trim() || b.sending) return;
-    b.sendMessage(t);
+    if ((!t.trim() && !arquivos.length) || b.sending) return;
+    b.sendMessage(t, arquivos);
     setTexto('');
+    setArquivos([]);
   };
 
   const semCota = b.plano && b.plano.builderRestantes <= 0;
 
   return (
-    <div className="chat">
+    <div
+      className="chat"
+      data-arrastando={arrastando || undefined}
+      onDragOver={(e) => {
+        if (!e.dataTransfer?.types?.includes('Files')) return;
+        e.preventDefault();
+        setArrastando(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setArrastando(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setArrastando(false);
+        anexar(e.dataTransfer.files);
+      }}
+    >
       <div className="chat-scroll" aria-live="polite">
         {b.messages.length === 0 && (
           <div className="stack" style={{ marginTop: 'auto' }}>
             <div className="msg msg-bot">
               <span className="msg-who">Helpy</span>
               <div className="msg-body">
-                Oi! Eu monto o atendente do seu negócio com você. Me conta: o que a sua empresa faz e para quem? Pode escrever do seu jeito, até colar sua tabela de preços.
+                Oi! Eu monto o atendente do seu negócio com você. Me conta: o que a sua empresa faz e para quem? Pode escrever do seu jeito, colar sua tabela de preços ou mandar um arquivo (PDF, planilha, foto) no clipe aqui embaixo.
               </div>
             </div>
             <div className="stack stack-sm">
@@ -63,6 +96,13 @@ function Conversa() {
         {b.messages.map((m, i) => (
           <div key={i} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`}>
             {m.role === 'assistant' && <span className="msg-who">Helpy</span>}
+            {m.anexos?.length > 0 && (
+              <div className="msg-anexos">
+                {m.anexos.map((n) => (
+                  <span key={n}><FileText aria-hidden="true" /> {n}</span>
+                ))}
+              </div>
+            )}
             <div className="msg-body">{m.content}</div>
           </div>
         ))}
@@ -75,7 +115,40 @@ function Conversa() {
         <div ref={fim} />
       </div>
       <div className="composer">
+        {arquivos.length > 0 && (
+          <div className="composer-anexos">
+            {arquivos.map((a, i) => (
+              <span key={`${a.name}-${i}`}>
+                <FileText aria-hidden="true" /> {a.name}
+                <button type="button" aria-label={`Tirar ${a.name}`} onClick={() => setArquivos((p) => p.filter((_, j) => j !== i))}>
+                  <X size={13} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="composer-row">
+          <button
+            type="button"
+            className="btn btn-quiet btn-icon"
+            onClick={() => seletor.current?.click()}
+            disabled={b.sending || semCota}
+            aria-label="Anexar arquivo"
+            title="Anexar PDF, planilha, imagem ou texto"
+          >
+            <Paperclip />
+          </button>
+          <input
+            ref={seletor}
+            type="file"
+            hidden
+            multiple
+            accept={ANEXO_ACEITA}
+            onChange={(e) => {
+              anexar(e.target.files);
+              e.target.value = '';
+            }}
+          />
           <textarea
             ref={area}
             rows={1}
@@ -91,12 +164,12 @@ function Conversa() {
               }
             }}
           />
-          <button type="button" className="btn btn-primary btn-icon" disabled={!texto.trim() || b.sending || semCota} onClick={() => enviar()} aria-label="Enviar">
+          <button type="button" className="btn btn-primary btn-icon" disabled={(!texto.trim() && !arquivos.length) || b.sending || semCota} onClick={() => enviar()} aria-label="Enviar">
             <ArrowUp />
           </button>
         </div>
         <div className="composer-note">
-          <span>Enter envia · Shift+Enter quebra linha ·</span>
+          <span>Enter envia · Shift+Enter quebra linha · arraste arquivos aqui ·</span>
           {b.plano && <span className="num">{b.plano.builderRestantes} mensagens de montagem restantes no mês</span>}
         </div>
       </div>
@@ -131,6 +204,35 @@ function Tela() {
   const avisar = useToast();
   const [publicando, setPublicando] = useState(false);
   const [recomecar, setRecomecar] = useState(false);
+  const [desfazendo, setDesfazendo] = useState(false);
+
+  const desfazer = async () => {
+    if (desfazendo) return;
+    setDesfazendo(true);
+    try {
+      await b.desfazer();
+      avisar('Voltou para a versão anterior');
+    } catch (e) {
+      avisar('Nada para desfazer', { erro: true, texto: e.message });
+    } finally {
+      setDesfazendo(false);
+    }
+  };
+
+  // Ctrl+Z (ou ⌘Z) fora de um campo de texto volta o documento
+  const desfazerRef = useRef(desfazer);
+  desfazerRef.current = desfazer;
+  useEffect(() => {
+    const tecla = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+      const alvo = e.target;
+      if (alvo?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      e.preventDefault();
+      desfazerRef.current();
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, []);
 
   if (b.loading) {
     return (
@@ -198,6 +300,15 @@ function Tela() {
           </div>
           <span className="faint" style={{ fontSize: 12.5 }}>{salvo}</span>
           <span className="spacer" />
+          <button
+            type="button"
+            className="btn btn-quiet btn-sm"
+            onClick={desfazer}
+            disabled={desfazendo || !b.podeDesfazer}
+            title="Desfazer a última mudança (Ctrl+Z)"
+          >
+            {desfazendo ? <Loader2 className="spin" /> : <Undo2 />} Desfazer
+          </button>
           {!b.editando && (
             <button type="button" className="btn btn-quiet btn-sm" onClick={() => setRecomecar(true)}>
               <RotateCcw /> Recomeçar

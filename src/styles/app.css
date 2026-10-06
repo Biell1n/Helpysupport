@@ -1412,3 +1412,192 @@
     flex-wrap: wrap;
   }
 }
+
+/* ---------- builder: dispensados, anexos, materiais ---------- */
+
+.doc-field[data-off='true'] > .doc-field-top .label {
+  text-decoration: line-through;
+  color: var(--tinta-3);
+}
+
+.doc-field[data-off='true'] .doc-skipped,
+.item-attr[data-off='true'] .doc-skipped {
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.item-attr-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.item-attr-x {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tinta-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.item-attr:hover .item-attr-x,
+.item-attr:focus-within .item-attr-x,
+.item-attr[data-off='true'] .item-attr-x {
+  opacity: 1;
+}
+
+.item-attr-x:hover {
+  background: var(--papel-2);
+  color: var(--tinta);
+}
+
+@media (hover: none) {
+  .item-attr-x {
+    opacity: 1;
+  }
+}
+
+.item-attr[data-off='true'] label {
+  text-decoration: line-through;
+  color: var(--tinta-3);
+}
+
+.item-attr .doc-skipped {
+  padding: 8px 10px;
+  font-size: 12.5px;
+}
+
+.chip-off {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border-radius: 999px;
+  background: var(--papel-2);
+  font-size: 12.5px;
+  color: var(--tinta-2);
+}
+
+.chip-off s {
+  color: var(--tinta-3);
+}
+
+.chip-off button {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--branco);
+  color: var(--tinta-2);
+  cursor: pointer;
+}
+
+.materiais {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.materiais li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: var(--branco);
+  border: 1px solid var(--linha);
+}
+
+.materiais li > svg {
+  width: 20px;
+  height: 20px;
+  color: var(--azul-forte);
+  flex-shrink: 0;
+}
+
+.materiais li > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.materiais b {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.materiais span {
+  font-size: 12.5px;
+  color: var(--tinta-3);
+}
+
+.msg-anexos,
+.composer-anexos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.msg-anexos {
+  margin-bottom: 4px;
+}
+
+.msg-user .msg-anexos {
+  justify-content: flex-end;
+}
+
+.msg-anexos span,
+.composer-anexos span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--azul-claro);
+  color: var(--azul-forte);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.msg-anexos svg,
+.composer-anexos svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.composer-anexos {
+  margin-bottom: 10px;
+}
+
+.composer-anexos button {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.chat[data-arrastando] {
+  box-shadow: inset 0 0 0 2px var(--azul-forte);
+  background: rgba(44, 93, 143, 0.04);
+}

@@ -32,6 +32,13 @@ export function normalizeConfig(cfg) {
   };
 }
 
+/** Atributos que o dono não quis informar neste item (chave interna `_sem`). */
+export const semNoItem = (item) =>
+  String(item?._sem ?? '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+
 const flatFields = (s) => (s?.sections || []).flatMap((x) => x.fields || []);
 const flatCollections = (s) => (s?.sections || []).flatMap((x) => x.collections || []);
 const isFilled = (e) => !!e && (e.status === 'ignorado' || String(e.value ?? '').trim() !== '');
@@ -61,7 +68,8 @@ export function computeState(schema, rawConfig) {
     const skip = cfg.declined.item_fields[c.key] || [];
     const reqs = (c.item_fields || []).filter((f) => f.required && !skip.includes(f.key));
     list.forEach((item, idx) => {
-      const faltam = reqs.filter((f) => !String(item?.[f.key] ?? '').trim());
+      const sem = semNoItem(item);
+      const faltam = reqs.filter((f) => !sem.includes(f.key) && !String(item?.[f.key] ?? '').trim());
       total += reqs.length;
       done += reqs.length - faltam.length;
       if (faltam.length) incomplete[`${c.key}:${idx}`] = faltam.map((f) => f.label);

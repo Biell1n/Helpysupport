@@ -8,6 +8,8 @@
 //   add_field  → cria um campo à mão
 //   finalize   → publica: cria ou atualiza o assistente
 //   reset      → descarta o rascunho e começa de novo
+//   undo       → volta o documento para a versão anterior
+//   remove_material → tira um documento anexado
 //   share      → liga/desliga ou troca o link público
 //
 // O que o usuário digita direto no formulário não passa por aqui: a tela
@@ -28,9 +30,11 @@ import { addUsage, anthropic, emptyUsage, logUsage, MODELS, textOf } from '../_s
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import {
   allCollections, allFields, buildSchema, type CollectionDef, computeState, type Config,
-  EMPTY_CONFIG, type FieldDef, hardenCollection, limpo, type Meta, missingCritical, type Modelo, MODELOS,
-  normalizeConfig, normalizeMeta, PRICE_RE, type Schema, slug, valueOf, VENDE,
+  EMPTY_CONFIG, type FieldDef, hardenCollection, limpo, type Material, type MensagemBuilder, type Meta, missingCritical,
+  type Modelo, MODELOS, normalizeConfig, normalizeMeta, PRICE_RE, type Schema, semNoItem, slug, valueOf, VENDE,
 } from '../_shared/schema.ts';
+
+type Versao = { em: string; config: Config; meta: Meta };
 
 type Session = {
   id: string;
@@ -39,8 +43,20 @@ type Session = {
   config: Config;
   meta: Meta;
   schema: Schema;
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: MensagemBuilder[];
+  historico: Versao[];
+  /** true quando o desfazer mexeu no histórico (o banco não deve criar versão) */
+  historicoMexido?: boolean;
 };
+
+/** Arquivo que veio junto da mensagem. */
+type Anexo = { nome: string; tipo: string; dados: string };
+
+const TIPOS_ANEXO = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain', 'text/csv', 'text/markdown'];
+const MAX_ANEXOS = 4;
+const MAX_ANEXO_B64 = 9_000_000; // ~6,5 MB por arquivo
+const MAX_MATERIAL = 40_000; // caracteres guardados por documento
+const MAX_MATERIAIS = 6;
 
 const token = () => crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 const SECOES_QUE_CRESCEM = ['assistente', 'conhecimento', 'operacao', 'escalonamento', 'catalogo'];
@@ -60,6 +76,7 @@ function hydrate(row: Record<string, unknown>): Session {
     meta,
     schema: buildSchema(meta, config),
     messages: Array.isArray(row.messages) ? (row.messages as Session['messages']) : [],
+    historico: Array.isArray(row.historico) ? (row.historico as Versao[]) : [],
   };
 }
 
@@ -73,6 +90,7 @@ async function loadSession(ownerId: string, assistantId: string | null): Promise
 async function createSession(ownerId: string, assistantId: string | null): Promise<Session> {
   let config = structuredClone(EMPTY_CONFIG);
   let meta = normalizeMeta(null);
+  let messages: MensagemBuilder[] = [];
 
   if (assistantId) {
     const { data: a } = await admin
@@ -84,12 +102,14 @@ async function createSession(ownerId: string, assistantId: string | null): Promi
     if (!a) throw new UserError('Assistente não encontrado.', 404);
     config = normalizeConfig(a.config);
     meta = normalizeMeta(a.meta);
+    // editar um assistente retoma a conversa em que ele foi montado
+    messages = Array.isArray(meta.conversa) ? meta.conversa.slice(-80) : [];
   }
 
   const schema = buildSchema(meta, config);
   const { data, error } = await admin
     .from('builder_sessions')
-    .insert({ owner_id: ownerId, assistant_id: assistantId, config, meta, schema, messages: [] })
+    .insert({ owner_id: ownerId, assistant_id: assistantId, config, meta, schema, messages })
     .select('*')
     .single();
   if (error) throw error;
@@ -106,6 +126,7 @@ async function saveSession(s: Session) {
       schema: s.schema,
       messages: s.messages.slice(-80),
       business_type: s.meta.ramo,
+      ...(s.historicoMexido ? { historico: s.historico } : {}),
     })
     .eq('id', s.id);
   if (error) throw error;
@@ -117,7 +138,27 @@ const sessionPayload = (s: Session) => ({
   business_model: s.meta.business_model,
   schema: s.schema,
   config: s.config,
+  materiais: (s.meta.materiais ?? []).map((m) => ({ id: m.id, nome: m.nome, tipo: m.tipo, caracteres: m.texto.length })),
+  desfazer: s.historico.length,
 });
+
+/** Volta o documento para versões anteriores. Devolve quantas voltou. */
+function desfazer(s: Session, passos = 1): number {
+  let n = 0;
+  while (n < Math.max(1, Math.min(5, passos)) && s.historico.length) {
+    const v = s.historico.shift()!;
+    const metaVelha = normalizeMeta(v.meta);
+    s.config = normalizeConfig(v.config);
+    // o que é da conversa continua andando; o documento volta
+    s.meta = { ...metaVelha, turno: s.meta.turno, ask_counts: s.meta.ask_counts, ask_turnos: s.meta.ask_turnos, conversa: s.meta.conversa };
+    n++;
+  }
+  if (n) {
+    s.historicoMexido = true;
+    s.schema = buildSchema(s.meta, s.config);
+  }
+  return n;
+}
 
 async function publicInfo(assistantId: string | null) {
   if (!assistantId) return null;
@@ -373,12 +414,22 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: 'dispensar',
     description:
-      'A pessoa disse que não tem ou não quer informar. Dispensa um campo, uma lista inteira, ou um atributo dos itens de uma lista (informe lista + atributo). Nunca use só porque ela ainda não respondeu.',
+      'A pessoa disse que não tem ou não quer informar. Dispensa: um campo (chave); uma lista inteira (chave da lista); um atributo em TODOS os itens (chave da lista + atributo); ou um atributo de UM item só (chave da lista + atributo + identificador do item, ex.: "não quero pôr o preço do kit"). Nunca use só porque ela ainda não respondeu. Na tela, o que for dispensado aparece riscado e a pessoa pode reativar.',
     input_schema: {
       type: 'object',
-      properties: { chave: { type: 'string', description: 'Campo ou lista' }, atributo: { type: 'string' } },
+      properties: {
+        chave: { type: 'string', description: 'Campo ou lista' },
+        atributo: { type: 'string', description: 'Atributo dos itens da lista' },
+        identificador: { type: 'string', description: 'Nome (primeiro atributo) do item, quando é só para ele' },
+      },
       required: ['chave'],
     },
+  },
+  {
+    name: 'desfazer',
+    description:
+      'Volta o documento para como estava antes da última mudança (ou das últimas, até 5). Use quando a pessoa pedir para voltar, desfazer, ou disser que apagou ou mudou algo sem querer. Depois confira o estado e diga o que voltou.',
+    input_schema: { type: 'object', properties: { passos: { type: 'integer', description: 'Quantas mudanças voltar. Padrão 1.' } } },
   },
   {
     name: 'sem_mais_itens',
@@ -540,7 +591,12 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
         }
         const i = list.findIndex((it) => slug(it?.[idKey(c)] ?? '') === slug(id));
         if (i >= 0) {
-          list[i] = { ...list[i], ...item };
+          const juntos: Record<string, string> = { ...list[i], ...item };
+          // informou agora o que antes tinha dispensado: deixa de ser dispensado
+          const sem = semNoItem(juntos).filter((k) => !item[k]);
+          if (sem.length) juntos._sem = sem.join(',');
+          else delete juntos._sem;
+          list[i] = juntos;
           atualizados++;
         } else {
           list.push(item);
@@ -584,6 +640,20 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
 
     case 'dispensar': {
       const k = String(input.chave);
+      if (input.atributo && input.identificador && cols.has(k)) {
+        const c = cols.get(k)!;
+        const attr = slug(String(input.atributo));
+        if (!c.item_fields.some((f) => f.key === attr)) return { erro: `atributo inexistente em ${k}: ${input.atributo}` };
+        const i = findIdx(c, String(input.identificador));
+        if (i < 0) return { erro: `item não encontrado: ${input.identificador}` };
+        const item = { ...cfg.collections[k][i] };
+        const sem = new Set(semNoItem(item));
+        sem.add(attr);
+        item._sem = [...sem].join(',');
+        cfg.collections[k][i] = item;
+        touched.add(k);
+        return { ok: true };
+      }
       if (input.atributo && cols.has(k)) {
         const cur = cfg.declined.item_fields[k] ?? [];
         if (!cur.includes(String(input.atributo))) cur.push(String(input.atributo));
@@ -685,6 +755,12 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
     case 'recusar_tabela':
       s.meta.tabela_recusada = true;
       return { ok: true };
+
+    case 'desfazer': {
+      const n = desfazer(s, Number(input.passos) || 1);
+      touched.add('desfazer');
+      return n ? { ok: true, versoes_voltadas: n, mensagem: 'O documento voltou. O ESTADO ATUAL do sistema ainda mostra a versão antiga desta mensagem: confie no resultado e diga, em uma frase, o que voltou.' } : { erro: 'Não há versão anterior para voltar.' };
+    }
   }
   return { erro: `ferramenta desconhecida: ${name}` };
 }
@@ -705,6 +781,31 @@ Se uma ferramenta devolver erro, corrija e tente de novo ou pergunte à pessoa.
 PRIMEIRO, ENTENDA O NEGÓCIO
 Assim que ficar claro o que a pessoa faz, chame definir_negocio com o modelo certo e, de preferência, desenhe o catálogo sob medida e reescreva os rótulos do núcleo na língua dela.
 Atenção ao arquétipo: quem ENSINA ou TIRA DÚVIDA de aluno é "educacional" — o catálogo não tem preço. Quem ajuda cliente com problema é "suporte".
+
+PENSE NO QUE O ASSISTENTE VAI PRECISAR
+Antes de cada pergunta, imagine o assistente atendendo de verdade e pergunte o que ele não saberia responder. Uma loja precisa dos produtos, e cada produto precisa de preço, descrição e variações. Uma clínica precisa dos procedimentos com duração e valor. Um professor precisa da série dos alunos, do conteúdo e de como ensinar.
+Cobre cada item: se a pessoa listou cinco produtos e deu preço de três, peça o preço dos outros dois pelo nome. Item sem dado obrigatório é uma resposta que o assistente não vai saber dar.
+Se o negócio precisa de algo que o documento não tem, crie: um campo (criar_campo) ou uma lista (criar_lista). Não espere a pessoa pedir.
+
+QUANDO A PESSOA NÃO QUER INFORMAR
+Recusa vale para o que ela recusou, e só para isso:
+- "não quero pôr o endereço" → dispensar o campo
+- "o kit não tem preço fixo, não quero pôr" → dispensar com lista + atributo + identificador do item
+- "não vou colocar preço em nada" → dispensar com lista + atributo (todos os itens)
+- "nada de FAQ" → dispensar a lista
+O dispensado aparece riscado na tela e ela pode reativar quando quiser. Se ela voltar atrás e informar, é só gravar normalmente.
+
+DESFAZER
+"Volta como estava", "desfaz", "apaguei sem querer", "não era isso" → ferramenta desfazer. Depois diga em uma frase o que voltou. Se ela quiser um dado específico de volta e você lembrar dele pela conversa, também pode simplesmente gravar de novo.
+
+ARQUIVOS ANEXADOS
+Quando vier um PDF, imagem ou planilha, leia tudo e grave de uma vez o que servir para o documento: campos, itens das listas, perguntas frequentes, regras. O texto completo do arquivo fica guardado sozinho como material de apoio, e o assistente consulta ao atender — não copie o arquivo inteiro para os campos.
+Diga em uma frase o que encontrou ("li a prova: 10 questões de adição e subtração para o 2º ano") e siga com o que ainda falta.
+Se for prova, lista de exercícios ou atividade de aluno: o modelo é educacional, grave em regras que ele nunca entrega a resposta das questões (ele guia com perguntas e exemplos parecidos), e grave a série e o conteúdo.
+
+CHAMADOS
+Em algum momento pergunte se o assistente pode passar a conversa para uma pessoa da equipe (campo chamados_ativos). Se sim: em que situações abrir chamado, em quais não abrir, e se só quem tem uma senha pode abrir. Para um monitor de estudos sem ninguém para responder, sugira desligar.
+"Ele nunca deve…" ou "não pode falar de…" são regras: grave em regras com acrescentar=true, na hora.
 
 VOCÊ É UMA PESSOA, NÃO UM FORMULÁRIO
 Consultor experiente, português do Brasil, informal. Varia o tamanho da resposta. Faz UMA pergunta por vez, concreta — nunca "mais alguma coisa?".
@@ -745,6 +846,10 @@ Você só monta este assistente. Se puxarem outro tema, uma frase avisando e vol
 
 function docState(s: Session): string {
   const linhas: string[] = [];
+  const mats = s.meta.materiais ?? [];
+  if (mats.length) {
+    linhas.push(`Materiais de apoio guardados (o assistente lê o texto completo ao atender): ${mats.map((m) => `"${m.nome}" (${m.texto.length} caracteres; começa com: ${JSON.stringify(m.texto.slice(0, 200))})`).join('; ')}`);
+  }
   linhas.push(`Modelo de negócio: ${s.meta.business_model ?? '(ainda não definido)'} · Ramo: ${s.meta.ramo ?? '(ainda não definido)'}`);
   for (const sec of s.schema.sections) {
     linhas.push(`\nSeção "${sec.label}" (${sec.key})`);
@@ -759,6 +864,7 @@ function docState(s: Session): string {
       const dispensada = s.config.declined.collections.includes(c.key);
       linhas.push(`  lista ${c.key} · ${c.label} [${c.importance}] atributos: ${c.item_fields.map((f) => `${f.key}${f.required ? '*' : ''}`).join(', ')} → ${dispensada ? 'DISPENSADA' : `${list.length} itens`}`);
       list.slice(0, 40).forEach((item) => linhas.push(`    · ${JSON.stringify(item)}`));
+      if (list.some((it) => it?._sem)) linhas.push('    (_sem = atributos que o dono não quis informar naquele item)');
       if (list.length > 40) linhas.push(`    … e mais ${list.length - 40}`);
     }
   }
@@ -773,16 +879,94 @@ PRÓXIMO ASSUNTO: ${goal.text}
 Primeiro grave o que a mensagem trouxer. Depois puxe o próximo assunto com as SUAS palavras, uma pergunta só.`;
 }
 
-async function chat(s: Session, userText: string, ctx: Ctx) {
+/** O arquivo como bloco que o Claude lê. */
+function blocoDoAnexo(a: Anexo): Anthropic.Beta.BetaContentBlockParam {
+  if (a.tipo === 'application/pdf') {
+    return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: a.dados }, title: a.nome };
+  }
+  if (a.tipo.startsWith('image/')) {
+    return { type: 'image', source: { type: 'base64', media_type: a.tipo as 'image/png', data: a.dados } };
+  }
+  return { type: 'text', text: `Conteúdo do arquivo "${a.nome}":\n${textoDoAnexo(a)}` };
+}
+
+function textoDoAnexo(a: Anexo) {
+  return new TextDecoder().decode(Uint8Array.from(atob(a.dados), (c) => c.charCodeAt(0)));
+}
+
+/** Transcreve o arquivo em texto para o assistente consultar depois. */
+async function virarMaterial(a: Anexo, usage: ReturnType<typeof emptyUsage>): Promise<Material> {
+  let texto = '';
+  if (a.tipo.startsWith('text/')) {
+    texto = textoDoAnexo(a);
+  } else {
+    const res = await anthropic.messages.create({
+      model: MODELS.atendimento,
+      max_tokens: 12000,
+      messages: [{
+        role: 'user',
+        content: [
+          blocoDoAnexo(a) as Anthropic.ContentBlockParam,
+          {
+            type: 'text',
+            text:
+              'Transcreva fielmente todo o conteúdo deste arquivo em texto simples, em português, para um assistente consultar depois. ' +
+              'Mantenha títulos, questões numeradas, alternativas, valores e nomes exatamente como estão. Tabelas: uma linha por registro, no formato "coluna: valor". ' +
+              'Se houver gabarito ou respostas, transcreva numa seção "GABARITO". Imagens e gráficos: descreva em uma frase o que mostram. ' +
+              'Não resuma, não comente, não acrescente nada.',
+          },
+        ],
+      }],
+    });
+    addUsage(usage, res.usage);
+    texto = textOf(res.content as Array<{ type: string; text?: string }>);
+  }
+  return {
+    id: crypto.randomUUID().slice(0, 8),
+    nome: a.nome.slice(0, 120),
+    tipo: a.tipo,
+    texto: texto.trim().slice(0, MAX_MATERIAL),
+    em: new Date().toISOString(),
+  };
+}
+
+function validarAnexos(bruto: unknown): Anexo[] {
+  if (!Array.isArray(bruto) || !bruto.length) return [];
+  if (bruto.length > MAX_ANEXOS) throw new UserError(`Mande até ${MAX_ANEXOS} arquivos por mensagem.`);
+  return bruto.map((x) => {
+    const a = (x ?? {}) as Record<string, unknown>;
+    const nome = String(a.nome ?? 'arquivo').slice(0, 120);
+    const tipo = String(a.tipo ?? '');
+    const dados = String(a.dados ?? '');
+    if (!TIPOS_ANEXO.includes(tipo)) {
+      throw new UserError(`"${nome}": mande PDF, imagem (PNG, JPG), planilha (.xlsx ou .csv) ou texto. Documento do Word: salve como PDF.`);
+    }
+    if (!dados || dados.length > MAX_ANEXO_B64) throw new UserError(`"${nome}" passa de 6 MB.`);
+    return { nome, tipo, dados };
+  });
+}
+
+async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []) {
   const model = MODELS.builder;
   const usage = emptyUsage();
+  const usageMateriais = emptyUsage();
   s.meta.turno += 1;
   let goal = nextGoal(s);
 
-  const history: Anthropic.Beta.BetaMessageParam[] = s.messages.slice(-30).map((m) => ({ role: m.role, content: m.content }));
+  // a transcrição dos arquivos roda junto com a conversa
+  const materiaisPromessa = Promise.all(anexos.map((a) => virarMaterial(a, usageMateriais).catch((e) => {
+    console.error('[material]', a.nome, e?.message ?? e);
+    return null;
+  })));
+
+  const history: Anthropic.Beta.BetaMessageParam[] = s.messages.slice(-30).map((m) => ({
+    role: m.role,
+    content: m.anexos?.length ? `${m.content}\n[anexou: ${m.anexos.join(', ')}]` : m.content,
+  }));
   history.push({
     role: 'user',
     content: [
+      ...anexos.map(blocoDoAnexo),
       { type: 'text', text: userText },
       { type: 'text', text: goalNote(s, goal) },
     ],
@@ -843,8 +1027,41 @@ async function chat(s: Session, userText: string, ctx: Ctx) {
 
   marcarPergunta(s, goal);
   if (!reply) reply = 'Anotei no documento. Me conta mais sobre o negócio?';
-  s.messages = [...s.messages, { role: 'user', content: userText }, { role: 'assistant', content: reply }];
-  return { reply, usage, model };
+
+  const novos = (await materiaisPromessa).filter((m): m is Material => !!m && !!m.texto);
+  if (novos.length) s.meta.materiais = [...(s.meta.materiais ?? []), ...novos].slice(-MAX_MATERIAIS);
+
+  s.messages = [
+    ...s.messages,
+    { role: 'user', content: userText, ...(anexos.length ? { anexos: anexos.map((a) => a.nome) } : {}) },
+    { role: 'assistant', content: reply },
+  ];
+  return { reply, usage, usageMateriais, model };
+}
+
+/** Resume a conversa de montagem no que o dono quer, para o assistente seguir. */
+async function resumirIntencao(s: Session): Promise<string> {
+  const conversa = s.messages.filter((m) => m.content?.trim()).slice(-60);
+  if (conversa.length < 2) return s.meta.briefing ?? '';
+  const texto = conversa
+    .map((m) => `${m.role === 'user' ? 'DONO' : 'HELPY'}: ${m.content.slice(0, 1500)}${m.anexos?.length ? ` [anexou: ${m.anexos.join(', ')}]` : ''}`)
+    .join('\n');
+  const usage = emptyUsage();
+  const res = await anthropic.messages.create({
+    model: MODELS.atendimento,
+    max_tokens: 900,
+    messages: [{
+      role: 'user',
+      content:
+        'Abaixo está a conversa em que o dono de um negócio montou um assistente virtual. Escreva, em tópicos curtos começando com "- ", ' +
+        'o que o dono quer deste assistente e que um atendente precisa lembrar: objetivo, público, jeito de tratar as pessoas, ' +
+        'o que evitar, como usar os arquivos anexados, preferências e cuidados ditos na conversa. Só o que o dono disse ou deixou claro; ' +
+        'nada de dados que já estão em ficha (preço, endereço). Máximo 12 tópicos.\n\n' + texto,
+    }],
+  });
+  addUsage(usage, res.usage);
+  await logUsage(admin, s.owner_id, s.assistant_id, 'builder', MODELS.atendimento, usage);
+  return textOf(res.content as Array<{ type: string; text?: string }>).slice(0, 2500);
 }
 
 // ------------------------------------------------------------
@@ -872,7 +1089,8 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'message') {
-      const text = String(body.message ?? '').trim().slice(0, 12000);
+      const anexos = validarAnexos(body.anexos);
+      const text = String(body.message ?? '').trim().slice(0, 12000) || (anexos.length ? 'Segue o arquivo.' : '');
       if (!text) throw new UserError('Mensagem vazia.');
       const { plan, payload } = await planInfo(user.id);
       if (payload.expirado) throw new UserError('Seu teste grátis terminou. Escolha um plano para continuar.', 402);
@@ -885,9 +1103,11 @@ Deno.serve(async (req) => {
 
       const s = await loadSession(user.id, assistantId);
       const before = JSON.stringify(s.config);
-      const { reply, usage, model } = await chat(s, text, { s, userId: user.id, touched: new Set(), maxTabelas: plan.tabelas });
+      const { reply, usage, usageMateriais, model } = await chat(s, text, { s, userId: user.id, touched: new Set(), maxTabelas: plan.tabelas }, anexos);
       await saveSession(s);
       await logUsage(admin, user.id, assistantId, 'builder', model, usage);
+      // a transcrição dos arquivos é Haiku; entra no custo sem contar como mensagem de montagem
+      if (usageMateriais.input) await logUsage(admin, user.id, assistantId, 'atendimento', MODELS.atendimento, usageMateriais);
 
       // o que mudou, para a tela piscar os campos certos
       const after = s.config;
@@ -932,6 +1152,20 @@ Deno.serve(async (req) => {
       return json(sessionPayload(s));
     }
 
+    if (action === 'undo') {
+      const s = await loadSession(user.id, assistantId);
+      if (!desfazer(s, 1)) throw new UserError('Não há mais nada para desfazer.');
+      await saveSession(s);
+      return json(sessionPayload(s));
+    }
+
+    if (action === 'remove_material') {
+      const s = await loadSession(user.id, assistantId);
+      s.meta.materiais = (s.meta.materiais ?? []).filter((m) => m.id !== String(body.material_id));
+      await saveSession(s);
+      return json(sessionPayload(s));
+    }
+
     if (action === 'finalize') {
       const s = await loadSession(user.id, assistantId);
       if (!s.meta.business_model) throw new UserError('Conte o que o negócio faz (ou escolha o tipo de negócio) antes de publicar.');
@@ -940,6 +1174,14 @@ Deno.serve(async (req) => {
 
       const { plan, payload } = await planInfo(user.id);
       if (payload.expirado) throw new UserError('Seu teste grátis terminou. Escolha um plano para publicar.', 402);
+
+      // o assistente leva a memória da montagem: o que o dono quer e a conversa
+      try {
+        s.meta.briefing = await resumirIntencao(s);
+      } catch (e) {
+        console.error('[briefing]', (e as Error).message);
+      }
+      s.meta.conversa = s.messages.slice(-80);
 
       const name = valueOf(s.config, 'nome_assistente') || valueOf(s.config, 'nome_negocio') || 'Assistente';
       const row = {

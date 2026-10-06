@@ -41,10 +41,11 @@ function useRolagemSuave() {
 }
 
 /**
- * Quanto da seção já rolou, de 0 a 1, escrito em --p.
- * Para seções altas com conteúdo preso (sticky): 0 no topo, 1 quando o fim chega.
+ * Quanto a seção já rolou, de 0 a 1, escrito em --p.
+ * "preso": para seções altas com conteúdo sticky (0 no topo, 1 quando o fim chega).
+ * "saida": para uma seção da altura da tela (0 no topo, 1 quando ela sai por cima).
  */
-function useProgresso(ref) {
+function useProgresso(ref, modo = 'preso') {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -56,7 +57,7 @@ function useProgresso(ref) {
     const medir = () => {
       pendente = false;
       const r = el.getBoundingClientRect();
-      const curso = Math.max(1, r.height - window.innerHeight);
+      const curso = modo === 'saida' ? Math.max(1, r.height) : Math.max(1, r.height - window.innerHeight);
       const p = Math.min(1, Math.max(0, -r.top / curso));
       el.style.setProperty('--p', p.toFixed(4));
     };
@@ -72,6 +73,28 @@ function useProgresso(ref) {
     return () => {
       window.removeEventListener('scroll', pedir);
       window.removeEventListener('resize', pedir);
+    };
+  }, [ref, modo]);
+}
+
+/** O mouse mexe as camadas do hero um pouco, para dar profundidade. */
+function useParallaxDoMouse(ref) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || reduzido() || !window.matchMedia('(hover: hover)').matches) return;
+    let raf = 0;
+    const mover = (e) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        el.style.setProperty('--mx', (((e.clientX - r.left) / r.width) * 2 - 1).toFixed(3));
+        el.style.setProperty('--my', (((e.clientY - r.top) / r.height) * 2 - 1).toFixed(3));
+      });
+    };
+    el.addEventListener('pointermove', mover);
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener('pointermove', mover);
     };
   }, [ref]);
 }
@@ -95,7 +118,7 @@ function Topo({ user, deslizar }) {
           <Logo size={26} />
         </Link>
         <nav className="lp-nav" aria-label="Principal">
-          <a href="#como" onClick={deslizar}>Como funciona</a>
+          <a href="#filme" onClick={deslizar}>Como funciona</a>
           <a href="#recursos" onClick={deslizar}>Recursos</a>
           <a href="#dados" onClick={deslizar}>Integrações</a>
           <a href="#planos" onClick={deslizar}>Planos</a>
@@ -120,51 +143,67 @@ function Topo({ user, deslizar }) {
 // ------------------------------------------------------------
 function Hero({ user, deslizar }) {
   const ref = useRef(null);
-  useProgresso(ref);
+  useProgresso(ref, 'saida');
+  useParallaxDoMouse(ref);
 
   return (
-    <>
-      <section className="lp-hero" ref={ref}>
-        <div className="lp-hero-preso">
-          <h1 className="lp-hero-titulo" aria-label="Seu atendimento nunca fecha.">
-            <span className="lp-hero-a" aria-hidden="true"><span className="lp-entra" style={{ '--d': '0.1s' }}>Seu atendimento</span></span>
-            <span className="lp-hero-b" aria-hidden="true"><span className="lp-entra" style={{ '--d': '0.25s' }}>nunca fecha.</span></span>
-          </h1>
+    <section className="lp-robo" ref={ref}>
+      <div className="lp-robo-ceu" aria-hidden="true" />
 
-          <div className="lp-hero-midia">
-            <div className="lp-hero-midia-in lp-entra" style={{ '--d': '0.4s' }}>
-              <VideoDemo className="lp-hero-video" />
-            </div>
-          </div>
-          <span className="lp-ponto lp-ponto-1"><i /><b>Responde às 23h</b></span>
-          <span className="lp-ponto lp-ponto-2"><i /><b>Marca na sua agenda</b></span>
+      <h1 className="lp-robo-titulo" aria-label="Seu atendimento nunca fecha.">
+        <span className="lp-robo-a" aria-hidden="true"><span className="lp-entra" style={{ '--d': '0.15s' }}>Seu atendimento</span></span>
+        <span className="lp-robo-b" aria-hidden="true"><span className="lp-entra" style={{ '--d': '0.3s' }}>nunca fecha.</span></span>
+      </h1>
 
-          <p className="lp-hero-lado">
-            <span className="lp-entra" style={{ '--d': '0.6s' }}>
-              Conte como o seu negócio funciona. O Helpy monta um atendente que responde seus clientes, consulta seus preços e
-              chama você quando precisa de gente.
-            </span>
-          </p>
+      <div className="lp-robo-figura">
+        <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
+          <img src="/img/robo.webp" alt="O Helpy, um robozinho branco com fones de ouvido, acenando" width="1328" height="1184" />
         </div>
-      </section>
+        <span className="lp-ponto lp-ponto-a"><i /><b>Responde às 23h</b></span>
+        <span className="lp-ponto lp-ponto-b"><i /><b>Marca na sua agenda</b></span>
+        <span className="lp-ponto lp-ponto-c"><i /><b>Chama você quando precisa</b></span>
+      </div>
 
-      <div className="lp-in lp-hero-faixa">
-        <div className="lp-faixa-cel">
-          <Sparkles aria-hidden="true" />
-          <p>Para barbearias, lojas, clínicas, escolas e quem mais atende cliente.</p>
+      <p className="lp-robo-lado">
+        <span className="lp-entra" style={{ '--d': '0.6s' }}>
+          Conte como o seu negócio funciona. O Helpy monta um atendente que responde seus clientes, consulta seus preços e chama
+          você quando precisa de gente.
+        </span>
+      </p>
+
+      <div className="lp-robo-acoes lp-entra" style={{ '--d': '0.75s' }}>
+        <Link to={user ? '/painel' : '/criar-conta'} className="lp-btn lp-btn-cheio">
+          {user ? 'Ir para o painel' : 'Testar grátis por 14 dias'} <ArrowRight />
+        </Link>
+        <a href="#filme" className="lp-btn lp-btn-vidro" onClick={deslizar}>Ver funcionando</a>
+      </div>
+    </section>
+  );
+}
+
+/** O vídeo de demonstração: começa como cartão e cresce até a largura da tela ao rolar. */
+function Filme() {
+  const ref = useRef(null);
+  useProgresso(ref);
+  return (
+    <section id="filme" className="lp-filme" ref={ref}>
+      <div className="lp-filme-preso">
+        <div className="lp-filme-cab">
+          <span className="lp-etiqueta">Como funciona</span>
+          <h2 className="lp-h2">Veja o Helpy trabalhando.</h2>
         </div>
-        <div className="lp-faixa-cel lp-faixa-centro">
-          <Link to={user ? '/painel' : '/criar-conta'} className="lp-btn lp-btn-cheio">
-            {user ? 'Ir para o painel' : 'Testar grátis por 14 dias'} <ArrowRight />
-          </Link>
-          <a href="#como" className="lp-link" onClick={deslizar}>Ver como funciona</a>
+        <div className="lp-filme-midia">
+          <VideoDemo className="lp-filme-video" />
         </div>
-        <div className="lp-faixa-cel lp-faixa-fim">
-          <b>14 dias</b>
-          <p>grátis, sem cartão. Pronto em uma tarde.</p>
+        <div className="lp-filme-passos" aria-hidden="true">
+          <span>Conte</span>
+          <span>Publique</span>
+          <span>Chamados</span>
+          <span>Relatórios</span>
+          <span>Planos</span>
         </div>
       </div>
-    </>
+    </section>
   );
 }
 
@@ -249,6 +288,7 @@ export default function Landing() {
     <div className="lp">
       <Topo user={user} deslizar={deslizar} />
       <Hero user={user} deslizar={deslizar} />
+      <Filme />
 
       <section id="como" className="lp-sec">
         <div className="lp-in">
