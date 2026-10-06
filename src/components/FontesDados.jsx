@@ -600,7 +600,7 @@ export function FaixaFonte({ tabela, onAtualizou, avisar }) {
     e?.preventDefault();
     setOcupado(true);
     try {
-      setTeste(await chamar('dados-e-relatorios', { action: 'testar_api', config: tabela.api_config, busca }));
+      setTeste(await chamar('dados-e-relatorios', { action: 'testar_api', tabela_id: tabela.id, busca }));
     } catch (err) {
       setTeste({ erro: err.message });
     } finally {

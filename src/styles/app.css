@@ -1601,3 +1601,106 @@
   box-shadow: inset 0 0 0 2px var(--azul-forte);
   background: rgba(44, 93, 143, 0.04);
 }
+
+/* ---------- chamados no builder ---------- */
+
+.chamados > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.chamados > summary::-webkit-details-marker {
+  display: none;
+}
+
+.chamados h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chamados h2 svg {
+  width: 20px;
+  height: 20px;
+  color: var(--azul-forte);
+}
+
+.chamados-seta {
+  width: 20px;
+  height: 20px;
+  color: var(--tinta-3);
+  transition: transform 0.3s;
+  flex-shrink: 0;
+}
+
+.chamados[open] .chamados-seta {
+  transform: rotate(180deg);
+}
+
+.chamados-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--r-lg);
+  background: var(--branco);
+  border: 1px solid var(--linha);
+}
+
+.interruptor {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  cursor: pointer;
+}
+
+.interruptor input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.interruptor-trilho {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--linha-forte);
+  transition: background 0.2s;
+}
+
+.interruptor-trilho::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--branco);
+  box-shadow: 0 1px 3px rgba(11, 26, 44, 0.25);
+  transition: transform 0.2s;
+}
+
+.interruptor input:checked + .interruptor-trilho {
+  background: var(--azul-forte);
+}
+
+.interruptor input:checked + .interruptor-trilho::after {
+  transform: translateX(18px);
+}
+
+.interruptor input:focus-visible + .interruptor-trilho {
+  box-shadow: var(--foco);
+}
+
+.interruptor b {
+  display: block;
+  font-size: 14.5px;
+}
+
+.interruptor small {
+  font-size: 13px;
+  color: var(--tinta-3);
+}

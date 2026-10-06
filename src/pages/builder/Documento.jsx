@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { FileText, Plus, RotateCcw, X } from 'lucide-react';
+import { ChevronDown, FileText, Lock, Plus, RotateCcw, Ticket, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { PLANS } from '@/lib/plans';
 import { useBuilder } from './BuilderContext';
 import { MODELOS, semNoItem } from '@/lib/documento';
 import { useToast } from '@/components/Toasts';
@@ -248,6 +250,118 @@ export function EscolherModelo({ compacto }) {
 
 const SECOES_COM_CAMPO_NOVO = ['assistente', 'conhecimento', 'operacao', 'escalonamento', 'catalogo'];
 
+const NAO = 'Não, ele resolve sozinho';
+
+/** Chamados: tudo por clique, numa seção que abre e fecha. */
+function PainelChamados({ sec }) {
+  const b = useBuilder();
+  const plano = PLANS[b.plano?.id] ?? PLANS.trial;
+  const valor = (k) => (b.config.fields[k]?.status === 'ignorado' ? '' : b.config.fields[k]?.value ?? '');
+  const ativos = plano.chamados && !/^n[aã]o/i.test(valor('chamados_ativos'));
+  const codigo = valor('codigo_chamado');
+  const [exigeSenha, setExigeSenha] = useState(!!codigo);
+  const campo = (k) => sec.fields.find((f) => f.key === k);
+  const contatos = sec.collections.find((c) => c.key === 'contatos');
+
+  return (
+    <details className="doc-section chamados" open aria-labelledby="sec-chamados">
+      <summary className="doc-section-head">
+        <div>
+          <h2 id="sec-chamados">
+            <Ticket aria-hidden="true" /> Chamados e equipe
+          </h2>
+          <p>{ativos ? 'Ligado: quando precisar, ele passa a conversa para a sua equipe.' : 'Desligado: ele resolve tudo sozinho.'}</p>
+        </div>
+        <ChevronDown className="chamados-seta" aria-hidden="true" />
+      </summary>
+
+      {!plano.chamados ? (
+        <div className="alert">
+          <Lock />
+          <span>Chamados para a equipe não fazem parte do plano {plano.nome}. <Link to="/painel/plano">Ver planos</Link></span>
+        </div>
+      ) : (
+        <div className="chamados-corpo">
+          <label className="interruptor">
+            <input
+              type="checkbox"
+              checked={ativos}
+              onChange={(e) => b.setField('chamados_ativos', e.target.checked ? 'Sim' : NAO)}
+            />
+            <span className="interruptor-trilho" aria-hidden="true" />
+            <span>
+              <b>Pode abrir chamado para a equipe</b>
+              <small>Desligue se não houver ninguém para responder, como num monitor de estudos.</small>
+            </span>
+          </label>
+
+          {ativos && (
+            <>
+              <label className="field">
+                <span className="label">Quando abrir chamado</span>
+                <textarea
+                  className="textarea"
+                  rows={2}
+                  value={valor('quando_chamar_humano')}
+                  placeholder={campo('quando_chamar_humano')?.hint}
+                  onChange={(e) => b.setField('quando_chamar_humano', e.target.value)}
+                />
+              </label>
+
+              {plano.chamadosAvancados ? (
+                <>
+                  <label className="field">
+                    <span className="label">Quando NÃO abrir chamado</span>
+                    <textarea
+                      className="textarea"
+                      rows={2}
+                      value={valor('nunca_chamar_humano')}
+                      placeholder={campo('nunca_chamar_humano')?.hint}
+                      onChange={(e) => b.setField('nunca_chamar_humano', e.target.value)}
+                    />
+                  </label>
+
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={exigeSenha}
+                      onChange={(e) => {
+                        setExigeSenha(e.target.checked);
+                        if (!e.target.checked) b.setField('codigo_chamado', '');
+                      }}
+                    />
+                    <span>Exigir uma senha para abrir chamado</span>
+                  </label>
+                  {exigeSenha && (
+                    <label className="field">
+                      <span className="label">Senha</span>
+                      <input
+                        className="input"
+                        value={codigo}
+                        placeholder="Ex.: o código da turma, o número do contrato"
+                        onChange={(e) => b.setField('codigo_chamado', e.target.value)}
+                      />
+                      <span className="hint">O assistente pede a senha antes de abrir o chamado e nunca diz qual é.</span>
+                    </label>
+                  )}
+                </>
+              ) : (
+                <p className="hint">
+                  <Lock size={12} style={{ display: 'inline', verticalAlign: -1 }} /> Senha para abrir chamado e casos em que não abrir fazem parte do
+                  plano Profissional. <Link to="/painel/plano">Ver planos</Link>
+                </p>
+              )}
+
+              {campo('horario') && <Campo def={campo('horario')} />}
+            </>
+          )}
+          {contatos && <Lista def={contatos} />}
+        </div>
+      )}
+    </details>
+  );
+}
+
 function Materiais() {
   const b = useBuilder();
   const avisar = useToast();
@@ -301,7 +415,10 @@ export default function Documento() {
   return (
     <div className="doc">
       <Materiais />
-      {b.schema.sections.map((sec) => (
+      {b.schema.sections.map((sec) =>
+        sec.key === 'escalonamento' ? (
+          <PainelChamados key={sec.key} sec={sec} />
+        ) : (
         <section key={sec.key} className="doc-section" aria-labelledby={`sec-${sec.key}`}>
           <div className="doc-section-head">
             <div>
@@ -317,7 +434,8 @@ export default function Documento() {
             <Lista key={c.key} def={c} />
           ))}
         </section>
-      ))}
+        ),
+      )}
     </div>
   );
 }

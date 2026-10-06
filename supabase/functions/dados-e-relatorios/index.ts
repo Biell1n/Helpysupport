@@ -116,7 +116,15 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'testar_api') {
-      const cfg = configDe(body.config);
+      let cfg = configDe(body.config);
+      if (body.tabela_id) {
+        // tabela já criada: a configuração e a chave vêm do banco (a chave nunca volta para o navegador)
+        const tabelaId = String(body.tabela_id);
+        const { data: t } = await admin.from('tabelas').select('api_config').eq('id', tabelaId).eq('owner_id', user.id).maybeSingle();
+        if (!t?.api_config) throw new UserError('Tabela não encontrada.', 404);
+        const { data: valor } = await admin.rpc('helpy_segredo_api', { p_tabela: tabelaId });
+        cfg = configDe({ ...t.api_config, header_valor: valor ?? '' });
+      }
       if (!cfg.url) throw new UserError('Informe o endereço da API.');
       const { total, linhas } = await consultarApi(cfg, String(body.busca ?? ''));
       const campos = [...new Set(linhas.flatMap((l) => Object.keys(l)))].slice(0, 40);

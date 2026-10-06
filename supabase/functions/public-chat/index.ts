@@ -40,6 +40,15 @@ type Conversa = {
   last_message_at: string;
 };
 
+/** IP do visitante virado em hash (com sal do servidor): dá para contar, não dá para saber quem é. */
+async function hashDoIp(req: Request): Promise<string | null> {
+  const ip = (req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0] ?? '').trim();
+  if (!ip) return null;
+  const sal = Deno.env.get('IP_SAL') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${sal}:${ip}`));
+  return [...new Uint8Array(bytes)].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 async function conversaDo(assistantId: string, visitorId: string, id: unknown): Promise<Conversa | null> {
   if (!id || !visitorId) return null;
   const { data } = await admin
@@ -160,6 +169,7 @@ Deno.serve(async (req) => {
     const plan = planOf(profile);
     let c = await conversaDo(assistant.id, visitorId, body.conversation_id);
     let recado = false;
+    const ipHash = c ? null : await hashDoIp(req);
 
     if (!c) {
       if (!teste) {
@@ -167,6 +177,12 @@ Deno.serve(async (req) => {
         const { count: hoje } = await admin.from('conversations').select('id', { count: 'exact', head: true })
           .eq('assistant_id', assistant.id).eq('visitor_id', visitorId).gte('created_at', umDia);
         if ((hoje ?? 0) >= 8) throw new UserError('Muitas conversas novas em pouco tempo. Continue na conversa que você já abriu.', 429);
+        // o visitor_id vem do navegador e pode ser trocado; o IP (só o hash) segura quem abre conversa em massa
+        if (ipHash) {
+          const { count: doIp } = await admin.from('conversations').select('id', { count: 'exact', head: true })
+            .eq('ip_hash', ipHash).gte('created_at', umDia);
+          if ((doIp ?? 0) >= 40) throw new UserError('Muitas conversas novas a partir desta rede. Tente de novo mais tarde.', 429);
+        }
 
         const { count: mes } = await admin.from('conversations').select('id', { count: 'exact', head: true })
           .eq('owner_id', assistant.owner_id).eq('teste', false).gte('created_at', inicioDoMes());
@@ -184,6 +200,7 @@ Deno.serve(async (req) => {
           assistant_id: assistant.id,
           owner_id: assistant.owner_id,
           visitor_id: visitorId,
+          ip_hash: ipHash,
           teste,
           ...(recado
             ? { status: 'waiting', titulo: 'Recado', motivo: 'Chegou com a cota do plano esgotada: o assistente não respondeu.', escalado_em: new Date().toISOString() }
@@ -241,8 +258,15 @@ Deno.serve(async (req) => {
 
     let resposta: string;
     try {
+      // o plano decide o que dos chamados vale, não importa o que está no documento
+      const cfgDoPlano = structuredClone(cfg);
+      if (!plan.chamados) cfgDoPlano.fields.chamados_ativos = { value: 'Não, ele resolve sozinho', status: 'confirmado' };
+      if (!plan.chamadosAvancados) {
+        delete cfgDoPlano.fields.codigo_chamado;
+        delete cfgDoPlano.fields.nunca_chamar_humano;
+      }
       const r = await responder(
-        { db: admin, assistant: { ...assistant, config: cfg }, conversationId: c.id, maxTicketsAbertos: plan.ticketsAbertos },
+        { db: admin, assistant: { ...assistant, config: cfgDoPlano }, conversationId: c.id, maxTicketsAbertos: plan.ticketsAbertos },
         (hist ?? []).reverse(),
       );
       resposta = r.texto;
