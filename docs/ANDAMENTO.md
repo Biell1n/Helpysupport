@@ -52,11 +52,11 @@ Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
 
 ## Falta
 
-- [ ] Frontend novo: landing com planos, auth, painel, builder (chat +
+- [x] Frontend novo: landing com planos, auth, painel, builder (chat +
       formulário), atendimentos (fluxo de chamado com assumir/encerrar/
       reabrir), dados, agenda, plano, conta, chat público
-- [ ] README com passo a passo para rodar local e publicar
-- [ ] Decidir: projeto Supabase novo (recomendado) ou migrar o atual
+- [x] README com passo a passo para rodar local e publicar
+- [x] Supabase atual reformulado: tabelas antigas no esquema `legado`, esquema novo aplicado
       ("Assistent bot", hoje pausado, com 28 funções e tabelas antigas)
 
 ## Próximos canais (estudo)

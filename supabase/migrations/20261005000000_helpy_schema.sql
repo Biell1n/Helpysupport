@@ -1,8 +1,9 @@
 -- ============================================================
 -- Helpy — esquema completo do banco
 --
--- Pensado para um projeto Supabase novo. Rode inteiro no SQL Editor
--- ou com `supabase db push`. Tudo que é do dono da conta fica protegido
+-- Rode inteiro no SQL Editor ou com `supabase db push`. Num projeto que
+-- já tinha as tabelas do Horizons, mova-as antes para o esquema "legado"
+-- (foi o que fizemos no projeto atual). Tudo que é do dono da conta fica protegido
 -- por RLS (owner_id = auth.uid()); o que o cliente final faz passa pela
 -- edge function public-chat, que usa a service role.
 -- ============================================================
@@ -13,7 +14,7 @@ create extension if not exists pgcrypto;
 -- Utilitário: updated_at automático
 -- ------------------------------------------------------------
 create or replace function public.helpy_touch() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public as $$
 begin
   new.updated_at := now();
   return new;
@@ -43,8 +44,10 @@ drop trigger if exists profiles_touch on public.profiles;
 create trigger profiles_touch before update on public.profiles
   for each row execute function public.helpy_touch();
 
--- cria o perfil assim que a conta nasce
-create or replace function public.helpy_new_user() returns trigger
+-- cria o perfil assim que a conta nasce. O nome handle_new_user é o
+-- mesmo do gatilho que o Supabase/Horizons já criava: trocar só a função
+-- evita mexer em auth.users, que fica travada enquanto o Auth roda.
+create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   insert into public.profiles (id, full_name, company_name)
@@ -57,13 +60,25 @@ begin
   return new;
 end $$;
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created after insert on auth.users
-  for each row execute function public.helpy_new_user();
+do $$
+begin
+  if not exists (
+    select 1 from pg_trigger where tgname = 'on_auth_user_created' and tgrelid = 'auth.users'::regclass
+  ) then
+    create trigger on_auth_user_created after insert on auth.users
+      for each row execute function public.handle_new_user();
+  end if;
+end $$;
+
+-- contas que já existiam antes deste esquema
+insert into public.profiles (id, full_name)
+select id, coalesce(raw_user_meta_data->>'full_name', raw_user_meta_data->>'name')
+from auth.users
+on conflict (id) do nothing;
 
 -- o usuário não pode trocar o próprio plano pelo cliente
 create or replace function public.helpy_protect_plan() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public as $$
 begin
   if auth.role() = 'authenticated' then
     new.plan := old.plan;
@@ -430,7 +445,7 @@ language sql stable security invoker set search_path = public as $$
                       where owner_id = auth.uid() and not teste
                         and created_at >= date_trunc('month', now())),
     'tickets_abertos', (select count(*) from conversations
-                         where owner_id = auth.uid() and status in ('waiting', 'human')),
+                         where owner_id = auth.uid() and not teste and status in ('waiting', 'human')),
     'assistentes', (select count(*) from assistants where owner_id = auth.uid()),
     'tabelas', (select count(*) from tabelas where owner_id = auth.uid()),
     'builder_msgs', (select count(*) from usage_events
@@ -440,3 +455,8 @@ language sql stable security invoker set search_path = public as $$
                    where owner_id = auth.uid() and created_at >= date_trunc('month', now()))
   );
 $$;
+
+-- funções de gatilho não são para ser chamadas pela API
+revoke execute on function public.handle_new_user(), public.helpy_conversation_numero(),
+  public.helpy_message_stats(), public.helpy_tabela_alterada(), public.helpy_touch(),
+  public.helpy_protect_plan() from public, anon, authenticated;
