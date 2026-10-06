@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.assistant-builder-chat]
 verify_jwt = true
+
+[functions.dados-e-relatorios]
+verify_jwt = true

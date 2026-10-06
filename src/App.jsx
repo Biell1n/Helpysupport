@@ -18,6 +18,7 @@ const Testar = lazy(() => import('@/pages/Testar'));
 const Atendimentos = lazy(() => import('@/pages/Atendimentos'));
 const Dados = lazy(() => import('@/pages/Dados'));
 const Agenda = lazy(() => import('@/pages/Agenda'));
+const Relatorios = lazy(() => import('@/pages/Relatorios'));
 const Plano = lazy(() => import('@/pages/Plano'));
 const Conta = lazy(() => import('@/pages/Conta'));
 const ChatPublico = lazy(() => import('@/pages/ChatPublico'));
@@ -55,6 +56,7 @@ export default function App() {
               <Route path="atendimentos" element={<Atendimentos />} />
               <Route path="dados" element={<Dados />} />
               <Route path="agenda" element={<Agenda />} />
+              <Route path="relatorios" element={<Relatorios />} />
               <Route path="plano" element={<Plano />} />
               <Route path="conta" element={<Conta />} />
             </Route>

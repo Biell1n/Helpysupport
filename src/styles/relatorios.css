@@ -1,0 +1,400 @@
+/* ============================================================
+   Relatórios
+   Cores dos gráficos validadas para fundo escuro e daltonismo
+   (dataviz: faixa de luminosidade, separação CVD ≥ 27 ΔE).
+   ============================================================ */
+
+.rel-page {
+  --g-assistente: #b78d00;
+  --g-equipe: #5889e6;
+  /* rampa sequencial em uma só cor: do fundo ao amarelo da marca */
+  --g-seq-0: var(--papel-2);
+  --g-seq-1: color-mix(in oklab, var(--senha) 18%, var(--papel-2));
+  --g-seq-2: color-mix(in oklab, var(--senha) 34%, var(--papel-2));
+  --g-seq-3: color-mix(in oklab, var(--senha) 54%, var(--papel-2));
+  --g-seq-4: color-mix(in oklab, var(--senha) 76%, var(--papel-2));
+  --g-seq-5: var(--senha);
+}
+
+.rel-periodo {
+  min-width: 260px;
+}
+
+.rel-numeros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rel-numero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+}
+
+.rel-numero-rotulo {
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.rel-numero-valor {
+  font-family: var(--f-display);
+  font-size: 34px;
+  font-weight: 700;
+  font-stretch: 112%;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta);
+}
+
+.rel-numero-detalhe {
+  font-size: 12.5px;
+  color: var(--tinta-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rel-numero-detalhe b {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+/* ícone da seta carrega o sentido; o texto continua na cor de tinta */
+.rel-numero-detalhe b[data-sinal='mais'] svg {
+  color: var(--folha);
+}
+
+.rel-numero-detalhe b[data-sinal='menos'] svg {
+  color: var(--brasa);
+}
+
+.rel-card {
+  margin-bottom: 16px;
+  min-width: 0;
+}
+
+.rel-sub {
+  font-size: 13px;
+  margin-top: 4px;
+  max-width: 520px;
+}
+
+.rel-rodape {
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+.rel-duas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.rel-duas > .rel-card {
+  margin-bottom: 0;
+}
+
+/* ---------- legenda ---------- */
+
+.rel-legenda {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--tinta-2);
+}
+
+.rel-legenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rel-legenda i,
+.rel-dica-linha i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ---------- gráfico e dica ---------- */
+
+.rel-grafico {
+  position: relative;
+}
+
+.rel-grafico svg {
+  display: block;
+  overflow: visible;
+}
+
+.rel-grade {
+  stroke: var(--linha);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.rel-eixo {
+  stroke: var(--linha-forte);
+  stroke-width: 1;
+}
+
+.rel-rotulo {
+  fill: var(--tinta-3);
+  font-size: 11px;
+  font-family: var(--f-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.rel-dica {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  transform: translate(14px, -50%);
+  min-width: 170px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #1f232d;
+  border: 1px solid var(--linha-forte);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--tinta-2);
+}
+
+.rel-dica[data-lado='esq'] {
+  transform: translate(calc(-100% - 14px), -50%);
+}
+
+.rel-dica b {
+  color: var(--tinta);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.rel-dica-linha,
+.rel-dica-total {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rel-dica em,
+.rel-dica-total em {
+  font-style: normal;
+  margin-left: auto;
+  color: var(--tinta);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rel-dica-total {
+  border-top: 1px solid var(--linha);
+  padding-top: 4px;
+  margin-top: 2px;
+  color: var(--tinta);
+}
+
+.rel-dica-exemplo {
+  font-style: italic;
+  color: var(--tinta-2);
+}
+
+/* ---------- mapa de calor ---------- */
+
+.rel-calor {
+  display: grid;
+  grid-template-columns: 34px repeat(24, minmax(0, 1fr));
+  gap: 3px;
+  font-size: 11px;
+  color: var(--tinta-3);
+}
+
+.rel-calor-linha {
+  display: contents;
+}
+
+.rel-calor-hora {
+  text-align: left;
+  white-space: nowrap;
+  height: 16px;
+}
+
+.rel-calor-dia {
+  align-self: center;
+}
+
+.rel-calor-celula {
+  aspect-ratio: 1;
+  min-height: 10px;
+  border-radius: 3px;
+  background: var(--g-seq-0);
+}
+
+.rel-calor-celula[data-nivel='1'] { background: var(--g-seq-1); }
+.rel-calor-celula[data-nivel='2'] { background: var(--g-seq-2); }
+.rel-calor-celula[data-nivel='3'] { background: var(--g-seq-3); }
+.rel-calor-celula[data-nivel='4'] { background: var(--g-seq-4); }
+.rel-calor-celula[data-nivel='5'] { background: var(--g-seq-5); }
+
+.rel-calor .rel-calor-celula:hover {
+  outline: 2px solid var(--tinta);
+  outline-offset: 1px;
+}
+
+.rel-escala {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--tinta-3);
+}
+
+.rel-escala i {
+  width: 12px;
+  height: 12px;
+  min-height: 0;
+}
+
+.rel-escala span {
+  margin: 0 4px;
+}
+
+/* ---------- lista em barras ---------- */
+
+.rel-barras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rel-barras li {
+  cursor: default;
+}
+
+.rel-barras-topo {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+
+.rel-barras-rotulo {
+  color: var(--tinta);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rel-barras-valor {
+  color: var(--tinta-2);
+  font-weight: 600;
+}
+
+.rel-barras-trilho {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--papel-2);
+  overflow: hidden;
+}
+
+.rel-barras-trilho span {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--senha);
+  transition: width 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.rel-barras li:hover .rel-barras-trilho span {
+  background: var(--senha-escura);
+}
+
+/* ---------- tabela ---------- */
+
+.rel-tabela-rolagem {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.rel-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.rel-tabela th {
+  position: sticky;
+  top: 0;
+  background: var(--branco);
+  text-align: left;
+  font-weight: 500;
+  color: var(--tinta-3);
+  font-size: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--linha);
+}
+
+.rel-tabela td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--linha);
+  color: var(--tinta);
+}
+
+.rel-tabela td.num,
+.rel-tabela th:not(:first-child) {
+  text-align: right;
+}
+
+@media (max-width: 1000px) {
+  .rel-duas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .rel-numeros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rel-numero-valor {
+    font-size: 26px;
+  }
+
+  .rel-periodo {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .rel-calor {
+    grid-template-columns: 28px repeat(24, minmax(0, 1fr));
+    gap: 2px;
+  }
+
+  .rel-calor-hora {
+    font-size: 9.5px;
+  }
+}

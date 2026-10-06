@@ -1,5 +1,5 @@
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { Bot, CalendarDays, Gem, LayoutGrid, LogOut, Table2, Ticket } from 'lucide-react';
+import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, Table2, Ticket } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUso } from '@/lib/useUso';
@@ -12,6 +12,7 @@ const NAV = [
   { to: '/painel/atendimentos', label: 'Atendimentos', icon: Ticket, contador: 'tickets_abertos' },
   { to: '/painel/dados', label: 'Dados', icon: Table2 },
   { to: '/painel/agenda', label: 'Agenda', icon: CalendarDays },
+  { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart3 },
   { to: '/painel/plano', label: 'Plano', icon: Gem },
 ];
 

@@ -1201,3 +1201,205 @@
   text-decoration: none;
   font-weight: 600;
 }
+
+/* ---------- fontes de dados ---------- */
+
+.fonte-opcoes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fonte-opcao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--linha-forte);
+  background: var(--papel-2);
+  color: var(--tinta);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.fonte-opcao:hover {
+  border-color: var(--senha);
+  background: var(--senha-clara);
+  transform: translateY(-1px);
+}
+
+.fonte-opcao svg {
+  width: 22px;
+  height: 22px;
+  color: var(--senha);
+  margin-bottom: 4px;
+}
+
+.fonte-opcao b {
+  font-size: 15px;
+}
+
+.fonte-opcao span {
+  font-size: 13px;
+  color: var(--tinta-2);
+  line-height: 1.45;
+}
+
+.fonte-soltar {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 36px 20px;
+  border: 1.5px dashed var(--linha-forte);
+  border-radius: 14px;
+  background: var(--papel-2);
+  color: var(--tinta);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.fonte-soltar:hover,
+.fonte-soltar[data-arrastando] {
+  border-color: var(--senha);
+  background: var(--senha-clara);
+}
+
+.fonte-soltar svg {
+  width: 28px;
+  height: 28px;
+  color: var(--senha);
+}
+
+.fonte-soltar span {
+  font-size: 13px;
+  color: var(--tinta-3);
+}
+
+.fonte-dica {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--tinta-2);
+  background: var(--papel-2);
+  border: 1px solid var(--linha);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.fonte-dica summary {
+  cursor: pointer;
+  color: var(--tinta);
+  font-weight: 500;
+}
+
+.fonte-dica ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fonte-dica code {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  background: var(--linha);
+  padding: 1px 5px;
+  border-radius: 5px;
+  color: var(--tinta);
+}
+
+.fonte-grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.fonte-grade .field {
+  margin-bottom: 0;
+}
+
+.fonte-previa-th {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--tinta-2);
+}
+
+.fonte-largo {
+  grid-column: 1 / -1;
+}
+
+.fonte-previa th {
+  text-align: left;
+}
+
+.fonte-previa .sheet-wrap {
+  overflow: auto;
+}
+
+.sheet-ro {
+  display: block;
+  padding: 8px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+  color: var(--tinta);
+}
+
+.sheet-col:disabled {
+  cursor: default;
+}
+
+.fonte-faixa {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.fonte-faixa > svg {
+  width: 20px;
+  height: 20px;
+  color: var(--senha);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.fonte-faixa b {
+  display: block;
+  font-size: 14.5px;
+}
+
+.fonte-faixa-url {
+  display: block;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--tinta-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 2px 0 4px;
+}
+
+.fonte-faixa-erro {
+  display: block;
+  font-size: 12.5px;
+  color: var(--brasa);
+  margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .fonte-opcoes,
+  .fonte-grade {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fonte-faixa {
+    flex-wrap: wrap;
+  }
+}

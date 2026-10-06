@@ -38,14 +38,15 @@ Abra **http://localhost:5173**. O site roda no seu computador e conversa com o b
 
 ## Configurar o Supabase (uma vez)
 
-1. **Banco:** rode `supabase/migrations/20261005000000_helpy_schema.sql` no SQL Editor (no projeto atual isto já foi feito; as tabelas antigas do Horizons estão guardadas no esquema `legado`).
+1. **Banco:** rode os arquivos de `supabase/migrations/` em ordem no SQL Editor (no projeto atual isto já foi feito; as tabelas antigas do Horizons estão guardadas no esquema `legado`).
 2. **Chave da IA:** em Supabase → Edge Functions → Secrets, adicione `ANTHROPIC_API_KEY` com a sua chave de https://console.anthropic.com.
-3. **Funções:** publique `assistant-builder-chat` e `public-chat`:
+3. **Funções:** publique `assistant-builder-chat`, `public-chat` e `dados-e-relatorios`:
    ```bash
    npx supabase login
    npx supabase link --project-ref cdscurcwcyzeagincjdv
    npx supabase functions deploy assistant-builder-chat
    npx supabase functions deploy public-chat --no-verify-jwt
+   npx supabase functions deploy dados-e-relatorios
    ```
 4. **Login:** em Authentication → URL Configuration, coloque `http://localhost:5173` (e depois o seu domínio) em *Site URL* e *Redirect URLs*. Para "Entrar com Google", ative o provedor Google em Authentication → Providers.
 
@@ -82,5 +83,6 @@ supabase/
     _shared/        núcleo: IA, planos, documento do assistente, agenda, atendimento
     assistant-builder-chat/   monta o assistente conversando
     public-chat/              atende os clientes pelo link /c/:token
+    dados-e-relatorios/       planilha por link, API do ERP e assuntos dos relatórios
 docs/ANDAMENTO.md   decisões e próximos passos
 ```

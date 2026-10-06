@@ -27,15 +27,20 @@ Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
 - **Auth:** Supabase Auth nativo (e-mail/senha, Google, recuperação de
   senha). As funções `send-*` de código por e-mail do Horizons saem.
 
-## Identidade visual (plano)
+## Identidade visual
 
 - Conceito: a **senha de atendimento** — o papelzinho numerado do balcão.
   Cada conversa ganha um número (Nº 0042) e os chamados aparecem como
   canhotos picotados.
-- Cores: tinta `#12302E`, papel `#EEF1EC`, senha `#FFCF33`, folha `#1E7A5A`,
-  brasa `#E4572E`, linha `#D6DDD6`.
-- Tipos: Bricolage Grotesque (títulos), Onest (texto), Martian Mono (números e rótulos).
-- Logo: balão de conversa com os recortes laterais de um canhoto.
+- Tema escuro: fundo `#0C0E13`, superfícies `#12151C` / `#181B23`,
+  texto `#ECEEF2`, amarelo da senha `#FFCF33` como única cor de destaque.
+- Tipos: Archivo (largura expandida nos títulos, normal no texto) e
+  Martian Mono só nos números de senha.
+- Landing: vídeo de fundo do Storage (`landing-videos/videofundo.mp4`,
+  ou `VITE_VIDEO_FUNDO`) escurecido, e seções que surgem ao rolar.
+- Gráficos dos relatórios: cores validadas para fundo escuro e
+  daltonismo (`#B78D00` assistente / `#5889E6` equipe; rampa de amarelo
+  no mapa de calor).
 
 ## Feito
 
@@ -58,6 +63,17 @@ Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
 - [x] README com passo a passo para rodar local e publicar
 - [x] Supabase atual reformulado: tabelas antigas no esquema `legado`, esquema novo aplicado
       ("Assistent bot", hoje pausado, com 28 funções e tabelas antigas)
+
+- [x] Relatórios (`/painel/relatorios`): conversas por dia, % resolvido
+      sem a equipe, tempo até assumir, nota, horários de pico, perguntas
+      sem resposta, motivos de chamado e **assuntos mais perguntados**
+      (Haiku agrupa a primeira pergunta de cada conversa; guardado 6 h
+      em `relatorio_assuntos`). SQL em `helpy_relatorio(dias, fuso)`.
+- [x] Fontes de dados (`tabelas.fonte`): `manual`, `url` (CSV/Google
+      Planilhas, copiado e atualizado a cada 6 h) e `api` (JSON ao vivo:
+      Protheus REST, SAP OData, banco com API na frente). Importar .xlsx
+      e .csv é feito no navegador. Endereços passam por bloqueio de rede
+      interna (`_shared/fontes.ts`). Função `dados-e-relatorios`.
 
 ## Estado do Supabase (projeto "Assistent bot")
 

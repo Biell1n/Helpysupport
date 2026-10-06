@@ -13,6 +13,7 @@ import type Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
 import { type AgendaConfig, carregarAgenda, hojeNoFuso, horariosLivres, marcar } from './agenda.ts';
+import { type ApiConfig, consultarApi, sincronizarUrl, VALIDADE_URL_MS } from './fontes.ts';
 import {
   allCollections, type CollectionDef, type Config, describeConfig, normalizeConfig, type Schema, slug, valueOf, VENDE,
 } from './schema.ts';
@@ -30,6 +31,9 @@ interface Tabela {
   id: string;
   nome: string;
   proposito: string | null;
+  fonte: 'manual' | 'url' | 'api';
+  api_config: ApiConfig | null;
+  sincronizada_em: string | null;
   colunas: Array<{ chave: string; rotulo: string }>;
 }
 
@@ -182,7 +186,7 @@ export async function carregarTabelas(db: SupabaseClient, assistantId: string): 
   const ids = (links ?? []).map((l) => l.tabela_id);
   if (!ids.length) return [];
   const [{ data: tabs }, { data: cols }] = await Promise.all([
-    db.from('tabelas').select('id, nome, proposito').in('id', ids),
+    db.from('tabelas').select('id, nome, proposito, fonte, api_config, sincronizada_em').in('id', ids),
     db.from('tabela_colunas').select('tabela_id, chave, rotulo, ordem').in('tabela_id', ids).order('ordem'),
   ]);
   return (tabs ?? []).map((t) => ({ ...t, colunas: (cols ?? []).filter((c) => c.tabela_id === t.id) }));
@@ -305,6 +309,33 @@ export interface Rodada {
   maxTicketsAbertos: number | null;
 }
 
+/** Tabela ligada à API do sistema da empresa: pergunta ao vivo. */
+async function consultarSistema(t: Tabela, busca: string) {
+  try {
+    const { total, linhas } = await consultarApi(t.api_config!, busca);
+    if (!total) {
+      return { encontrados: 0, aviso: busca ? `Nada em "${t.nome}" corresponde a "${busca}". Não invente.` : `"${t.nome}" não trouxe registros.` };
+    }
+    const rotulo = new Map(t.colunas.map((c) => [c.chave, c.rotulo]));
+    const escolhidas = t.colunas.length ? new Set(t.colunas.map((c) => c.chave)) : null;
+    return {
+      tabela: t.nome,
+      encontrados: total,
+      itens: linhas.slice(0, 12).map((l) => {
+        const o: Record<string, string> = {};
+        for (const [k, v] of Object.entries(l)) {
+          if (escolhidas && !escolhidas.has(k)) continue;
+          if (String(v).trim()) o[rotulo.get(k) ?? k] = String(v).trim();
+        }
+        return o;
+      }),
+    };
+  } catch (e) {
+    console.error('[api]', t.id, e instanceof Error ? e.message : e);
+    return { erro: `O sistema de "${t.nome}" não respondeu agora. Diga que não conseguiu consultar e ofereça chamar a equipe.` };
+  }
+}
+
 async function executar(r: Rodada, nome: string, args: Record<string, unknown>, tabelas: Tabela[], agenda: AgendaConfig | null) {
   const { db, assistant, conversationId } = r;
   const cfg = assistant.config;
@@ -312,6 +343,12 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   if (nome.startsWith('consultar_')) {
     const t = tabelas.find((x) => toolName(x.nome) === nome);
     if (!t) return { erro: 'tabela não encontrada' };
+    if (t.fonte === 'api' && t.api_config) return await consultarSistema(t, String(args.busca ?? ''));
+    if (t.fonte === 'url' && Date.now() - new Date(t.sincronizada_em ?? 0).getTime() > VALIDADE_URL_MS) {
+      // planilha por link desatualizada: tenta trazer a versão nova; se falhar, usa a última cópia
+      await sincronizarUrl(db, t.id).catch((e) => console.error('[sincronizar]', t.id, e?.message ?? e));
+      t.sincronizada_em = new Date().toISOString();
+    }
     const termo = semAcento(String(args.busca ?? '').trim());
     const { data } = await db.from('tabela_linhas').select('dados').eq('tabela_id', t.id).limit(termo ? 500 : 12);
     const todas = data ?? [];

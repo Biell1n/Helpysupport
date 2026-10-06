@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardPaste, Plus, Search, Settings2, Table2, Trash2, X } from 'lucide-react';
+import { ClipboardPaste, FileSpreadsheet, Plus, Search, Settings2, Table2, Trash2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { Confirmar, Drawer, Modal } from '@/components/Modal';
 import { planOf } from '@/lib/plans';
+import { chavear } from '@/lib/planilha';
+import { FaixaFonte, ImportarParaTabela, NovaTabela } from '@/components/FontesDados';
 
 const TIPOS = [
   { v: 'texto', r: 'Texto', d: 'Nome, categoria, cor.' },
@@ -17,16 +19,8 @@ const TIPOS = [
   { v: 'booleano', r: 'Sim ou não', d: 'Marcado ou desmarcado.' },
 ];
 
-const chavear = (s) =>
-  String(s ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 40);
-
-function Celula({ coluna, valor, onChange }) {
+function Celula({ coluna, valor, onChange, somenteLeitura }) {
+  if (somenteLeitura) return <span className="sheet-cell sheet-ro">{String(valor ?? '')}</span>;
   if (coluna.tipo === 'booleano') {
     return (
       <div style={{ padding: '8px 10px', textAlign: 'center' }}>
@@ -137,7 +131,7 @@ export default function Dados() {
   const [busca, setBusca] = useState('');
   const [editando, setEditando] = useState(null);
   const [criando, setCriando] = useState(false);
-  const [novoNome, setNovoNome] = useState('');
+  const [importando, setImportando] = useState(false);
   const [colando, setColando] = useState(false);
   const [colado, setColado] = useState('');
   const [excluir, setExcluir] = useState(null);
@@ -177,24 +171,12 @@ export default function Dados() {
   useEffect(() => () => Object.values(timers.current).forEach(clearTimeout), []);
 
   // ---- tabela ----
-  const criarTabela = async (e) => {
-    e.preventDefault();
-    const nome = novoNome.trim();
-    if (!nome) return;
-    const { data, error } = await supabase.from('tabelas').insert({ owner_id: user.id, nome }).select().single();
-    if (error) return avisar('Não deu para criar a tabela', { erro: true, texto: error.message });
-    await supabase.from('tabela_colunas').insert([
-      { tabela_id: data.id, chave: 'nome', rotulo: 'Nome', tipo: 'texto', ordem: 0, obrigatoria: true, identifica: true, chave_primaria: true },
-      { tabela_id: data.id, chave: 'preco', rotulo: 'Preço', tipo: 'moeda', ordem: 1 },
-    ]);
-    // nasce ligada a todos os assistentes: é o que quase todo mundo quer
-    if (assistentes.length) {
-      await supabase.from('assistente_tabelas').insert(assistentes.map((a) => ({ assistant_id: a.id, tabela_id: data.id })));
-    }
+  const tabelaCriada = async (id) => {
     setCriando(false);
-    setNovoNome('');
     await carregarTabelas();
-    setAtivaId(data.id);
+    setAtivaId(id);
+    carregarConteudo(id);
+    avisar('Tabela pronta');
   };
 
   const salvarProposito = async (proposito) => {
@@ -292,13 +274,15 @@ export default function Dados() {
   }, [linhas, busca]);
 
   const podeCriar = (tabelas?.length ?? 0) < plano.tabelas;
+  const fonte = ativa?.fonte ?? 'manual';
+  const editavel = fonte === 'manual';
 
   return (
     <div className="page page-wide">
       <header className="page-head">
         <div>
           <h1>Dados</h1>
-          <p>Planilhas que o assistente consulta na hora de responder: preços, estoque, cardápio. Mudou aqui, ele já responde certo.</p>
+          <p>O que o assistente consulta na hora de responder: preços, estoque, cardápio. Digite aqui, importe do Excel, ligue uma planilha online ou conecte o seu sistema.</p>
         </div>
         <button type="button" className="btn btn-primary" disabled={!podeCriar} title={podeCriar ? '' : `O plano ${plano.nome} permite ${plano.tabelas} tabelas`} onClick={() => setCriando(true)}>
           <Plus /> Nova tabela
@@ -311,7 +295,7 @@ export default function Dados() {
         <div className="empty">
           <Table2 size={32} />
           <h3>Nenhuma tabela ainda</h3>
-          <p>Crie uma tabela de produtos, serviços ou o que o seu atendente precisar consultar. Dá para colar direto do Excel.</p>
+          <p>Produtos, serviços, estoque: comece do zero, importe um Excel, ligue uma planilha do Google ou conecte o seu ERP.</p>
           <button type="button" className="btn btn-senha" onClick={() => setCriando(true)}>Criar a primeira tabela</button>
         </div>
       )}
@@ -321,13 +305,14 @@ export default function Dados() {
           <div className="tabelas-lista" role="tablist" aria-label="Tabelas" style={{ marginBottom: 20 }}>
             {tabelas.map((t) => (
               <button key={t.id} type="button" className="chip" aria-pressed={t.id === ativaId} onClick={() => setAtivaId(t.id)}>
-                {t.nome} <small>{t.tabela_linhas?.[0]?.count ?? 0}</small>
+                {t.nome} <small>{t.fonte === 'api' ? 'ao vivo' : t.tabela_linhas?.[0]?.count ?? 0}</small>
               </button>
             ))}
           </div>
 
           {ativa && (
             <div className="stack">
+              {!editavel && <FaixaFonte key={ativa.id} tabela={ativa} avisar={avisar} onAtualizou={() => { carregarTabelas(); carregarConteudo(ativa.id); }} />}
               <div className="card card-tight stack stack-sm">
                 <label className="field">
                   <span className="label">Para que serve esta tabela</span>
@@ -352,14 +337,19 @@ export default function Dados() {
               </div>
 
               <div className="row row-wrap">
-                <label className="row" style={{ position: 'relative', flex: '1 1 240px', maxWidth: 320 }}>
+                {fonte !== 'api' && <label className="row" style={{ position: 'relative', flex: '1 1 240px', maxWidth: 320 }}>
                   <Search size={16} style={{ position: 'absolute', left: 12, color: 'var(--tinta-3)' }} aria-hidden="true" />
                   <input className="input" style={{ paddingLeft: 36 }} placeholder="Buscar nas linhas" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar nas linhas" />
-                </label>
+                </label>}
                 <span className="spacer" />
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditando({})}><Plus /> Coluna</button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setColando(true)}><ClipboardPaste /> Colar do Excel</button>
-                <button type="button" className="btn btn-primary btn-sm" onClick={novaLinha}><Plus /> Linha</button>
+                {editavel && (
+                  <>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditando({})}><Plus /> Coluna</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setImportando(true)}><FileSpreadsheet /> Importar arquivo</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setColando(true)}><ClipboardPaste /> Colar</button>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={novaLinha}><Plus /> Linha</button>
+                  </>
+                )}
                 <button type="button" className="btn btn-quiet btn-sm btn-icon" aria-label={`Excluir tabela ${ativa.nome}`} onClick={() => setExcluir({ tipo: 'tabela', id: ativa.id, nome: ativa.nome })}>
                   <Trash2 />
                 </button>
@@ -372,7 +362,7 @@ export default function Dados() {
                       <th className="sheet-n">#</th>
                       {colunas.map((c) => (
                         <th key={c.id}>
-                          <button type="button" className="sheet-col" onClick={() => setEditando(c)} title="Editar coluna">
+                          <button type="button" className="sheet-col" disabled={fonte === 'url'} onClick={() => setEditando(c)} title={fonte === 'url' ? 'O nome vem do cabeçalho da planilha' : 'Editar coluna'}>
                             <b>{c.rotulo}{c.obrigatoria && <span className="req">*</span>}</b>
                             <span>{TIPOS.find((t) => t.v === c.tipo)?.r ?? c.tipo} <Settings2 size={10} style={{ display: 'inline', verticalAlign: -1 }} /></span>
                           </button>
@@ -382,25 +372,31 @@ export default function Dados() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visiveis.map((l, i) => (
+                    {fonte !== 'api' && visiveis.map((l, i) => (
                       <tr key={l.id} data-linha={l.id}>
                         <td className="sheet-n">{i + 1}</td>
                         {colunas.map((c) => (
                           <td key={c.id}>
-                            <Celula coluna={c} valor={l.dados?.[c.chave]} onChange={(v) => editar(l.id, c.chave, v)} />
+                            <Celula coluna={c} valor={l.dados?.[c.chave]} somenteLeitura={!editavel} onChange={(v) => editar(l.id, c.chave, v)} />
                           </td>
                         ))}
                         <td>
-                          <button type="button" className="btn btn-quiet btn-icon btn-sm sheet-kill" aria-label={`Excluir linha ${i + 1}`} onClick={() => setExcluir({ tipo: 'linha', id: l.id })}>
+                          {editavel && <button type="button" className="btn btn-quiet btn-icon btn-sm sheet-kill" aria-label={`Excluir linha ${i + 1}`} onClick={() => setExcluir({ tipo: 'linha', id: l.id })}>
                             <X size={15} />
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     ))}
-                    {visiveis.length === 0 && (
+                    {(fonte === 'api' || visiveis.length === 0) && (
                       <tr>
                         <td colSpan={colunas.length + 2} style={{ padding: 28, textAlign: 'center' }} className="faint">
-                          {busca ? 'Nada encontrado.' : 'Tabela vazia. Adicione uma linha ou cole do Excel.'}
+                          {fonte === 'api'
+                            ? 'Os dados vêm ao vivo do seu sistema. Clique numa coluna para trocar o nome que o assistente lê (ex.: B1_DESC → Descrição).'
+                            : busca
+                            ? 'Nada encontrado.'
+                            : fonte === 'url'
+                            ? 'A planilha ainda não trouxe linhas. Clique em Atualizar agora.'
+                            : 'Tabela vazia. Adicione uma linha, importe um arquivo ou cole do Excel.'}
                         </td>
                       </tr>
                     )}
@@ -412,23 +408,24 @@ export default function Dados() {
         </>
       )}
 
-      <Modal aberto={criando} onFechar={() => setCriando(false)}>
-        <form onSubmit={criarTabela}>
-          <h2>Nova tabela</h2>
-          <p className="muted" style={{ marginBottom: 16 }}>Ela nasce com as colunas Nome e Preço. Você muda depois.</p>
-          <label className="field">
-            <span className="label">Nome</span>
-            <input className="input" autoFocus value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Ex.: Produtos, Cardápio, Serviços" />
-          </label>
-          <div className="modal-foot">
-            <button type="button" className="btn btn-ghost" onClick={() => setCriando(false)}>Cancelar</button>
-            <button className="btn btn-primary" disabled={!novoNome.trim()}>Criar tabela</button>
-          </div>
-        </form>
-      </Modal>
+      <NovaTabela aberto={criando} onFechar={() => setCriando(false)} onCriada={tabelaCriada} assistentes={assistentes} userId={user?.id} />
+
+      {ativa && editavel && (
+        <ImportarParaTabela
+          aberto={importando}
+          onFechar={() => setImportando(false)}
+          tabela={ativa}
+          colunas={colunas}
+          onImportou={(n) => {
+            carregarConteudo(ativa.id);
+            carregarTabelas();
+            avisar(`${n} linhas importadas`);
+          }}
+        />
+      )}
 
       <Modal aberto={colando} onFechar={() => setColando(false)} largura={620}>
-        <h2>Colar do Excel</h2>
+        <h2>Colar linhas</h2>
         <p className="muted">
           Copie as linhas na planilha e cole aqui. As colunas entram nesta ordem: <b>{colunas.map((c) => c.rotulo).join(', ')}</b>.
         </p>
