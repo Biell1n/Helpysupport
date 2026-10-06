@@ -118,7 +118,7 @@ async function createSession(ownerId: string, assistantId: string | null): Promi
 
 async function saveSession(s: Session) {
   s.schema = buildSchema(s.meta, s.config);
-  const { error } = await admin
+  const { data, error } = await admin
     .from('builder_sessions')
     .update({
       config: s.config,
@@ -128,8 +128,13 @@ async function saveSession(s: Session) {
       business_type: s.meta.ramo,
       ...(s.historicoMexido ? { historico: s.historico } : {}),
     })
-    .eq('id', s.id);
+    .eq('id', s.id)
+    .select('historico')
+    .single();
   if (error) throw error;
+  // o banco pode ter acabado de guardar a versão anterior
+  if (Array.isArray(data?.historico)) s.historico = data.historico as Versao[];
+  s.historicoMexido = false;
 }
 
 const sessionPayload = (s: Session) => ({

@@ -61,8 +61,11 @@ function missao(model: string, negocio: string) {
 - Fale como se fala com a idade e a série dos alunos: com criança, frases curtas, palavras simples, exemplos com coisas do dia a dia (balas, figurinhas, dedos), um passo de cada vez e muito incentivo.
 - Descubra ONDE a pessoa travou antes de explicar: peça para ela contar como pensou.
 - Um passo por vez: explique, dê um exemplo parecido (nunca o da prova) e peça para ela tentar.
-- Nunca entregue a resposta de questão de prova, atividade ou exercício, nem confirme qual alternativa é a certa: dê a pista seguinte e deixe a pessoa chegar sozinha. Se insistirem, explique com carinho que o objetivo é ela aprender.
-- Erro é informação: aponte onde e por quê, sem constranger, e comemore o acerto.`;
+- Nunca entregue a resposta de questão de prova, atividade ou exercício: dê a pista seguinte e deixe a pessoa chegar sozinha. Se insistirem, explique com carinho que o objetivo é ela aprender.
+- Também NUNCA confirme nem negue a resposta final de uma questão da prova ("é 47, né?"): não diga "acertou", "isso mesmo", "quase" nem "errou". Peça para ela contar como chegou nesse número e confira o RACIOCÍNIO com uma conta parecida, com números diferentes. Elogie o esforço e o caminho, nunca o número.
+- Em exercício que não é da prova, pode dizer se acertou.
+- Erro é informação: aponte onde e por quê, sem constranger.
+- Quem conversa aqui pode ser criança: nunca peça nome completo, telefone, endereço, e-mail ou qualquer contato.`;
   }
   if (model === 'suporte') {
     return `Você é SUPORTE. Quem chega aqui já é cliente e está com um problema.
@@ -168,7 +171,7 @@ ${materiais.map((m) => `<material nome="${m.nome}">\n${m.texto}\n</material>`).j
 - Pedido de uma pessoa, reclamação, negociação, ou informação importante que você não tem: chame chamar_atendente. A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui. Peça um contato também, caso ela feche a página.
 ${chamados.quando ? `- O dono quer chamado nestes casos: ${chamados.quando}\n` : ''}${chamados.nunca ? `- NÃO abra chamado nestes casos (resolva você ou explique com educação): ${chamados.nunca}\n` : ''}${chamados.codigo ? '- Para abrir chamado a pessoa precisa informar a senha de atendimento. Peça a senha antes; nunca diga qual é, nem dê dicas. Sem a senha certa, não há chamado: ajude no que puder.\n' : ''}`
     : `SEM EQUIPE NESTE ATENDIMENTO
-Não existe ninguém para assumir a conversa: você resolve sozinho. Nunca prometa que alguém vai responder.${contatos ? ` Se a pessoa precisar mesmo falar com alguém, passe os contatos: ${contatos}.` : ''}`;
+Não existe ninguém para assumir a conversa: você resolve sozinho. Nunca prometa que alguém vai responder, não anote recado e não diga que vai repassar nada.${contatos ? ` Se a pessoa precisar mesmo falar com alguém, passe os contatos: ${contatos}.` : ' Se pedirem para falar com uma pessoa, diga com gentileza que por aqui não dá e que é preciso procurar diretamente (por exemplo, na aula ou no local).'}`;
 
   return `Você é ${nome}${negocio ? `, atendente de ${negocio}` : ''}. Você conversa com quem procura o negócio. Fale na primeira pessoa do plural quando falar do negócio ("a gente entrega").
 
@@ -194,7 +197,7 @@ Tom de voz: ${tom || 'cordial, direto e prestativo'}
 ${regras ? `Limites definidos pelo dono — cumpra à risca:\n${regras}\n` : ''}
 Ferramentas: use, não improvise.
 - Antes de afirmar preço ou detalhe de item, consulte (buscar_catalogo ou a tabela).
-- Interesse real: peça nome e um contato e chame registrar_contato. Nunca invente o dado.
+${model === 'educacional' ? '' : '- Interesse real: peça nome e um contato e chame registrar_contato. Nunca invente o dado.'}
 - Não sabe a resposta: chame registrar_lacuna e só então diga que não tem essa informação${chamados.ativos ? ', oferecendo a equipe' : ''}.
 - Item marcado como "o dono preferiu não informar": diga que essa informação não está disponível por aqui${chamados.ativos ? ' e ofereça a equipe' : ''}; nunca estime.
 
@@ -231,6 +234,7 @@ export async function carregarTabelas(db: SupabaseClient, assistantId: string): 
 
 function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null): Anthropic.Tool[] {
   const tools: Anthropic.Tool[] = [];
+  const model = a.business_model || a.schema?.business_model || 'produto';
 
   for (const t of tabelas) {
     tools.push({
@@ -250,6 +254,25 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
       description: `Procura itens em ${cats.map((c) => c.label).join(', ')}. Use sempre que precisar confirmar preço ou detalhe antes de afirmar.`,
       input_schema: { type: 'object', properties: { termo: { type: 'string' } } },
     });
+  }
+
+  // com aluno (muitas vezes criança) não se coleta contato
+  if (model !== 'educacional') {
+    tools.push(
+    {
+      name: 'registrar_contato',
+      description: 'Grava nome e contato que a PESSOA informou, para a equipe retornar. Peça antes; nunca invente.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          nome: { type: 'string' },
+          contato: { type: 'string', description: 'Telefone, WhatsApp ou e-mail informado pela pessoa' },
+          interesse: { type: 'string', description: 'Em uma frase, o que ela quer' },
+        },
+        required: ['nome', 'contato'],
+      },
+    }
+    );
   }
 
   const chamados = regrasDeChamado(a.config);
@@ -272,19 +295,6 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
   }
 
   tools.push(
-    {
-      name: 'registrar_contato',
-      description: 'Grava nome e contato que a PESSOA informou, para a equipe retornar. Peça antes; nunca invente.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          nome: { type: 'string' },
-          contato: { type: 'string', description: 'Telefone, WhatsApp ou e-mail informado pela pessoa' },
-          interesse: { type: 'string', description: 'Em uma frase, o que ela quer' },
-        },
-        required: ['nome', 'contato'],
-      },
-    },
     {
       name: 'registrar_lacuna',
       description: 'Registra uma pergunta que você não tinha como responder. Chame sempre que for dizer "não tenho essa informação" — avisa o dono do que falta no assistente.',
