@@ -59,6 +59,24 @@ Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
 - [x] Supabase atual reformulado: tabelas antigas no esquema `legado`, esquema novo aplicado
       ("Assistent bot", hoje pausado, com 28 funções e tabelas antigas)
 
+## Estado do Supabase (projeto "Assistent bot")
+
+- Esquema novo aplicado; as 41 tabelas e 11 funções SQL do Horizons
+  foram movidas para o esquema `legado` (nada foi apagado).
+- `assistant-builder-chat` e `public-chat` publicadas com o código deste
+  repositório. As outras 26 funções antigas continuam lá sem uso; dá
+  para apagar pelo painel (Edge Functions).
+- Falta o dono configurar: segredo `ANTHROPIC_API_KEY`, URLs de
+  redirecionamento do Auth e, se quiser, o provedor Google.
+
+## Ainda não feito
+
+- Pagamento recorrente (sugestão: Asaas ou Mercado Pago, por Pix e
+  cartão). Hoje o plano muda por SQL e o botão "Assinar" leva ao
+  contato de vendas (`VITE_CONTATO_VENDAS`).
+- E-mails do Auth em português (Authentication → Email Templates).
+- Proteção contra senhas vazadas (Authentication → Policies).
+
 ## Próximos canais (estudo)
 
 WhatsApp (Cloud API da Meta), Telegram e Discord entram como funções de
