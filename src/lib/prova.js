@@ -68,8 +68,13 @@ const enc = new TextEncoder();
  * `agora` é a hora do servidor (vem no "info"), para relógio errado não atrapalhar.
  */
 export function resolverDesafio({ token, visitante, agora, bits }) {
+  return resolverProva(`${token}:${visitante}`, { agora, bits });
+}
+
+/** Prova sobre um texto qualquer (ex.: o e-mail no cadastro, conferida pelo banco). */
+export function resolverProva(texto, { agora = Date.now(), bits = 17 } = {}) {
   const ts = Math.floor(agora);
-  const prefixo = `${token}:${visitante}:${ts}:`;
+  const prefixo = `${texto}:${ts}:`;
   const limite = 2 ** (32 - bits);
   let nonce = 0;
   return new Promise((ok) => {

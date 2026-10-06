@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, Table2, Ticket } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { VerificarCodigo } from '@/components/DuasEtapas';
+import { aceitar, gravarAceitePendente, TERMOS_VERSAO } from '@/lib/termos';
 import { useUso } from '@/lib/useUso';
 import { diasDeTeste, planOf } from '@/lib/plans';
 import { iniciais } from '@/lib/format';
@@ -32,7 +34,41 @@ export function ExigeLogin({ children }) {
   if (loading) return <Carregando />;
   if (!user) return <Navigate to="/entrar" replace state={{ de: loc.pathname }} />;
   if (precisaCodigo) return <VerificarCodigo />;
-  return children;
+  return <AceiteTermos>{children}</AceiteTermos>;
+}
+
+/** Conta criada pelo Google (ou termos novos): aceite antes de usar o painel. */
+function AceiteTermos({ children }) {
+  const { profile, reloadProfile, signOut } = useAuth();
+  const [marcado, setMarcado] = useState(false);
+  const [tentou, setTentou] = useState(false);
+  useEffect(() => {
+    if (profile && profile.termos_versao !== TERMOS_VERSAO && !tentou) {
+      setTentou(true);
+      gravarAceitePendente().then((ok) => ok && reloadProfile());
+    }
+  }, [profile, tentou, reloadProfile]);
+  if (!profile || profile.termos_versao === TERMOS_VERSAO) return children;
+  return (
+    <div className="modal-fundo">
+      <div className="card stack" style={{ maxWidth: 480, margin: '12vh auto' }} role="dialog" aria-modal="true" aria-labelledby="termos-tit">
+        <h2 id="termos-tit" className="card-title">Antes de continuar</h2>
+        <p className="muted" style={{ fontSize: 14 }}>Atualizamos os termos de uso e a política de privacidade. Leia e aceite para usar o Helpy.</p>
+        <label className="check-linha">
+          <input type="checkbox" checked={marcado} onChange={(e) => setMarcado(e.target.checked)} />
+          <span>
+            Li e aceito os <Link to="/termos" target="_blank">termos de uso</Link> e a <Link to="/privacidade" target="_blank">política de privacidade (LGPD)</Link>.
+          </span>
+        </label>
+        <div className="row row-wrap">
+          <button type="button" className="btn btn-primary" disabled={!marcado} onClick={async () => { await aceitar(); await reloadProfile(); }}>
+            Aceitar e continuar
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={signOut}>Sair</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function AppShell() {

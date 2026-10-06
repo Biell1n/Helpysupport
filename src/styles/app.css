@@ -1704,3 +1704,13 @@
   font-size: 13px;
   color: var(--tinta-3);
 }
+
+/* cadastro: aceite e "não sou um robô" */
+.check-linha { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--tinta-2); line-height: 1.5; }
+.check-linha input { margin-top: 3px; flex: none; }
+.check-robo { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--linha-forte); border-radius: var(--r-md, 14px); background: var(--papel); font-weight: 500; }
+.check-robo input { width: 22px; height: 22px; flex: none; }
+.check-robo small { margin-left: auto; font-size: 11px; color: var(--tinta-3); font-family: 'DM Mono', monospace; }
+.check-robo[data-estado='ok'] { border-color: var(--folha); }
+.check-robo[data-estado='verificando'] span { color: var(--tinta-3); }
+.modal-fundo { position: fixed; inset: 0; z-index: 50; background: rgb(11 26 44 / 0.45); padding: 16px; overflow: auto; }

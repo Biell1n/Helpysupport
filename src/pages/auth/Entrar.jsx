@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { destinoSeguro, ehVisitante } from '@/lib/destino';
+import { lembrarAceite } from '@/lib/termos';
 import AuthLayout from './AuthLayout';
 import GoogleBotao from './GoogleBotao';
 
@@ -47,7 +48,11 @@ export default function Entrar() {
           Ainda não tem conta? <Link to={`/criar-conta${deQuery}`}>{visitante ? 'Criar conta' : 'Comece o teste grátis'}</Link>
         </p>
       </div>
-      <GoogleBotao destino={destino} />
+      <GoogleBotao destino={destino} antes={lembrarAceite} />
+      <p className="faint" style={{ fontSize: 12.5, marginTop: -6 }}>
+        Conta nova pelo Google? Ao continuar, você aceita os <Link to="/termos" target="_blank">termos</Link> e a{' '}
+        <Link to="/privacidade" target="_blank">privacidade</Link>.
+      </p>
       <div className="ou">ou com e-mail</div>
       <form className="stack" onSubmit={enviar}>
         <label className="field">

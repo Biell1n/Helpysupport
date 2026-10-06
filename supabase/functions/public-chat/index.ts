@@ -40,6 +40,7 @@ type Conversa = {
   id: string;
   assistant_id: string;
   visitor_id: string;
+  cliente_id?: string | null;
   status: 'bot' | 'waiting' | 'human' | 'closed';
   numero: number | null;
   assumido_nome: string | null;
@@ -85,14 +86,19 @@ async function hashDoIp(req: Request): Promise<string | null> {
   return [...new Uint8Array(bytes)].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function conversaDo(assistantId: string, visitorId: string, id: unknown): Promise<Conversa | null> {
-  if (!id || !visitorId) return null;
+/**
+ * A conversa só abre para quem a começou: o mesmo navegador (visitor_id
+ * aleatório) e, se ela já está ligada a uma conta, a mesma conta logada.
+ */
+async function conversaDo(assistantId: string, visitorId: string, clienteId: string | null, id: unknown): Promise<Conversa | null> {
+  if (!id || !visitorId || !/^[0-9a-f-]{36}$/i.test(String(id))) return null;
   const { data } = await admin
     .from('conversations')
-    .select('id, assistant_id, visitor_id, status, numero, assumido_nome, assumido_em, escalado_em, nota, teste, last_message_at')
+    .select('id, assistant_id, visitor_id, cliente_id, status, numero, assumido_nome, assumido_em, escalado_em, nota, teste, last_message_at')
     .eq('id', String(id))
     .maybeSingle();
   if (!data || data.assistant_id !== assistantId || data.visitor_id !== visitorId) return null;
+  if (data.cliente_id && data.cliente_id !== clienteId) return null;
   return data as Conversa;
 }
 
@@ -142,9 +148,12 @@ Deno.serve(async (req) => {
     }
 
     if (!visitorId) throw new UserError('Visitante não identificado.', 400);
+    // visitante que entrou com a conta: pode abrir chamado e deixar recado
+    const cliente = teste ? null : await userFrom(req);
+    const clienteId = cliente?.id ?? null;
 
     if (action === 'history') {
-      const c = await conversaDo(assistant.id, visitorId, body.conversation_id);
+      const c = await conversaDo(assistant.id, visitorId, clienteId, body.conversation_id);
       if (!c || Date.now() - new Date(c.last_message_at).getTime() > 7 * 864e5) return json({ messages: [] });
       const { data: msgs } = await admin
         .from('conversation_messages')
@@ -157,7 +166,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'poll') {
-      const c = await conversaDo(assistant.id, visitorId, body.conversation_id);
+      const c = await conversaDo(assistant.id, visitorId, clienteId, body.conversation_id);
       if (!c) return json({ messages: [] });
       let q = admin
         .from('conversation_messages')
@@ -172,7 +181,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'feedback') {
-      const c = await conversaDo(assistant.id, visitorId, body.conversation_id);
+      const c = await conversaDo(assistant.id, visitorId, clienteId, body.conversation_id);
       const nota = Math.round(Number(body.nota));
       if (!c || !(nota >= 1 && nota <= 5)) throw new UserError('Avaliação inválida.');
       await admin.from('conversations').update({ nota, feedback_texto: String(body.texto ?? '').slice(0, 600) || null }).eq('id', c.id);
@@ -180,14 +189,14 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'encerrar') {
-      const c = await conversaDo(assistant.id, visitorId, body.conversation_id);
+      const c = await conversaDo(assistant.id, visitorId, clienteId, body.conversation_id);
       if (!c) throw new UserError('Conversa não encontrada.', 404);
       await admin.from('conversations').update({ status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'cliente' }).eq('id', c.id);
       return json({ ok: true, status: 'closed' });
     }
 
     if (action === 'reabrir') {
-      const c = await conversaDo(assistant.id, visitorId, body.conversation_id);
+      const c = await conversaDo(assistant.id, visitorId, clienteId, body.conversation_id);
       if (!c) throw new UserError('Conversa não encontrada.', 404);
       // se já tinha ido para a equipe, volta para a fila dela
       const status = c.escalado_em ? 'waiting' : 'bot';
@@ -203,12 +212,10 @@ Deno.serve(async (req) => {
 
     const profile = await profileOf(assistant.owner_id);
     const plan = planOf(profile);
-    // visitante que entrou com a conta: pode abrir chamado e deixar recado
-    const cliente = teste ? null : await userFrom(req);
     const clienteInfo = cliente
       ? { id: cliente.id, email: cliente.email ?? null, nome: String(cliente.user_metadata?.full_name ?? cliente.user_metadata?.name ?? '') || null }
       : null;
-    let c = await conversaDo(assistant.id, visitorId, body.conversation_id);
+    let c = await conversaDo(assistant.id, visitorId, clienteId, body.conversation_id);
     let recado = false;
     const ipHash = c ? null : await hashDoIp(req);
 
@@ -360,7 +367,7 @@ Deno.serve(async (req) => {
     }
 
     await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: resposta });
-    const atual = (await conversaDo(assistant.id, visitorId, c.id)) ?? c;
+    const atual = (await conversaDo(assistant.id, visitorId, clienteId, c.id)) ?? c;
     return json({
       ...estado(atual),
       message: resposta,
