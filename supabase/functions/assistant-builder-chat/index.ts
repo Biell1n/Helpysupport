@@ -485,7 +485,34 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     description: 'A pessoa não quis a tabela. Não ofereça de novo.',
     input_schema: { type: 'object', properties: {} },
   },
+  {
+    name: 'configurar_agenda',
+    description:
+      'Grava a agenda do negócio: dias e horários de atendimento, duração padrão, antecedência mínima e os serviços que dá para marcar (com duração e valor). Use quando a pessoa disser os horários ou os serviços. Mande só o que ela disse; o resto fica como está. Também liga a agenda.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        horarios: {
+          type: 'object',
+          description: 'Dia da semana (0=domingo … 6=sábado) → faixas ["HH:MM","HH:MM"]. Dia fechado = []. Ex.: {"1":[["09:00","12:00"],["13:00","18:00"]],"0":[]}',
+          additionalProperties: { type: 'array', items: { type: 'array', items: { type: 'string' } } },
+        },
+        duracao_min: { type: 'integer' },
+        antecedencia_horas: { type: 'integer' },
+        servicos: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { nome: { type: 'string' }, duracao_min: { type: 'integer' }, valor: { type: 'number' } },
+            required: ['nome'],
+          },
+        },
+      },
+    },
+  },
 ];
+
+const HORA_OK = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 type Ctx = { s: Session; userId: string; touched: Set<string>; maxTabelas: number };
 
@@ -761,6 +788,46 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
       s.meta.tabela_recusada = true;
       return { ok: true };
 
+    case 'configurar_agenda': {
+      const { data: atual } = await admin.from('agenda_config').select('*').eq('owner_id', ctx.userId).maybeSingle();
+      const novo: Record<string, unknown> = { owner_id: ctx.userId, ativa: true };
+      if (input.horarios && typeof input.horarios === 'object') {
+        const h: Record<string, Array<[string, string]>> = { ...(atual?.horarios ?? {}) };
+        for (const [dia, faixas] of Object.entries(input.horarios as Record<string, unknown>)) {
+          if (!/^[0-6]$/.test(dia) || !Array.isArray(faixas)) continue;
+          h[dia] = faixas
+            .filter((f): f is [string, string] => Array.isArray(f) && HORA_OK.test(String(f[0])) && HORA_OK.test(String(f[1])) && String(f[0]).padStart(5, '0') < String(f[1]).padStart(5, '0'))
+            .map(([a, b]): [string, string] => [a.padStart(5, '0'), b.padStart(5, '0')])
+            .slice(0, 4);
+        }
+        novo.horarios = h;
+      }
+      if (Number(input.duracao_min) >= 5) novo.duracao_min = Math.min(480, Math.round(Number(input.duracao_min)));
+      if (Number(input.antecedencia_horas) >= 0 && input.antecedencia_horas != null) novo.antecedencia_horas = Math.min(720, Math.round(Number(input.antecedencia_horas)));
+      if (Array.isArray(input.servicos)) {
+        const porNome = new Map<string, Record<string, unknown>>((atual?.servicos ?? []).map((x: Record<string, unknown>) => [slug(String(x.nome)), x]));
+        for (const x of input.servicos as Array<Record<string, unknown>>) {
+          const nome = String(x.nome ?? '').trim().slice(0, 80);
+          if (!nome) continue;
+          const antes = porNome.get(slug(nome)) ?? {};
+          porNome.set(slug(nome), {
+            ...antes,
+            nome,
+            ...(Number(x.duracao_min) >= 5 ? { duracao_min: Math.min(480, Math.round(Number(x.duracao_min))) } : {}),
+            ...(x.valor != null && Number.isFinite(Number(x.valor)) ? { valor: Number(x.valor) } : {}),
+          });
+        }
+        novo.servicos = [...porNome.values()].slice(0, 40);
+      }
+      const { error } = await admin.from('agenda_config').upsert(novo);
+      if (error) return { erro: 'Não consegui gravar a agenda.' };
+      if (!/^sim/i.test(valueOf(cfg, 'usar_agenda'))) {
+        cfg.fields.usar_agenda = { value: 'Sim, marca sozinho', status: 'confirmado' };
+      }
+      touched.add('usar_agenda');
+      return { ok: true, mensagem: 'Agenda gravada e ligada. Diga em poucas palavras como ficou.' };
+    }
+
     case 'desfazer': {
       const n = desfazer(s, Number(input.passos) || 1);
       touched.add('desfazer');
@@ -812,11 +879,15 @@ CHAMADOS
 Em algum momento pergunte se o assistente pode passar a conversa para uma pessoa da equipe (campo chamados_ativos). Se sim: em que situações abrir chamado, em quais não abrir, e se só quem tem uma senha pode abrir. Para um monitor de estudos sem ninguém para responder, sugira desligar.
 "Ele nunca deve…" ou "não pode falar de…" são regras: grave em regras com acrescentar=true, na hora.
 
+AGENDA
+Se o negócio marca horário (salão, clínica, aula, consultoria…), pergunte se ele quer que o assistente marque sozinho, deixe pendente para ele confirmar, ou não use agenda (campo usar_agenda). Se usar: pergunte dias e horários, os serviços com duração e valor, e grave com configurar_agenda. Pergunte também se quer registrar cada agendamento nos Dados com o valor (campo agenda_registrar). Negócio que não marca horário: não insista, deixe "Não usa agenda".
+
 TUDO QUE A PESSOA CLICA, VOCÊ TAMBÉM FAZ
 O documento à direita tem interruptores e caixinhas (ex.: o painel de chamados). Qualquer coisa que ela poderia clicar ela pode pedir no chat, e você faz na hora, sem mandar ela clicar:
 - "desativa o ticket / não quero chamado" → preencher_campos chamados_ativos = "Não, ele resolve sozinho". "Ativa de novo" → "Sim".
 - "coloca a senha 1234" → codigo_chamado = 1234 (e chamados_ativos = Sim, se estava desligado). "Tira a senha" → dispensar codigo_chamado.
 - "não abre chamado pra reclamação de preço" → nunca_chamar_humano (acrescentar=true). "Só chama gente se…" → quando_chamar_humano.
+- "Desliga a agenda" → usar_agenda = "Não usa agenda". "Quero confirmar antes" → "Sim, mas eu confirmo". "Abre sábado de manhã" / "o corte custa 45" → configurar_agenda.
 - Trocar um valor que já existe → preencher_campos sem acrescentar substitui. Apagar um campo → dispensar.
 Depois de mudar, diga em poucas palavras o que ficou ("pronto, chamados desligados — ele resolve tudo sozinho").
 

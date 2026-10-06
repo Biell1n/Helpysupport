@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { ChevronDown, FileText, Lock, Plus, RotateCcw, Ticket, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CalendarDays, ChevronDown, FileText, Lock, Plus, RotateCcw, Ticket, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PLANS } from '@/lib/plans';
 import { useBuilder } from './BuilderContext';
 import { MODELOS, semNoItem } from '@/lib/documento';
 import { useToast } from '@/components/Toasts';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 function Controle({ def, value, onChange, id }) {
   if (def.type === 'select' && def.options?.length) {
@@ -252,6 +254,80 @@ const SECOES_COM_CAMPO_NOVO = ['assistente', 'conhecimento', 'operacao', 'escalo
 
 const NAO = 'Não, ele resolve sozinho';
 
+const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const SEM_AGENDA = 'Não usa agenda';
+
+/** Agenda: ligar, marcar sozinho ou pendente, registrar nos Dados. Dias, horários e serviços vêm da Agenda. */
+function PainelAgenda() {
+  const b = useBuilder();
+  const { user } = useAuth();
+  const [agenda, setAgenda] = useState(null);
+  const valor = (k) => (b.config.fields[k]?.status === 'ignorado' ? '' : b.config.fields[k]?.value ?? '');
+  const usa = /^sim/i.test(valor('usar_agenda'));
+  const confirma = /confirmo/i.test(valor('usar_agenda'));
+  const registra = /^sim/i.test(valor('agenda_registrar'));
+
+  // o chat também mexe na agenda: recarrega quando o documento muda
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('agenda_config').select('horarios, duracao_min, servicos').eq('owner_id', user.id).maybeSingle()
+      .then(({ data }) => setAgenda(data ?? null));
+  }, [user, b.config]);
+
+  const dias = agenda?.horarios
+    ? DIAS.map((d, i) => [d, agenda.horarios[String(i)] ?? []]).filter(([, f]) => f.length)
+    : [];
+
+  return (
+    <details className="doc-section chamados" open aria-labelledby="sec-agenda">
+      <summary className="doc-section-head">
+        <div>
+          <h2 id="sec-agenda">
+            <CalendarDays aria-hidden="true" /> Agenda
+          </h2>
+          <p>{usa ? (confirma ? 'Ele anota o pedido e você confirma.' : 'Ele marca sozinho nos horários livres.') : 'Desligada: ele não marca horários.'}</p>
+        </div>
+        <ChevronDown className="chamados-seta" aria-hidden="true" />
+      </summary>
+      <div className="chamados-corpo">
+        <label className="interruptor">
+          <input type="checkbox" checked={usa} onChange={(e) => b.setField('usar_agenda', e.target.checked ? 'Sim, marca sozinho' : SEM_AGENDA)} />
+          <span className="interruptor-trilho" aria-hidden="true" />
+          <span>
+            <b>Ele marca horários</b>
+            <small>Consulta os horários livres da sua agenda e marca para o cliente.</small>
+          </span>
+        </label>
+        {usa && (
+          <>
+            <label className="check-linha">
+              <input type="checkbox" checked={confirma} onChange={(e) => b.setField('usar_agenda', e.target.checked ? 'Sim, mas eu confirmo' : 'Sim, marca sozinho')} />
+              <span><b>Quero confirmar antes</b> — o horário fica pendente na Agenda até você aprovar.</span>
+            </label>
+            <label className="check-linha">
+              <input type="checkbox" checked={registra} onChange={(e) => b.setField('agenda_registrar', e.target.checked ? 'Sim, com o valor' : 'Não')} />
+              <span><b>Atualizar os Dados sozinho</b> — cada agendamento entra na tabela “Agendamentos” com cliente, serviço e valor.</span>
+            </label>
+            <div className="agenda-resumo">
+              <span className="label">Dias e horários</span>
+              <p className="muted" style={{ fontSize: 13.5 }}>
+                {dias.length ? dias.map(([d, f]) => `${d} ${f.map((x) => x.join('–')).join(', ')}`).join(' · ') : 'Ainda não definidos. Diga no chat (ex.: “seg a sex 9h às 18h”) ou ajuste na Agenda.'}
+              </p>
+              <span className="label">Serviços</span>
+              <p className="muted" style={{ fontSize: 13.5 }}>
+                {agenda?.servicos?.length
+                  ? agenda.servicos.map((x) => `${x.nome}${x.duracao_min ? ` ${x.duracao_min} min` : ''}${x.valor != null ? ` R$ ${Number(x.valor).toFixed(2).replace('.', ',')}` : ''}`).join(' · ')
+                  : 'Nenhum ainda. Ex.: “corte 40 min R$ 45”.'}
+              </p>
+              <Link to="/painel/agenda" target="_blank" style={{ fontSize: 13 }}>Abrir a Agenda</Link>
+            </div>
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
 /** Chamados: tudo por clique, numa seção que abre e fecha. */
 function PainelChamados({ sec }) {
   const b = useBuilder();
@@ -418,6 +494,8 @@ export default function Documento() {
       {b.schema.sections.map((sec) =>
         sec.key === 'escalonamento' ? (
           <PainelChamados key={sec.key} sec={sec} />
+        ) : sec.key === 'agenda' ? (
+          <PainelAgenda key={sec.key} />
         ) : (
         <section key={sec.key} className="doc-section" aria-labelledby={`sec-${sec.key}`}>
           <div className="doc-section-head">

@@ -153,7 +153,15 @@ Nunca afirme preço, disponibilidade, quantidade ou detalhe destes itens sem con
 
   const blocoAgenda = agenda
     ? `AGENDA
-Você pode ver horários livres (ver_horarios) e marcar (agendar). Antes de marcar, confirme serviço, dia, hora, nome e um contato. Nunca diga que marcou sem a ferramenta confirmar.`
+Você pode ver horários livres (ver_horarios) e marcar (agendar). Antes de marcar, confirme serviço, dia, hora, nome e um contato. Nunca diga que marcou sem a ferramenta confirmar.${
+        /confirmo/i.test(valueOf(cfg, 'usar_agenda'))
+          ? ' O dono confirma cada horário: depois de agendar, diga que o pedido foi anotado e que ele ainda vai confirmar.'
+          : ''
+      }${
+        agenda.servicos?.length
+          ? `\nServiços que dá para marcar:\n${agenda.servicos.map((x) => `- ${x.nome}${x.duracao_min ? ` (${x.duracao_min} min)` : ''}${x.valor != null ? ` — R$ ${Number(x.valor).toFixed(2).replace('.', ',')}` : ''}`).join('\n')}`
+          : ''
+      }`
     : '';
 
   const blocoBriefing = briefing
@@ -360,6 +368,7 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
             contato: { type: 'string' },
             servico: { type: 'string' },
             duracao_min: { type: 'integer' },
+            valor: { type: 'number', description: 'Preço do serviço em reais, se constar na ficha ou nos serviços' },
             observacao: { type: 'string' },
           },
           required: ['data', 'hora', 'nome', 'contato'],
@@ -542,6 +551,9 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       servico: args.servico ? String(args.servico) : undefined,
       observacao: args.observacao ? String(args.observacao) : undefined,
       duracao_min: Number(args.duracao_min) || undefined,
+      valor: args.valor != null && Number.isFinite(Number(args.valor)) ? Number(args.valor) : undefined,
+      pendente: /confirmo/i.test(valueOf(cfg, 'usar_agenda')),
+      registrar: /^sim/i.test(valueOf(cfg, 'agenda_registrar')),
       assistant_id: assistant.id,
       conversation_id: conversationId,
     });

@@ -235,6 +235,25 @@ const CORE_TAIL: Section[] = [
     ],
   },
   {
+    key: 'agenda',
+    label: 'Agenda',
+    note: 'Se o negócio marca horário, o assistente consulta os horários livres e marca. Se não precisa, deixe desligado.',
+    fields: [
+      {
+        key: 'usar_agenda', label: 'Ele marca horários?', type: 'select', importance: 'optional',
+        options: ['Não usa agenda', 'Sim, marca sozinho', 'Sim, mas eu confirmo'],
+        hint: '"Marca sozinho" já confirma na agenda; "eu confirmo" deixa pendente até você aprovar.',
+      },
+      {
+        key: 'agenda_registrar', label: 'Registrar cada agendamento nos Dados?', type: 'select', importance: 'optional',
+        options: ['Não', 'Sim, com o valor'],
+        hint: 'Cria e preenche a tabela "Agendamentos" (cliente, serviço, data, valor) para você ver o quanto entrou.',
+        depende: { campo: 'usar_agenda', valores: ['Sim, marca sozinho', 'Sim, mas eu confirmo'] },
+      },
+    ],
+    collections: [],
+  },
+  {
     key: 'duvidas',
     label: 'Perguntas frequentes',
     note: 'O que mais perguntam, e a resposta certa.',
@@ -280,11 +299,6 @@ const OPERACAO: Record<string, FieldDef[]> = {
   ],
   agendamento: [
     { key: 'agendamento_como', label: 'Como marcar horário', type: 'textarea', importance: 'important', hint: 'Antecedência, remarcação, o que acontece se faltar' },
-    {
-      key: 'usar_agenda', label: 'O assistente marca sozinho?', type: 'select', importance: 'optional',
-      options: ['Sim, pela agenda do Helpy', 'Não, só informa'],
-      hint: 'Se sim, ele consulta os horários livres da sua agenda e marca.',
-    },
   ],
   educacional: [
     {
@@ -302,11 +316,6 @@ const OPERACAO: Record<string, FieldDef[]> = {
   ],
   servico: [
     { key: 'agendamento_como', label: 'Como o cliente contrata', type: 'textarea', importance: 'important', hint: 'Orçamento, agendamento, prazo até começar' },
-    {
-      key: 'usar_agenda', label: 'O assistente marca sozinho?', type: 'select', importance: 'optional',
-      options: ['Sim, pela agenda do Helpy', 'Não, só informa'],
-      hint: 'Se sim, ele consulta os horários livres da sua agenda e marca.',
-    },
   ],
 };
 

@@ -1714,3 +1714,6 @@
 .check-robo[data-estado='ok'] { border-color: var(--folha); }
 .check-robo[data-estado='verificando'] span { color: var(--tinta-3); }
 .modal-fundo { position: fixed; inset: 0; z-index: 50; background: rgb(11 26 44 / 0.45); padding: 16px; overflow: auto; }
+.agenda-resumo { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--papel); }
+.agenda-resumo .label { margin-top: 6px; }
+.cal-ev[data-status='pendente'] { background: repeating-linear-gradient(135deg, var(--azul-claro) 0 6px, var(--branco) 6px 12px); border: 1px dashed var(--azul-forte); }

@@ -308,7 +308,7 @@ export default function Agenda() {
                     style={{ top, height: altura }}
                     onClick={() => setAberto(e)}
                   >
-                    <b>{e.cliente_nome}</b>
+                    <b>{e.status === 'pendente' ? '⏳ ' : ''}{e.cliente_nome}</b>
                     <span className="cal-ev-sub">
                       {ini.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       {e.servico ? ` · ${e.servico}` : ''}
@@ -331,17 +331,25 @@ export default function Agenda() {
           titulo={aberto.cliente_nome}
           sub={new Date(aberto.inicio).toLocaleString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
           rodape={
+            aberto.status === 'pendente' ? (
+              <>
+                <button type="button" className="btn btn-danger" style={{ marginRight: 'auto' }} onClick={() => mudarStatus('cancelado')}>Recusar</button>
+                <button type="button" className="btn btn-primary" onClick={() => mudarStatus('confirmado')}>Confirmar horário</button>
+              </>
+            ) : (
             <>
               <button type="button" className="btn btn-danger" style={{ marginRight: 'auto' }} onClick={() => mudarStatus('cancelado')}>Cancelar horário</button>
               <button type="button" className="btn btn-ghost" onClick={() => mudarStatus('faltou')}>Faltou</button>
               <button type="button" className="btn btn-primary" onClick={() => mudarStatus('concluido')}>Concluído</button>
             </>
+            )
           }
         >
           <dl className="stack stack-sm" style={{ margin: 0 }}>
             <div><dt className="eyebrow">Serviço</dt><dd style={{ margin: 0 }}>{aberto.servico || '—'}</dd></div>
             <div><dt className="eyebrow">Contato</dt><dd style={{ margin: 0 }}>{aberto.cliente_contato || '—'}</dd></div>
-            <div><dt className="eyebrow">Situação</dt><dd style={{ margin: 0 }}>{aberto.status}</dd></div>
+            <div><dt className="eyebrow">Situação</dt><dd style={{ margin: 0 }}>{aberto.status === 'pendente' ? 'Pendente — aguardando sua confirmação' : aberto.status}</dd></div>
+            {aberto.valor != null && <div><dt className="eyebrow">Valor</dt><dd style={{ margin: 0 }}>{Number(aberto.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</dd></div>}
             <div><dt className="eyebrow">Marcado por</dt><dd style={{ margin: 0 }}>{aberto.origem === 'assistente' ? 'Atendente virtual' : 'Você'}</dd></div>
             {aberto.observacao && <div><dt className="eyebrow">Observação</dt><dd style={{ margin: 0 }}>{aberto.observacao}</dd></div>}
           </dl>

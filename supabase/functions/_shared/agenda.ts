@@ -11,6 +11,9 @@ export interface AgendaConfig {
   duracao_min: number;
   antecedencia_horas: number;
   horarios: Record<string, Array<[string, string]>>;
+  /** o que dá para marcar, com duração e valor */
+  servicos?: Array<{ nome: string; duracao_min?: number; valor?: number }>;
+  registro_tabela_id?: string | null;
 }
 
 /** Diferença, em minutos, entre o horário local do fuso e UTC naquele instante. */
@@ -57,7 +60,7 @@ async function ocupados(db: SupabaseClient, ownerId: string, de: Date, ate: Date
     .from('agendamentos')
     .select('inicio, fim')
     .eq('owner_id', ownerId)
-    .eq('status', 'confirmado')
+    .in('status', ['confirmado', 'pendente'])
     .lt('inicio', ate.toISOString())
     .gt('fim', de.toISOString());
   return (data ?? []).map((a) => [new Date(a.inicio).getTime(), new Date(a.fim).getTime()] as const);
@@ -104,8 +107,15 @@ export async function marcar(
   input: {
     dia: string; hora: string; nome: string; contato?: string; servico?: string; observacao?: string;
     duracao_min?: number; assistant_id: string; conversation_id: string | null;
+    valor?: number; pendente?: boolean; registrar?: boolean;
   },
 ) {
+  // serviço cadastrado na agenda: usa a duração e o valor de lá
+  const sv = (cfg.servicos ?? []).find((x) => semAcento(x.nome) === semAcento(input.servico ?? ''));
+  if (sv) {
+    input.duracao_min ||= sv.duracao_min;
+    if (input.valor == null && sv.valor != null) input.valor = sv.valor;
+  }
   if (!DIA_RE.test(input.dia) || !HORA_RE.test(input.hora)) return { erro: 'Data ou hora inválida.' };
   if (!input.nome?.trim()) return { erro: 'Preciso do nome do cliente para marcar.' };
 
@@ -132,9 +142,55 @@ export async function marcar(
       inicio: inicio.toISOString(),
       fim: fim.toISOString(),
       origem: 'assistente',
+      status: input.pendente ? 'pendente' : 'confirmado',
+      valor: Number.isFinite(input.valor) ? input.valor : null,
     })
     .select('id')
     .single();
   if (error) return { erro: 'Não consegui gravar o agendamento.' };
-  return { ok: true, id: data.id, quando: utcToLocal(inicio, cfg.fuso) };
+  if (input.registrar) {
+    await registrarNosDados(db, cfg, {
+      data: input.dia.split('-').reverse().join('/'),
+      hora,
+      cliente: input.nome.trim().slice(0, 120),
+      contato: input.contato?.trim().slice(0, 120) ?? '',
+      servico: input.servico?.trim().slice(0, 120) ?? '',
+      valor: Number.isFinite(input.valor) ? String(input.valor) : '',
+      status: input.pendente ? 'Pendente' : 'Confirmado',
+    }).catch((e) => console.error('[agenda] registro nos dados', e));
+  }
+  return {
+    ok: true,
+    id: data.id,
+    quando: utcToLocal(inicio, cfg.fuso),
+    situacao: input.pendente
+      ? 'PENDENTE: o pedido foi anotado, mas o negócio ainda vai confirmar. Diga isso; não diga que está confirmado.'
+      : 'Confirmado na agenda.',
+  };
+}
+
+const semAcento = (s: string) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+const COLUNAS_REGISTRO = [
+  ['data', 'Data', 'texto'], ['hora', 'Hora', 'texto'], ['cliente', 'Cliente', 'texto'], ['contato', 'Contato', 'texto'],
+  ['servico', 'Serviço', 'texto'], ['valor', 'Valor', 'moeda'], ['status', 'Status', 'texto'],
+] as const;
+
+/** Atualização automática dos Dados: cada agendamento vira uma linha na tabela "Agendamentos". */
+async function registrarNosDados(db: SupabaseClient, cfg: AgendaConfig, linha: Record<string, string>) {
+  let tabelaId = cfg.registro_tabela_id ?? null;
+  if (tabelaId) {
+    const { data } = await db.from('tabelas').select('id').eq('id', tabelaId).eq('owner_id', cfg.owner_id).maybeSingle();
+    if (!data) tabelaId = null;
+  }
+  if (!tabelaId) {
+    const { data: t, error } = await db.from('tabelas')
+      .insert({ owner_id: cfg.owner_id, nome: 'Agendamentos', proposito: 'Preenchida sozinha pelo assistente a cada horário marcado (cliente, serviço, valor).', assistente_escreve: true })
+      .select('id').single();
+    if (error) throw error;
+    tabelaId = t.id;
+    await db.from('tabela_colunas').insert(COLUNAS_REGISTRO.map(([chave, rotulo, tipo], ordem) => ({ tabela_id: tabelaId, chave, rotulo, tipo, ordem, identifica: ordem === 2 })));
+    await db.from('agenda_config').update({ registro_tabela_id: tabelaId }).eq('owner_id', cfg.owner_id);
+  }
+  await db.from('tabela_linhas').insert({ tabela_id: tabelaId, dados: linha });
 }
