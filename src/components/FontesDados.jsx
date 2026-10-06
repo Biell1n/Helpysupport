@@ -147,6 +147,17 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
 
   // api
   const [api, setApi] = useState({ url: '', header_nome: 'Authorization', header_valor: '', param_busca: '', caminho: '' });
+  // conexão com sistema ou planilha de fora só com autorização expressa (termos, item 5)
+  const [autorizo, setAutorizo] = useState(false);
+  const autorizacao = (
+    <label className="check-linha" style={{ marginTop: 14 }}>
+      <input type="checkbox" checked={autorizo} onChange={(e) => setAutorizo(e.target.checked)} />
+      <span>
+        Tenho permissão da empresa para conectar esta fonte e <b>autorizo o Helpy a ler esses dados</b> para responder no atendimento e
+        montar relatórios, conforme os <a href="/termos" target="_blank" rel="noreferrer">termos de uso</a>.
+      </span>
+    </label>
+  );
   const [teste, setTeste] = useState(null);
   const [campos, setCampos] = useState([]);
   const [testando, setTestando] = useState(false);
@@ -222,7 +233,7 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
 
   const criarDoLink = () =>
     concluir(async () => {
-      const t = await criarTabelaBase({ userId, nome: nome.trim(), assistentes, extra: { fonte: 'url', fonte_url: url.trim() } });
+      const t = await criarTabelaBase({ userId, nome: nome.trim(), assistentes, extra: { fonte: 'url', fonte_url: url.trim(), autorizada_em: new Date().toISOString() } });
       const colunas = colunasDe(previa.cabecalho, previa.linhas);
       await supabase.from('tabela_colunas').insert(colunas.map((c, i) => ({ ...c, tabela_id: t.id, identifica: i === 0 })));
       await chamar('dados-e-relatorios', { action: 'sincronizar_url', tabela_id: t.id });
@@ -246,7 +257,7 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
 
   const criarDaApi = () =>
     concluir(async () => {
-      const t = await criarTabelaBase({ userId, nome: nome.trim(), assistentes, extra: { fonte: 'api', api_config: api } });
+      const t = await criarTabelaBase({ userId, nome: nome.trim(), assistentes, extra: { fonte: 'api', api_config: api, autorizada_em: new Date().toISOString() } });
       // a chave guarda o nome do campo como vem da API; o rótulo é o que o assistente lê
       if (campos.length) {
         const { error } = await supabase
@@ -343,7 +354,9 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
                 <b>Google Planilhas:</b> Arquivo → Compartilhar → <i>Publicar na Web</i> → escolha a aba e o formato <i>CSV</i> → copie o link.
                 Também serve o link de compartilhamento quando a planilha está aberta para “qualquer pessoa com o link”.
                 <br />
-                <b>Excel / OneDrive / outros:</b> qualquer link público que baixe um arquivo .csv.
+                <b>SharePoint / OneDrive:</b> compartilhe o arquivo .csv como “qualquer pessoa com o link” e cole aqui.
+                <br />
+                <b>Outros:</b> qualquer link público que baixe um arquivo .csv.
               </div>
               <div className="row" style={{ alignItems: 'flex-end', marginTop: 14 }}>
                 <label className="field" style={{ flex: 1, marginBottom: 0 }}>
@@ -361,9 +374,10 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
                 </div>
               )}
               {erro && <div className="alert alert-erro" style={{ marginTop: 12 }}>{erro}</div>}
+              {previa && autorizacao}
               {previa && (
                 <div className="modal-foot">
-                  <button type="button" className="btn btn-primary" disabled={!nome.trim() || salvando} onClick={criarDoLink}>
+                  <button type="button" className="btn btn-primary" disabled={!nome.trim() || salvando || !autorizo} onClick={criarDoLink}>
                     {salvando ? <Loader2 className="spin" /> : <Link2 />} Ligar planilha
                   </button>
                 </div>
@@ -447,9 +461,10 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
                 </div>
               )}
               {erro && <div className="alert alert-erro" style={{ marginTop: 12 }}>{erro}</div>}
+              {teste && autorizacao}
               {teste && (
                 <div className="modal-foot">
-                  <button type="button" className="btn btn-primary" disabled={!nome.trim() || !campos.length || salvando} onClick={criarDaApi}>
+                  <button type="button" className="btn btn-primary" disabled={!nome.trim() || !campos.length || salvando || !autorizo} onClick={criarDaApi}>
                     {salvando ? <Loader2 className="spin" /> : <PlugZap />} Conectar
                   </button>
                 </div>

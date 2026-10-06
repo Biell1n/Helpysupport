@@ -133,6 +133,16 @@ export function linkCsv(url: string): string {
     const gid = url.match(/[#&?]gid=(\d+)/)?.[1] ?? '0';
     return `https://docs.google.com/spreadsheets/d/${g[1]}/export?format=csv&gid=${gid}`;
   }
+  // SharePoint / OneDrive: link de compartilhamento → download direto do arquivo
+  try {
+    const u = new URL(url.trim());
+    if (/(\.sharepoint\.com|onedrive\.live\.com|1drv\.ms)$/i.test(u.hostname) && !u.searchParams.has('download')) {
+      u.searchParams.set('download', '1');
+      return u.toString();
+    }
+  } catch {
+    /* não é URL: a validação adiante avisa */
+  }
   return url.trim();
 }
 
@@ -181,9 +191,14 @@ export function chaveDe(rotulo: string, usadas: Set<string>): string {
 export async function baixarCsv(url: string): Promise<{ cabecalho: string[]; linhas: string[][] }> {
   const u = await urlSegura(linkCsv(url));
   const { texto, tipo } = await baixar(u);
+  if (texto.startsWith('PK') || /spreadsheetml|ms-excel/.test(tipo)) {
+    throw new UserError(
+      'Esse link é de um arquivo Excel (.xlsx). Por enquanto o link precisa ser de um CSV: no Excel, use Arquivo → Salvar como → CSV no mesmo OneDrive/SharePoint, ou importe o .xlsx pela opção "Arquivo".',
+    );
+  }
   if (/text\/html/.test(tipo) || /^\s*<(!doctype|html)/i.test(texto)) {
     throw new UserError(
-      'O link abriu uma página, não a planilha. No Google Planilhas use Arquivo → Compartilhar → Publicar na web → CSV.',
+      'O link abriu uma página, não a planilha. No Google Planilhas use Arquivo → Compartilhar → Publicar na web → CSV. No SharePoint/OneDrive, compartilhe como "Qualquer pessoa com o link".',
     );
   }
   const todas = lerCsv(texto);
