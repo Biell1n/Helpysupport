@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { MailCheck } from 'lucide-react';
 import { lembrarAceite, TERMOS_VERSAO } from '@/lib/termos';
 import { resolverProva } from '@/lib/prova';
+import { erroAuth } from '@/lib/erroAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { destinoSeguro, ehVisitante } from '@/lib/destino';
@@ -76,7 +77,7 @@ export default function CriarConta() {
           ? 'Este e-mail já tem conta. Tente entrar.'
           : /database error/i.test(error.message)
           ? 'Não conseguimos confirmar o cadastro. Marque “não sou um robô” de novo e tente outra vez.'
-          : error.message,
+          : erroAuth(error.message),
       );
     }
     // sem sessão = o projeto pede confirmação de e-mail

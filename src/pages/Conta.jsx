@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { PainelDuasEtapas } from '@/components/DuasEtapas';
+import { erroAuth } from '@/lib/erroAuth';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 
@@ -46,7 +47,7 @@ export default function Conta() {
       await teste.auth.signOut({ scope: 'local' });
     }
     const { error } = await supabase.auth.updateUser({ password: senha });
-    if (error) return avisar('Não deu para trocar a senha', { erro: true, texto: error.message });
+    if (error) return avisar('Não deu para trocar a senha', { erro: true, texto: erroAuth(error.message) });
     setSenha('');
     setAtual('');
     avisar('Senha trocada');

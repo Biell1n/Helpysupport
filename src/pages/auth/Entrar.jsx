@@ -4,15 +4,11 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { destinoSeguro, ehVisitante } from '@/lib/destino';
 import { lembrarAceite } from '@/lib/termos';
+import { erroAuth } from '@/lib/erroAuth';
 import AuthLayout from './AuthLayout';
 import GoogleBotao from './GoogleBotao';
 
-const traduz = (m = '') =>
-  /invalid login/i.test(m)
-    ? 'E-mail ou senha incorretos.'
-    : /email not confirmed/i.test(m)
-    ? 'Confirme seu e-mail pelo link que enviamos antes de entrar.'
-    : m;
+const traduz = erroAuth;
 
 export default function Entrar() {
   const { user } = useAuth();

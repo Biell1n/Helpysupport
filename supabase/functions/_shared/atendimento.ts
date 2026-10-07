@@ -49,7 +49,7 @@ interface Tabela {
   colunas: Array<{ chave: string; rotulo: string }>;
 }
 
-const semAcento = (s: string) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const semAcento = (s: string) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 // ------------------------------------------------------------
 // O ofício

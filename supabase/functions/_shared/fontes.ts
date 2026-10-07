@@ -147,7 +147,7 @@ export function linkCsv(url: string): string {
 }
 
 export function lerCsv(texto: string): string[][] {
-  const t = texto.replace(/^﻿/, '');
+  const t = texto.replace(/^\uFEFF/, '');
   const primeira = t.split(/\r?\n/, 1)[0] ?? '';
   const sep = (primeira.match(/;/g)?.length ?? 0) > (primeira.match(/,/g)?.length ?? 0) ? ';'
     : (primeira.match(/\t/g)?.length ?? 0) > (primeira.match(/,/g)?.length ?? 0) ? '\t' : ',';
@@ -180,7 +180,7 @@ export function lerCsv(texto: string): string[][] {
 }
 
 export function chaveDe(rotulo: string, usadas: Set<string>): string {
-  const base = rotulo.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  const base = rotulo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'coluna';
   let k = base;
   for (let i = 2; usadas.has(k); i++) k = `${base}_${i}`;
@@ -314,7 +314,7 @@ export function achatar(o: unknown, prefixo = '', out: Linha = {}, nivel = 0): L
   return out;
 }
 
-const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const semAcento = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 export async function consultarApi(cfg: ApiConfig, busca = ''): Promise<{ total: number; linhas: Linha[] }> {
   const u = await urlSegura(cfg.url);
