@@ -152,7 +152,7 @@ function NovoAgendamento({ inicial, duracao, onSalvar, onFechar }) {
 }
 
 export default function Agenda() {
-  const { user } = useAuth();
+  const { user, contaId, tipo } = useAuth();
   const avisar = useToast();
   const [semana, setSemana] = useState(() => inicioDaSemana(new Date()));
   const [cfg, setCfg] = useState(null);
@@ -173,9 +173,9 @@ export default function Agenda() {
         .lt('inicio', somaDias(semana, 7).toISOString())
         .order('inicio'),
     ]);
-    setCfg(c ?? { ...PADRAO, owner_id: user.id });
+    setCfg(c ?? { ...PADRAO, owner_id: contaId });
     setEventos(ev ?? []);
-  }, [semana, user]);
+  }, [semana, contaId]);
 
   useEffect(() => {
     carregar();
@@ -193,7 +193,7 @@ export default function Agenda() {
 
   const salvarCfg = async (c) => {
     const { error } = await supabase.from('agenda_config').upsert({
-      owner_id: user.id,
+      owner_id: contaId,
       ativa: c.ativa,
       fuso: c.fuso || 'America/Sao_Paulo',
       duracao_min: c.duracao_min,
@@ -210,7 +210,7 @@ export default function Agenda() {
     const inicio = new Date(`${f.dia}T${f.hora}:00`);
     const fim = new Date(inicio.getTime() + Number(f.duracao || 30) * 60000);
     const { error } = await supabase.from('agendamentos').insert({
-      owner_id: user.id,
+      owner_id: contaId,
       cliente_nome: f.cliente_nome.trim(),
       cliente_contato: f.cliente_contato.trim() || null,
       servico: f.servico.trim() || null,
@@ -247,16 +247,16 @@ export default function Agenda() {
           <p>Horários marcados por você e pelo atendente. Em amarelo, os que ele marcou sozinho.</p>
         </div>
         <div className="row row-wrap">
-          <button type="button" className="btn btn-ghost" onClick={() => setConfigurando(true)}><Settings2 /> Horários</button>
+          {tipo === 'empresa' && <button type="button" className="btn btn-ghost" onClick={() => setConfigurando(true)}><Settings2 /> Horários</button>}
           <button type="button" className="btn btn-primary" onClick={() => setNovo({ dia: iso(new Date()), hora: '09:00' })}><Plus /> Agendar</button>
         </div>
       </header>
 
-      {cfg && !cfg.ativa && (
+      {cfg && !cfg.ativa && tipo === 'empresa' && (
         <div className="alert" style={{ marginBottom: 16 }}>
           <span>
             A agenda está desligada para o atendente. <button type="button" className="link-btn" onClick={() => setConfigurando(true)}>Ligar e definir horários</button>
-            {' '}— depois, no assistente, marque “O assistente marca sozinho?” como sim.
+            {' '}— depois, na seção Agenda do assistente, ligue “Ele marca horários”.
           </span>
         </div>
       )}

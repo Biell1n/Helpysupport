@@ -82,7 +82,13 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         if (!modoTeste && i.desafio) {
           prova.current = resolverDesafio({ token, visitante: visitorId, agora: i.desafio.agora, bits: i.desafio.bits });
         }
-        const salva = ler(chaveConversa);
+        // "Minhas conversas" abre a conversa certa em qualquer aparelho (?conversa=…, só para a conta dona dela)
+        const doLink = modoTeste ? null : new URLSearchParams(window.location.search).get('conversa');
+        const salva = doLink || ler(chaveConversa);
+        if (doLink) {
+          lembrar(chaveConversa, doLink);
+          setConversa(doLink);
+        }
         if (salva) {
           const h = await chamar('public-chat', { ...base, action: 'history', conversation_id: salva, visitor_id: visitorId });
           if (!vivo) return;

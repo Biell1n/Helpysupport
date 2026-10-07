@@ -88,7 +88,7 @@ async function hashDoIp(req: Request): Promise<string | null> {
 
 /**
  * A conversa só abre para quem a começou: o mesmo navegador (visitor_id
- * aleatório) e, se ela já está ligada a uma conta, a mesma conta logada.
+ * aleatório) ou, se ela está ligada a uma conta, essa conta logada.
  */
 async function conversaDo(assistantId: string, visitorId: string, clienteId: string | null, id: unknown): Promise<Conversa | null> {
   if (!id || !visitorId || !/^[0-9a-f-]{36}$/i.test(String(id))) return null;
@@ -97,8 +97,10 @@ async function conversaDo(assistantId: string, visitorId: string, clienteId: str
     .select('id, assistant_id, visitor_id, cliente_id, status, numero, assumido_nome, assumido_em, escalado_em, nota, teste, last_message_at')
     .eq('id', String(id))
     .maybeSingle();
-  if (!data || data.assistant_id !== assistantId || data.visitor_id !== visitorId) return null;
-  if (data.cliente_id && data.cliente_id !== clienteId) return null;
+  if (!data || data.assistant_id !== assistantId) return null;
+  // ligada a uma conta: abre para essa conta em qualquer aparelho, e só para ela
+  if (data.cliente_id) return data.cliente_id === clienteId ? (data as Conversa) : null;
+  if (data.visitor_id !== visitorId) return null;
   return data as Conversa;
 }
 

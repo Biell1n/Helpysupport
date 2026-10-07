@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { chamar, supabase } from '@/lib/supabase';
+import { aplicarTipoPendente, gravarAceitePendente, TERMOS_VERSAO } from '@/lib/termos';
 
 const AuthContext = createContext(null);
 
@@ -36,7 +37,11 @@ export function AuthProvider({ children }) {
       setProfile(null);
       return;
     }
-    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    let { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    // volta do Google: grava o aceite dos termos e o tipo escolhidos antes de sair
+    const aceitou = data && data.termos_versao !== TERMOS_VERSAO && (await gravarAceitePendente());
+    const virou = data && (await aplicarTipoPendente(chamar));
+    if (aceitou || virou) ({ data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle());
     setProfile(data ?? { id: user.id, plan: 'trial' });
   }, [user]);
 
@@ -53,6 +58,10 @@ export function AuthProvider({ children }) {
       user,
       profile,
       reloadProfile: loadProfile,
+      // empresa (padrão) · cliente (só conversa) · funcionario (equipe de uma empresa)
+      tipo: profile?.tipo ?? 'empresa',
+      // de quem são os dados que esta pessoa vê: a empresa, para funcionário
+      contaId: profile?.tipo === 'funcionario' && profile?.empresa_id ? profile.empresa_id : user?.id ?? null,
       nome:
         profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || '',
       signOut: () => supabase.auth.signOut(),

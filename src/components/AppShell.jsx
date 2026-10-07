@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, Table2, Ticket } from 'lucide-react';
+import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, MessagesSquare, Table2, Ticket, Users } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { VerificarCodigo } from '@/components/DuasEtapas';
@@ -10,14 +10,28 @@ import { diasDeTeste, planOf } from '@/lib/plans';
 import { iniciais } from '@/lib/format';
 
 const NAV = [
-  { to: '/painel', label: 'Painel', icon: LayoutGrid, end: true },
-  { to: '/painel/assistentes', label: 'Assistentes', icon: Bot },
-  { to: '/painel/atendimentos', label: 'Atendimentos', icon: Ticket, contador: 'tickets_abertos' },
-  { to: '/painel/dados', label: 'Dados', icon: Table2 },
-  { to: '/painel/agenda', label: 'Agenda', icon: CalendarDays },
-  { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart3 },
-  { to: '/painel/plano', label: 'Plano', icon: Gem },
+  { to: '/painel', label: 'Painel', icon: LayoutGrid, end: true, tipos: ['empresa'] },
+  { to: '/painel', label: 'Minhas conversas', icon: MessagesSquare, end: true, tipos: ['cliente'] },
+  { to: '/painel/assistentes', label: 'Assistentes', icon: Bot, tipos: ['empresa'] },
+  { to: '/painel/atendimentos', label: 'Atendimentos', icon: Ticket, contador: 'tickets_abertos', tipos: ['empresa', 'funcionario'] },
+  { to: '/painel/dados', label: 'Dados', icon: Table2, tipos: ['empresa'] },
+  { to: '/painel/agenda', label: 'Agenda', icon: CalendarDays, tipos: ['empresa', 'funcionario'] },
+  { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart3, tipos: ['empresa'] },
+  { to: '/painel/equipe', label: 'Equipe', icon: Users, tipos: ['empresa'] },
+  { to: '/painel/plano', label: 'Plano', icon: Gem, tipos: ['empresa'] },
 ];
+
+/** Telas só da empresa: cliente e funcionário voltam para o início deles. */
+export function SoEmpresa({ children }) {
+  const { tipo } = useAuth();
+  return tipo === 'empresa' ? children : <Navigate to="/painel" replace />;
+}
+
+/** Telas da empresa e da equipe dela. */
+export function EmpresaOuEquipe({ children }) {
+  const { tipo } = useAuth();
+  return tipo === 'cliente' ? <Navigate to="/painel" replace /> : children;
+}
 
 export function Carregando() {
   return (
@@ -72,7 +86,7 @@ function AceiteTermos({ children }) {
 }
 
 export default function AppShell() {
-  const { user, profile, nome, signOut } = useAuth();
+  const { user, profile, nome, signOut, tipo } = useAuth();
   const [uso, recarregarUso] = useUso();
   const plano = planOf(profile);
   const dias = diasDeTeste(profile);
@@ -87,7 +101,7 @@ export default function AppShell() {
         </Link>
 
         <nav className="side-nav" aria-label="Seções do painel">
-          {NAV.map(({ to, label, icon: Icon, end, contador }) => (
+          {NAV.filter((n) => n.tipos.includes(tipo)).map(({ to, label, icon: Icon, end, contador }) => (
             <NavLink key={to} to={to} end={end} className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
               <Icon aria-hidden="true" />
               <span className="side-label">{label}</span>
@@ -97,6 +111,8 @@ export default function AppShell() {
         </nav>
 
         <div className="side-foot">
+          {tipo === 'funcionario' && <p className="side-plan muted" style={{ fontSize: 12.5 }}>Você faz parte da equipe. Chamados e agenda são da empresa.</p>}
+          {tipo === 'empresa' && (
           <Link to="/painel/plano" className="side-plan">
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <b>{plano.nome}</b>
@@ -109,6 +125,7 @@ export default function AppShell() {
               {usados} de {plano.atendimentos} atendimentos no mês
             </span>
           </Link>
+          )}
 
           <div className="side-user">
             <span className="avatar">{iniciais(nome || user?.email)}</span>

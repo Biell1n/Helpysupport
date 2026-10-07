@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUp, Bot, CheckCircle2, Hand, RotateCcw, Search } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Bot, CheckCircle2, Columns3, Hand, RotateCcw, Search } from 'lucide-react';
+import QuadroChamados from './QuadroChamados';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -25,6 +26,22 @@ export default function Atendimentos() {
   const abertaId = params.get('id');
 
   const [aba, setAba] = useState('waiting');
+  // quadro (Kanban) ou lista; lembra a escolha neste navegador
+  const [modo, setModoEstado] = useState(() => {
+    try {
+      return localStorage.getItem('helpy_atendimentos_modo') || 'quadro';
+    } catch {
+      return 'quadro';
+    }
+  });
+  const setModo = (m) => {
+    setModoEstado(m);
+    try {
+      localStorage.setItem('helpy_atendimentos_modo', m);
+    } catch {
+      /* sem armazenamento: vale só agora */
+    }
+  };
   const [busca, setBusca] = useState('');
   const [conversas, setConversas] = useState(null);
   const [contagem, setContagem] = useState({});
@@ -171,12 +188,31 @@ export default function Atendimentos() {
     );
   }, [conversas, busca]);
 
+  if (modo === 'quadro' && !abertaId) {
+    return (
+      <QuadroChamados
+        assistentes={assistentes}
+        recarregarUso={recarregarUso}
+        onLista={() => setModo('lista')}
+        onAbrir={(id) => {
+          setModo('lista');
+          abrir(id);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="inbox" data-aberto={aberta ? 'true' : 'false'}>
       {/* ---------- fila ---------- */}
       <section className="inbox-list" aria-label="Lista de atendimentos">
         <div className="inbox-list-head">
-          <h1 style={{ fontSize: 26 }}>Atendimentos</h1>
+          <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+            <h1 style={{ fontSize: 26 }}>Atendimentos</h1>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { abrir(null); setModo('quadro'); }}>
+              <Columns3 size={15} /> Quadro
+            </button>
+          </div>
           <div className="tabs" role="tablist">
             {ABAS.map((a) => (
               <button key={a.id} type="button" role="tab" className="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}>

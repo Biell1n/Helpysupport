@@ -3,19 +3,19 @@
 export const PLANS = {
   trial: {
     id: 'trial', nome: 'Teste grátis', preco: 0, assistentes: 1, builderIA: true, builderMsgs: 150,
-    atendimentos: 50, ticketsAbertos: 10, chamados: true, chamadosAvancados: true, tabelas: 3,
+    atendimentos: 50, ticketsAbertos: 10, chamados: true, chamadosAvancados: true, tabelas: 3, funcionarios: 2,
   },
   essencial: {
     id: 'essencial', nome: 'Essencial', preco: 79, assistentes: 1, builderIA: false, builderMsgs: 0,
-    atendimentos: 200, ticketsAbertos: 20, chamados: true, chamadosAvancados: false, tabelas: 3,
+    atendimentos: 200, ticketsAbertos: 20, chamados: true, chamadosAvancados: false, tabelas: 3, funcionarios: 1,
   },
   profissional: {
     id: 'profissional', nome: 'Profissional', preco: 197, assistentes: 3, builderIA: true, builderMsgs: 400,
-    atendimentos: 600, ticketsAbertos: 100, chamados: true, chamadosAvancados: true, tabelas: 10,
+    atendimentos: 600, ticketsAbertos: 100, chamados: true, chamadosAvancados: true, tabelas: 10, funcionarios: 5,
   },
   business: {
     id: 'business', nome: 'Business', preco: 497, assistentes: 10, builderIA: true, builderMsgs: 1500,
-    atendimentos: 1500, ticketsAbertos: null, chamados: true, chamadosAvancados: true, tabelas: 50,
+    atendimentos: 1500, ticketsAbertos: null, chamados: true, chamadosAvancados: true, tabelas: 50, funcionarios: 20,
   },
 };
 

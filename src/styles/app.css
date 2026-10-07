@@ -1717,3 +1717,22 @@
 .agenda-resumo { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--papel); }
 .agenda-resumo .label { margin-top: 6px; }
 .cal-ev[data-status='pendente'] { background: repeating-linear-gradient(135deg, var(--azul-claro) 0 6px, var(--branco) 6px 12px); border: 1px dashed var(--azul-forte); }
+
+/* cadastro: empresa ou cliente */
+.tipo-conta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tipo-conta button { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--linha-forte); background: var(--branco); color: var(--tinta); cursor: pointer; font: inherit; }
+.tipo-conta button span { font-size: 12.5px; color: var(--tinta-2); }
+.tipo-conta button[aria-checked='true'] { border-color: var(--azul-forte); box-shadow: 0 0 0 2px var(--azul-claro); }
+@media (max-width: 420px) { .tipo-conta { grid-template-columns: 1fr; } }
+
+/* Kanban dos chamados */
+.quadro { display: grid; grid-template-columns: repeat(3, minmax(260px, 1fr)); gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+.quadro-col { background: var(--papel-2); border-radius: 18px; padding: 12px; display: grid; align-content: start; gap: 10px; min-height: 60vh; border: 2px dashed transparent; transition: border-color .15s; }
+.quadro-col[data-sobre='true'] { border-color: var(--azul-forte); }
+.quadro-col h2 { font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; padding: 2px 4px; }
+.quadro-card { background: var(--branco); border: 1px solid var(--linha); border-radius: 14px; padding: 12px; display: grid; gap: 4px; cursor: grab; }
+.quadro-card:hover { border-color: var(--linha-forte); }
+.quadro-card:focus-visible { outline: 2px solid var(--azul-forte); outline-offset: 2px; }
+.quadro-card[data-prioridade='alta'] { border-left: 4px solid var(--brasa); }
+.quadro-mover { margin-top: 6px; font: inherit; font-size: 12px; border: 1px solid var(--linha); border-radius: 8px; padding: 4px 6px; background: var(--papel); color: var(--tinta-2); justify-self: start; }
+@media (max-width: 760px) { .quadro { grid-template-columns: repeat(3, 82vw); scroll-snap-type: x mandatory; } .quadro-col { scroll-snap-align: start; } }

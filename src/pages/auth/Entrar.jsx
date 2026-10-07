@@ -7,6 +7,7 @@ import { lembrarAceite } from '@/lib/termos';
 import { erroAuth } from '@/lib/erroAuth';
 import AuthLayout from './AuthLayout';
 import GoogleBotao from './GoogleBotao';
+import ReenviarConfirmacao from './ReenviarConfirmacao';
 
 const traduz = erroAuth;
 
@@ -44,7 +45,7 @@ export default function Entrar() {
           Ainda não tem conta? <Link to={`/criar-conta${deQuery}`}>{visitante ? 'Criar conta' : 'Comece o teste grátis'}</Link>
         </p>
       </div>
-      <GoogleBotao destino={destino} antes={lembrarAceite} />
+      <GoogleBotao destino={destino} antes={() => lembrarAceite(visitante ? 'cliente' : undefined)} />
       <p className="faint" style={{ fontSize: 12.5, marginTop: -6 }}>
         Conta nova pelo Google? Ao continuar, você aceita os <Link to="/termos" target="_blank">termos</Link> e a{' '}
         <Link to="/privacidade" target="_blank">privacidade</Link>.
@@ -63,6 +64,7 @@ export default function Entrar() {
           <input className="input" type="password" autoComplete="current-password" required value={senha} onChange={(e) => setSenha(e.target.value)} />
         </label>
         {erro && <p className="error-text" role="alert">{erro}</p>}
+        {/confirme seu e-mail/i.test(erro) && <ReenviarConfirmacao email={email.trim().toLowerCase()} destino={destino} />}
         <button className="btn btn-primary btn-lg btn-block" disabled={enviando}>
           {enviando ? 'Entrando…' : 'Entrar'}
         </button>

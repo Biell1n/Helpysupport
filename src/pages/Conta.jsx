@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { chamar, supabase } from '@/lib/supabase';
 import { PainelDuasEtapas } from '@/components/DuasEtapas';
 import { erroAuth } from '@/lib/erroAuth';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 
 export default function Conta() {
-  const { user, profile, reloadProfile, signOut } = useAuth();
+  const { user, profile, reloadProfile, signOut, tipo } = useAuth();
   const avisar = useToast();
   const [f, setF] = useState({ full_name: '', company_name: '', phone: '' });
   const [senha, setSenha] = useState('');
@@ -51,6 +51,20 @@ export default function Conta() {
     setSenha('');
     setAtual('');
     avisar('Senha trocada');
+  };
+
+  const [excluir, setExcluir] = useState({ aberto: false, senha: '', texto: '', ocupado: false });
+  const excluirConta = async (e) => {
+    e.preventDefault();
+    setExcluir((x) => ({ ...x, ocupado: true }));
+    try {
+      await chamar('conta', { action: 'excluir', senha: excluir.senha, confirmacao: excluir.texto });
+      await supabase.auth.signOut({ scope: 'local' });
+      window.location.assign('/');
+    } catch (err) {
+      setExcluir((x) => ({ ...x, ocupado: false }));
+      avisar('Não deu para excluir', { erro: true, texto: err.message });
+    }
   };
 
   const sairDeTudo = async () => {
@@ -112,6 +126,36 @@ export default function Conta() {
         <h2 className="card-title">Aparelhos</h2>
         <p className="muted" style={{ fontSize: 14 }}>Esqueceu a conta aberta em outro computador ou acha que alguém entrou? Encerre todas as sessões.</p>
         <div><button type="button" className="btn btn-ghost" onClick={sairDeTudo}>Sair de todos os aparelhos</button></div>
+      </section>
+
+      <section className="card stack" style={{ marginTop: 16, borderColor: 'var(--brasa)' }}>
+        <h2 className="card-title">Excluir minha conta</h2>
+        <p className="muted" style={{ fontSize: 14 }}>
+          {tipo === 'empresa'
+            ? 'Apaga para sempre a conta, os assistentes, as tabelas, as conversas, a agenda e as chaves de integração. Os funcionários perdem o acesso. Não dá para desfazer.'
+            : 'Apaga para sempre a sua conta e os seus dados. Não dá para desfazer.'}
+        </p>
+        {!excluir.aberto ? (
+          <div><button type="button" className="btn btn-danger" onClick={() => setExcluir((x) => ({ ...x, aberto: true }))}>Quero excluir minha conta</button></div>
+        ) : (
+          <form className="stack" onSubmit={excluirConta}>
+            {temSenha ? (
+              <label className="field" style={{ maxWidth: 360 }}>
+                <span className="label">Digite sua senha para confirmar</span>
+                <input className="input" type="password" autoComplete="current-password" required value={excluir.senha} onChange={(e) => setExcluir((x) => ({ ...x, senha: e.target.value }))} />
+              </label>
+            ) : (
+              <label className="field" style={{ maxWidth: 360 }}>
+                <span className="label">Digite EXCLUIR para confirmar</span>
+                <input className="input" required value={excluir.texto} onChange={(e) => setExcluir((x) => ({ ...x, texto: e.target.value }))} />
+              </label>
+            )}
+            <div className="row row-wrap">
+              <button className="btn btn-danger" disabled={excluir.ocupado}>{excluir.ocupado ? 'Excluindo…' : 'Excluir para sempre'}</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setExcluir({ aberto: false, senha: '', texto: '', ocupado: false })}>Cancelar</button>
+            </div>
+          </form>
+        )}
       </section>
     </div>
   );

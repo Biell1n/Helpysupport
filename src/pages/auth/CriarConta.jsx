@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { destinoSeguro, ehVisitante } from '@/lib/destino';
 import AuthLayout from './AuthLayout';
 import GoogleBotao from './GoogleBotao';
+import ReenviarConfirmacao from './ReenviarConfirmacao';
 
 export default function CriarConta() {
   const { user } = useAuth();
@@ -21,8 +22,11 @@ export default function CriarConta() {
   const [robo, setRobo] = useState({ estado: 'nao', prova: null, email: '' });
   const [params] = useSearchParams();
   const destino = destinoSeguro(params.get('de'));
-  const visitante = ehVisitante(destino);
   const deQuery = destino === '/painel' ? '' : `?de=${encodeURIComponent(destino)}`;
+  // funcionário só pelo link de convite; quem vem do chat de uma empresa começa como cliente
+  const funcionario = params.get('tipo') === 'funcionario' && destino.startsWith('/convite/');
+  const [tipo, setTipo] = useState(() => (funcionario || ehVisitante(destino) ? 'cliente' : 'empresa'));
+  const visitante = tipo === 'cliente';
 
   if (user) return <Navigate to={destino} replace />;
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -61,8 +65,9 @@ export default function CriarConta() {
       options: {
         data: {
           full_name: f.nome.trim().slice(0, 120),
-          company_name: f.empresa.trim().slice(0, 120),
+          company_name: visitante ? '' : f.empresa.trim().slice(0, 120),
           termos_versao: TERMOS_VERSAO,
+          tipo,
           prova_ts: prova.ts,
           prova_nonce: String(prova.nonce),
         },
@@ -92,6 +97,7 @@ export default function CriarConta() {
         <p className="muted">
           Mandamos um link de confirmação para <b>{f.email}</b>. {visitante ? 'Clique nele e você volta para a conversa.' : 'Clique nele e você cai direto no painel.'}
         </p>
+        <ReenviarConfirmacao email={f.email.trim().toLowerCase()} destino={destino} />
         <Link to={`/entrar${deQuery}`} className="btn btn-ghost btn-block">Voltar para entrar</Link>
       </AuthLayout>
     );
@@ -100,17 +106,34 @@ export default function CriarConta() {
   return (
     <AuthLayout>
       <div>
-        <h1>{visitante ? 'Crie sua conta para falar com a equipe' : 'Comece o teste grátis'}</h1>
+        <h1>{funcionario ? 'Crie sua conta de funcionário' : visitante ? 'Crie sua conta' : 'Comece o teste grátis'}</h1>
         <p className="muted" style={{ marginTop: 6 }}>
-          {visitante ? 'É rápido, e a conversa continua de onde parou.' : '14 dias com tudo liberado.'} Já tem conta?{' '}
+          {funcionario
+            ? 'Depois de confirmar o e-mail, você entra na equipe pelo mesmo link.'
+            : visitante
+            ? 'Para falar com a equipe das empresas e acompanhar seus chamados.'
+            : '14 dias com tudo liberado.'}{' '}
+          Já tem conta?{' '}
           <Link to={`/entrar${deQuery}`}>Entrar</Link>
         </p>
       </div>
+      {!funcionario && (
+        <div className="tipo-conta" role="radiogroup" aria-label="Tipo de conta">
+          <button type="button" role="radio" aria-checked={tipo === 'empresa'} onClick={() => setTipo('empresa')}>
+            <b>Sou empresa</b>
+            <span>Quero criar um atendente com IA</span>
+          </button>
+          <button type="button" role="radio" aria-checked={tipo === 'cliente'} onClick={() => setTipo('cliente')}>
+            <b>Sou cliente</b>
+            <span>Quero falar com uma empresa</span>
+          </button>
+        </div>
+      )}
       <GoogleBotao
         texto="Criar conta com Google"
         destino={destino}
         desativado={!aceite}
-        antes={lembrarAceite}
+        antes={() => lembrarAceite(tipo)}
         dica={aceite ? '' : 'Aceite os termos abaixo para continuar com o Google.'}
       />
       <div className="ou">ou com e-mail</div>
