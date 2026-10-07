@@ -4,7 +4,7 @@ Plataforma para pequenos negócios montarem um **atendente virtual conversando**
 
 - **Frontend:** React + Vite (pasta `src/`)
 - **Backend:** Supabase — banco Postgres com RLS (`supabase/migrations/`) e edge functions em Deno (`supabase/functions/`)
-- **IA:** Claude (Anthropic). Montagem em `claude-sonnet-5-5`, atendimento em `claude-haiku-4-5`
+- **IA:** API da Anthropic. Montagem em `claude-sonnet-5-5`, atendimento em `claude-haiku-4-5`
 
 ## Rodar no seu computador
 
@@ -85,3 +85,7 @@ supabase/
     dados-e-relatorios/       planilha por link, API do ERP e assuntos dos relatórios
 docs/ANDAMENTO.md   decisões e próximos passos
 ```
+
+## Autor
+
+Criado e desenvolvido por **Carlos Gabriel do Nascimento Santana**.

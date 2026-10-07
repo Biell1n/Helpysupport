@@ -1,12 +1,18 @@
 import { Link } from 'react-router-dom';
 import Logo from '@/components/Logo';
 import { TERMOS_VERSAO } from '@/lib/termos';
+import { EMPRESA } from '@/lib/empresa';
+
+const QUEM = `${EMPRESA.responsavel}, ${EMPRESA.documento}, ${EMPRESA.cidade}/${EMPRESA.uf}`;
+const CONTATO = EMPRESA.emailPrivacidade
+  ? `pelo e-mail ${EMPRESA.emailPrivacidade}`
+  : 'pelos canais de suporte do Helpy';
 
 const TEXTOS = {
   termos: {
     titulo: 'Termos de uso',
     intro:
-      'Estes termos valem para quem cria e administra assistentes no Helpy (o "Cliente") e para quem conversa com esses assistentes (o "Usuário final"). Ao criar uma conta, entrar ou usar o chat, você declara que leu e aceita estes termos e a Política de Privacidade.',
+      `O Helpy é oferecido por ${QUEM} ("Helpy", "nós"). Estes termos valem para quem cria e administra assistentes no Helpy (o "Cliente"), para os funcionários que o Cliente convida e para quem conversa com esses assistentes (o "Usuário final"). Ao criar uma conta, entrar ou usar o chat, você declara que leu e aceita estes termos e a Política de Privacidade.`,
     blocos: [
       ['1. O serviço', 'O Helpy permite criar atendentes virtuais com inteligência artificial que conversam com o público do seu negócio, consultam informações e tabelas que você cadastra ou conecta, marcam horários na agenda e abrem chamados para a sua equipe.'],
       ['2. Conta e segurança', 'Você deve informar dados verdadeiros, manter sua senha em sigilo e é responsável pelo que acontece na sua conta. Recomendamos ativar a verificação em duas etapas. O cadastro exige confirmar que você não é um robô. Podemos suspender contas usadas para fraude, spam ou abuso.'],
@@ -17,13 +23,16 @@ const TEXTOS = {
       ['7. Planos, cotas e cobrança', 'Os planos têm limites mensais de atendimentos e recursos. Quando a cota acaba, o atendimento automático pausa até a renovação ou a compra de um pacote extra. Para proteger sua cota, o Helpy aplica limites contra abuso (por exemplo, muitas conversas seguidas da mesma rede).'],
       ['8. Uso proibido', 'É proibido usar o Helpy para spam, fraude, golpes, discriminação, conteúdo ilegal, coleta de dados sem base legal, tentativas de invadir ou sobrecarregar o sistema, ou para enganar o assistente a fim de obter dados de terceiros.'],
       ['9. Disponibilidade e limitação', 'Trabalhamos para manter o serviço no ar, mas podem ocorrer interrupções. O Helpy não se responsabiliza por decisões tomadas apenas com base em respostas automáticas nem por dados incorretos cadastrados pelo Cliente.'],
-      ['10. Encerramento e alterações', 'Você pode encerrar a conta a qualquer momento. Podemos atualizar estes termos; quando isso acontecer, pediremos um novo aceite ao entrar.'],
+      ['10. Encerramento e alterações', 'Você pode excluir a conta a qualquer momento na página Conta; os dados são apagados na hora. Podemos atualizar estes termos; quando isso acontecer, pediremos um novo aceite ao entrar.'],
+      ['11. Funcionários', 'O Cliente pode convidar funcionários por link. O funcionário atende os chamados e vê a agenda da empresa, sem acesso a plano, assistentes ou dados. O Cliente responde pelo uso que a sua equipe faz do Helpy e pode remover o acesso a qualquer momento.'],
+      ['12. Lei e foro', `Estes termos seguem as leis do Brasil. Fica eleito o foro da comarca de ${EMPRESA.cidade}/${EMPRESA.uf}, salvo quando a lei garantir ao consumidor o foro do seu domicílio.`],
+      ['13. Contato', `Responsável: ${QUEM}. Dúvidas e reclamações ${CONTATO}.`],
     ],
   },
   privacidade: {
     titulo: 'Política de privacidade (LGPD)',
     intro:
-      'Esta política explica quais dados o Helpy trata, por quê e quais são os seus direitos, de acordo com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).',
+      `Esta política explica quais dados o Helpy trata, por quê e quais são os seus direitos, de acordo com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018). Controlador dos dados da plataforma: ${QUEM}.`,
     blocos: [
       ['1. Quem é quem', 'Para os dados da sua conta, o Helpy é o Controlador. Para as conversas e dados do público de cada negócio, o negócio que criou o assistente é o Controlador e o Helpy é o Operador, tratando os dados conforme as instruções dele.'],
       ['2. Dados que tratamos', 'Conta: nome, e-mail, empresa, telefone, data do aceite dos termos e registros de acesso. Assistentes: configuração, documentos e tabelas que o Cliente cadastra ou conecta. Conversas: mensagens, nome e contato informados, horários marcados e avaliações. Segurança: um código aleatório do navegador e um resumo irreversível (hash) do endereço IP, usados só para impedir abuso; o IP em si não é guardado.'],
@@ -34,7 +43,7 @@ const TEXTOS = {
       ['7. Segurança', 'Conexões criptografadas (HTTPS/TLS), dados criptografados em repouso, chaves de integração no cofre criptografado, acesso de cada conta só aos próprios dados, verificação em duas etapas opcional, proteção contra robôs no cadastro e no chat, e limites contra abuso. Uma conversa ligada a uma conta só abre para essa mesma conta.'],
       ['8. Por quanto tempo', 'Mantemos os dados enquanto a conta estiver ativa ou enquanto o negócio precisar deles para o atendimento. Ao excluir a conta, os dados são apagados, salvo o que a lei obriga a guardar.'],
       ['9. Seus direitos', 'Você pode pedir confirmação, acesso, correção, portabilidade, anonimização ou exclusão dos seus dados e revogar consentimentos. Se você conversou com o assistente de uma empresa, fale primeiro com essa empresa (ela é a Controladora); nós ajudamos a atender o pedido.'],
-      ['10. Contato do encarregado (DPO)', 'Para pedidos sobre privacidade, escreva para o canal de privacidade informado na sua conta ou pelo suporte do Helpy. Também é possível reclamar à ANPD.'],
+      ['10. Encarregado (DPO) e contato', `Encarregado pelo tratamento de dados: ${EMPRESA.responsavel}. Pedidos sobre privacidade ${CONTATO}; respondemos em até 15 dias. Também é possível reclamar à Autoridade Nacional de Proteção de Dados (ANPD).`],
     ],
   },
 };

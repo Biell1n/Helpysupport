@@ -1,6 +1,6 @@
 # Helpy — andamento da reconstrução
 
-Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
+Notas de trabalho para quem continuar o desenvolvimento.
 
 ## Decisões tomadas
 
@@ -8,7 +8,7 @@ Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
   zipado foram removidos. O projeto passa a viver na raiz do repositório.
 - **Segredo vazado:** o `.env.local` do export tinha a chave da OpenAI.
   Ela continua no histórico do Git — **revogue no painel da OpenAI**.
-- **IA:** Claude. Builder (montar o assistente) em `claude-sonnet-5-5`;
+- **IA:** API da Anthropic. Builder (montar o assistente) em `claude-sonnet-5-5`;
   atendimento em `claude-haiku-4-5`. Troca por variável de ambiente
   (`HELPY_MODEL_BUILDER`, `HELPY_MODEL_ATENDIMENTO`).
 - **Planos** (`supabase/functions/_shared/plans.ts`, espelhado em `src/lib/plans.js`):
@@ -59,7 +59,7 @@ Notas de trabalho para quem continuar (pessoa ou sessão do Claude).
 
 - [x] Esquema do banco: `supabase/migrations/20261005000000_helpy_schema.sql`
 - [x] `_shared/` (cors, db, ai, plans, schema do documento, agenda)
-- [x] `assistant-builder-chat` reescrita com Claude + ferramentas,
+- [x] `assistant-builder-chat` reescrita com IA + ferramentas,
       aproveitando o builder v34 do Horizons (lido pelo conector do
       Supabase): núcleo universal, 8 modelos de negócio, catálogo sob
       medida, fila de assuntos sem repetição, filtro de "Consultar",

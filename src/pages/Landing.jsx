@@ -5,6 +5,7 @@ import {
   ArrowRight, CalendarCheck, ChartColumn, Database, FileSpreadsheet, Link2, MessageSquareText, Plus, PlugZap, Sparkles, Ticket,
 } from 'lucide-react';
 import Logo, { Marca } from '@/components/Logo';
+import { EMPRESA } from '@/lib/empresa';
 import Reveal from '@/components/Reveal';
 import VideoDemo, { reduzido } from '@/components/VideoDemo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -479,7 +480,9 @@ export default function Landing() {
             <Link to="/termos">Termos</Link>
             <Link to="/privacidade">Privacidade</Link>
           </nav>
-          <span>© {new Date().getFullYear()} Helpy</span>
+          <span>
+            © {new Date().getFullYear()} {EMPRESA.marca} · {EMPRESA.responsavel} · {EMPRESA.documento} · {EMPRESA.cidade}/{EMPRESA.uf}
+          </span>
         </div>
       </footer>
     </div>

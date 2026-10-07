@@ -963,7 +963,7 @@ PRÓXIMO ASSUNTO: ${goal.text}
 Primeiro grave o que a mensagem trouxer. Depois puxe o próximo assunto com as SUAS palavras, uma pergunta só.`;
 }
 
-/** O arquivo como bloco que o Claude lê. */
+/** O arquivo como bloco que a IA lê. */
 function blocoDoAnexo(a: Anexo): Anthropic.Beta.BetaContentBlockParam {
   if (a.tipo === 'application/pdf') {
     return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: a.dados }, title: a.nome };

@@ -1,7 +1,7 @@
 // ============================================================
 // Planos e limites. Espelhado em src/lib/plans.js — mude os dois juntos.
 //
-// Conta usada para chegar nos números (Claude Haiku 4.5 no atendimento):
+// Conta usada para chegar nos números (modelo de atendimento padrão):
 // um atendimento médio custa ~US$0,02 (~R$0,11). Cada plano foi
 // dimensionado para que, mesmo usando 100% da cota, a IA fique em
 // torno de 1/3 do preço.

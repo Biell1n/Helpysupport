@@ -27,5 +27,6 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "globals": "^15.14.0",
     "vite": "^7.3.1"
-  }
+  },
+  "author": "Carlos Gabriel do Nascimento Santana"
 }

@@ -1,5 +1,5 @@
 // ============================================================
-// Cliente do Claude, escolha de modelo e cálculo de custo.
+// Cliente da IA, escolha de modelo e cálculo de custo.
 //
 // Trocar de modelo é mudar uma linha aqui (ou as variáveis de ambiente
 // HELPY_MODEL_BUILDER / HELPY_MODEL_ATENDIMENTO).
