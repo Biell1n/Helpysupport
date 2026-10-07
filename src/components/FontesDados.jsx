@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowLeft, Check, FileSpreadsheet, Link2, Loader2, PlugZap, RefreshCw, Table2, Upload } from 'lucide-react';
+import { ArrowLeft, Check, Database, FileSpreadsheet, Link2, Loader2, PlugZap, RefreshCw, Table2, Upload } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
 import { quando } from '@/lib/format';
 import { colunasDe, lerArquivo, LIMITE_LINHAS, registrosDe } from '@/lib/planilha';
@@ -9,8 +9,12 @@ const FONTES = [
   { id: 'manual', icone: Table2, titulo: 'Começar do zero', texto: 'Uma planilha em branco para digitar ou colar aqui no Helpy.' },
   { id: 'arquivo', icone: FileSpreadsheet, titulo: 'Importar Excel ou CSV', texto: 'Envie um .xlsx ou .csv. As colunas vêm do cabeçalho.' },
   { id: 'url', icone: Link2, titulo: 'Ligar a uma planilha online', texto: 'Google Planilhas ou link de CSV. Mudou lá, o Helpy atualiza.' },
-  { id: 'api', icone: PlugZap, titulo: 'Conectar ao seu sistema', texto: 'ERP (TOTVS Protheus, SAP) ou banco de dados por uma API.' },
+  { id: 'api', icone: PlugZap, titulo: 'Conectar ao seu sistema', texto: 'ERP (TOTVS Protheus, SAP) por uma API.' },
+  { id: 'sql', icone: Database, titulo: 'Conectar um banco de dados', texto: 'PostgreSQL, MySQL ou SQL Server, direto e só leitura.' },
 ];
+
+const SQL_VAZIO = { motor: 'postgres', host: '', porta: '', banco: '', usuario: '', header_valor: '', tabela: '', ssl: true };
+const PORTA_PADRAO = { postgres: 5432, mysql: 3306, sqlserver: 1433 };
 
 async function inserirEmLotes(tabelaId, registros) {
   for (let i = 0; i < registros.length; i += 500) {
@@ -160,6 +164,8 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
   );
   const [teste, setTeste] = useState(null);
   const [campos, setCampos] = useState([]);
+  // banco SQL
+  const [sql, setSql] = useState(SQL_VAZIO);
   const [testando, setTestando] = useState(false);
 
   const limpar = () => {
@@ -173,6 +179,7 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
     setApi({ url: '', header_nome: 'Authorization', header_valor: '', param_busca: '', caminho: '' });
     setTeste(null);
     setCampos([]);
+    setSql(SQL_VAZIO);
   };
 
   const fechar = () => {
@@ -254,6 +261,37 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
       setTestando(false);
     }
   };
+
+  const sqlCfg = () => ({ ...sql, porta: Number(sql.porta) || PORTA_PADRAO[sql.motor] });
+
+  const testarSql = async () => {
+    setErro('');
+    setTeste(null);
+    setTestando(true);
+    try {
+      const r = await chamar('dados-e-relatorios', { action: 'testar_sql', config: sqlCfg() });
+      setTeste(r);
+      setCampos(r.campos.slice(0, 12));
+      if (!nome.trim()) setNome(sql.tabela.split('.').pop() ?? '');
+    } catch (e) {
+      setErro(e.message);
+    } finally {
+      setTestando(false);
+    }
+  };
+
+  const criarDoSql = () =>
+    concluir(async () => {
+      const t = await criarTabelaBase({
+        userId, nome: nome.trim(), assistentes,
+        extra: { fonte: 'sql', api_config: { ...sqlCfg(), colunas: campos }, autorizada_em: new Date().toISOString() },
+      });
+      const { error } = await supabase
+        .from('tabela_colunas')
+        .insert(campos.map((c, i) => ({ tabela_id: t.id, chave: c.slice(0, 120), rotulo: c.slice(0, 80), tipo: 'texto', ordem: i, identifica: i === 0 })));
+      if (error) throw error;
+      return t.id;
+    });
 
   const criarDaApi = () =>
     concluir(async () => {
@@ -397,7 +435,7 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
                 <ul>
                   <li><b>TOTVS Protheus:</b> use o REST do Protheus (ex.: <code>https://seuservidor:porta/rest/api/…</code>). Cabeçalho <code>Authorization</code> com <code>Basic</code> + usuário:senha em base64.</li>
                   <li><b>SAP (S/4HANA, Business One):</b> serviço OData publicado pelo SAP Gateway ou Service Layer. A lista costuma vir em <code>d.results</code> ou <code>value</code>, o Helpy acha sozinho.</li>
-                  <li><b>Banco SQL (MySQL, SQL Server, Postgres…):</b> o banco precisa de uma API na frente, por segurança: PostgREST, Hasura, Supabase ou um endpoint simples feito pela sua TI. Nunca exponha o banco direto.</li>
+                  <li><b>Banco SQL (PostgreSQL, MySQL, SQL Server):</b> use a opção “Conectar um banco de dados”, que liga direto e só lê.</li>
                   <li>O endereço precisa estar acessível pela internet (HTTPS). Rede interna e VPN não alcançam.</li>
                 </ul>
               </details>
@@ -467,6 +505,97 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
                 <div className="modal-foot">
                   <button type="button" className="btn btn-primary" disabled={!nome.trim() || !campos.length || salvando || !autorizo} onClick={criarDaApi}>
                     {salvando ? <Loader2 className="spin" /> : <PlugZap />} Conectar
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+          {fonte === 'sql' && (
+            <>
+              <h2>Conectar um banco de dados</h2>
+              <p className="muted" style={{ marginBottom: 14 }}>
+                O assistente consulta ao vivo, na hora da pergunta, e só lê: até 20 linhas por vez, numa tabela ou visão que você escolhe.
+              </p>
+              <details className="fonte-dica">
+                <summary>Como preparar o banco com segurança (passe para a sua TI)</summary>
+                <ul>
+                  <li>Crie um <b>usuário só de leitura</b> com acesso apenas à tabela ou visão que o assistente pode ver. Ex. no PostgreSQL: <code>create role helpy login password '…'; grant select on estoque.produtos to helpy;</code></li>
+                  <li>Prefira uma <b>visão</b> (view) só com as colunas públicas (nome, preço, estoque), sem custo, margem ou dados de clientes.</li>
+                  <li>O banco precisa aceitar conexão pela internet, de preferência com <b>SSL</b>. Rede interna e VPN não alcançam.</li>
+                  <li>A senha fica guardada criptografada e nunca volta para o navegador.</li>
+                </ul>
+              </details>
+              <div className="fonte-grade" style={{ marginTop: 14 }}>
+                <label className="field">
+                  <span className="label">Banco</span>
+                  <select className="select" value={sql.motor} onChange={(e) => setSql({ ...sql, motor: e.target.value })}>
+                    <option value="postgres">PostgreSQL</option>
+                    <option value="mysql">MySQL / MariaDB</option>
+                    <option value="sqlserver">SQL Server</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span className="label">Servidor</span>
+                  <input className="input" value={sql.host} onChange={(e) => setSql({ ...sql, host: e.target.value })} placeholder="db.suaempresa.com.br" />
+                </label>
+                <label className="field">
+                  <span className="label">Porta</span>
+                  <input className="input" inputMode="numeric" value={sql.porta} onChange={(e) => setSql({ ...sql, porta: e.target.value.replace(/\D/g, '') })} placeholder={String(PORTA_PADRAO[sql.motor])} />
+                </label>
+                <label className="field">
+                  <span className="label">Nome do banco</span>
+                  <input className="input" value={sql.banco} onChange={(e) => setSql({ ...sql, banco: e.target.value })} placeholder="loja" />
+                </label>
+                <label className="field">
+                  <span className="label">Usuário (só leitura)</span>
+                  <input className="input" autoComplete="off" value={sql.usuario} onChange={(e) => setSql({ ...sql, usuario: e.target.value })} />
+                </label>
+                <label className="field">
+                  <span className="label">Senha</span>
+                  <input className="input" type="password" autoComplete="new-password" value={sql.header_valor} onChange={(e) => setSql({ ...sql, header_valor: e.target.value })} />
+                </label>
+                <label className="field fonte-largo">
+                  <span className="label">Tabela ou visão</span>
+                  <input className="input" value={sql.tabela} onChange={(e) => setSql({ ...sql, tabela: e.target.value })} placeholder="produtos ou estoque.produtos_publicos" />
+                </label>
+                <label className="check-linha fonte-largo">
+                  <input type="checkbox" checked={sql.ssl} onChange={(e) => setSql({ ...sql, ssl: e.target.checked })} />
+                  <span>Conexão criptografada (SSL) — recomendado</span>
+                </label>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={!sql.host.trim() || !sql.banco.trim() || !sql.usuario.trim() || !sql.tabela.trim() || testando}
+                onClick={testarSql}
+              >
+                {testando ? <Loader2 className="spin" /> : <Database />} Testar conexão
+              </button>
+
+              {teste && (
+                <div className="stack" style={{ marginTop: 16 }}>
+                  <div className="alert alert-ok"><Check /> Conectou e leu {teste.total} {teste.total === 1 ? 'linha' : 'linhas'} de exemplo.</div>
+                  <div>
+                    <span className="label">Colunas que o assistente pode ler e usar na busca</span>
+                    <div className="row row-wrap" style={{ marginTop: 6, gap: 6 }}>
+                      {teste.campos.map((c) => (
+                        <button key={c} type="button" className="chip" aria-pressed={campos.includes(c)} onClick={() => setCampos((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]))}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="hint">Desmarque o que não deve ir para o cliente (custo, margem, dados internos).</span>
+                  </div>
+                  <Previa cabecalho={campos} linhas={teste.linhas.map((l) => campos.map((c) => l[c] ?? ''))} total={teste.total} />
+                  {nomeCampo}
+                </div>
+              )}
+              {erro && <div className="alert alert-erro" style={{ marginTop: 12 }}>{erro}</div>}
+              {teste && autorizacao}
+              {teste && (
+                <div className="modal-foot">
+                  <button type="button" className="btn btn-primary" disabled={!nome.trim() || !campos.length || salvando || !autorizo} onClick={criarDoSql}>
+                    {salvando ? <Loader2 className="spin" /> : <Database />} Conectar
                   </button>
                 </div>
               )}
@@ -616,7 +745,7 @@ export function FaixaFonte({ tabela, onAtualizou, avisar }) {
     e?.preventDefault();
     setOcupado(true);
     try {
-      setTeste(await chamar('dados-e-relatorios', { action: 'testar_api', tabela_id: tabela.id, busca }));
+      setTeste(await chamar('dados-e-relatorios', { action: tabela.fonte === 'sql' ? 'testar_sql' : 'testar_api', tabela_id: tabela.id, busca }));
     } catch (err) {
       setTeste({ erro: err.message });
     } finally {
@@ -627,10 +756,12 @@ export function FaixaFonte({ tabela, onAtualizou, avisar }) {
   return (
     <div className="card card-tight stack stack-sm">
       <div className="fonte-faixa" style={{ padding: 0, border: 0 }}>
-        <PlugZap />
+        {tabela.fonte === 'sql' ? <Database /> : <PlugZap />}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <b>Conectada ao seu sistema</b>
-          <span className="fonte-faixa-url">{tabela.api_config?.url}</span>
+          <b>{tabela.fonte === 'sql' ? 'Conectada ao seu banco de dados' : 'Conectada ao seu sistema'}</b>
+          <span className="fonte-faixa-url">
+            {tabela.fonte === 'sql' ? `${tabela.api_config?.host} · ${tabela.api_config?.banco} · ${tabela.api_config?.tabela}` : tabela.api_config?.url}
+          </span>
           <span className="faint" style={{ fontSize: 12.5 }}>O assistente consulta ao vivo a cada pergunta. Os campos lidos são as colunas abaixo.</span>
         </div>
       </div>

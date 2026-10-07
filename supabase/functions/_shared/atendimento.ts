@@ -14,6 +14,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
 import { type AgendaConfig, carregarAgenda, hojeNoFuso, horariosLivres, marcar } from './agenda.ts';
 import { type ApiConfig, consultarApi, sincronizarUrl, VALIDADE_URL_MS } from './fontes.ts';
+import { configSql, consultarSql } from './sql.ts';
 import {
   allCollections, type CollectionDef, type Config, describeConfig, normalizeConfig, type Schema, slug, valueOf, VENDE,
 } from './schema.ts';
@@ -43,7 +44,7 @@ interface Tabela {
   id: string;
   nome: string;
   proposito: string | null;
-  fonte: 'manual' | 'url' | 'api';
+  fonte: 'manual' | 'url' | 'api' | 'sql';
   api_config: ApiConfig | null;
   sincronizada_em: string | null;
   colunas: Array<{ chave: string; rotulo: string }>;
@@ -248,7 +249,7 @@ export async function carregarTabelas(db: SupabaseClient, assistantId: string): 
   ]);
   return await Promise.all((tabs ?? []).map(async ({ api_segredo, ...t }) => {
     // a chave da API mora criptografada no Vault; só o servidor abre, na hora de usar
-    if (t.fonte === 'api' && t.api_config && api_segredo) {
+    if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config && api_segredo) {
       const { data: valor } = await db.rpc('helpy_segredo_api', { p_tabela: t.id });
       if (valor) t.api_config = { ...t.api_config, header_valor: String(valor) };
     }
@@ -392,10 +393,12 @@ export interface Rodada {
   sinais: { pedirLogin?: boolean };
 }
 
-/** Tabela ligada à API do sistema da empresa: pergunta ao vivo. */
+/** Tabela ligada à API ou ao banco SQL da empresa: pergunta ao vivo. */
 async function consultarSistema(t: Tabela, busca: string) {
   try {
-    const { total, linhas } = await consultarApi(t.api_config!, busca);
+    const { total, linhas } = t.fonte === 'sql'
+      ? await consultarSql(configSql(t.api_config), busca)
+      : await consultarApi(t.api_config!, busca);
     if (!total) {
       return { encontrados: 0, aviso: busca ? `Nada em "${t.nome}" corresponde a "${busca}". Não invente.` : `"${t.nome}" não trouxe registros.` };
     }
@@ -426,7 +429,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   if (nome.startsWith('consultar_')) {
     const t = tabelas.find((x) => toolName(x.nome) === nome);
     if (!t) return { erro: 'tabela não encontrada' };
-    if (t.fonte === 'api' && t.api_config) return await consultarSistema(t, String(args.busca ?? ''));
+    if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config) return await consultarSistema(t, String(args.busca ?? ''));
     if (t.fonte === 'url' && Date.now() - new Date(t.sincronizada_em ?? 0).getTime() > VALIDADE_URL_MS) {
       // planilha por link desatualizada: tenta trazer a versão nova; se falhar, usa a última cópia
       await sincronizarUrl(db, t.id).catch((e) => console.error('[sincronizar]', t.id, e?.message ?? e));

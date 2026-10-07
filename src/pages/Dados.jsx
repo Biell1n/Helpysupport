@@ -305,7 +305,7 @@ export default function Dados() {
           <div className="tabelas-lista" role="tablist" aria-label="Tabelas" style={{ marginBottom: 20 }}>
             {tabelas.map((t) => (
               <button key={t.id} type="button" className="chip" aria-pressed={t.id === ativaId} onClick={() => setAtivaId(t.id)}>
-                {t.nome} <small>{t.fonte === 'api' ? 'ao vivo' : t.tabela_linhas?.[0]?.count ?? 0}</small>
+                {t.nome} <small>{(t.fonte === 'api' || t.fonte === 'sql') ? 'ao vivo' : t.tabela_linhas?.[0]?.count ?? 0}</small>
               </button>
             ))}
           </div>
@@ -387,10 +387,10 @@ export default function Dados() {
                         </td>
                       </tr>
                     ))}
-                    {(fonte === 'api' || visiveis.length === 0) && (
+                    {((fonte === 'api' || fonte === 'sql') || visiveis.length === 0) && (
                       <tr>
                         <td colSpan={colunas.length + 2} style={{ padding: 28, textAlign: 'center' }} className="faint">
-                          {fonte === 'api'
+                          {fonte === 'api' || fonte === 'sql'
                             ? 'Os dados vêm ao vivo do seu sistema. Clique numa coluna para trocar o nome que o assistente lê (ex.: B1_DESC → Descrição).'
                             : busca
                             ? 'Nada encontrado.'

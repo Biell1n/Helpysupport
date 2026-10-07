@@ -4,6 +4,7 @@
 //   previa_url      → baixa a planilha do link e mostra as primeiras linhas
 //   sincronizar_url → copia a planilha do link para a tabela
 //   testar_api      → chama a API do sistema e mostra o que veio
+//   testar_sql      → conecta no banco SQL (só leitura) e mostra as primeiras linhas
 //   assuntos        → agrupa o que os clientes perguntaram (IA, guardado por 6 h)
 // ============================================================
 
@@ -11,6 +12,7 @@ import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, requireUser } from '../_shared/db.ts';
 import { addUsage, anthropic, emptyUsage, logUsage, MODELS } from '../_shared/ai.ts';
 import { type ApiConfig, baixarCsv, consultarApi, sincronizarUrl } from '../_shared/fontes.ts';
+import { configSql, consultarSql } from '../_shared/sql.ts';
 
 const VALIDADE_ASSUNTOS_MS = 6 * 60 * 60 * 1000;
 
@@ -127,6 +129,23 @@ Deno.serve(async (req) => {
       }
       if (!cfg.url) throw new UserError('Informe o endereço da API.');
       const { total, linhas } = await consultarApi(cfg, String(body.busca ?? ''));
+      const campos = [...new Set(linhas.flatMap((l) => Object.keys(l)))].slice(0, 40);
+      return json({ total, campos, linhas: linhas.slice(0, 5) });
+    }
+
+    if (action === 'testar_sql') {
+      let bruto = body.config;
+      if (body.tabela_id) {
+        // tabela já criada: a configuração e a senha vêm do banco (a senha nunca volta para o navegador)
+        const tabelaId = String(body.tabela_id);
+        const { data: t } = await admin.from('tabelas').select('api_config').eq('id', tabelaId).eq('owner_id', user.id).maybeSingle();
+        if (!t?.api_config) throw new UserError('Tabela não encontrada.', 404);
+        const { data: valor } = await admin.rpc('helpy_segredo_api', { p_tabela: tabelaId });
+        bruto = { ...t.api_config, header_valor: valor ?? '' };
+      }
+      // no teste, sem filtro de colunas: mostra o que a tabela tem para a pessoa escolher
+      const cfg = { ...configSql(bruto), colunas: body.tabela_id ? configSql(bruto).colunas : [] };
+      const { total, linhas } = await consultarSql(cfg, body.tabela_id ? String(body.busca ?? '') : '');
       const campos = [...new Set(linhas.flatMap((l) => Object.keys(l)))].slice(0, 40);
       return json({ total, campos, linhas: linhas.slice(0, 5) });
     }

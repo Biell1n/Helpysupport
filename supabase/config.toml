@@ -12,3 +12,6 @@ verify_jwt = true
 
 [functions.conta]
 verify_jwt = true
+
+[functions.sql-server]
+verify_jwt = true
