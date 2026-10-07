@@ -14,6 +14,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { UserError } from './cors.ts';
+import { lerXlsx } from './xlsx.ts';
 
 export interface ApiConfig {
   url: string;
@@ -84,16 +85,16 @@ export async function urlSegura(bruta: string): Promise<URL> {
   return u;
 }
 
-async function baixar(u: URL, headers: Record<string, string> = {}): Promise<{ texto: string; tipo: string }> {
+async function baixar(u: URL, headers: Record<string, string> = {}): Promise<{ texto: string; tipo: string; bytes: Uint8Array }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TEMPO_MS);
   let res: Response;
   let atual = u;
   try {
-    // segue até 3 redirecionamentos, checando cada destino
+    // segue até 5 redirecionamentos (OneDrive/SharePoint usam vários), checando cada destino
     for (let i = 0; ; i++) {
       res = await fetch(atual, { headers, redirect: 'manual', signal: ctrl.signal });
-      if (res.status >= 300 && res.status < 400 && res.headers.get('location') && i < 3) {
+      if (res.status >= 300 && res.status < 400 && res.headers.get('location') && i < 5) {
         atual = await urlSegura(new URL(res.headers.get('location')!, atual).toString());
         await res.body?.cancel();
         continue;
@@ -116,7 +117,8 @@ async function baixar(u: URL, headers: Record<string, string> = {}): Promise<{ t
     if (tamanho > LIMITE_BYTES) throw new UserError('O arquivo passa de 3 MB. Filtre ou divida antes.');
     const buf = await res!.arrayBuffer();
     if (buf.byteLength > LIMITE_BYTES) throw new UserError('O arquivo passa de 3 MB. Filtre ou divida antes.');
-    return { texto: new TextDecoder().decode(buf), tipo: res!.headers.get('content-type') ?? '' };
+    const bytes = new Uint8Array(buf);
+    return { texto: new TextDecoder().decode(bytes), tipo: res!.headers.get('content-type') ?? '', bytes };
   } finally {
     clearTimeout(timer);
   }
@@ -133,10 +135,15 @@ export function linkCsv(url: string): string {
     const gid = url.match(/[#&?]gid=(\d+)/)?.[1] ?? '0';
     return `https://docs.google.com/spreadsheets/d/${g[1]}/export?format=csv&gid=${gid}`;
   }
-  // SharePoint / OneDrive: link de compartilhamento → download direto do arquivo
   try {
     const u = new URL(url.trim());
-    if (/(\.sharepoint\.com|onedrive\.live\.com|1drv\.ms)$/i.test(u.hostname) && !u.searchParams.has('download')) {
+    // OneDrive pessoal: a API pública de compartilhamento entrega o arquivo de um link "qualquer pessoa"
+    if (/(^|\.)(1drv\.ms|onedrive\.live\.com)$/i.test(u.hostname)) {
+      const codigo = btoa(String.fromCharCode(...new TextEncoder().encode(u.toString()))).replace(/=+$/, '').replace(/\//g, '_').replace(/\+/g, '-');
+      return `https://api.onedrive.com/v1.0/shares/u!${codigo}/root/content`;
+    }
+    // SharePoint e OneDrive da empresa (…-my.sharepoint.com): download=1 no link de compartilhamento
+    if (/\.sharepoint\.com$/i.test(u.hostname) && !u.searchParams.has('download')) {
       u.searchParams.set('download', '1');
       return u.toString();
     }
@@ -190,15 +197,23 @@ export function chaveDe(rotulo: string, usadas: Set<string>): string {
 
 export async function baixarCsv(url: string): Promise<{ cabecalho: string[]; linhas: string[][] }> {
   const u = await urlSegura(linkCsv(url));
-  const { texto, tipo } = await baixar(u);
-  if (texto.startsWith('PK') || /spreadsheetml|ms-excel/.test(tipo)) {
-    throw new UserError(
-      'Esse link é de um arquivo Excel (.xlsx). Por enquanto o link precisa ser de um CSV: no Excel, use Arquivo → Salvar como → CSV no mesmo OneDrive/SharePoint, ou importe o .xlsx pela opção "Arquivo".',
-    );
+  const { texto, tipo, bytes } = await baixar(u);
+  // Excel (.xlsx é um ZIP: começa com "PK")
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+    let todas: string[][];
+    try {
+      todas = await lerXlsx(bytes, LIMITE_LINHAS + 1);
+    } catch {
+      throw new UserError('Não conseguimos ler esse arquivo do Excel. Salve como .xlsx (não .xls antigo) e tente de novo.');
+    }
+    if (todas.length < 1) throw new UserError('A primeira aba da planilha está vazia.');
+    const cab = todas[0].map((c, i) => c.trim() || `Coluna ${i + 1}`);
+    return { cabecalho: cab, linhas: todas.slice(1, LIMITE_LINHAS + 1) };
   }
+  if (/ms-excel/.test(tipo)) throw new UserError('Esse arquivo é do Excel antigo (.xls). Abra no Excel e salve como .xlsx.');
   if (/text\/html/.test(tipo) || /^\s*<(!doctype|html)/i.test(texto)) {
     throw new UserError(
-      'O link abriu uma página, não a planilha. No Google Planilhas use Arquivo → Compartilhar → Publicar na web → CSV. No SharePoint/OneDrive, compartilhe como "Qualquer pessoa com o link".',
+      'O link abriu uma página, não a planilha. No Google Planilhas use Arquivo → Compartilhar → Publicar na web → CSV. No OneDrive/SharePoint, compartilhe como "Qualquer pessoa com o link" (se a sua empresa bloquear esse tipo de link, peça ao TI para liberar só para este arquivo).',
     );
   }
   const todas = lerCsv(texto);

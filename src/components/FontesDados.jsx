@@ -354,14 +354,15 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
                 <b>Google Planilhas:</b> Arquivo → Compartilhar → <i>Publicar na Web</i> → escolha a aba e o formato <i>CSV</i> → copie o link.
                 Também serve o link de compartilhamento quando a planilha está aberta para “qualquer pessoa com o link”.
                 <br />
-                <b>SharePoint / OneDrive:</b> compartilhe o arquivo .csv como “qualquer pessoa com o link” e cole aqui.
+                <b>OneDrive / SharePoint (Excel):</b> no arquivo, clique em Compartilhar → “Qualquer pessoa com o link pode exibir” → Copiar link, e cole aqui.
+                Serve .xlsx ou .csv; o Helpy lê a primeira aba.
                 <br />
-                <b>Outros:</b> qualquer link público que baixe um arquivo .csv.
+                <b>Outros:</b> qualquer link público que baixe um arquivo .xlsx ou .csv.
               </div>
               <div className="row" style={{ alignItems: 'flex-end', marginTop: 14 }}>
                 <label className="field" style={{ flex: 1, marginBottom: 0 }}>
                   <span className="label">Link da planilha</span>
-                  <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/…" />
+                  <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Link do Google Planilhas, OneDrive ou SharePoint" />
                 </label>
                 <button type="button" className="btn btn-ghost" disabled={!url.trim() || salvando} onClick={verPrevia}>
                   {salvando && !previa ? <Loader2 className="spin" /> : null} Ver prévia
