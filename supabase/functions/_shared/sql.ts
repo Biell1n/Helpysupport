@@ -13,7 +13,9 @@
 // ============================================================
 
 import { UserError } from './cors.ts';
-import { type Linha, urlSegura } from './fontes.ts';
+import { urlSegura } from './rede.ts';
+
+type Linha = Record<string, string>;
 
 export type Motor = 'postgres' | 'mysql' | 'sqlserver';
 

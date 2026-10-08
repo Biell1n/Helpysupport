@@ -11,20 +11,26 @@ import mssql from 'npm:mssql@11.0.1';
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { comTempo, configSql, hostPublico, montarConsulta, TEMPO_MS, termoDeBusca, traduzErro } from '../_shared/sql.ts';
 
-function papelDoToken(req: Request): string {
+/** Só o próprio Helpy chama esta função: a chave de serviço do projeto (formato novo ou JWT antigo). */
+function chamadaInterna(req: Request): boolean {
+  const recebida = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  const esperada = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (recebida && esperada && recebida.length === esperada.length) {
+    let dif = 0;
+    for (let i = 0; i < recebida.length; i++) dif |= recebida.charCodeAt(i) ^ esperada.charCodeAt(i);
+    if (dif === 0) return true;
+  }
   try {
-    const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
-    return String(JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role ?? '');
+    return JSON.parse(atob(recebida.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role === 'service_role';
   } catch {
-    return '';
+    return false;
   }
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    // o gateway já conferiu a assinatura do token (verify_jwt); aqui conferimos que é a chave de serviço
-    if (papelDoToken(req) !== 'service_role') return json({ error: 'Acesso negado.' }, 403);
+    if (!chamadaInterna(req)) return json({ error: 'Acesso negado.' }, 403);
     const { cfg: bruto, busca } = await req.json();
     const cfg = configSql(bruto);
     if (cfg.motor !== 'sqlserver') throw new UserError('Motor inválido.');
