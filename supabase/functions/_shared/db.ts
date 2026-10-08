@@ -43,7 +43,7 @@ export async function requireUser(req: Request): Promise<User> {
 export async function profileOf(userId: string) {
   const { data, error } = await admin
     .from('profiles')
-    .select('id, plan, trial_ends_at, creditos_extra, company_name, full_name')
+    .select('id, plan, trial_ends_at, creditos_extra, funcionarios_extra, company_name, full_name')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw error;
@@ -52,7 +52,7 @@ export async function profileOf(userId: string) {
   const { data: novo, error: e2 } = await admin
     .from('profiles')
     .insert({ id: userId })
-    .select('id, plan, trial_ends_at, creditos_extra, company_name, full_name')
+    .select('id, plan, trial_ends_at, creditos_extra, funcionarios_extra, company_name, full_name')
     .single();
   if (e2) throw e2;
   return novo;

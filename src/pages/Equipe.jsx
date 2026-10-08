@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Copy, Link2, Trash2, UserMinus } from 'lucide-react';
 import { chamar } from '@/lib/supabase';
 import { useToast } from '@/components/Toasts';
+import { PRECO_FUNCIONARIO_EXTRA, reais } from '@/lib/plans';
+
+const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
 
 /** Funcionários da empresa: entram só por link de convite, um por pessoa. */
 export default function Equipe() {
@@ -57,8 +60,20 @@ export default function Equipe() {
         <p className="muted" style={{ marginBottom: 16, fontSize: 14 }}>
           {vagas.membros} de {vagas.limite} funcionário{vagas.limite > 1 ? 's' : ''} no plano {vagas.plano}
           {vagas.pendentes ? ` · ${vagas.pendentes} convite${vagas.pendentes > 1 ? 's' : ''} aguardando` : ''}
-          {cheia ? ' · para chamar mais gente, mude de plano.' : ''}
+          {vagas.extra ? ` (${vagas.extra} extra${vagas.extra > 1 ? 's' : ''})` : ''}
         </p>
+      )}
+      {cheia && (
+        <div className="alert" style={{ marginBottom: 16 }}>
+          <span>
+            Equipe cheia. Cada funcionário a mais custa {reais(PRECO_FUNCIONARIO_EXTRA)}/mês.{' '}
+            {VENDAS ? (
+              <a href={VENDAS.startsWith('mailto:') ? `${VENDAS}?subject=${encodeURIComponent('Vaga extra de funcionário no Helpy')}` : VENDAS} target="_blank" rel="noreferrer">Pedir mais vagas</a>
+            ) : (
+              'Fale com a gente para liberar mais vagas.'
+            )}
+          </span>
+        </div>
       )}
 
       <section className="card stack" style={{ marginBottom: 16 }}>

@@ -986,7 +986,8 @@ async function virarMaterial(a: Anexo, usage: ReturnType<typeof emptyUsage>): Pr
   } else {
     const res = await anthropic.messages.create({
       model: MODELS.atendimento,
-      max_tokens: 12000,
+      max_tokens: 16000,
+      output_config: { effort: 'low' }, // transcrever não pede raciocínio
       messages: [{
         role: 'user',
         content: [
@@ -1133,7 +1134,8 @@ async function resumirIntencao(s: Session): Promise<string> {
   const usage = emptyUsage();
   const res = await anthropic.messages.create({
     model: MODELS.atendimento,
-    max_tokens: 900,
+    max_tokens: 2000,
+    output_config: { effort: 'low' },
     messages: [{
       role: 'user',
       content:

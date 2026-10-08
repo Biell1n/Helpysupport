@@ -49,7 +49,8 @@ async function vagasDaEquipe(ownerId: string) {
     admin.from('convites').select('token', { count: 'exact', head: true }).eq('owner_id', ownerId)
       .is('usado_em', null).gt('expira_em', new Date().toISOString()),
   ]);
-  return { limite: plan.funcionarios, membros: membros ?? 0, pendentes: pendentes ?? 0, plano: plan.nome };
+  const extra = Number((profile as { funcionarios_extra?: number }).funcionarios_extra ?? 0);
+  return { limite: plan.funcionarios + extra, incluidos: plan.funcionarios, extra, membros: membros ?? 0, pendentes: pendentes ?? 0, plano: plan.nome };
 }
 
 async function tipoDe(userId: string): Promise<string> {
@@ -179,7 +180,7 @@ Deno.serve(async (req) => {
     if (action === 'convite_criar') {
       const vagas = await vagasDaEquipe(user.id);
       if (vagas.membros + vagas.pendentes >= vagas.limite) {
-        throw new UserError(`O plano ${vagas.plano} permite ${vagas.limite} funcionário${vagas.limite > 1 ? 's' : ''}. Cancele um convite ou mude de plano.`, 409);
+        throw new UserError(`Sua equipe tem ${vagas.limite} vaga${vagas.limite > 1 ? 's' : ''}. Cancele um convite, contrate uma vaga extra (R$ 19/mês) ou mude de plano.`, 409);
       }
       const token = novoToken();
       const { error } = await admin.from('convites').insert({ token, owner_id: user.id });

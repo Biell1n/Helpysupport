@@ -1,7 +1,7 @@
 import { useOutletContext } from 'react-router-dom';
 import { Check, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { diasDeTeste, PLANS, planOf, reais } from '@/lib/plans';
+import { diasDeTeste, PLANS, planOf, reais, PRECO_FUNCIONARIO_EXTRA } from '@/lib/plans';
 
 const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
 
@@ -66,6 +66,7 @@ export default function Plano() {
                 <li><Check /> {p.builderIA ? 'Montagem conversando com a IA' : 'Montagem por formulário'}</li>
                 <li><Check /> {p.ticketsAbertos ? `${p.ticketsAbertos} chamados abertos ao mesmo tempo` : 'Chamados sem limite'}</li>
                 <li><Check /> {p.tabelas} tabelas de dados</li>
+                <li><Check /> {p.funcionarios} {p.funcionarios > 1 ? 'funcionários' : 'funcionário'} na equipe</li>
               </ul>
               {ehAtual ? (
                 <button type="button" className="btn btn-ghost btn-block" disabled>Plano atual</button>
@@ -80,7 +81,9 @@ export default function Plano() {
           );
         })}
       </div>
-      <p className="faint" style={{ fontSize: 13, marginTop: 16 }}>Pacote extra: +100 atendimentos por R$ 29, válidos até o fim do mês.</p>
+      <p className="faint" style={{ fontSize: 13, marginTop: 16 }}>
+        Pacote extra: +100 atendimentos por R$ 29, válidos até o fim do mês. Funcionário além do plano: {reais(PRECO_FUNCIONARIO_EXTRA)}/mês por pessoa.
+      </p>
     </div>
   );
 }

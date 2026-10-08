@@ -49,7 +49,7 @@ async function agruparAssuntos(userId: string, dias: number): Promise<{ assuntos
   const usage = emptyUsage();
   const res = await anthropic.messages.create({
     model: MODELS.atendimento,
-    max_tokens: 4000,
+    max_tokens: 6000,
     system:
       'Você organiza o que clientes perguntaram a um atendente virtual. Agrupe as mensagens por assunto ' +
       '(o que a pessoa queria saber ou resolver), em português do Brasil. Nomes de assunto curtos e concretos, ' +

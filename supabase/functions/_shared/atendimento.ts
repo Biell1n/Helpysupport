@@ -600,15 +600,32 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
 
   const usage: UsageTotals = emptyUsage();
   let texto = '';
+  let modelo = MODELS.atendimento;
   for (let i = 0; i < 4; i++) {
-    const res = await anthropic.messages.create({
-      model: MODELS.atendimento,
-      max_tokens: 1024,
-      system,
-      tools,
-      messages: msgs,
-    });
+    const pedir = (m: string, mensagens: Anthropic.MessageParam[]) =>
+      anthropic.messages.create({
+        model: m,
+        // o modelo pensa antes de responder, e o pensamento conta aqui
+        max_tokens: 4096,
+        ...(m === 'claude-haiku-4-5' ? {} : { output_config: { effort: 'medium' } }),
+        system,
+        tools,
+        messages: mensagens,
+      } as Anthropic.MessageCreateParamsNonStreaming);
+    let res = await pedir(modelo, msgs);
     addUsage(usage, res.usage);
+    if (res.stop_reason === 'refusal' && modelo !== MODELS.reserva) {
+      // falso positivo do filtro de segurança: refaz com o modelo reserva, sem os blocos de pensamento
+      console.warn('[atendimento] recusa, usando o modelo reserva', (res as { stop_details?: unknown }).stop_details);
+      modelo = MODELS.reserva;
+      for (const m of msgs) {
+        if (Array.isArray(m.content)) {
+          m.content = (m.content as Array<{ type: string }>).filter((b) => b.type !== 'thinking' && b.type !== 'redacted_thinking') as typeof m.content;
+        }
+      }
+      res = await pedir(modelo, msgs);
+      addUsage(usage, res.usage);
+    }
     const t = textOf(res.content as Array<{ type: string; text?: string }>);
     if (t) texto = t;
     if (res.stop_reason !== 'tool_use') break;
@@ -629,5 +646,5 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     msgs.push({ role: 'user', content: results });
   }
 
-  return { texto: texto || 'Desculpe, me perdi aqui. Pode repetir de outro jeito?', usage, model: MODELS.atendimento };
+  return { texto: texto || 'Desculpe, me perdi aqui. Pode repetir de outro jeito?', usage, model: modelo };
 }

@@ -9,6 +9,7 @@ export const EMPRESA = {
   documento: 'CPF 547.873.928-67',
   cidade: 'Campinas',
   uf: 'SP',
-  // e-mail para pedidos de privacidade (LGPD). Preencha e ele aparece nas páginas.
-  emailPrivacidade: '',
+  site: 'helpysupport.com',
+  // e-mail para pedidos de privacidade (LGPD) e contato comercial (provisório, até ter um @helpysupport.com)
+  emailPrivacidade: 'carlosgabriel0216@gmail.com',
 };

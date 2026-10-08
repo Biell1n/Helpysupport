@@ -19,6 +19,9 @@ export const PLANS = {
   },
 };
 
+/** Vaga de funcionário além das incluídas no plano. */
+export const PRECO_FUNCIONARIO_EXTRA = 19;
+
 export const planOf = (profile) => PLANS[profile?.plan] ?? PLANS.trial;
 
 export const diasDeTeste = (profile) => {

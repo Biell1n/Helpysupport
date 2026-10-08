@@ -12,11 +12,15 @@ export const MODELS = {
   // Montar o assistente pede qualidade e acontece poucas vezes.
   builder: Deno.env.get('HELPY_MODEL_BUILDER') ?? 'claude-sonnet-5-5',
   // Atendimento é o grosso do volume: modelo rápido e barato.
-  atendimento: Deno.env.get('HELPY_MODEL_ATENDIMENTO') ?? 'claude-haiku-4-5',
+  atendimento: Deno.env.get('HELPY_MODEL_ATENDIMENTO') ?? 'claude-haiku-5-5',
+  // Reserva: se o modelo principal recusar uma conversa (filtro de segurança
+  // com falso positivo), a mesma rodada é refeita aqui, sem o cliente perceber.
+  reserva: Deno.env.get('HELPY_MODEL_RESERVA') ?? 'claude-haiku-4-5',
 };
 
 // US$ por milhão de tokens: entrada, saída, leitura de cache, escrita de cache (5 min)
 const PRICES: Record<string, [number, number, number, number]> = {
+  'claude-haiku-5-5': [0.1, 0.5, 0.01, 0.125], // até 100 mil tokens de entrada
   'claude-haiku-4-5': [1, 5, 0.1, 1.25],
   'claude-sonnet-5-5': [2, 10, 0.2, 2.5],
   'claude-opus-5-5': [4, 20, 0.2, 5],
