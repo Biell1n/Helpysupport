@@ -1796,3 +1796,29 @@
 .agenda-servicos li > span:last-child {
   text-align: right;
 }
+
+/* agenda dentro do chamado */
+.chamado-agenda {
+  grid-column: 1 / -1;
+}
+
+.chamado-agenda-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.chamado-agenda-item > span {
+  margin-right: 6px;
+}
+
+.horas-livres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.horas-livres .chip {
+  font-family: var(--f-mono);
+}

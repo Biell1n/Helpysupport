@@ -139,6 +139,8 @@ export async function marcar(
     dia: string; hora: string; nome: string; contato?: string; servico?: string; observacao?: string;
     duracao_min?: number; assistant_id: string; conversation_id: string | null;
     valor?: number; pendente?: boolean; registrar?: boolean; adicional?: boolean;
+    /** quem marcou: o atendente virtual ou alguém da equipe pelo chamado */
+    origem?: 'assistente' | 'manual';
   },
 ) {
   // a conversa já tem horário marcado: mudar é com alterar_agendamento, não marcando de novo
@@ -182,7 +184,7 @@ export async function marcar(
       observacao: input.observacao?.trim().slice(0, 500) || null,
       inicio: inicio.toISOString(),
       fim: fim.toISOString(),
-      origem: 'assistente',
+      origem: input.origem ?? 'assistente',
       status: input.pendente ? 'pendente' : 'confirmado',
       valor: Number.isFinite(input.valor) ? input.valor : null,
     })
