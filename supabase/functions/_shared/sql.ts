@@ -34,6 +34,8 @@ export interface SqlConfig {
 const PORTA: Record<Motor, number> = { postgres: 5432, mysql: 3306, sqlserver: 1433 };
 const NOME_RE = /^[A-Za-z_][A-Za-z0-9_$]{0,62}$/;
 const MAX_LINHAS = 20;
+const COM_ACENTO = 'áàâãäéèêëíìîïóòôõöúùûüç';
+const SEM_ACENTO = 'aaaaaeeeeiiiiooooouuuuc';
 export const TEMPO_MS = 8000;
 
 function partes(nome: string): string[] {
@@ -89,9 +91,10 @@ export function montarConsulta(cfg: SqlConfig, busca: string, comBusca: boolean)
   const procurar = comBusca && busca && cfg.colunas?.length;
   const cond = procurar
     ? cfg.colunas!.map((c) =>
-        m === 'postgres' ? `cast(${aspas(m, c)} as text) ilike $1`
+        // sem diferença de acento nem de maiúscula: "oleo" acha "Óleo"
+        m === 'postgres' ? `translate(lower(cast(${aspas(m, c)} as text)), '${COM_ACENTO}', '${SEM_ACENTO}') like translate(lower($1), '${COM_ACENTO}', '${SEM_ACENTO}')`
         : m === 'mysql' ? `cast(${aspas(m, c)} as char) like ?`
-        : `cast(${aspas(m, c)} as nvarchar(4000)) like @busca escape '\\'`
+        : `cast(${aspas(m, c)} as nvarchar(4000)) collate Latin1_General_CI_AI like @busca escape '\\'`
       ).join(' or ')
     : '';
   const where = cond ? ` where ${cond}` : '';
@@ -137,6 +140,8 @@ export async function consultarSql(
   const termo = termoDeBusca(busca);
   const { texto: consulta, params } = montarConsulta(cfg, busca.trim(), true);
   let bruto: Record<string, unknown>[] = [];
+  // banco de cliente às vezes recusa uma conexão quando chegam duas juntas: tenta de novo uma vez
+  for (let tentativa = 1; ; tentativa++) {
   try {
     if (cfg.motor === 'postgres') {
       const { default: postgres } = await import('npm:postgres@3.4.5');
@@ -168,8 +173,14 @@ export async function consultarSql(
       // SQL Server roda numa função à parte: o driver da Microsoft é pesado e deixaria o chat lento
       bruto = await comTempo(sqlServerRemoto(cfg, busca));
     }
+    break;
   } catch (e) {
+    if (tentativa < 2 && !(e instanceof UserError)) {
+      await new Promise((r) => setTimeout(r, 400));
+      continue;
+    }
     traduzErro(e);
+  }
   }
   const linhas = bruto.slice(0, MAX_LINHAS).map((r) => Object.fromEntries(Object.entries(r).slice(0, 40).map(([k, v]) => [k, texto(v)])));
   return { total: linhas.length, linhas };
