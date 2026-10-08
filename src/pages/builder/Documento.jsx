@@ -305,6 +305,10 @@ function PainelAgenda() {
               <span><b>Quero confirmar antes</b> — o horário fica pendente na Agenda até você aprovar.</span>
             </label>
             <label className="check-linha">
+              <input type="checkbox" checked={/^s[oó]/i.test(b.config.fields.agenda_quem?.value ?? '')} onChange={(e) => b.setField('agenda_quem', e.target.checked ? 'Só quem entrou na conta' : 'Qualquer pessoa')} />
+              <span><b>Só quem entrou na conta pode marcar</b> — o assistente pede para a pessoa entrar antes de marcar.</span>
+            </label>
+            <label className="check-linha">
               <input type="checkbox" checked={registra} onChange={(e) => b.setField('agenda_registrar', e.target.checked ? 'Sim, com o valor' : 'Não')} />
               <span><b>Atualizar os Dados sozinho</b> — cada agendamento entra na tabela “Agendamentos” com cliente, serviço e valor.</span>
             </label>

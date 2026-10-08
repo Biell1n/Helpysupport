@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowUp, LogIn, Star } from 'lucide-react';
+import { ArrowUp, CalendarCheck, CalendarClock, CalendarX, LogIn, Star, UserCheck } from 'lucide-react';
+import { useToast } from '@/components/Toasts';
 import { chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolverDesafio } from '@/lib/prova';
@@ -58,6 +59,13 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
   const [comentario, setComentario] = useState('');
   const [avaliou, setAvaliou] = useState(false);
   const [pedeLogin, setPedeLogin] = useState(false);
+  const notificar = useToast();
+  const statusAntes = useRef(null);
+  const anunciar = (eventos) =>
+    eventos.forEach((m) => {
+      const t = tipoDoEvento(m);
+      if (t) notificar(EVENTOS[t]?.titulo ?? 'Aviso', { texto: m.content });
+    });
   const { user } = useAuth() ?? {};
   const prova = useRef(null);
   const ultimoAgente = useRef(null);
@@ -66,6 +74,13 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
 
   const absorver = (d) => {
     if (!d) return;
+    // alguém da equipe acabou de assumir: aviso na conversa e notificação
+    if (d.status === 'human' && statusAntes.current && statusAntes.current !== 'human') {
+      const aviso = { role: 'system', author_name: 'evento:assumido', content: `${d.assumido_nome || 'Uma pessoa da equipe'} vai continuar o atendimento com você.` };
+      setMensagens((p) => [...p, aviso]);
+      anunciar([aviso]);
+    }
+    if (d.status) statusAntes.current = d.status;
     setEstado((p) => ({ ...p, ...Object.fromEntries(Object.entries({ status: d.status, numero: d.numero, assumido: d.assumido, assumido_nome: d.assumido_nome }).filter(([, v]) => v !== undefined)) }));
     if (d.ja_avaliou) setAvaliou(true);
   };
@@ -95,7 +110,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           if (h.messages?.length) {
             setMensagens(h.messages);
             absorver(h);
-            ultimoAgente.current = [...h.messages].reverse().find((m) => m.role === 'agent')?.created_at ?? null;
+            ultimoAgente.current = [...h.messages].reverse().find((m) => m.role === 'agent' || m.role === 'system')?.created_at ?? null;
           } else {
             lembrar(chaveConversa, null);
             setConversa(null);
@@ -121,6 +136,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         if (d.messages?.length) {
           ultimoAgente.current = d.messages.at(-1).created_at;
           setMensagens((p) => [...p, ...d.messages]);
+          anunciar(d.messages);
         }
       } catch {
         /* consulta de fundo: silenciosa */
@@ -160,12 +176,17 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         prova.current = resolverDesafio({ token, visitante: visitorId, agora: i.desafio.agora, bits: i.desafio.bits });
         d = await chamar('public-chat', { ...pedido, prova: await prova.current });
       }
-      if (d.precisa_login) setPedeLogin(true);
+      if (d.precisa_login) setPedeLogin(d.motivo_login || true);
       if (d.conversation_id && d.conversation_id !== conversa) {
         setConversa(d.conversation_id);
         lembrar(chaveConversa, d.conversation_id);
       }
       absorver(d);
+      if (d.eventos?.length) {
+        setMensagens((p) => [...p, ...d.eventos]);
+        anunciar(d.eventos);
+        ultimoAgente.current = d.eventos.at(-1).created_at;
+      }
       if (d.message) setMensagens((p) => [...p, { role: d.modo === 'recado' || d.modo === 'login' ? 'system' : 'assistant', content: d.message }]);
     } catch (e) {
       setMensagens((p) => [...p, { role: 'system', content: e.message }]);
@@ -255,6 +276,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         )}
 
         {mensagens.map((m, i) => (
+          tipoDoEvento(m) ? <Evento key={i} m={m} /> :
           <div key={i} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'agent' ? 'msg-agent' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`}>
             {m.role === 'assistant' && <span className="msg-who">{nome}</span>}
             {m.role === 'agent' && <span className="msg-who">{m.author_name || estado.assumido_nome || 'Equipe'} · equipe</span>}
@@ -310,13 +332,13 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         )}
         {pedeLogin && !user && !modoTeste && (
           <div className="card stack ticket-aviso">
-            <b>Para falar com a equipe, entre com sua conta</b>
+            <b>{typeof pedeLogin === 'string' ? `Entre com sua conta ${pedeLogin}` : 'Para falar com a equipe, entre com sua conta'}</b>
             <p className="muted" style={{ fontSize: 13 }}>
               Assim a equipe sabe quem é você e pode responder também por e-mail. Depois de entrar, você volta para esta conversa.
             </p>
             <div className="row row-wrap">
               <Link className="btn btn-primary" to={`/entrar?de=${encodeURIComponent(`/c/${token}`)}`}>
-                <LogIn size={16} /> Entrar para falar com a equipe
+                <LogIn size={16} /> Entrar
               </Link>
               <Link className="btn btn-ghost" to={`/criar-conta?de=${encodeURIComponent(`/c/${token}`)}`}>Criar conta</Link>
             </div>
@@ -367,6 +389,29 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
             </p>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// avisos de ação concluída: aparecem destacados na conversa e como notificação
+const EVENTOS = {
+  agendado: { titulo: 'Horário confirmado', Icone: CalendarCheck },
+  pendente: { titulo: 'Pedido de horário enviado', Icone: CalendarClock },
+  remarcado: { titulo: 'Horário remarcado', Icone: CalendarCheck },
+  cancelado: { titulo: 'Horário cancelado', Icone: CalendarX },
+  assumido: { titulo: 'Atendimento assumido', Icone: UserCheck },
+};
+const tipoDoEvento = (m) => (m.role === 'system' && String(m.author_name ?? '').startsWith('evento:') ? m.author_name.slice(7) : null);
+
+function Evento({ m }) {
+  const { titulo, Icone } = EVENTOS[tipoDoEvento(m)] ?? { titulo: 'Aviso', Icone: CalendarCheck };
+  return (
+    <div className="chat-evento" data-tipo={tipoDoEvento(m)} role="status">
+      <span className="chat-evento-icone"><Icone size={18} /></span>
+      <div>
+        <b>{titulo}</b>
+        <span>{m.content}</span>
       </div>
     </div>
   );

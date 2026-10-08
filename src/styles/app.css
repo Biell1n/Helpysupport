@@ -1822,3 +1822,60 @@
 .horas-livres .chip {
   font-family: var(--f-mono);
 }
+
+/* aviso de ação concluída na conversa do cliente (horário marcado, atendimento assumido) */
+.chat-evento {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(440px, 100%);
+  padding: 12px 16px 12px 12px;
+  border-radius: var(--r);
+  background: var(--senha-clara);
+  border: 1px solid rgba(31, 102, 244, 0.25);
+  animation: chat-evento 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.chat-evento-icone {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--senha);
+  color: var(--sobre-senha);
+}
+
+.chat-evento b {
+  display: block;
+  font-size: 14px;
+}
+
+.chat-evento span {
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.chat-evento[data-tipo='cancelado'] {
+  background: var(--brasa-clara);
+  border-color: rgba(201, 73, 44, 0.25);
+}
+
+.chat-evento[data-tipo='cancelado'] .chat-evento-icone {
+  background: var(--brasa);
+}
+
+@keyframes chat-evento {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-evento {
+    animation: none;
+  }
+}
