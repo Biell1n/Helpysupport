@@ -1775,25 +1775,34 @@
 }
 
 /* ============================================================
-   Abertura: a logo se monta e esmaece na página
+   Abertura: "digitando…" vira a logo e voa até o topo
+   (a coreografia fica no IntroLogo.jsx; aqui só o visual)
    ============================================================ */
 
 .abertura {
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --tam: clamp(64px, 9vw, 96px);
   position: fixed;
   inset: 0;
   z-index: 1000;
   display: grid;
   place-items: center;
-  background: #0b1a2c;
-  color: #fff;
   overflow: hidden;
+  color: #fff;
+}
+
+.abertura-fundo {
+  position: absolute;
+  inset: 0;
+  background: #0b1a2c;
 }
 
 .abertura[data-fase='sai'] {
-  animation: ab-sai 0.6s var(--ease) forwards;
   pointer-events: none;
+}
+
+/* quem pula vê tudo esmaecer de uma vez */
+.abertura[data-pulou] {
+  animation: ab-sai 0.4s ease forwards;
 }
 
 @keyframes ab-sai {
@@ -1810,133 +1819,89 @@
   border-radius: 50%;
   background: radial-gradient(closest-side, rgba(31, 102, 244, 0.34), rgba(31, 102, 244, 0) 70%);
   opacity: 0;
-  scale: 0.6;
-  animation: ab-luz 2.2s var(--ease) 0.6s forwards;
-}
-
-@keyframes ab-luz {
-  to {
-    opacity: 1;
-    scale: 1;
-  }
 }
 
 .abertura-logo {
   position: relative;
+  column-gap: calc(var(--tam) * 0.3);
+  transform-origin: center;
+  will-change: transform;
+}
+
+.abertura-trilho {
   display: flex;
   align-items: center;
   gap: calc(var(--tam) * 0.3);
-}
-
-.abertura[data-fase='sai'] .abertura-logo {
-  animation: ab-logo-sai 0.6s var(--ease) forwards;
-}
-
-@keyframes ab-logo-sai {
-  to {
-    scale: 1.06;
-    filter: blur(6px);
-  }
 }
 
 .abertura-marca {
   width: var(--tam);
   height: var(--tam);
   overflow: visible;
-  /* começa no centro da tela; anda para a esquerda quando a palavra entra */
-  translate: calc((var(--palavra, 0px) + var(--tam) * 0.3) / 2) 0;
-  animation: ab-anda 0.75s var(--ease) 1.5s forwards;
-}
-
-@keyframes ab-anda {
-  to {
-    translate: 0 0;
-  }
 }
 
 .abertura-marca * {
   transform-box: fill-box;
+  transform-origin: center;
 }
 
-.ab-contorno rect,
-.ab-contorno path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: ab-traca 0.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+.ab-liquido {
+  fill: #fff;
 }
 
-.ab-contorno path {
-  animation-delay: 0.5s;
-  animation-duration: 0.3s;
+.ab-massa {
+  transform: scale(0);
 }
 
-.ab-contorno {
-  animation: ab-some 0.3s ease 0.85s forwards;
+.ab-gota {
+  transform: scale(0);
+  transform-origin: 20% 0;
 }
 
-@keyframes ab-traca {
-  to {
-    stroke-dashoffset: 0;
-  }
+.ab-ponto {
+  transform: scale(0);
 }
 
-@keyframes ab-some {
-  to {
-    opacity: 0;
-  }
+.ab-nitido {
+  opacity: 0;
 }
 
 .ab-corpo {
-  opacity: 0;
-  animation: ab-aparece 0.35s ease 0.7s forwards;
-}
-
-@keyframes ab-aparece {
-  to {
-    opacity: 1;
-  }
+  fill: #fff;
+  transition: fill 0.6s ease;
 }
 
 .ab-canhoto {
-  opacity: 0;
-  translate: 0 -16px;
-  animation: ab-encaixa 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) 0.92s forwards;
-}
-
-@keyframes ab-encaixa {
-  40% {
-    opacity: 1;
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-  }
+  transform: scaleY(0);
+  transform-origin: top;
 }
 
 .ab-picote {
-  opacity: 0;
-  clip-path: inset(0 0 100% 0);
-  animation: ab-picota 0.3s ease 1.18s forwards;
-}
-
-@keyframes ab-picota {
-  to {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-  }
+  stroke: #0b1a2c;
 }
 
 .ab-linha {
+  stroke: #0b1a2c;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: ab-traca 0.3s var(--ease) 1.28s forwards;
+  transition: stroke 0.6s ease;
 }
 
-.ab-linha-2 {
-  animation-delay: 1.4s;
+/* no voo a logo troca para as cores do topo (fundo claro) */
+.abertura[data-cor='escura'] .ab-corpo {
+  fill: #0b1a2c;
+}
+
+.abertura[data-cor='escura'] .ab-linha {
+  stroke: #fff;
+}
+
+.abertura[data-cor='escura'] .abertura-palavra {
+  color: #0b1a2c;
 }
 
 .abertura-palavra {
+  position: relative;
   display: inline-flex;
   font-family: var(--f-display);
   font-weight: 800;
@@ -1945,21 +1910,34 @@
   letter-spacing: -0.04em;
   line-height: 1;
   color: #fff;
+  transition: color 0.6s ease;
 }
 
 .abertura-palavra span {
   display: inline-block;
   opacity: 0;
-  translate: 0 0.5em;
-  filter: blur(8px);
-  animation: ab-letra 0.7s var(--ease) calc(1.62s + var(--i) * 0.06s) forwards;
 }
 
-@keyframes ab-letra {
-  to {
-    opacity: 1;
-    translate: 0 0;
-    filter: blur(0);
+.abertura-cursor {
+  position: absolute;
+  left: 0;
+  top: 0.08em;
+  width: 0.09em;
+  height: 0.98em;
+  margin-left: 0.06em;
+  border-radius: 2px;
+  background: #1f66f4;
+  opacity: 0;
+  transition: left 0.08s linear;
+}
+
+.abertura-cursor[data-pisca='sim'] {
+  animation: ab-pisca 0.9s steps(1) infinite;
+}
+
+@keyframes ab-pisca {
+  50% {
+    visibility: hidden;
   }
 }
 
@@ -1976,13 +1954,27 @@
   padding: 9px 14px;
   border-radius: 999px;
   cursor: pointer;
-  opacity: 0;
-  animation: ab-aparece 0.4s ease 0.5s forwards;
+  animation: ab-aparece 0.4s ease 0.5s backwards;
+}
+
+.abertura[data-fase='sai'] .abertura-pular {
+  display: none;
+}
+
+@keyframes ab-aparece {
+  from {
+    opacity: 0;
+  }
 }
 
 .abertura-pular:hover {
   color: #fff;
   border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* a logo do topo espera a da abertura chegar voando */
+.lp[data-logo-voando='sim'] .lp-top-marca {
+  visibility: hidden;
 }
 
 /* enquanto a abertura está na tela, o topo da página espera para entrar */

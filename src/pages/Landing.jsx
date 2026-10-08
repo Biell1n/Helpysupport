@@ -331,7 +331,7 @@ export default function Landing() {
   const [esperando, setEsperando] = useState(abertura);
 
   return (
-    <div className="lp" data-abertura={esperando ? 'on' : 'off'}>
+    <div className="lp" data-abertura={esperando ? 'on' : 'off'} data-logo-voando={abertura ? 'sim' : 'nao'}>
       {abertura && <IntroLogo onSaindo={() => setEsperando(false)} onFim={() => setAbertura(false)} />}
       <Topo user={user} deslizar={deslizar} />
       <Hero user={user} deslizar={deslizar} />
