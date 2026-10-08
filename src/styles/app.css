@@ -443,9 +443,12 @@
   display: grid;
   grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
   height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .builder-chat {
+  position: relative;
   border-right: 1px solid var(--linha);
   background: var(--papel);
   display: flex;
@@ -462,6 +465,8 @@
 }
 
 .builder-doc {
+  /* relative: nada escondido lá dentro estica a página para baixo */
+  position: relative;
   overflow-y: auto;
   background: var(--branco);
   min-height: 0;
@@ -490,7 +495,15 @@
 
 .doc {
   padding: 28px 36px 80px;
-  max-width: 820px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.doc-falta {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 10px 36px 0;
+  font-size: 13px;
 }
 
 .doc-section {
@@ -617,6 +630,7 @@
   .builder {
     grid-template-columns: minmax(0, 1fr);
     height: auto;
+    overflow: visible;
   }
 
   .builder-chat {
@@ -1647,6 +1661,7 @@
 }
 
 .interruptor {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 14px;
@@ -1655,6 +1670,8 @@
 
 .interruptor input {
   position: absolute;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   pointer-events: none;
 }

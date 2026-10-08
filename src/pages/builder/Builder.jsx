@@ -320,7 +320,7 @@ function Tela() {
           </button>
         </div>
         {faltando.length > 0 && b.modelo && (
-          <p className="faint" style={{ fontSize: 13, padding: '10px 36px 0' }}>
+          <p className="faint doc-falta">
             Para publicar falta: {faltando.join(', ')}.
           </p>
         )}
