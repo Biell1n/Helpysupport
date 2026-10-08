@@ -24,7 +24,7 @@ export function Marca({ size = 32, tom = 'escuro' }) {
       <g mask={`url(#r${id})`}>
         <rect x="5" y="9" width="54" height="36" rx="9" fill={corpo} />
         <path d="M14 43 L11 57 L27 43 Z" fill={corpo} />
-        <rect x="5" y="9" width="54" height="36" rx="9" fill="#FFCF33" clipPath={`url(#c${id})`} />
+        <rect x="5" y="9" width="54" height="36" rx="9" fill="#1F66F4" clipPath={`url(#c${id})`} />
       </g>
       <path d="M44 13.5v27" stroke="#0B1A2C" strokeWidth="2.4" strokeDasharray="2.6 3.2" />
       <path d="M15.5 21.5h18M15.5 31h11" stroke={linhas} strokeWidth="4.2" strokeLinecap="round" />

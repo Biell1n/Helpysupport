@@ -743,53 +743,244 @@
   position: relative;
 }
 
+/* uma lista numerada, como índice de revista: número, título largo,
+   explicação e uma prova pequena do que ele faz. Ao passar o mouse a
+   linha enche de azul-marinho de baixo para cima. */
 .lp-recursos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--linha-forte);
+}
+
+.lp-recurso {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  grid-template-columns: 72px minmax(0, 1.15fr) minmax(0, 1fr) 260px;
+  align-items: center;
+  gap: 28px;
+  padding: 34px 20px;
+  border-bottom: 1px solid var(--linha-forte);
+  isolation: isolate;
 }
 
-.lp-recursos article {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--branco);
-  border-radius: 26px;
-  padding: 30px;
-  box-shadow: var(--sombra);
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s;
+.lp-recurso::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--tinta);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.lp-recursos article:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 2px 4px rgba(11, 26, 44, 0.04), 0 26px 50px -24px rgba(11, 26, 44, 0.25);
+.lp-recurso-n {
+  font-family: var(--f-mono);
+  font-size: 13px;
+  color: var(--tinta-3);
+  transition: color 0.4s;
 }
 
-.lp-recurso-icone {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: var(--azul-claro);
-  color: var(--azul-forte);
-  margin-bottom: 22px;
-}
-
-.lp-recurso-icone svg {
-  width: 22px;
-  height: 22px;
-}
-
-.lp-recursos h3 {
-  font-size: 19px;
+.lp-recurso h3 {
+  margin: 0;
+  font-family: var(--f-display);
+  font-stretch: 118%;
   font-weight: 600;
-  margin-bottom: 8px;
+  font-size: clamp(22px, 2.5vw, 34px);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  transition: color 0.4s, translate 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.lp-recursos p {
+.lp-recurso p {
+  margin: 0;
   font-size: 15px;
   line-height: 1.6;
   color: var(--tinta-2);
+  max-width: 40ch;
+  transition: color 0.4s;
+}
+
+.lp-recurso-prova {
+  justify-self: end;
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  color: var(--tinta-2);
+  transition: color 0.4s, translate 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) {
+  .lp-recurso:hover::before {
+    transform: scaleY(1);
+  }
+
+  .lp-recurso:hover h3 {
+    color: var(--sobre-tinta);
+    translate: 10px 0;
+  }
+
+  .lp-recurso:hover .lp-recurso-n {
+    color: var(--senha);
+  }
+
+  .lp-recurso:hover p,
+  .lp-recurso:hover .lp-recurso-prova {
+    color: rgba(255, 255, 255, 0.74);
+  }
+
+  .lp-recurso:hover .lp-recurso-prova {
+    translate: -6px 0;
+  }
+
+  .lp-recurso:hover .lp-prova-fala {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
+    color: #fff;
+  }
+
+  .lp-recurso:hover .lp-prova-linha b {
+    color: #fff;
+  }
+}
+
+.lp-prova-fala {
+  display: block;
+  quotes: none;
+  font-family: var(--f-body);
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--tinta);
+  background: var(--branco);
+  border: 1px solid var(--linha);
+  padding: 10px 14px;
+  border-radius: 14px 14px 14px 4px;
+  transition: background 0.4s, border-color 0.4s, color 0.4s;
+}
+
+.lp-prova-linha {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.lp-prova-linha b {
+  font-weight: 500;
+  color: var(--tinta);
+  transition: color 0.4s;
+}
+
+.lp-prova-ok {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--folha);
+  box-shadow: 0 0 0 4px var(--folha-clara);
+}
+
+.lp-prova-senha {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 12px;
+  background: var(--senha);
+  color: var(--sobre-senha);
+  border-radius: 6px;
+  white-space: nowrap;
+  -webkit-mask: radial-gradient(circle 5px at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 5px at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle 5px at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 5px at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
+}
+
+.lp-prova-senha b {
+  font-weight: 500;
+  padding-right: 10px;
+  border-right: 1.5px dashed rgba(255, 255, 255, 0.45);
+}
+
+.lp-prova-barras {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 34px;
+}
+
+.lp-prova-barras i {
+  width: 9px;
+  height: var(--a);
+  border-radius: 3px 3px 1px 1px;
+  background: var(--azul);
+  transform: scaleY(0.15);
+  transform-origin: bottom;
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 60ms + 200ms), background 0.4s;
+}
+
+.lp-prova-barras i:nth-child(5) {
+  background: var(--senha);
+}
+
+.lp-recurso[data-visto='true'] .lp-prova-barras i {
+  transform: none;
+}
+
+/* ---------- horários de pico em perspectiva (relatório de exemplo) ---------- */
+
+.skyline {
+  position: relative;
+  margin: -6px -8px 22px;
+}
+
+.skyline-canvas {
+  display: block;
+  width: 100%;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.skyline-dica {
+  position: absolute;
+  translate: -50% calc(-100% - 12px);
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 12.5px;
+  background: var(--tinta);
+  color: var(--sobre-tinta);
+  padding: 6px 10px;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px -10px rgba(11, 26, 44, 0.5);
+}
+
+.skyline-dica b {
+  font-family: var(--f-mono);
+  font-weight: 500;
+}
+
+.skyline-legenda {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 0 8px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--tinta-3);
+}
+
+.skyline-legenda span {
+  margin: 0 5px;
+}
+
+.skyline-legenda i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.lp-relatorio-sub {
+  padding-top: 22px;
+  border-top: 1px solid var(--linha);
 }
 
 /* ---------- chamados ---------- */
@@ -830,7 +1021,7 @@
   line-height: 1.55;
 }
 
-/* a senha: o canhoto amarelo do chamado */
+/* a senha: o canhoto azul do chamado */
 .lp-senha {
   --furo: 10px;
   display: grid;
@@ -840,7 +1031,7 @@
   color: var(--sobre-senha);
   border-radius: 10px;
   transform: rotate(-2deg);
-  box-shadow: 0 30px 60px -28px rgba(120, 90, 0, 0.45);
+  box-shadow: 0 30px 60px -28px rgba(21, 79, 196, 0.55);
   -webkit-mask: radial-gradient(circle var(--furo) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
     radial-gradient(circle var(--furo) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
   mask: radial-gradient(circle var(--furo) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
@@ -849,7 +1040,7 @@
 
 .lp-senha-num {
   padding: 20px 22px;
-  border-right: 2px dashed rgba(20, 18, 14, 0.3);
+  border-right: 2px dashed rgba(255, 255, 255, 0.4);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1277,8 +1468,13 @@
     grid-template-columns: auto 1fr;
   }
 
-  .lp-recursos {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .lp-recurso {
+    grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .lp-recurso-prova {
+    grid-column: 2 / -1;
+    justify-self: start;
   }
 
   .lp-ponto {
@@ -1389,7 +1585,6 @@
   }
 
   .lp-passos,
-  .lp-recursos,
   .lp-duas,
   .lp-chamado,
   .lp-planos {
@@ -1546,5 +1741,239 @@
 
   .auth-arte {
     display: none;
+  }
+}
+
+/* ============================================================
+   Abertura: a logo se monta e esmaece na página
+   ============================================================ */
+
+.abertura {
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --tam: clamp(64px, 9vw, 96px);
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: #0b1a2c;
+  color: #fff;
+  overflow: hidden;
+}
+
+.abertura[data-fase='sai'] {
+  animation: ab-sai 0.6s var(--ease) forwards;
+  pointer-events: none;
+}
+
+@keyframes ab-sai {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.abertura-luz {
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(31, 102, 244, 0.34), rgba(31, 102, 244, 0) 70%);
+  opacity: 0;
+  scale: 0.6;
+  animation: ab-luz 2.2s var(--ease) 0.6s forwards;
+}
+
+@keyframes ab-luz {
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+.abertura-logo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--tam) * 0.3);
+}
+
+.abertura[data-fase='sai'] .abertura-logo {
+  animation: ab-logo-sai 0.6s var(--ease) forwards;
+}
+
+@keyframes ab-logo-sai {
+  to {
+    scale: 1.06;
+    filter: blur(6px);
+  }
+}
+
+.abertura-marca {
+  width: var(--tam);
+  height: var(--tam);
+  overflow: visible;
+  /* começa no centro da tela; anda para a esquerda quando a palavra entra */
+  translate: calc((var(--palavra, 0px) + var(--tam) * 0.3) / 2) 0;
+  animation: ab-anda 0.75s var(--ease) 1.5s forwards;
+}
+
+@keyframes ab-anda {
+  to {
+    translate: 0 0;
+  }
+}
+
+.abertura-marca * {
+  transform-box: fill-box;
+}
+
+.ab-contorno rect,
+.ab-contorno path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ab-traca 0.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.ab-contorno path {
+  animation-delay: 0.5s;
+  animation-duration: 0.3s;
+}
+
+.ab-contorno {
+  animation: ab-some 0.3s ease 0.85s forwards;
+}
+
+@keyframes ab-traca {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ab-some {
+  to {
+    opacity: 0;
+  }
+}
+
+.ab-corpo {
+  opacity: 0;
+  animation: ab-aparece 0.35s ease 0.7s forwards;
+}
+
+@keyframes ab-aparece {
+  to {
+    opacity: 1;
+  }
+}
+
+.ab-canhoto {
+  opacity: 0;
+  translate: 0 -16px;
+  animation: ab-encaixa 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) 0.92s forwards;
+}
+
+@keyframes ab-encaixa {
+  40% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+.ab-picote {
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+  animation: ab-picota 0.3s ease 1.18s forwards;
+}
+
+@keyframes ab-picota {
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.ab-linha {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ab-traca 0.3s var(--ease) 1.28s forwards;
+}
+
+.ab-linha-2 {
+  animation-delay: 1.4s;
+}
+
+.abertura-palavra {
+  display: inline-flex;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-stretch: 118%;
+  font-size: calc(var(--tam) * 0.82);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: #fff;
+}
+
+.abertura-palavra span {
+  display: inline-block;
+  opacity: 0;
+  translate: 0 0.5em;
+  filter: blur(8px);
+  animation: ab-letra 0.7s var(--ease) calc(1.62s + var(--i) * 0.06s) forwards;
+}
+
+@keyframes ab-letra {
+  to {
+    opacity: 1;
+    translate: 0 0;
+    filter: blur(0);
+  }
+}
+
+.abertura-pular {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font: 500 12px/1 var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: 0;
+  animation: ab-aparece 0.4s ease 0.5s forwards;
+}
+
+.abertura-pular:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* enquanto a abertura está na tela, o topo da página espera para entrar */
+.lp[data-abertura='on'] .lp-entra {
+  animation-play-state: paused;
+}
+
+@media (max-width: 860px) {
+  .lp-recurso {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px 14px;
+    padding: 26px 4px;
+  }
+
+  .lp-recurso p,
+  .lp-recurso-prova {
+    grid-column: 2;
+  }
+
+  .lp-recurso-prova {
+    justify-self: start;
+    margin-top: 6px;
   }
 }

@@ -330,7 +330,7 @@
 .msg-agent .msg-body {
   background: var(--branco);
   border: 1px solid var(--linha);
-  box-shadow: inset 2px 0 0 rgba(255, 207, 51, 0.7);
+  box-shadow: inset 2px 0 0 rgba(31, 102, 244, 0.7);
   border-bottom-left-radius: var(--r-sm);
 }
 
@@ -723,13 +723,13 @@
 }
 
 .ticket[aria-current='true'] .stub-num {
-  border-right-color: rgba(12, 14, 19, 0.35);
+  border-right-color: rgba(255, 255, 255, 0.4);
 }
 
 .ticket[aria-current='true'] .ticket-sub,
 .ticket[aria-current='true'] .ticket-meta,
 .ticket[aria-current='true'] .stub-num small {
-  color: rgba(12, 14, 19, 0.7);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .ticket-title {
@@ -954,7 +954,6 @@
   background: var(--tinta);
   border-color: var(--tinta);
   color: var(--sobre-tinta);
-  color: var(--sobre-senha);
 }
 
 .chip small {

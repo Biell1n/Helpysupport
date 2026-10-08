@@ -244,7 +244,7 @@ export default function Agenda() {
       <header className="page-head">
         <div>
           <h1>Agenda</h1>
-          <p>Horários marcados por você e pelo atendente. Em amarelo, os que ele marcou sozinho.</p>
+          <p>Horários marcados por você e pelo atendente. Em azul, os que ele marcou sozinho.</p>
         </div>
         <div className="row row-wrap">
           {tipo === 'empresa' && <button type="button" className="btn btn-ghost" onClick={() => setConfigurando(true)}><Settings2 /> Horários</button>}
