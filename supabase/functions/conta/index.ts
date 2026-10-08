@@ -135,14 +135,8 @@ Deno.serve(async (req) => {
         return json(await horariosLivres(admin, agenda, String(body.dia ?? ''), sv?.duracao_min));
       }
 
-      // a mensagem que o cliente vê na conversa, assinada por quem marcou
-      const avisar = async (texto: string) => {
-        const { data: eu } = await admin.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
-        await admin.from('conversation_messages').insert({
-          conversation_id: conversa, role: 'agent', content: texto, author_name: eu?.full_name || user.email?.split('@')[0] || 'Equipe',
-        });
-        await admin.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversa);
-      };
+      // a conversa sobe na lista de atendimentos (o aviso destacado é gravado pelo agenda.ts)
+      const tocar = () => admin.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversa);
 
       if (action === 'agenda_marcar') {
         const r = await marcar(admin, agenda, {
@@ -159,7 +153,7 @@ Deno.serve(async (req) => {
           conversation_id: conversa,
         });
         if ('erro' in r && r.erro) throw new UserError(r.erro);
-        await avisar(`Agendado: ${(r as { quando: string }).quando}${body.servico ? ` · ${body.servico}` : ''}. Qualquer coisa, é só falar por aqui.`);
+        await tocar();
         return json(r);
       }
       if (action === 'agenda_alterar') {
@@ -171,9 +165,7 @@ Deno.serve(async (req) => {
           registrar,
         });
         if ('erro' in r && r.erro) throw new UserError(r.erro);
-        await avisar(body.cancelar === true
-          ? 'Seu horário foi cancelado. Se quiser marcar outro, é só falar por aqui.'
-          : `Remarcado: ${String((r as { agora?: string }).agora ?? '').replace(/ · (confirmado|pendente).*$/, '')}.`);
+        await tocar();
         return json(r);
       }
       throw new UserError(`Ação desconhecida: ${action}`);

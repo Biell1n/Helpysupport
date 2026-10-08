@@ -203,6 +203,8 @@ export async function marcar(
       status: input.pendente ? 'Pendente' : 'Confirmado',
     }).catch((e) => console.error('[agenda] registro nos dados', e));
   }
+  await avisoNaConversa(db, input.conversation_id, input.pendente ? 'pendente' : 'agendado',
+    `${utcToLocal(inicio, cfg.fuso)}${input.servico ? ` · ${input.servico.trim()}` : ''}${input.pendente ? ' · aguardando confirmação do negócio' : ''}`);
   return {
     ok: true,
     id: data.id,
@@ -211,6 +213,13 @@ export async function marcar(
       ? 'PENDENTE: o pedido foi anotado, mas o negócio ainda vai confirmar. Diga isso; não diga que está confirmado.'
       : 'Confirmado na agenda.',
   };
+}
+
+/** Aviso destacado na conversa do cliente: "evento:agendado", "evento:remarcado"… */
+async function avisoNaConversa(db: SupabaseClient, conversationId: string | null, tipo: string, texto: string) {
+  if (!conversationId) return;
+  await db.from('conversation_messages').insert({ conversation_id: conversationId, role: 'system', author_name: `evento:${tipo}`, content: texto })
+    .then(({ error }) => error && console.error('[agenda] aviso', error.message));
 }
 
 /** Remarca, anota algo ou cancela um horário que ESTA conversa marcou. */
@@ -231,6 +240,7 @@ export async function alterarAgendamento(
 
   if (input.cancelar) {
     await db.from('agendamentos').update({ status: 'cancelado' }).eq('id', a.id);
+    await avisoNaConversa(db, conversationId, 'cancelado', `${utcToLocal(new Date(a.inicio), cfg.fuso)}${a.servico ? ` · ${a.servico}` : ''}`);
     if (input.registrar) await atualizarNosDados(db, cfg, a.id, { status: 'Cancelado' });
     return { ok: true, situacao: 'Cancelado. Avise a pessoa.' };
   }
@@ -260,6 +270,9 @@ export async function alterarAgendamento(
   const { error } = await db.from('agendamentos').update(patch).eq('id', a.id);
   if (error) return { erro: 'Não consegui alterar o agendamento.' };
   if (input.registrar && Object.keys(dados).length) await atualizarNosDados(db, cfg, a.id, dados);
+  if (patch.inicio) {
+    await avisoNaConversa(db, conversationId, 'remarcado', `${utcToLocal(new Date(String(patch.inicio)), cfg.fuso)}${a.servico ? ` · ${a.servico}` : ''}`);
+  }
   return {
     ok: true,
     agora: descreverAgendamento({ ...a, ...(patch as Partial<AgendamentoDaConversa>) } as AgendamentoDaConversa, cfg.fuso),
