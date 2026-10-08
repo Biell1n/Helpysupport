@@ -745,7 +745,7 @@
 
 /* uma lista numerada, como índice de revista: número, título largo,
    explicação e uma prova pequena do que ele faz. Ao passar o mouse a
-   linha enche de azul-marinho de baixo para cima. */
+   linha escurece. */
 .lp-recursos {
   list-style: none;
   margin: 0;
@@ -770,9 +770,8 @@
   inset: 0;
   z-index: -1;
   background: var(--tinta);
-  transform: scaleY(0);
-  transform-origin: bottom;
-  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0;
+  transition: opacity 0.35s ease;
 }
 
 .lp-recurso-n {
@@ -812,12 +811,11 @@
 
 @media (hover: hover) {
   .lp-recurso:hover::before {
-    transform: scaleY(1);
+    opacity: 1;
   }
 
   .lp-recurso:hover h3 {
     color: var(--sobre-tinta);
-    translate: 10px 0;
   }
 
   .lp-recurso:hover .lp-recurso-n {
@@ -827,10 +825,6 @@
   .lp-recurso:hover p,
   .lp-recurso:hover .lp-recurso-prova {
     color: rgba(255, 255, 255, 0.74);
-  }
-
-  .lp-recurso:hover .lp-recurso-prova {
-    translate: -6px 0;
   }
 
   .lp-recurso:hover .lp-prova-fala {
@@ -2012,55 +2006,6 @@
     justify-self: start;
     margin-top: 6px;
   }
-}
-
-/* ---------- faixa de frases que anda com a rolagem ---------- */
-
-.lp-faixa {
-  overflow: hidden;
-  padding: 70px 0 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.lp-faixa-linha {
-  display: flex;
-  width: max-content;
-  will-change: transform;
-}
-
-.lp-faixa-copia {
-  display: flex;
-}
-
-.lp-faixa-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45em;
-  padding-right: 0.45em;
-  font-family: var(--f-display);
-  font-stretch: 125%;
-  font-weight: 700;
-  font-size: clamp(34px, 6vw, 84px);
-  letter-spacing: -0.045em;
-  line-height: 1.1;
-  white-space: nowrap;
-  color: var(--tinta);
-}
-
-.lp-faixa-item svg {
-  width: 0.62em;
-  height: 0.62em;
-  flex: none;
-}
-
-.lp-faixa-contorno .lp-faixa-item {
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--azul-forte);
-}
-
-.lp-faixa-contorno .lp-faixa-item svg {
-  opacity: 0.5;
 }
 
 @media (prefers-reduced-motion: reduce) {

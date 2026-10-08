@@ -5,7 +5,6 @@ import { ArrowRight, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap } fr
 import Logo, { Marca } from '@/components/Logo';
 import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
 import SkylineHorarios from '@/components/SkylineHorarios';
-import FaixaRolagem from '@/components/FaixaRolagem';
 import Contador from '@/components/Contador';
 import { EMPRESA } from '@/lib/empresa';
 import Reveal from '@/components/Reveal';
@@ -307,10 +306,6 @@ function feixe({ x, y }) {
   return `M${x} ${y} Q${mx} ${my} 50 50`;
 }
 
-const FRASES = [
-  'Responde às 23h', 'Marca o corte de sábado', 'Consulta o estoque', 'Abre chamado',
-  'Fala do jeito da casa', 'Lê a planilha do OneDrive', 'Avisa a equipe', 'Conta o que perguntaram',
-];
 
 const ASSUNTOS = [
   ['Preço e formas de pagamento', 58],
@@ -380,8 +375,6 @@ export default function Landing() {
           </ol>
         </div>
       </section>
-
-      <FaixaRolagem frases={FRASES} />
 
       <section className="lp-sec">
         <div className="lp-in lp-chamado">
