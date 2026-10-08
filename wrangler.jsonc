@@ -1,0 +1,12 @@
+// Publicação na Cloudflare (Workers com arquivos estáticos).
+// O build gera a pasta dist; o Worker só serve esses arquivos.
+// "single-page-application": qualquer endereço (/painel, /c/abc…) abre o index.html,
+// e as rotas do React cuidam do resto. Os cabeçalhos de segurança vêm de public/_headers.
+{
+  "name": "helpysupport",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
