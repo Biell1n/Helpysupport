@@ -5,6 +5,8 @@ import { ArrowRight, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap } fr
 import Logo, { Marca } from '@/components/Logo';
 import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
 import SkylineHorarios from '@/components/SkylineHorarios';
+import FaixaRolagem from '@/components/FaixaRolagem';
+import Contador from '@/components/Contador';
 import { EMPRESA } from '@/lib/empresa';
 import Reveal from '@/components/Reveal';
 import VideoDemo, { reduzido } from '@/components/VideoDemo';
@@ -289,12 +291,25 @@ const RECURSOS = [
   },
 ];
 
+// x, y em % da área: as mesmas posições das pílulas no CSS (.lp-fonte-N)
 const FONTES = [
-  { icone: FileSpreadsheet, nome: 'Excel e CSV' },
-  { icone: Cloud, nome: 'OneDrive e SharePoint' },
-  { icone: Link2, nome: 'Google Planilhas' },
-  { icone: Database, nome: 'Banco SQL' },
-  { icone: PlugZap, nome: 'SAP, TOTVS e APIs' },
+  { icone: FileSpreadsheet, nome: 'Excel e CSV', x: 50, y: 12 },
+  { icone: Cloud, nome: 'OneDrive e SharePoint', x: 88, y: 40 },
+  { icone: Link2, nome: 'Google Planilhas', x: 76, y: 84 },
+  { icone: Database, nome: 'Banco SQL', x: 24, y: 84 },
+  { icone: PlugZap, nome: 'SAP, TOTVS e APIs', x: 12, y: 40 },
+];
+
+/** Curva de uma fonte até o centro, puxada um pouco para o lado. */
+function feixe({ x, y }) {
+  const mx = (x + 50) / 2 + (50 - y) * 0.18;
+  const my = (y + 50) / 2 - (50 - x) * 0.18;
+  return `M${x} ${y} Q${mx} ${my} 50 50`;
+}
+
+const FRASES = [
+  'Responde às 23h', 'Marca o corte de sábado', 'Consulta o estoque', 'Abre chamado',
+  'Fala do jeito da casa', 'Lê a planilha do OneDrive', 'Avisa a equipe', 'Conta o que perguntaram',
 ];
 
 const ASSUNTOS = [
@@ -366,6 +381,8 @@ export default function Landing() {
         </div>
       </section>
 
+      <FaixaRolagem frases={FRASES} />
+
       <section className="lp-sec">
         <div className="lp-in lp-chamado">
           <Reveal className="lp-chamado-texto">
@@ -406,6 +423,14 @@ export default function Landing() {
             </p>
           </Reveal>
           <Reveal className="lp-fontes" atraso={120}>
+            <svg className="lp-feixes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {FONTES.map((f, i) => (
+                <g key={f.nome}>
+                  <path d={feixe(f)} className="lp-feixe-base" />
+                  <path d={feixe(f)} className="lp-feixe-luz" pathLength="1" style={{ '--i': i }} />
+                </g>
+              ))}
+            </svg>
             <span className="lp-fontes-centro"><Marca size={52} /></span>
             {FONTES.map(({ icone: Icone, nome }, i) => (
               <span key={nome} className={`lp-fonte lp-fonte-${i + 1}`}>
@@ -431,7 +456,7 @@ export default function Landing() {
               {ASSUNTOS.map(([a, n], i) => (
                 <li key={a} style={{ '--i': i, '--w': n / ASSUNTOS[0][1] }}>
                   <span>{a}</span>
-                  <b>{n}</b>
+                  <b><Contador valor={n} atraso={i * 120} /></b>
                   <i aria-hidden="true" />
                 </li>
               ))}

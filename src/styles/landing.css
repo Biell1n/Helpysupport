@@ -1153,6 +1153,42 @@
   color: var(--azul-forte);
 }
 
+/* feixes: a informação sai de cada fonte e corre até o Helpy */
+.lp-feixes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.lp-feixes path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.lp-feixe-base {
+  vector-effect: non-scaling-stroke;
+  stroke: rgba(44, 93, 143, 0.18);
+  stroke-width: 1.5;
+}
+
+.lp-feixe-luz {
+  stroke: var(--senha);
+  stroke-width: 0.55; /* em unidades da área de 100: uns 3px na tela */
+  stroke-dasharray: 0.16 1;
+  stroke-dashoffset: 0.16;
+  filter: drop-shadow(0 0 4px rgba(31, 102, 244, 0.7));
+  animation: lp-feixe 2.8s cubic-bezier(0.45, 0, 0.25, 1) calc(var(--i) * 0.55s) infinite;
+}
+
+@keyframes lp-feixe {
+  70%,
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+
 .lp-fonte-1 { left: 50%; top: 12%; }
 .lp-fonte-2 { left: 88%; top: 40%; }
 .lp-fonte-3 { left: 76%; top: 84%; }
@@ -1975,5 +2011,62 @@
   .lp-recurso-prova {
     justify-self: start;
     margin-top: 6px;
+  }
+}
+
+/* ---------- faixa de frases que anda com a rolagem ---------- */
+
+.lp-faixa {
+  overflow: hidden;
+  padding: 70px 0 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.lp-faixa-linha {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.lp-faixa-copia {
+  display: flex;
+}
+
+.lp-faixa-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding-right: 0.45em;
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 700;
+  font-size: clamp(34px, 6vw, 84px);
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--tinta);
+}
+
+.lp-faixa-item svg {
+  width: 0.62em;
+  height: 0.62em;
+  flex: none;
+}
+
+.lp-faixa-contorno .lp-faixa-item {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--azul-forte);
+}
+
+.lp-faixa-contorno .lp-faixa-item svg {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-feixe-luz {
+    animation: none;
+    stroke-dasharray: none;
+    opacity: 0.35;
   }
 }
