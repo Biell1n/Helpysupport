@@ -12,7 +12,9 @@
 import type Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
-import { type AgendaConfig, carregarAgenda, hojeNoFuso, horariosLivres, marcar } from './agenda.ts';
+import {
+  type AgendaConfig, agendamentosDaConversa, alterarAgendamento, carregarAgenda, descreverAgendamento, hojeNoFuso, horariosLivres, marcar,
+} from './agenda.ts';
 import { type ApiConfig, consultarApi, sincronizarUrl, VALIDADE_URL_MS } from './fontes.ts';
 import { configSql, consultarSql } from './sql.ts';
 import {
@@ -154,7 +156,12 @@ Nunca afirme preço, disponibilidade, quantidade ou detalhe destes itens sem con
 
   const blocoAgenda = agenda
     ? `AGENDA
-Você pode ver horários livres (ver_horarios) e marcar (agendar). Antes de marcar, confirme serviço, dia, hora, nome e um contato. Nunca diga que marcou sem a ferramenta confirmar.${
+Você pode ver horários livres (ver_horarios), marcar (agendar) e mudar ou cancelar o que já marcou nesta conversa (alterar_agendamento). Antes de marcar, confirme serviço, dia, hora, nome e um contato. Nunca diga que marcou sem a ferramenta confirmar.
+- Os horários que esta conversa já marcou aparecem no fim destas instruções, em "JÁ MARCADO NESTA CONVERSA". Eles valem: não diga que não marcou, não marque de novo.
+- Um horário que você mesma marcou aparece como ocupado em ver_horarios. Isso é normal: é o horário desta pessoa.
+- Pessoa quer mudar a hora, anotar um detalhe (tamanho, cor, peça, pedido) ou desmarcar: use alterar_agendamento com o id. Nunca crie um segundo horário para isso.
+- Se a data que a pessoa disse for ambígua ("sexta", "dia 9"), confirme dia da semana e data antes de marcar.
+- valor é só o preço do serviço do horário. Preço de produto que a pessoa vai ver ou provar não é valor do agendamento. duracao_min só se a lista de serviços ou a ficha disser; não invente.${
         /confirmo/i.test(valueOf(cfg, 'usar_agenda'))
           ? ' O dono confirma cada horário: depois de agendar, diga que o pedido foi anotado e que ele ainda vai confirmar.'
           : ''
@@ -368,11 +375,27 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
             nome: { type: 'string' },
             contato: { type: 'string' },
             servico: { type: 'string' },
-            duracao_min: { type: 'integer' },
-            valor: { type: 'number', description: 'Preço do serviço em reais, se constar na ficha ou nos serviços' },
-            observacao: { type: 'string' },
+            duracao_min: { type: 'integer', description: 'Só se a lista de serviços ou a ficha disser a duração. Não invente.' },
+            valor: { type: 'number', description: 'Preço do SERVIÇO em reais, se constar na ficha ou nos serviços. Nunca o preço de um produto.' },
+            observacao: { type: 'string', description: 'Detalhes do pedido: peça, tamanho, cor, preferência' },
+            adicional: { type: 'boolean', description: 'true só quando a pessoa pediu um SEGUNDO horário além do que já tem nesta conversa' },
           },
           required: ['data', 'hora', 'nome', 'contato'],
+        },
+      },
+      {
+        name: 'alterar_agendamento',
+        description: 'Muda um horário que esta conversa já marcou: nova data/hora, um detalhe a mais na observação, ou cancelar. Use o id que aparece em "JÁ MARCADO NESTA CONVERSA".',
+        input_schema: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            data: { type: 'string', description: 'Nova data AAAA-MM-DD (se for remarcar)' },
+            hora: { type: 'string', description: 'Nova hora HH:MM (se for remarcar)' },
+            observacao: { type: 'string', description: 'Detalhe para acrescentar (ex.: "cropped branco, tamanho P")' },
+            cancelar: { type: 'boolean', description: 'true para desmarcar, só se a pessoa pediu' },
+          },
+          required: ['id'],
         },
       },
     );
@@ -557,8 +580,19 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       valor: args.valor != null && Number.isFinite(Number(args.valor)) ? Number(args.valor) : undefined,
       pendente: /confirmo/i.test(valueOf(cfg, 'usar_agenda')),
       registrar: /^sim/i.test(valueOf(cfg, 'agenda_registrar')),
+      adicional: args.adicional === true,
       assistant_id: assistant.id,
       conversation_id: conversationId,
+    });
+  }
+  if (agenda && nome === 'alterar_agendamento') {
+    return await alterarAgendamento(db, agenda, conversationId, {
+      id: String(args.id ?? ''),
+      dia: args.data ? String(args.data) : undefined,
+      hora: args.hora ? String(args.hora) : undefined,
+      observacao: args.observacao ? String(args.observacao) : undefined,
+      cancelar: args.cancelar === true,
+      registrar: /^sim/i.test(valueOf(cfg, 'agenda_registrar')),
     });
   }
 
@@ -580,9 +614,18 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
 
   const fuso = agenda?.fuso ?? 'America/Sao_Paulo';
   const agora = new Intl.DateTimeFormat('pt-BR', { timeZone: fuso, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
+  // o que esta conversa já marcou: as ferramentas de rodadas anteriores não ficam no histórico
+  const marcados = agenda ? await agendamentosDaConversa(r.db, r.conversationId) : [];
   const system: Anthropic.TextBlockParam[] = [
     { type: 'text', text: systemPrompt(a, tabelas, agenda), cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: `Agora: ${agora} (hoje é ${hojeNoFuso(fuso)}).` },
+    {
+      type: 'text',
+      text: `Agora: ${agora} (hoje é ${hojeNoFuso(fuso)}).${
+        agenda
+          ? `\nJÁ MARCADO NESTA CONVERSA: ${marcados.length ? `\n${marcados.map((m) => `- ${descreverAgendamento(m, fuso)}`).join('\n')}` : 'nada ainda.'}`
+          : ''
+      }`,
+    },
   ];
   const tools = ferramentas(a, tabelas, agenda);
 

@@ -1013,16 +1013,29 @@
   color: var(--tinta-3);
 }
 
+.cal-head.hoje {
+  /* uma linha azul em cima marca a coluna de hoje */
+  box-shadow: inset 0 3px 0 var(--senha);
+}
+
+.cal-head.hoje span {
+  color: var(--senha);
+}
+
 .cal-head.hoje b {
-  color: var(--sobre-tinta);
-  display: flex;
-  margin: 0 auto;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 36px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: 2px auto 0;
   border-radius: 50%;
-  background: var(--tinta);
+  background: var(--senha);
+  color: var(--sobre-senha);
+  font-size: 20px;
+  font-stretch: 100%;
+  font-weight: 500;
+  letter-spacing: 0;
+  box-shadow: 0 6px 14px -6px rgba(31, 102, 244, 0.6);
 }
 
 .cal-corner {
