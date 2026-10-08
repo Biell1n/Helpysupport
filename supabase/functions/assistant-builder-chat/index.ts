@@ -825,7 +825,19 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
         cfg.fields.usar_agenda = { value: 'Sim, marca sozinho', status: 'confirmado' };
       }
       touched.add('usar_agenda');
-      return { ok: true, mensagem: 'Agenda gravada e ligada. Diga em poucas palavras como ficou.' };
+      // o que a agenda ainda não sabe: o modelo pergunta antes de seguir
+      const final = { ...(atual ?? {}), ...novo } as { horarios?: Record<string, unknown[]>; servicos?: Array<{ nome: string; duracao_min?: number; valor?: number }> };
+      const falta: string[] = [];
+      if (!Object.values(final.horarios ?? {}).some((f) => Array.isArray(f) && f.length)) falta.push('os dias e horários de atendimento');
+      if (!final.servicos?.length) falta.push('os serviços que dá para marcar, com quanto tempo leva cada um');
+      const semTempo = (final.servicos ?? []).filter((x) => !x.duracao_min).map((x) => x.nome);
+      if (semTempo.length) falta.push(`quanto tempo leva: ${semTempo.join(', ')}`);
+      return {
+        ok: true,
+        mensagem: falta.length
+          ? `Agenda gravada e ligada. AINDA FALTA: ${falta.join('; ')}. Diga em poucas palavras como ficou e pergunte a próxima coisa que falta (uma só).`
+          : 'Agenda gravada e ligada, completa. Diga em poucas palavras como ficou.',
+      };
     }
 
     case 'desfazer': {
@@ -880,7 +892,14 @@ Em algum momento pergunte se o assistente pode passar a conversa para uma pessoa
 "Ele nunca deve…" ou "não pode falar de…" são regras: grave em regras com acrescentar=true, na hora.
 
 AGENDA
-Se o negócio marca horário (salão, clínica, aula, consultoria…), pergunte se ele quer que o assistente marque sozinho, deixe pendente para ele confirmar, ou não use agenda (campo usar_agenda). Se usar: pergunte dias e horários, os serviços com duração e valor, e grave com configurar_agenda. Pergunte também se quer registrar cada agendamento nos Dados com o valor (campo agenda_registrar). Negócio que não marca horário: não insista, deixe "Não usa agenda".
+Se o negócio marca horário (salão, barbearia, clínica, aula, consultoria, loja com provador…), pergunte se ele quer que o assistente marque sozinho, deixe pendente para ele confirmar, ou não use agenda (campo usar_agenda). Negócio que não marca horário: não insista, deixe "Não usa agenda".
+Se usar a agenda, a agenda só fica certa com estas respostas. Pergunte UMA de cada vez, na ordem, e grave cada uma com configurar_agenda assim que ouvir:
+1. Dias e horários em que atende, e se tem pausa (almoço). Pausa vira duas faixas no mesmo dia (09:00–12:00 e 13:00–18:00).
+2. Quanto tempo leva CADA serviço que dá para marcar. Serviços diferentes levam tempos diferentes (ex.: corte 1h, corte e barba 1h30): pergunte de cada um, nunca chute e nunca use um tempo só para todos.
+3. O valor de cada serviço (ou "sem valor", se o horário não é cobrado, como hora para provar roupa).
+4. Com quanta antecedência alguém pode marcar (ex.: até 2h antes).
+5. Se quer registrar cada agendamento nos Dados com o valor (campo agenda_registrar).
+O resultado de configurar_agenda diz o que ainda falta: pergunte isso antes de passar para outro assunto.
 
 TUDO QUE A PESSOA CLICA, VOCÊ TAMBÉM FAZ
 O documento à direita tem interruptores e caixinhas (ex.: o painel de chamados). Qualquer coisa que ela poderia clicar ela pode pedir no chat, e você faz na hora, sem mandar ela clicar:
