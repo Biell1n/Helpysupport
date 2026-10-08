@@ -1,0 +1,17 @@
+# Configuração mínima para `supabase functions deploy`.
+# O chat público é aberto a visitantes sem login: a própria função
+# valida o token do link e, quando há, o login do dono (modo teste).
+[functions.public-chat]
+verify_jwt = false
+
+[functions.assistant-builder-chat]
+verify_jwt = true
+
+[functions.dados-e-relatorios]
+verify_jwt = true
+
+[functions.conta]
+verify_jwt = true
+
+[functions.sql-server]
+verify_jwt = true

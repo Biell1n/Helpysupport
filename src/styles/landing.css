@@ -1,0 +1,1550 @@
+/* ============================================================
+   Página inicial e telas de entrada
+
+   Direção: céu claro. Azul de céu e branco, letra larga da logo
+   (Archivo expandida) nos títulos, botões em pílula, cartões
+   brancos arredondados e o vídeo de demonstração no centro do
+   hero, que cresce até ocupar a tela conforme a pessoa rola.
+   ============================================================ */
+
+.lp {
+  background: var(--papel);
+  overflow-x: clip;
+}
+
+.lp-in {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.lp a,
+.lp-top a,
+.auth-arte a,
+.side-brand {
+  text-decoration: none;
+}
+
+/* ---------- surgir ao rolar ---------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 1s cubic-bezier(0.16, 1, 0.3, 1) var(--atraso, 0ms),
+    transform 1s cubic-bezier(0.16, 1, 0.3, 1) var(--atraso, 0ms);
+}
+
+.reveal[data-visto='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+.lp-entra {
+  opacity: 0;
+  animation: lp-entra 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0s) forwards;
+}
+
+@keyframes lp-entra {
+  from {
+    opacity: 0;
+    translate: 0 30px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* ---------- tipos ---------- */
+
+.lp-h2 {
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 500;
+  font-size: clamp(36px, 4.6vw, 72px);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.lp-lead {
+  font-size: clamp(16px, 1.3vw, 19px);
+  line-height: 1.6;
+  color: var(--tinta-2);
+  max-width: 540px;
+}
+
+.lp-h2 + .lp-lead {
+  margin-top: 22px;
+}
+
+.lp-etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 14px;
+  margin-bottom: 22px;
+  border-radius: 999px;
+  background: var(--branco);
+  border: 1px solid var(--linha);
+  font-family: var(--f-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--azul-forte);
+}
+
+.lp-etiqueta::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--azul-forte);
+}
+
+.lp-nota {
+  margin-top: 22px;
+  font-size: 14px;
+  color: var(--tinta-3);
+  text-align: center;
+}
+
+/* ---------- botões ---------- */
+
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition: background 0.3s, color 0.3s, border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+}
+
+.lp-btn svg {
+  width: 17px;
+  height: 17px;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lp-btn:hover svg {
+  transform: translateX(3px);
+}
+
+.lp-btn-cheio {
+  background: var(--tinta);
+  color: var(--sobre-tinta);
+}
+
+.lp-btn-cheio:hover {
+  background: #1c3450;
+  box-shadow: 0 14px 30px -12px rgba(11, 26, 44, 0.45);
+}
+
+.lp-btn-contorno {
+  height: 42px;
+  border-color: var(--tinta);
+  color: var(--tinta);
+}
+
+.lp-btn-contorno:hover {
+  background: var(--tinta);
+  color: var(--sobre-tinta);
+}
+
+.lp-btn-claro {
+  background: var(--branco);
+  color: var(--tinta);
+}
+
+.lp-btn-claro:hover {
+  background: var(--azul-claro);
+}
+
+.lp-btn-bloco {
+  width: 100%;
+}
+
+.lp-link {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--tinta-2);
+  transition: color 0.3s;
+}
+
+.lp-link:hover {
+  color: var(--tinta);
+}
+
+/* ---------- topo ---------- */
+
+.lp-top {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 30;
+  border-bottom: 1px solid transparent;
+  transition: background 0.4s, border-color 0.4s, backdrop-filter 0.4s;
+}
+
+.lp-top[data-rolou='true'] {
+  background: rgba(242, 246, 250, 0.78);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border-bottom-color: var(--linha);
+}
+
+.lp-top-in {
+  height: 76px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+}
+
+.lp-nav {
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+}
+
+.lp-nav a {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tinta-2);
+  transition: background 0.3s, color 0.3s;
+}
+
+.lp-nav a:hover {
+  background: var(--branco);
+  color: var(--tinta);
+}
+
+.lp-top-acoes {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 22px;
+}
+
+/* ---------- hero: o robô no céu ---------- */
+
+.lp-robo {
+  --mx: 0;
+  --my: 0;
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  overflow: hidden;
+  background: #d6e6f8;
+}
+
+.lp-robo-ceu {
+  position: absolute;
+  inset: -6%;
+  z-index: -2;
+  background: url('/img/ceu.webp') center / cover no-repeat;
+  transform:
+    translate(calc(var(--mx) * -10px), calc(var(--my) * -8px + var(--p, 0) * 12vh))
+    scale(calc(1.04 + var(--p, 0) * 0.08));
+  animation: lp-ceu 24s ease-in-out infinite alternate;
+}
+
+@keyframes lp-ceu {
+  from {
+    filter: hue-rotate(0deg) brightness(1);
+  }
+  to {
+    filter: hue-rotate(-8deg) brightness(1.04);
+  }
+}
+
+/* um véu claro embaixo, para emendar no resto da página */
+.lp-robo::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 22vh;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(242, 246, 250, 0), var(--papel));
+}
+
+.lp-robo-titulo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 500;
+  font-size: clamp(46px, 7vw, 128px);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+  color: var(--tinta);
+}
+
+.lp-robo-a,
+.lp-robo-b {
+  position: absolute;
+  white-space: nowrap;
+}
+
+.lp-robo-a > span,
+.lp-robo-b > span {
+  display: block;
+}
+
+.lp-robo-a {
+  z-index: 1; /* atrás do robô */
+  left: max(40px, calc((100vw - 1320px) / 2 + 40px));
+  top: 15vh;
+  transform: translate(calc(var(--mx) * 10px + var(--p, 0) * -30vw), calc(var(--my) * 6px));
+}
+
+.lp-robo-b {
+  z-index: 3; /* na frente do robô */
+  right: max(40px, calc((100vw - 1320px) / 2 + 40px));
+  top: 64vh;
+  color: var(--azul-forte);
+  transform: translate(calc(var(--mx) * 10px + var(--p, 0) * 30vw), calc(var(--my) * 6px));
+}
+
+.lp-robo-figura {
+  position: absolute;
+  z-index: 2;
+  left: 47%;
+  top: 48%;
+  width: min(58vh, 40vw, 600px);
+  aspect-ratio: 1328 / 1184;
+  transform:
+    translate(-50%, -50%)
+    translate(calc(var(--mx) * 22px), calc(var(--my) * 16px + var(--p, 0) * -14vh))
+    scale(calc(1 + var(--p, 0) * 0.12));
+}
+
+.lp-robo-flutua {
+  width: 100%;
+  height: 100%;
+}
+
+.lp-robo-flutua img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 50px 60px rgba(30, 70, 130, 0.25));
+  animation: lp-flutua 6.5s ease-in-out infinite;
+}
+
+@keyframes lp-flutua {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-18px) rotate(1.5deg);
+  }
+}
+
+.lp-ponto {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  opacity: calc(1 - var(--p, 0) * 3);
+}
+
+.lp-ponto i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--branco);
+  border: 4px solid var(--azul-forte);
+  flex-shrink: 0;
+  animation: lp-pisca 2.4s ease-out infinite;
+}
+
+.lp-ponto b {
+  position: relative;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 14px 30px -14px rgba(11, 26, 44, 0.35);
+}
+
+.lp-ponto b::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 52px;
+  height: 1.5px;
+  background: rgba(44, 93, 143, 0.55);
+}
+
+/* pontos para a esquerda: rótulo antes do ponto */
+.lp-ponto-a,
+.lp-ponto-c {
+  flex-direction: row-reverse;
+  translate: -100% 0;
+}
+
+.lp-ponto-a b,
+.lp-ponto-c b {
+  margin-right: 52px;
+}
+
+.lp-ponto-a b::before,
+.lp-ponto-c b::before {
+  left: 100%;
+}
+
+.lp-ponto-b b {
+  margin-left: 52px;
+}
+
+.lp-ponto-b b::before {
+  right: 100%;
+}
+
+.lp-ponto-a {
+  left: 22%;
+  top: 70%;
+}
+
+.lp-ponto-b {
+  left: 84%;
+  top: 34%;
+}
+
+.lp-ponto-c {
+  left: 30%;
+  top: 92%;
+}
+
+@keyframes lp-pisca {
+  0% {
+    box-shadow: 0 0 0 0 rgba(44, 93, 143, 0.45);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 12px rgba(44, 93, 143, 0);
+  }
+}
+
+.lp-robo-lado {
+  position: absolute;
+  z-index: 3;
+  left: max(40px, calc((100vw - 1320px) / 2 + 40px));
+  bottom: 9vh;
+  max-width: 300px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--tinta-2);
+  opacity: calc(1 - var(--p, 0) * 2.5);
+}
+
+.lp-robo-acoes {
+  position: absolute;
+  z-index: 3;
+  right: max(40px, calc((100vw - 1320px) / 2 + 40px));
+  bottom: 9vh;
+  display: flex;
+  gap: 12px;
+  opacity: calc(1 - var(--p, 0) * 2.5);
+}
+
+.lp-btn-vidro {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.9);
+  color: var(--tinta);
+  backdrop-filter: blur(10px);
+}
+
+.lp-btn-vidro:hover {
+  background: var(--branco);
+}
+
+/* ---------- o vídeo que cresce ao rolar ---------- */
+
+.lp-filme {
+  position: relative;
+  height: 220vh;
+}
+
+.lp-filme-preso {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.lp-filme-cab {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  top: 11vh;
+  text-align: center;
+  opacity: calc(1 - var(--p, 0) * 2.2);
+  transform: translateY(calc(var(--p, 0) * -6vh));
+}
+
+.lp-filme-midia {
+  --escala: calc(0.5 + var(--p, 0) * 0.5);
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 56%;
+  width: 100vw;
+  aspect-ratio: 16 / 9;
+  translate: -50% -50%;
+  scale: var(--escala);
+  border-radius: calc(30px / var(--escala));
+  overflow: hidden;
+  background: #dbe8f4;
+  box-shadow: 0 60px 120px -50px rgba(11, 26, 44, 0.45);
+  will-change: scale;
+}
+
+.lp-filme-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lp-filme-passos {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 6vh;
+  translate: -50% 0;
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  opacity: calc(1 - var(--p, 0) * 2.2);
+}
+
+.lp-filme-passos span {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tinta-2);
+}
+
+/* ---------- seções ---------- */
+
+.lp-sec {
+  position: relative;
+  padding: 140px 0 0;
+}
+
+.lp-cab {
+  margin-bottom: 56px;
+}
+
+.lp-cab-centro {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lp-cab-centro .lp-lead {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.lp-duas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 72px;
+  align-items: center;
+}
+
+/* ---------- como funciona ---------- */
+
+.lp-passos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.lp-passo {
+  background: var(--branco);
+  border-radius: 28px;
+  padding: 16px 16px 30px;
+  box-shadow: var(--sombra);
+}
+
+.lp-passo-tela {
+  height: 210px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #d3e3f2, #eef4fa);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  margin-bottom: 26px;
+  overflow: hidden;
+}
+
+.lp-passo-n,
+.lp-passo h3,
+.lp-passo p {
+  margin-left: 14px;
+  margin-right: 14px;
+}
+
+.lp-passo-n {
+  font-family: var(--f-mono);
+  font-size: 13px;
+  color: var(--azul-forte);
+}
+
+.lp-passo h3 {
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 500;
+  font-size: 24px;
+  letter-spacing: -0.035em;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.lp-passo p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--tinta-2);
+}
+
+.lp-mini-chat {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lp-mini-chat span {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 13.5px;
+}
+
+.lp-mini-chat .eu {
+  align-self: flex-end;
+  background: var(--tinta);
+  color: var(--sobre-tinta);
+  border-bottom-right-radius: 4px;
+}
+
+.lp-mini-chat .ele {
+  align-self: flex-start;
+  background: var(--branco);
+  border-bottom-left-radius: 4px;
+}
+
+.lp-mini-doc {
+  width: 100%;
+  list-style: none;
+  margin: 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--branco);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lp-mini-doc li {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--linha);
+  font-size: 13.5px;
+}
+
+.lp-mini-doc span {
+  color: var(--tinta-3);
+}
+
+.lp-mini-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 999px;
+  background: var(--branco);
+  font-family: var(--f-mono);
+  font-size: 13px;
+  box-shadow: 0 14px 30px -16px rgba(11, 26, 44, 0.3);
+}
+
+.lp-mini-link svg {
+  width: 16px;
+  height: 16px;
+  color: var(--azul-forte);
+}
+
+.lp-mini-link b {
+  font-family: var(--f-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--folha);
+  background: var(--folha-clara);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+/* ---------- recursos, com o 24h gigante ao fundo ---------- */
+
+.lp-sec-24 {
+  overflow: hidden;
+  padding-bottom: 20px;
+}
+
+.lp-gigante {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  translate: -50% 0;
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 600;
+  font-size: clamp(200px, 34vw, 560px);
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  color: rgba(44, 93, 143, 0.06);
+  pointer-events: none;
+  user-select: none;
+}
+
+.lp-sec-24 .lp-in {
+  position: relative;
+}
+
+.lp-recursos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.lp-recursos article {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--branco);
+  border-radius: 26px;
+  padding: 30px;
+  box-shadow: var(--sombra);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s;
+}
+
+.lp-recursos article:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 2px 4px rgba(11, 26, 44, 0.04), 0 26px 50px -24px rgba(11, 26, 44, 0.25);
+}
+
+.lp-recurso-icone {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--azul-claro);
+  color: var(--azul-forte);
+  margin-bottom: 22px;
+}
+
+.lp-recurso-icone svg {
+  width: 22px;
+  height: 22px;
+}
+
+.lp-recursos h3 {
+  font-size: 19px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.lp-recursos p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--tinta-2);
+}
+
+/* ---------- chamados ---------- */
+
+.lp-chamado {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 72px;
+  align-items: center;
+}
+
+.lp-chamado-arte {
+  position: relative;
+  padding: 48px 32px 32px;
+  border-radius: 32px;
+  background: linear-gradient(160deg, #cfe0f0, #eaf2f9);
+}
+
+.lp-chamado-caixa {
+  margin-top: 22px;
+  background: var(--branco);
+  border-radius: 20px;
+  padding: 22px 24px;
+  box-shadow: var(--sombra);
+}
+
+.lp-chamado-caixa small {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+.lp-chamado-caixa p {
+  margin-top: 8px;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+/* a senha: o canhoto amarelo do chamado */
+.lp-senha {
+  --furo: 10px;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  width: min(500px, 100%);
+  background: var(--senha);
+  color: var(--sobre-senha);
+  border-radius: 10px;
+  transform: rotate(-2deg);
+  box-shadow: 0 30px 60px -28px rgba(120, 90, 0, 0.45);
+  -webkit-mask: radial-gradient(circle var(--furo) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--furo) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle var(--furo) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--furo) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+}
+
+.lp-senha-num {
+  padding: 20px 22px;
+  border-right: 2px dashed rgba(20, 18, 14, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lp-senha-num small {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.lp-senha-num b {
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 26px;
+  white-space: nowrap;
+}
+
+.lp-senha-corpo {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.lp-senha-corpo b {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.lp-senha-corpo span {
+  font-size: 13px;
+  opacity: 0.72;
+}
+
+/* ---------- integrações: o Helpy no centro, as fontes em volta ---------- */
+
+.lp-fontes {
+  position: relative;
+  aspect-ratio: 1;
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.lp-fontes::before,
+.lp-fontes::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(44, 93, 143, 0.28);
+}
+
+.lp-fontes::before {
+  inset: 12%;
+  animation: lp-gira 60s linear infinite;
+}
+
+.lp-fontes::after {
+  inset: 30%;
+  border-style: solid;
+  border-color: rgba(44, 93, 143, 0.12);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 70%);
+}
+
+@keyframes lp-gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lp-fontes-centro {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  width: 104px;
+  height: 104px;
+  border-radius: 32px;
+  background: var(--branco);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 24px 50px -20px rgba(11, 26, 44, 0.35);
+}
+
+.lp-fonte {
+  position: absolute;
+  z-index: 1;
+  translate: -50% -50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--branco);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 14px 30px -16px rgba(11, 26, 44, 0.3);
+}
+
+.lp-fonte svg {
+  width: 16px;
+  height: 16px;
+  color: var(--azul-forte);
+}
+
+.lp-fonte-1 { left: 50%; top: 12%; }
+.lp-fonte-2 { left: 88%; top: 40%; }
+.lp-fonte-3 { left: 76%; top: 84%; }
+.lp-fonte-4 { left: 24%; top: 84%; }
+.lp-fonte-5 { left: 12%; top: 40%; }
+
+/* ---------- relatório de exemplo ---------- */
+
+.lp-duas-inverte > :first-child {
+  order: 0;
+}
+
+.lp-relatorio {
+  background: var(--branco);
+  border-radius: 28px;
+  padding: 32px;
+  box-shadow: var(--sombra);
+}
+
+.lp-relatorio-cab {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.lp-relatorio-cab b {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.lp-relatorio-cab span {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--tinta-3);
+}
+
+.lp-relatorio ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lp-relatorio li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  font-size: 15px;
+}
+
+.lp-relatorio li b {
+  font-family: var(--f-mono);
+  font-weight: 500;
+}
+
+.lp-relatorio li i {
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 8px;
+  background: var(--papel-2);
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-relatorio li i::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--w) * 100%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--azul-forte), #5d8dbd);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1.4s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 120ms + 250ms);
+}
+
+.lp-relatorio[data-visto='true'] li i::after {
+  transform: scaleX(1);
+}
+
+/* ---------- planos (também usados na página de plano do painel) ---------- */
+
+.lp-planos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.lp-plano {
+  position: relative;
+  background: var(--branco);
+  border-radius: 28px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  box-shadow: var(--sombra);
+}
+
+.lp-plano-destaque {
+  background: var(--tinta);
+  color: var(--sobre-tinta);
+}
+
+.lp-plano-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.lp-plano h3 {
+  font-family: var(--f-mono);
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+.lp-plano-destaque h3 {
+  color: #a9c2dc;
+}
+
+.lp-plano-tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--senha);
+  color: var(--sobre-senha);
+}
+
+.lp-preco {
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 500;
+  font-size: clamp(40px, 3.8vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.lp-preco small {
+  font-family: var(--f-body);
+  font-stretch: 100%;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+  opacity: 0.6;
+  margin-left: 6px;
+}
+
+.lp-plano ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.lp-plano li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-top: 1px solid var(--linha);
+  font-size: 15px;
+}
+
+.lp-plano-destaque li {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.lp-plano li svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--azul-forte);
+  transform: translateY(2px);
+}
+
+/* ---------- perguntas ---------- */
+
+.lp-faq {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lp-faq details {
+  background: var(--branco);
+  border-radius: 20px;
+  padding: 0 24px;
+  box-shadow: 0 1px 2px rgba(11, 26, 44, 0.04);
+  transition: box-shadow 0.3s;
+}
+
+.lp-faq details[open] {
+  box-shadow: var(--sombra);
+}
+
+.lp-faq summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 22px 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.lp-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.lp-faq summary svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--azul-forte);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lp-faq details[open] summary svg {
+  transform: rotate(45deg);
+}
+
+.lp-faq details p {
+  padding: 0 0 24px;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--tinta-2);
+}
+
+/* ---------- final ---------- */
+
+.lp-sec-final {
+  padding-bottom: 100px;
+}
+
+.lp-final {
+  position: relative;
+  overflow: hidden;
+  border-radius: 40px;
+  padding: 110px 40px;
+  text-align: center;
+  color: var(--sobre-tinta);
+  background:
+    radial-gradient(60% 80% at 80% 0%, rgba(157, 187, 216, 0.55), transparent 70%),
+    linear-gradient(160deg, #0b1a2c 0%, #1d3d60 60%, #2c5d8f 100%);
+}
+
+.lp-final h2 {
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 500;
+  font-size: clamp(44px, 7vw, 116px);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+}
+
+.lp-final p {
+  margin: 26px auto 36px;
+  max-width: 460px;
+  font-size: 17px;
+  color: #b9cde2;
+}
+
+/* ---------- rodapé ---------- */
+
+.lp-foot {
+  border-top: 1px solid var(--linha);
+  padding: 28px 0 34px;
+}
+
+.lp-foot-in {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.lp-foot nav {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.lp-foot a {
+  color: var(--tinta-2);
+}
+
+.lp-foot a:hover {
+  color: var(--tinta);
+}
+
+/* ---------- telas menores ---------- */
+
+@media (max-width: 1080px) {
+  .lp-nav {
+    display: none;
+  }
+
+  .lp-top-in {
+    grid-template-columns: auto 1fr;
+  }
+
+  .lp-recursos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lp-ponto {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .lp-in {
+    padding: 0 20px;
+  }
+
+  .lp-top-in {
+    height: 64px;
+  }
+
+  .lp-top-acoes {
+    gap: 14px;
+  }
+
+  /* no celular: robô menor, títulos em cima, vídeo sem prender */
+  .lp-robo {
+    min-height: auto;
+    padding: 96px 20px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .lp-robo-titulo {
+    position: relative;
+    inset: auto;
+    font-size: clamp(38px, 11.5vw, 64px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lp-robo-a,
+  .lp-robo-b {
+    position: static;
+    transform: none;
+    white-space: normal;
+  }
+
+  .lp-robo-figura {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: min(78vw, 360px);
+    margin: 0 auto;
+    transform: none;
+  }
+
+  .lp-robo-lado,
+  .lp-robo-acoes {
+    position: static;
+    opacity: 1;
+    max-width: none;
+  }
+
+  .lp-robo-acoes {
+    flex-direction: column;
+  }
+
+  .lp-robo-acoes .lp-btn {
+    width: 100%;
+  }
+
+  .lp-filme {
+    height: auto;
+    padding: 60px 20px 0;
+  }
+
+  .lp-filme-preso {
+    position: relative;
+    height: auto;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .lp-filme-cab,
+  .lp-filme-passos {
+    position: static;
+    opacity: 1;
+    transform: none;
+    translate: none;
+  }
+
+  .lp-filme-passos {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .lp-filme-midia {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 100%;
+    translate: none;
+    scale: none;
+    border-radius: 18px;
+  }
+
+  .lp-sec {
+    padding-top: 100px;
+  }
+
+  .lp-passos,
+  .lp-recursos,
+  .lp-duas,
+  .lp-chamado,
+  .lp-planos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lp-duas,
+  .lp-chamado {
+    gap: 40px;
+  }
+
+  .lp-cab {
+    margin-bottom: 36px;
+  }
+
+  .lp-fonte {
+    height: 38px;
+    padding: 0 12px;
+    font-size: 12.5px;
+  }
+
+  .lp-final {
+    padding: 80px 24px;
+    border-radius: 28px;
+  }
+
+  .lp-senha {
+    grid-template-columns: 116px minmax(0, 1fr);
+  }
+
+  .lp-senha-num {
+    padding: 18px 16px;
+  }
+
+  .lp-senha-num b {
+    font-size: 19px;
+  }
+
+  .lp-foot-in {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 420px) {
+  .lp-top-acoes .lp-link {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .lp-entra {
+    opacity: 1;
+    transform: none;
+    translate: none;
+    animation: none;
+    transition: none;
+  }
+
+  .lp-relatorio li i::after {
+    transform: none;
+  }
+
+  .lp-fontes::before,
+  .lp-ponto i,
+  .lp-robo-flutua img,
+  .lp-robo-ceu {
+    animation: none;
+  }
+}
+
+/* ---------- entrar / criar conta ---------- */
+
+.auth {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  background: var(--branco);
+}
+
+.auth-arte {
+  position: relative;
+  margin: 14px;
+  border-radius: 32px;
+  background:
+    radial-gradient(50% 40% at 20% 15%, rgba(255, 255, 255, 0.7), transparent 70%),
+    linear-gradient(160deg, #c3d8ec 0%, #e1ecf6 60%, #f2f6fa 100%);
+  padding: 36px 44px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+  overflow: hidden;
+}
+
+.auth-arte h2 {
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 500;
+  font-size: clamp(32px, 3.4vw, 54px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  max-width: 560px;
+}
+
+.auth-arte h2 span {
+  color: var(--azul-forte);
+}
+
+.auth-arte .lp-senha {
+  margin-top: 36px;
+  width: min(440px, 100%);
+}
+
+.auth-form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+.auth-box {
+  width: min(400px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.auth-box h1 {
+  font-size: 40px;
+}
+
+.ou {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--tinta-3);
+}
+
+.ou::before,
+.ou::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--linha);
+}
+
+@media (max-width: 860px) {
+  .auth {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-arte {
+    display: none;
+  }
+}

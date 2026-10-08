@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <mask id="recorte">
+      <rect width="64" height="64" fill="#fff"/>
+      <circle cx="5" cy="27" r="5" fill="#000"/>
+      <circle cx="59" cy="27" r="5" fill="#000"/>
+    </mask>
+    <clipPath id="canhoto"><rect x="44" y="0" width="20" height="64"/></clipPath>
+  </defs>
+  <g mask="url(#recorte)">
+    <rect x="5" y="9" width="54" height="36" rx="9" fill="#0C0E13"/>
+    <path d="M14 43 L11 57 L27 43 Z" fill="#0C0E13"/>
+    <rect x="5" y="9" width="54" height="36" rx="9" fill="#FFCF33" clip-path="url(#canhoto)"/>
+  </g>
+  <path d="M44 13.5v27" stroke="#0C0E13" stroke-width="2.4" stroke-dasharray="2.6 3.2"/>
+  <path d="M15.5 21.5h18M15.5 31h11" stroke="#ECEEF2" stroke-width="4.2" stroke-linecap="round"/>
+</svg>
