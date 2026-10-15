@@ -1,16 +1,17 @@
 // ============================================================
-// canal-webhook — onde a Meta e o Discord avisam que chegou mensagem
+// Onde a Meta e o Discord avisam que chegou mensagem. Atende pelo
+// mesmo endereço do chat público (public-chat), que já é aberto sem
+// login:
 //
-//   GET  ?hub.mode=subscribe…          → a Meta confirmando o endereço
-//   POST (WhatsApp / Instagram)        → assinatura conferida, resposta
-//                                        em segundo plano pelo canal
-//   POST ?discord=<canal>              → comando /helpy (Ed25519)
+//   GET  ?canal=meta&hub.mode=subscribe… → a Meta confirmando o endereço
+//   POST ?canal=meta (WhatsApp/Instagram) → assinatura conferida, resposta
+//                                           em segundo plano pelo canal
+//   POST ?discord=<canal>                 → comando /helpy (Ed25519)
 //
-// Sem login (quem chama é a Meta ou o Discord): a segurança é a
-// assinatura de cada aviso.
+// A segurança é a assinatura de cada aviso.
 // ============================================================
 
-import { admin } from '../_shared/db.ts';
+import { admin } from './db.ts';
 import {
   assinaturaDiscordOk,
   assinaturaMetaOk,
@@ -20,8 +21,8 @@ import {
   responderInteracaoDiscord,
   segredoDo,
   type TipoCanal,
-} from '../_shared/canais.ts';
-import { atenderNoCanal } from '../_shared/canal-atender.ts';
+} from './canais.ts';
+import { atenderNoCanal } from './canal-atender.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -204,7 +205,13 @@ async function discord(req: Request, canalId: string): Promise<Response> {
   return jsonOk({ type: 5, data: { flags: 64 } });
 }
 
-Deno.serve(async (req) => {
+/** O pedido veio da Meta ou do Discord (e não do chat)? */
+export function ehDoCanal(req: Request): boolean {
+  const q = new URL(req.url).searchParams;
+  return q.has('canal') || q.has('discord');
+}
+
+export async function receberDoCanal(req: Request): Promise<Response> {
   try {
     const discordId = new URL(req.url).searchParams.get('discord');
     return discordId ? await discord(req, discordId) : await meta(req);
@@ -212,4 +219,4 @@ Deno.serve(async (req) => {
     console.error('canal-webhook:', e);
     return ok('', 500);
   }
-});
+}

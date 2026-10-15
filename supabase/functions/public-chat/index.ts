@@ -24,6 +24,7 @@ import { logUsage } from '../_shared/ai.ts';
 import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { normalizeConfig, valueOf } from '../_shared/schema.ts';
+import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
 
 const MAX_CHARS = 2000;
 const BITS_DESAFIO = 17;
@@ -119,6 +120,8 @@ const paraOCliente = (m: { role: string; author_name?: string | null }) =>
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  // WhatsApp, Instagram e Discord avisam neste mesmo endereço
+  if (ehDoCanal(req)) return receberDoCanal(req);
 
   try {
     const body = await req.json().catch(() => ({}));

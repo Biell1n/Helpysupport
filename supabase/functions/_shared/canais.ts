@@ -24,7 +24,6 @@ const GRAPH = 'https://graph.facebook.com/v21.0';
 const GRAPH_IG = 'https://graph.instagram.com/v21.0';
 const DISCORD = 'https://discord.com/api/v10';
 
-
 export const NOMES: Record<TipoCanal, string> = { whatsapp: 'WhatsApp', instagram: 'Instagram', discord: 'Discord' };
 
 /**

@@ -9,7 +9,9 @@ import { planOf } from '@/lib/plans';
 import { quando } from '@/lib/format';
 import { IconeDoCanal as Icone } from '@/components/IconesCanais';
 
-const WEBHOOK = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/canal-webhook`;
+// os avisos da Meta e do Discord chegam pelo mesmo endereço do chat público
+const BASE = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/public-chat`;
+const WEBHOOK = `${BASE}?canal=meta`;
 const COLUNAS = 'id, assistant_id, tipo, status, nome, externo_id, config, verificar_token, ultimo_evento_em, erro, criado_em';
 
 const SERVICOS = [
@@ -176,7 +178,7 @@ function Enderecos({ canal }) {
     const convite = `https://discord.com/oauth2/authorize?client_id=${canal.externo_id}&scope=bot+applications.commands&permissions=2048`;
     return (
       <div className="stack-sm">
-        <Copiavel rotulo="Interactions Endpoint URL" valor={`${WEBHOOK}?discord=${canal.id}`} dica="Cole em General Information no Developer Portal e salve." />
+        <Copiavel rotulo="Interactions Endpoint URL" valor={`${BASE}?discord=${canal.id}`} dica="Cole em General Information no Developer Portal e salve." />
         <a className="btn btn-ghost btn-sm" href={convite} target="_blank" rel="noreferrer" style={{ alignSelf: 'flex-start' }}>
           <ExternalLink size={15} /> Convidar o bot para um servidor
         </a>
