@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { chamar, supabase } from '@/lib/supabase';
 import { PainelDuasEtapas } from '@/components/DuasEtapas';
 import { erroAuth } from '@/lib/erroAuth';
+import Captcha, { useCaptcha } from '@/components/Captcha';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 
@@ -34,15 +35,19 @@ export default function Conta() {
     avisar('Dados salvos');
   };
 
+  const capSenha = useCaptcha();
+  const capExcluir = useCaptcha();
   const trocarSenha = async (e) => {
     e.preventDefault();
     if (senha.length < 8) return avisar('Senha curta', { erro: true, texto: 'Use pelo menos 8 caracteres.' });
+    if (temSenha && capSenha.falta) return avisar('Confirme a verificação "não sou um robô"', { erro: true });
     if (temSenha) {
       // confere a senha atual num cliente à parte, sem mexer na sessão aberta
       const teste = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
         auth: { persistSession: false, autoRefreshToken: false, storageKey: 'helpy-confere-senha' },
       });
-      const { error: errAtual } = await teste.auth.signInWithPassword({ email: user.email, password: atual });
+      const { error: errAtual } = await teste.auth.signInWithPassword({ email: user.email, password: atual, options: capSenha.extra });
+      capSenha.nova();
       if (errAtual) return avisar('Senha atual incorreta', { erro: true });
       await teste.auth.signOut({ scope: 'local' });
     }
@@ -58,7 +63,8 @@ export default function Conta() {
     e.preventDefault();
     setExcluir((x) => ({ ...x, ocupado: true }));
     try {
-      await chamar('conta', { action: 'excluir', senha: excluir.senha, confirmacao: excluir.texto });
+      await chamar('conta', { action: 'excluir', senha: excluir.senha, confirmacao: excluir.texto, captcha: capExcluir.token });
+      capExcluir.nova();
       await supabase.auth.signOut({ scope: 'local' });
       window.location.assign('/');
     } catch (err) {
@@ -117,6 +123,7 @@ export default function Conta() {
             <span className="hint">Pelo menos 8 caracteres. Evite senhas que você usa em outros sites.</span>
           </label>
         </div>
+        {temSenha && <Captcha {...capSenha.props} />}
         <div><button className="btn btn-ghost" disabled={!senha || (temSenha && !atual)}>Trocar senha</button></div>
       </form>
 
@@ -150,6 +157,7 @@ export default function Conta() {
                 <input className="input" required value={excluir.texto} onChange={(e) => setExcluir((x) => ({ ...x, texto: e.target.value }))} />
               </label>
             )}
+            <Captcha {...capExcluir.props} />
             <div className="row row-wrap">
               <button className="btn btn-danger" disabled={excluir.ocupado}>{excluir.ocupado ? 'Excluindo…' : 'Excluir para sempre'}</button>
               <button type="button" className="btn btn-ghost" onClick={() => setExcluir({ aberto: false, senha: '', texto: '', ocupado: false })}>Cancelar</button>

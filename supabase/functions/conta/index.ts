@@ -27,11 +27,12 @@ function novoToken(): string {
 }
 
 /** Confere a senha sem abrir sessão nova no navegador. */
-async function senhaConfere(email: string, senha: string): Promise<boolean> {
+async function senhaConfere(email: string, senha: string, captcha?: string): Promise<boolean> {
   const r = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: Deno.env.get('SUPABASE_ANON_KEY')!, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password: senha }),
+    // com o captcha ligado no Supabase, a conferência da senha também precisa do token
+    body: JSON.stringify({ email, password: senha, ...(captcha ? { gotrue_meta_security: { captcha_token: captcha } } : {}) }),
   });
   if (!r.ok) return false;
   // a sessão criada só para conferir é encerrada na hora
@@ -85,7 +86,8 @@ Deno.serve(async (req) => {
     if (action === 'excluir') {
       const temSenha = (user.app_metadata?.providers ?? [user.app_metadata?.provider]).includes('email');
       if (temSenha) {
-        if (!(await senhaConfere(user.email!, String(body.senha ?? '')))) throw new UserError('Senha incorreta.', 403);
+        const captcha = typeof body.captcha === 'string' ? body.captcha.slice(0, 4096) : undefined;
+        if (!(await senhaConfere(user.email!, String(body.senha ?? ''), captcha))) throw new UserError('Senha incorreta (ou a verificação "não sou um robô" expirou).', 403);
       } else if (String(body.confirmacao ?? '').trim().toUpperCase() !== 'EXCLUIR') {
         throw new UserError('Digite EXCLUIR para confirmar.');
       }
