@@ -1656,6 +1656,26 @@
   overflow: hidden;
 }
 
+/* o shader fica atrás; sem WebGL, aparece o gradiente da própria caixa */
+.fundo-shader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.fundo-shader[data-pronto] {
+  opacity: 1;
+}
+
+.auth-arte > :not(.fundo-shader) {
+  position: relative;
+  z-index: 1;
+}
+
 .auth-arte h2 {
   font-family: var(--f-display);
   font-stretch: 125%;
