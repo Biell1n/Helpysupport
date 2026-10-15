@@ -2,18 +2,17 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Download, Printer } from 'lucide-react';
 import { Modal } from '@/components/Modal';
-import { balaoEm, CONTORNO, CORES, OLHOS_CONTORNO } from '@/components/marcaDesenho';
+import { CORES, OLHOS, senha } from '@/components/marcaDesenho';
 
 /** O balãozinho do Helpy no meio do QR (o código aguenta até ~30% coberto com correção "H"). */
 function marcaNoMeio(tam) {
   const lado = tam * 0.22;
   const x0 = (tam - lado) / 2;
   const esc = lado / 200;
-  const { x, s, rc, traco } = CONTORNO;
-  const olhos = OLHOS_CONTORNO.map((o) => `<rect x="${o.cx - o.w / 2}" y="${o.cy - o.h / 2}" width="${o.w}" height="${o.h}" rx="${o.w / 2}" fill="${CORES.azul}"/>`).join('');
+  const olhos = OLHOS.map((o) => `<rect x="${o.cx - o.w / 2}" y="${o.cy - o.h / 2}" width="${o.w}" height="${o.h}" rx="${o.w / 2}" fill="${CORES.branco}"/>`).join('');
   return (
     `<rect x="${x0 - lado * 0.08}" y="${x0 - lado * 0.08}" width="${lado * 1.16}" height="${lado * 1.16}" rx="${lado * 0.28}" fill="#fff"/>` +
-    `<g transform="translate(${x0} ${x0}) scale(${esc})"><path d="${balaoEm(x, s, rc)}" fill="none" stroke="${CORES.azul}" stroke-width="${traco}"/>${olhos}</g>`
+    `<g transform="translate(${x0} ${x0}) scale(${esc})"><path d="${senha()}" fill="${CORES.azul}"/>${olhos}</g>`
   );
 }
 
