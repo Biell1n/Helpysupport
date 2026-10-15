@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { MailCheck } from 'lucide-react';
 import { lembrarAceite, TERMOS_VERSAO } from '@/lib/termos';
 import { resolverProva } from '@/lib/prova';
+import { AVISO_VAZADA, vezesVazada } from '@/lib/senhaVazada';
 import Captcha, { captchaLigado, useCaptcha } from '@/components/Captcha';
 import { erroAuth } from '@/lib/erroAuth';
 import { supabase } from '@/lib/supabase';
@@ -56,6 +57,7 @@ export default function CriarConta() {
     e.preventDefault();
     setErro('');
     if (f.senha.length < 8) return setErro('A senha precisa de pelo menos 8 caracteres.');
+    if (await vezesVazada(f.senha)) return setErro(AVISO_VAZADA);
     if (!aceite) return setErro('Para criar a conta, aceite os termos de uso e a política de privacidade.');
     if (captchaLigado ? cap.falta : robo.estado === 'nao') return setErro('Confirme a verificação “não sou um robô”.');
     setEnviando(true);

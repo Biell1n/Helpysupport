@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { chamar, supabase } from '@/lib/supabase';
 import { PainelDuasEtapas } from '@/components/DuasEtapas';
 import { erroAuth } from '@/lib/erroAuth';
+import { AVISO_VAZADA, vezesVazada } from '@/lib/senhaVazada';
 import Captcha, { useCaptcha } from '@/components/Captcha';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -40,6 +41,7 @@ export default function Conta() {
   const trocarSenha = async (e) => {
     e.preventDefault();
     if (senha.length < 8) return avisar('Senha curta', { erro: true, texto: 'Use pelo menos 8 caracteres.' });
+    if (await vezesVazada(senha)) return avisar('Senha vazada', { erro: true, texto: AVISO_VAZADA });
     if (temSenha && capSenha.falta) return avisar('Confirme a verificação "não sou um robô"', { erro: true });
     if (temSenha) {
       // confere a senha atual num cliente à parte, sem mexer na sessão aberta
