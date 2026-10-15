@@ -1,16 +1,16 @@
-import { balao, CONJUNTO, CORES, LETRAS, NOME, OLHOS } from '@/components/marcaDesenho';
+import { balaoEm, CONJUNTO, CONTORNO, CORES, LETRAS, NOME, OLHOS_CONTORNO } from '@/components/marcaDesenho';
 
 /**
- * A marca: um balão de conversa com dois olhinhos. Quem atende está ali,
- * ouvindo. tom="claro" para fundo escuro; o padrão é para fundo claro
- * (o balão é azul nos dois casos).
+ * A marca: um balão de conversa (em contorno) com dois olhinhos. Quem
+ * atende está ali, ouvindo. Azul tanto em fundo claro quanto escuro.
  */
 export function Marca({ size = 32 }) {
+  const { x, s, rc, traco } = CONTORNO;
   return (
     <svg width={size} height={size} viewBox="0 0 200 200" aria-hidden="true">
-      <path d={balao()} fill={CORES.azul} />
-      {OLHOS.map((o) => (
-        <rect key={o.cx} x={o.cx - o.w / 2} y={o.cy - o.h / 2} width={o.w} height={o.h} rx={o.w / 2} fill={CORES.branco} />
+      <path d={balaoEm(x, s, rc)} fill="none" stroke={CORES.azul} strokeWidth={traco} />
+      {OLHOS_CONTORNO.map((o) => (
+        <rect key={o.cx} x={o.cx - o.w / 2} y={o.cy - o.h / 2} width={o.w} height={o.h} rx={o.w / 2} fill={CORES.azul} />
       ))}
     </svg>
   );

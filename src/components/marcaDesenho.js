@@ -6,7 +6,12 @@
  * com raio "rc". rc = 80 é um círculo perfeito; rc = 19,2 é a pontinha do balão.
  */
 export function balao(rc = 19.2) {
-  const x = 20, y = 20, s = 160, R = 80;
+  return balaoEm(20, 160, rc);
+}
+
+/** O mesmo balão em qualquer posição e tamanho (canto superior esquerdo em x, x). */
+export function balaoEm(x, s, rc) {
+  const y = x, R = s / 2;
   return (
     `M${x + R},${y} H${x + s - R} A${R},${R} 0 0 1 ${x + s},${y + R} V${y + s - R} ` +
     `A${R},${R} 0 0 1 ${x + s - R},${y + s} H${x + rc} A${rc},${rc} 0 0 1 ${x},${y + s - rc} ` +
@@ -18,6 +23,16 @@ export function balao(rc = 19.2) {
 export const OLHOS = [
   { cx: 84, cy: 94, w: 17, h: 44 },
   { cx: 124, cy: 94, w: 17, h: 44 },
+];
+
+/**
+ * A versão em contorno (a logo do site): o mesmo balão, menor, com traço de 22.
+ * Por fora ela coincide com balaoEm(19, 162, 27.8) e por dentro com balaoEm(41, 118, 5.8).
+ */
+export const CONTORNO = { x: 30, s: 140, rc: 16.8, traco: 22 };
+export const OLHOS_CONTORNO = [
+  { cx: 83, cy: 99, w: 16, h: 38 },
+  { cx: 117, cy: 99, w: 16, h: 38 },
 ];
 
 /** "helpy" letra por letra (Geist SemiBold, espaçamento apertado). Linha de base em y = 0. */

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { balao, CONJUNTO, CORES, LETRAS, NOME } from '@/components/marcaDesenho';
+import { balao, balaoEm, CONJUNTO, CORES, LETRAS, NOME, OLHOS_CONTORNO } from '@/components/marcaDesenho';
 
 const CHAVE = 'helpy-abertura';
 
@@ -10,7 +10,7 @@ const T = {
   pontos: 0.62, // os três pontinhos de "digitando" aparecem
   onda: [0.8, 2.05], // e fazem a ondinha
   vira: [1.95, 2.45], // as pontas viram os olhinhos, o do meio some
-  pisca: 2.72,
+  pisca: 2.72, // fecha os olhos e abre como olhinhos felizes, com uma mexidinha de cabeça
   nome: 2.7, // "helpy" entra letra por letra
   voa: 3.95, // o conjunto voa até o topo do site
   fim: 4.75,
@@ -71,65 +71,105 @@ function pilula(el, cx, cy, w, h) {
   el.setAttribute('rx', Math.min(w, h) / 2);
 }
 
+/** Mistura duas cores #RRGGBB. */
+function mistura(a, b, x) {
+  const c = (h, i) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+  return `rgb(${[0, 1, 2].map((i) => Math.round(lerp(c(a, i), c(b, i), x))).join(',')})`;
+}
+
+/** Os olhinhos felizes: um arco que nasce de um traço curto (p = 0) até o "∩" (p = 1). */
+function arco(el, cx, yOlho, p) {
+  const y = lerp(yOlho, yOlho + 8, p);
+  const a = lerp(0.5, 15, p);
+  el.setAttribute('d', `M${cx - a},${y} Q${cx},${y - 24 * p} ${cx + a},${y}`);
+}
+
 /** Desenha o quadro do instante t (em segundos). */
 function desenhar(t, el) {
   // o balão nasce como círculo e o canto se molda na pontinha, com um leve elástico
   const e = outBack(jan(t, T.entra, T.entra + 0.55), 1.9);
   const m = outBack(jan(t, T.molda, T.molda + 0.58), 2.4);
-  el.forma.setAttribute('d', balao(Math.max(4, lerp(80, 19.2, m))));
   const puxa = 0.05 * sino(t, T.molda, T.molda + 0.63);
+  // no voo até o topo o miolo se abre do centro para fora e o balão vira a versão em contorno
+  const k = inOut(jan(t, T.voa + 0.05, T.voa + 0.6));
+  if (k > 0) {
+    el.forma.setAttribute('d', balaoEm(lerp(20, 19, k), lerp(160, 162, k), lerp(19.2, 27.8, k)));
+    el.furo.setAttribute('transform', `translate(100 100) scale(${k}) translate(-100 -100)`);
+  } else {
+    el.forma.setAttribute('d', balao(Math.max(4, lerp(80, 19.2, m))));
+    el.furo.setAttribute('transform', 'scale(0)');
+  }
 
   // vida: o balão respira junto com a ondinha dos pontinhos e balança de leve
   const env = jan(t, T.onda[0], T.onda[0] + 0.25) * (1 - inOut(jan(t, T.onda[1] - 0.3, T.onda[1])));
   const ondas = [0, 1, 2].map((i) => Math.pow(Math.sin(Math.PI * Math.max(0, (t - T.onda[0] - i * 0.13) / 0.62)), 2) * env);
-  const respiraOnda = 0.024 * (ondas[0] + ondas[1] + ondas[2]) / 3;
+  const respiraOnda = (0.024 * (ondas[0] + ondas[1] + ondas[2])) / 3;
   const balanca = 2.4 * Math.sin((2 * Math.PI * (t - T.onda[0])) / 1.24) * env;
-  // depois de pronto ele continua vivo: flutua e respira devagar
-  const vivo = jan(t, 2.2, 2.7);
+  // depois de pronto ele continua vivo: flutua e respira devagar (e assenta no voo)
+  const vivo = jan(t, 2.2, 2.7) * (1 - k);
   const flutua = -3.2 * Math.sin((2 * Math.PI * (t - 2.2)) / 2.1) * vivo;
   const respira = 0.012 * Math.sin((2 * Math.PI * (t - 2.2)) / 2.1 + Math.PI / 2) * vivo;
   // ao deslizar para a esquerda, inclina como quem tem peso e depois assenta
   const vel = (deslize(t + 0.008) - deslize(t)) / 0.008;
   const inclina = 6 * Math.max(0, vel) * jan(t, 2.55, 2.6);
+  // a mexidinha de cabeça da piscada: balança para os lados e vai parando
+  const dp = t - T.pisca;
+  const mexe = dp > 0 ? 10 * Math.exp(-3.6 * dp) * Math.sin((2 * Math.PI * dp) / 0.62) : 0;
 
-  const rot = -14 * (1 - outCubic(jan(t, T.entra, T.entra + 1.0))) + balanca + inclina;
+  const rot = -14 * (1 - outCubic(jan(t, T.entra, T.entra + 1.0))) + balanca + inclina + mexe;
   const pulo = -9 * sino(t, T.pisca - 0.05, T.pisca + 0.42);
   const acha = 0.045 * sino(t, T.pisca + 0.28, T.pisca + 0.6);
   const s = e * (1 + respiraOnda + respira);
+  // a cabeça (balão + olhos) sobe, flutua e gira junto; o corpo ainda estica e respira
+  el.cabeca.setAttribute('transform', `translate(0 ${pulo + flutua}) rotate(${rot} 100 100)`);
   el.corpo.setAttribute(
     'transform',
-    `translate(100 ${100 + pulo + flutua}) rotate(${rot}) rotate(45) scale(${1 + puxa} ${1 - puxa * 0.6}) rotate(-45) ` +
+    `translate(100 100) rotate(45) scale(${1 + puxa} ${1 - puxa * 0.6}) rotate(-45) ` +
       `scale(${s * (1 + acha)} ${s * (1 - acha)}) translate(-100 -100)`,
   );
 
   // os pontinhos: digitam, e as pontas viram os olhinhos (que depois olham para o nome)
   const v = inOut(jan(t, ...T.vira));
-  const olha = 3.5 * outCubic(jan(t, 2.75, 3.25));
-  const piscar = (() => {
-    if (t < T.pisca) return 1;
-    if (t < T.pisca + 0.12) return lerp(1, 0.12, Math.pow(jan(t, T.pisca, T.pisca + 0.08), 2));
-    return 0.12 + 0.88 * outBack(jan(t, T.pisca + 0.12, T.pisca + 0.36), 2.2);
-  })();
+  const olha = 3.5 * outCubic(jan(t, 2.75, 3.25)) * (1 - k);
+  // piscada feliz: fecha (0–0,09 s), abre em "∩" (até 0,32 s), segura, desfaz e volta a ser pílula
+  const P = T.pisca;
+  const fecha = t < P ? 0 : Math.pow(jan(t, P, P + 0.09), 2);
+  const feliz = t < P + 0.09 ? 0 : outBack(jan(t, P + 0.09, P + 0.32), 1.6) * (1 - inOut(jan(t, P + 0.7, P + 0.86)));
+  const reabre = outBack(jan(t, P + 0.86, P + 1.06), 2.0);
+  const emArco = t >= P + 0.09 && t < P + 0.86;
+  const corOlho = mistura(CORES.branco, CORES.azul, k);
   [[64, 84], [100, 104], [136, 124]].forEach(([x0, x1], i) => {
     const nasce = outBack(jan(t, T.pontos + i * 0.07, T.pontos + 0.33 + i * 0.07), 2);
-    const cx = lerp(x0, x1, v) + olha;
-    const cy = lerp(100 - 11 * ondas[i], 94, v) + pulo + flutua;
     if (i === 1) {
       const d = 26 * nasce * (1 - inOut(jan(t, T.vira[0], T.vira[0] + 0.32)));
-      pilula(el.pontos[i], cx, cy, d, d);
-    } else {
-      const w = lerp(26, 17, v) * nasce;
-      const h = lerp(26, 44, outBack(v, 1.3)) * nasce * piscar;
-      pilula(el.pontos[i], cx, cy, w, h);
+      pilula(el.pontos[i], lerp(x0, x1, v), lerp(100 - 11 * ondas[i], 94, v), d, d);
+      return;
     }
+    const o = OLHOS_CONTORNO[i === 0 ? 0 : 1];
+    const cx = lerp(lerp(x0, x1, v), o.cx, k) + olha;
+    const cy = lerp(lerp(100 - 11 * ondas[i], 94, v), o.cy, k);
+    const arc = el.arcos[i === 0 ? 0 : 1];
+    if (emArco) {
+      el.pontos[i].setAttribute('width', 0);
+      arc.style.opacity = 1;
+      arco(arc, cx, cy, feliz);
+      return;
+    }
+    arc.style.opacity = 0;
+    const w = lerp(lerp(26, 17, v) * nasce, o.w, k);
+    let h = lerp(26, 44, outBack(v, 1.3)) * nasce;
+    if (t >= P) h = t < P + 0.09 ? lerp(44, 15, fecha) : lerp(15, 44, reabre);
+    h = lerp(h, o.h, k);
+    pilula(el.pontos[i], cx, cy, Math.min(w, 17), h);
+    el.pontos[i].setAttribute('fill', corOlho);
   });
 
   // o conjunto desliza para a esquerda e o nome entra letra por letra, vindo de trás do balão
   el.conjunto.setAttribute('transform', `translate(${X0 * (1 - deslize(t))} 0)`);
   el.letras.forEach((l, j) => {
-    const k = outQuart(jan(t, T.nome + 0.1 + j * 0.055, T.nome + 0.75 + j * 0.055));
-    l.style.opacity = k;
-    l.setAttribute('transform', `translate(${LETRAS[j].x - 40 * (1 - k)} ${10 * (1 - k)})`);
+    const kl = outQuart(jan(t, T.nome + 0.1 + j * 0.055, T.nome + 0.75 + j * 0.055));
+    l.style.opacity = kl;
+    l.setAttribute('transform', `translate(${LETRAS[j].x - 40 * (1 - kl)} ${10 * (1 - kl)})`);
   });
 }
 
@@ -235,25 +275,27 @@ export default function IntroLogo({ onSaindo, onFim }) {
   const raiz = useRef(null);
   const som = useRef(null);
   const acabou = useRef(false);
+  const pulou = useRef(false);
   const quadro = useRef(0);
 
-  const encerrar = useCallback((pulou = false) => {
+  const encerrar = useCallback((pulouAgora = false) => {
     if (acabou.current) return;
     acabou.current = true;
-    cancelAnimationFrame(quadro.current);
+    pulou.current = pulouAgora;
+    if (pulouAgora) cancelAnimationFrame(quadro.current);
     try {
       sessionStorage.setItem(CHAVE, '1');
     } catch {
       /* sem armazenamento: mostra de novo na próxima, sem problema */
     }
     onSaindo?.();
-    if (pulou) raiz.current?.setAttribute('data-pulou', '');
+    if (pulouAgora) raiz.current?.setAttribute('data-pulou', '');
     setFase('sai');
     document.documentElement.style.overflow = '';
     const s = som.current;
-    if (pulou) s?.fechar();
+    if (pulouAgora) s?.fechar();
     else setTimeout(() => s?.fechar(), 1600); // deixa o acorde terminar
-    setTimeout(() => onFim?.(), pulou ? 450 : (T.fim - T.voa) * 1000);
+    setTimeout(() => onFim?.(), pulouAgora ? 450 : (T.fim - T.voa) * 1000);
   }, [onSaindo, onFim]);
 
   // o conjunto encolhe e voa até a logo do topo; o fundo esmaece junto
@@ -286,6 +328,9 @@ export default function IntroLogo({ onSaindo, onFim }) {
     const el = {
       forma: r.querySelector('.ab-forma'),
       corpo: r.querySelector('.ab-corpo'),
+      cabeca: r.querySelector('.ab-cabeca'),
+      furo: r.querySelector('.ab-furo'),
+      arcos: [...r.querySelectorAll('.ab-arco')],
       conjunto: r.querySelector('.ab-conjunto'),
       pontos: [...r.querySelectorAll('.ab-ponto')],
       letras: [...r.querySelectorAll('.ab-letra')],
@@ -314,16 +359,17 @@ export default function IntroLogo({ onSaindo, onFim }) {
     const html = document.documentElement;
     html.style.overflow = 'hidden';
 
+    let voou = false;
     const passo = (agora) => {
-      if (acabou.current) return;
+      if (pulou.current) return;
       const t = (agora - inicio) / 1000;
-      if (t >= T.voa) {
+      if (t >= T.voa && !voou) {
+        voou = true;
         desenhar(T.voa, el);
         voar();
-        return;
       }
-      desenhar(t, el);
-      quadro.current = requestAnimationFrame(passo);
+      desenhar(Math.min(t, T.fim), el);
+      if (t < T.fim) quadro.current = requestAnimationFrame(passo);
     };
     quadro.current = requestAnimationFrame(passo);
 
@@ -344,10 +390,22 @@ export default function IntroLogo({ onSaindo, onFim }) {
         <svg className="abertura-svg" viewBox={`0 -40 ${LARG} 280`}>
           <g className="ab-conjunto">
             <rect className="ab-caixa" width="200" height="200" fill="none" />
-            <g className="ab-corpo">
-              <path className="ab-forma" fill={CORES.azul} />
+            <defs>
+              {/* o miolo que se abre no voo, transformando o balão cheio na versão em contorno */}
+              <mask id="ab-miolo" maskUnits="userSpaceOnUse" x="-100" y="-100" width="400" height="400">
+                <rect x="-100" y="-100" width="400" height="400" fill="#fff" />
+                <path className="ab-furo" d={balaoEm(41, 118, 5.8)} fill="#000" transform="scale(0)" />
+              </mask>
+            </defs>
+            <g className="ab-cabeca">
+              <g className="ab-corpo">
+                <path className="ab-forma" fill={CORES.azul} mask="url(#ab-miolo)" />
+              </g>
+              {[0, 1, 2].map((i) => <rect key={i} className="ab-ponto" fill={CORES.branco} />)}
+              {[0, 1].map((i) => (
+                <path key={i} className="ab-arco" fill="none" stroke={CORES.branco} strokeWidth="15" strokeLinecap="round" opacity="0" />
+              ))}
             </g>
-            {[0, 1, 2].map((i) => <rect key={i} className="ab-ponto" fill={CORES.branco} />)}
             <g transform={`translate(${200 + VAO} ${BASE}) scale(${E})`} fill={CORES.marinho}>
               {LETRAS.map((l) => <path key={l.x} className="ab-letra" d={l.d} opacity="0" />)}
             </g>
