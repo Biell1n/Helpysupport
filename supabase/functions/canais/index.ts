@@ -5,7 +5,11 @@
 //   testar       → confere de novo se o token ainda vale
 //   pausar       → { ativo: false } o assistente para de responder por lá
 //   desconectar  → apaga o canal e o token
-//   enviar       → resposta da equipe (painel) vai para o cliente pelo canal
+//   enviar       → resposta da equipe (painel) vai para o cliente pelo canal,
+//                  com o nome de quem respondeu
+//   sincronizar  → a equipe mudou o status da conversa no painel; no ticket
+//                  do Discord isso aparece no tópico (assumiu, encerrou…)
+//   discord_status → o servidor ligado no Discord está no ar?
 // ============================================================
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
@@ -32,6 +36,7 @@ import {
   servidorDoCodigo,
   urlAdicionarBot,
 } from '../_shared/canais.ts';
+import { gatewayLigado, sincronizarConversa } from '../_shared/discord-tickets.ts';
 
 const TIPOS: TipoCanal[] = ['whatsapp', 'instagram', 'discord'];
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -107,7 +112,7 @@ Deno.serve(async (req) => {
       const id = String(body.message_id ?? '');
       if (!UUID.test(id)) throw new UserError('Mensagem inválida.');
       const { data: m } = await admin.from('conversation_messages')
-        .select('id, role, content, conversation_id, conversations!inner(owner_id, canal_id, contato_externo)')
+        .select('id, role, content, author_name, conversation_id, conversations!inner(owner_id, canal_id, contato_externo)')
         .eq('id', id).maybeSingle();
       const conv = (m as unknown as { conversations?: { owner_id: string; canal_id: string | null; contato_externo: string | null } })?.conversations;
       if (!m || !conv || conv.owner_id !== conta) throw new UserError('Mensagem não encontrada.', 404);
@@ -115,8 +120,28 @@ Deno.serve(async (req) => {
       if (!conv.canal_id || !conv.contato_externo) return json({ ok: true, canal: null });
       const canal = await canalDaConta(conv.canal_id, conta);
       if (canal.status === 'pausado') throw new UserError(`O ${NOMES[canal.tipo]} está pausado. Retome em Canais para enviar.`);
-      await enviarPeloCanal(admin, canal, conv.contato_externo, String(m.content));
+      const { data: eu } = await admin.from('profiles').select('foto_url').eq('id', user.id).maybeSingle();
+      const autor = m.author_name ? { nome: String(m.author_name).slice(0, 60), foto: eu?.foto_url ?? null } : null;
+      await enviarPeloCanal(admin, canal, conv.contato_externo, String(m.content), autor);
       return json({ ok: true, canal: canal.tipo });
+    }
+
+    // ---- painel → Discord: assumiu, devolveu, encerrou ou reabriu ----
+    if (action === 'sincronizar') {
+      const id = String(body.conversation_id ?? '');
+      if (!UUID.test(id)) throw new UserError('Conversa inválida.');
+      const { data: c } = await admin.from('conversations')
+        .select('owner_id, canal_id, contato_externo, status, assumido_nome').eq('id', id).maybeSingle();
+      if (!c || c.owner_id !== conta) throw new UserError('Conversa não encontrada.', 404);
+      if (!c.canal_id) return json({ ok: true, canal: null });
+      const canal = await canalDaConta(c.canal_id, conta);
+      if (!ehBotDoHelpy(canal)) return json({ ok: true, canal: canal.tipo });
+      const feito = await sincronizarConversa(c);
+      return json({ ok: true, canal: canal.tipo, ticket: feito });
+    }
+
+    if (action === 'discord_status') {
+      return json({ gateway: await gatewayLigado() });
     }
 
     if (!dono) throw new UserError('Só o dono da conta conecta e desconecta canais.', 403);

@@ -2251,6 +2251,14 @@
   font-size: 11.5px;
 }
 
+/* bot do Helpy no Discord: como estão os tickets */
+.discord-tickets { margin-top: 12px; display: grid; gap: 8px; }
+.discord-tickets ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.discord-tickets li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--tinta-2); }
+.discord-tickets li svg { flex: none; margin-top: 2px; color: var(--tinta-3, #8a96a8); }
+.discord-tickets li[data-ok] svg { color: #1baf7a; }
+.discord-tickets p { margin: 0; font-size: 12.5px; }
+
 .copiavel {
   display: flex;
   flex-direction: column;

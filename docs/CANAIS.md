@@ -8,7 +8,7 @@ no painel, a resposta sai pelo canal de onde o cliente escreveu.
 | Canal     | Plano                     | Como o cliente fala                          |
 |-----------|---------------------------|----------------------------------------------|
 | Link/site | todos                     | link do chat, QR code                        |
-| Discord   | todos                     | comando `/helpy` no servidor ou na DM do bot |
+| Discord   | todos                     | ticket privado no servidor (botão "Abrir atendimento") ou `/helpy` |
 | WhatsApp  | Profissional (2) e Business (20) | mensagem para o número da empresa     |
 | Instagram | Profissional e Business (mesmo limite) | Direct da conta profissional    |
 
@@ -24,7 +24,9 @@ no painel, a resposta sai pelo canal de onde o cliente escreveu.
   da equipe pelo canal).
 - Os avisos de mensagem nova chegam no mesmo endereço do chat público:
   - Meta (WhatsApp e Instagram): `…/functions/v1/public-chat?canal=meta`
-  - Discord: `…/functions/v1/public-chat?discord=<id do canal>`
+  - Discord (bot do Helpy): `…/functions/v1/public-chat?discord=helpy`
+  - Discord (servidor ligado, mensagens dos tickets): `…?discord=gateway`
+  - Discord (bot próprio da empresa, jeito antigo): `…?discord=<id do canal>`
   Cada aviso tem a assinatura conferida (HMAC da Meta / Ed25519 do Discord)
   antes de qualquer coisa. O código está em `_shared/canal-webhook.ts`,
   `_shared/canal-atender.ts` e `_shared/canais.ts`.
@@ -73,13 +75,56 @@ O código já aceita os dois jeitos ao mesmo tempo.
 
 ## Discord
 
-1. discord.com/developers/applications → novo aplicativo.
-2. Bot → Reset Token → copiar.
-3. Colar em Canais → Conectar Discord. O Helpy confere o token, pega a chave
-   pública e registra o comando `/helpy`.
-4. General Information → **Interactions Endpoint URL**: colar o endereço que
-   a tela mostra e salvar (o Discord testa na hora).
-5. Convidar o bot pelo botão da tela.
+O Helpy tem **um bot só** para todas as empresas. Em Canais → Conectar
+Discord, a empresa escolhe o assistente, adiciona o bot ao servidor e volta
+com tudo ligado. No servidor, o bot usa o nome (e a foto) do assistente.
 
-O cliente usa `/helpy mensagem:...`; a resposta aparece só para ele. Quando
-a equipe responde pelo painel, o bot manda mensagem direta.
+**Comandos**
+
+| Comando | Quem usa | O que faz |
+|---|---|---|
+| `/helpy-config` | quem tem "Gerenciar servidor" | menu: canal do atendimento, cargo da equipe, o que falta (✅/❌) e publicar o botão |
+| botão **Abrir atendimento** ou `/atendimento` | clientes | cria um tópico privado só do cliente, da equipe e do bot |
+| `/helpy mensagem:…` | clientes | dúvida rápida (fora do ticket); dentro do ticket vale como mensagem |
+| botões **Assumir**, **Devolver ao assistente**, **Encerrar** | equipe (Encerrar: todos) | no topo de cada ticket |
+
+**Permissões que o bot pede** (sem Administrador): ver canais, enviar
+mensagens (também em tópicos), criar tópicos privados, gerenciar tópicos,
+inserir links, anexar arquivos, ver histórico, gerenciar webhooks e mudar o
+próprio apelido.
+
+**Sincronia com o painel**
+
+- Cada ticket é uma conversa em Atendimentos (`contato_externo =
+  ticket:<id do tópico>`; tabela `discord_tickets`).
+- O cliente escreve no tópico → o assistente responde ali (mesmo cérebro,
+  agenda e chamado). Quando o assistente chama a equipe, o cargo é marcado.
+- Alguém da equipe escreve no tópico → entra em Atendimentos com o nome
+  dela e o assistente para.
+- A equipe responde pelo painel → sai no tópico pelo webhook do canal, com
+  o nome e a foto de quem respondeu (sem webhook: pelo bot, com o nome em
+  negrito).
+- Assumir, devolver, encerrar e reabrir pelo painel (lista ou quadro)
+  aparecem no tópico; encerrar fecha e tranca o tópico.
+
+**Mensagens livres** precisam do servidor que fica ligado no Discord
+(`gateway/`), instalado no Oracle Cloud grátis: veja
+[discord/ORACLE.md](discord/ORACLE.md). Sem ele, no ticket o cliente fala
+com `/helpy`.
+
+Variáveis das funções: `DISCORD_BOT_TOKEN`, `DISCORD_CLIENT_SECRET`,
+`DISCORD_GATEWAY_KEY` (e, opcionais, `DISCORD_APP_ID`,
+`DISCORD_PUBLIC_KEY`, `SITE_URL`).
+
+### Bot próprio da empresa (jeito antigo)
+
+Ainda funciona para quem já conectou: token do bot colado em Canais e
+endereço `…?discord=<id do canal>`. O cliente usa `/helpy`; a resposta da
+equipe vai por mensagem direta.
+
+## Instagram: resposta pelo app
+
+Se alguém da empresa responder direto pelo app do Instagram, a Meta manda
+um "eco" da mensagem. O Helpy separa o que ele mesmo mandou (marca o id ao
+enviar) do que foi escrito no app: o que veio do app entra em Atendimentos
+como "Equipe (pelo app do Instagram)" e o assistente para de responder.

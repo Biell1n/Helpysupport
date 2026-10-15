@@ -6,7 +6,12 @@
 //   GET  ?canal=meta&hub.mode=subscribe… → a Meta confirmando o endereço
 //   POST ?canal=meta (WhatsApp/Instagram) → assinatura conferida, resposta
 //                                           em segundo plano pelo canal
-//   POST ?discord=<canal>                 → comando /helpy (Ed25519)
+//   POST ?discord=helpy                   → bot do Helpy: /helpy, tickets e
+//                                           menu de configuração (Ed25519)
+//   POST ?discord=<canal>                 → bot próprio da empresa (Ed25519)
+//   POST ?discord=gateway                 → o servidor ligado no Discord
+//                                           (mensagens livres dos tickets),
+//                                           com a chave DISCORD_GATEWAY_KEY
 //
 // A segurança é a assinatura de cada aviso.
 // ============================================================
@@ -24,6 +29,8 @@ import {
   type TipoCanal,
 } from './canais.ts';
 import { atenderNoCanal } from './canal-atender.ts';
+import { helpyNoTicket, type Interacao, interacaoDoTicket, type MensagemGateway, mensagemDoGateway, ticketDo } from './discord-tickets.ts';
+import { registrarComandosHelpy } from './canais.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -66,7 +73,11 @@ async function atender(canal: Canal, contato: { id: string; nome?: string | null
 // ------------------------------------------------------------
 // Meta (WhatsApp Cloud API e Instagram)
 // ------------------------------------------------------------
-type Recebida = { canal: Canal; id: string; contato: { id: string; nome?: string | null; telefone?: string | null }; texto: string | null };
+type Recebida = {
+  canal: Canal; id: string; contato: { id: string; nome?: string | null; telefone?: string | null }; texto: string | null;
+  /** Instagram: mensagem que a própria conta mandou (pelo Helpy ou por alguém no app) */
+  eco?: boolean;
+};
 
 type WaMsg = {
   id: string; from: string; type: string;
@@ -99,16 +110,47 @@ async function lerMeta(corpo: Record<string, unknown>): Promise<Recebida[]> {
       const conta = String(e.id ?? '');
       const canal = conta ? await canalPor('instagram', conta) : null;
       if (!canal) continue;
-      type IgEvento = { sender?: { id?: string }; message?: { mid?: string; text?: string; is_echo?: boolean; attachments?: unknown[] } };
+      type IgEvento = { sender?: { id?: string }; recipient?: { id?: string }; message?: { mid?: string; text?: string; is_echo?: boolean; attachments?: unknown[] } };
       for (const ev of (e.messaging as IgEvento[] | undefined) ?? []) {
         const m = ev.message;
         const de = ev.sender?.id;
-        if (!m?.mid || !de || m.is_echo || de === conta) continue; // o que a própria conta mandou
+        if (!m?.mid || !de) continue;
+        if (m.is_echo || de === conta) {
+          // o que a própria conta mandou: pode ser alguém da empresa respondendo pelo app
+          const para = ev.recipient?.id;
+          if (para && m.text) out.push({ canal, id: `ig:${m.mid}`, contato: { id: para }, texto: m.text, eco: true });
+          continue;
+        }
         out.push({ canal, id: `ig:${m.mid}`, contato: { id: de }, texto: m.text ?? null });
       }
     }
   }
   return out;
+}
+
+/**
+ * Alguém da empresa respondeu pelo app do Instagram (e não pelo painel):
+ * a resposta entra em Atendimentos e o assistente para de falar por cima.
+ * O que o próprio Helpy mandou fica marcado ao enviar e é ignorado aqui.
+ */
+async function ecoDoInstagram(r: Recebida) {
+  await new Promise((ok) => setTimeout(ok, 4000)); // o Helpy marca o que mandou logo depois do envio
+  if (await jaVista(admin, `ig:eu:${r.id.slice(3)}`)) return;
+  const { data: c } = await admin.from('conversations').select('id, status')
+    .eq('canal_id', r.canal.id).eq('contato_externo', r.contato.id)
+    .order('last_message_at', { ascending: false }).limit(1).maybeSingle();
+  if (!c || !r.texto) return;
+  // corrida rara: o eco chegou antes de o Helpy marcar o envio (mesmo texto há pouco)
+  const { data: recentes } = await admin.from('conversation_messages').select('content')
+    .eq('conversation_id', c.id).in('role', ['assistant', 'agent', 'system'])
+    .gte('created_at', new Date(Date.now() - 120e3).toISOString());
+  if ((recentes ?? []).some((m) => String(m.content).trim() === r.texto!.trim() || r.texto!.trim().endsWith(String(m.content).trim()))) return;
+  await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'agent', content: r.texto, author_name: 'Equipe (pelo app do Instagram)' });
+  if (c.status !== 'human') {
+    await admin.from('conversations').update({
+      status: 'human', assumido_por: null, assumido_nome: 'Equipe (Instagram)', assumido_em: new Date().toISOString(), fechado_em: null, encerrado_por: null,
+    }).eq('id', c.id);
+  }
 }
 
 async function meta(req: Request): Promise<Response> {
@@ -154,7 +196,8 @@ async function meta(req: Request): Promise<Response> {
     for (const r of recebidas) {
       if (r.canal.status === 'pausado') continue;
       if (await jaVista(admin, r.id)) continue;
-      await atender(r.canal, r.contato, r.texto);
+      if (r.eco) await ecoDoInstagram(r);
+      else await atender(r.canal, r.contato, r.texto);
     }
   })());
   return ok();
@@ -163,13 +206,6 @@ async function meta(req: Request): Promise<Response> {
 // ------------------------------------------------------------
 // Discord (comando /helpy)
 // ------------------------------------------------------------
-type Interacao = {
-  type: number; id: string; token: string; application_id: string; guild_id?: string;
-  data?: { name?: string; options?: { name: string; value: string }[] };
-  member?: { user?: { id: string; username?: string; global_name?: string } };
-  user?: { id: string; username?: string; global_name?: string };
-};
-
 const efemera = (content: string) => jsonOk({ type: 4, data: { content, flags: 64 } });
 
 /**
@@ -180,6 +216,7 @@ const efemera = (content: string) => jsonOk({ type: 4, data: { content, flags: 6
  */
 async function discord(req: Request, alvo: string): Promise<Response> {
   if (req.method !== 'POST') return ok('', 404);
+  if (alvo === 'gateway') return gateway(req);
   const doHelpy = alvo === 'helpy';
   let canal: Canal | null = null;
   if (!doHelpy) {
@@ -196,23 +233,39 @@ async function discord(req: Request, alvo: string): Promise<Response> {
 
   const i = JSON.parse(bruto) as Interacao;
   if (i.type === 1) return jsonOk({ type: 1 }); // PING do Discord ao salvar o endereço
-  if (i.type !== 2 || i.data?.name !== 'helpy') return efemera('Comando desconhecido.');
 
   if (doHelpy) {
-    if (!i.guild_id) return efemera('Use o /helpy dentro do servidor da empresa.');
+    if (!i.guild_id) return efemera('Use os comandos do Helpy dentro do servidor da empresa.');
     const { data } = await admin.from('canais').select('*')
       .eq('tipo', 'discord').eq('externo_id', i.guild_id).eq('config->>modo', 'helpy').maybeSingle();
     canal = data as Canal | null;
     if (!canal) {
       return efemera('Este servidor ainda não está ligado a um assistente. Quem administra o servidor pode ligar em Canais, no painel do Helpy.');
     }
+    // tickets, botões e menu de configuração
+    const r = interacaoDoTicket(i, canal);
+    if (r) {
+      if (r.depois) depois(r.depois());
+      return jsonOk(r.resposta);
+    }
   }
+  if (i.type !== 2 || i.data?.name !== 'helpy') return efemera('Comando desconhecido.');
   if (!canal) return ok('', 404);
   if (canal.status === 'pausado') return efemera('O atendimento por aqui está pausado no momento.');
 
   const pessoa = i.member?.user ?? i.user;
   const texto = String(i.data.options?.find((o) => o.name === 'mensagem')?.value ?? '');
   if (!pessoa?.id) return efemera('Não consegui identificar quem mandou.');
+
+  // /helpy dentro do tópico de um ticket: vale como mensagem do atendimento
+  if (doHelpy) {
+    const t = await ticketDo(i.channel_id);
+    if (t && t.canal_id === canal.id) {
+      const r = helpyNoTicket(i, t, canal, texto);
+      depois(r.depois());
+      return jsonOk(r.resposta);
+    }
+  }
 
   const atual = canal;
   depois((async () => {
@@ -226,6 +279,48 @@ async function discord(req: Request, alvo: string): Promise<Response> {
   })());
   // "pensando…" só para quem perguntou; a resposta chega em seguida
   return jsonOk({ type: 5, data: { flags: 64 } });
+}
+
+// ------------------------------------------------------------
+// O servidor ligado no Discord (gateway/discord-gateway.mjs)
+// ------------------------------------------------------------
+function chaveIgual(a: string, b: string) {
+  if (!a || a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
+/**
+ * Fala com o servidor que fica conectado no Discord. Ele se identifica com
+ * a chave DISCORD_GATEWAY_KEY e manda:
+ *   config   → ao ligar: recebe o token do bot (assim ele só guarda a chave)
+ *   ping     → sinal de vida (o painel e o /helpy-config mostram "ligado")
+ *   mensagem → alguém escreveu no tópico de um ticket
+ */
+async function gateway(req: Request): Promise<Response> {
+  const chave = Deno.env.get('DISCORD_GATEWAY_KEY') ?? '';
+  const veio = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!chave || !chaveIgual(veio, chave)) return ok('', 401);
+  const corpo = await req.json().catch(() => ({})) as { tipo?: string; info?: Record<string, unknown>; mensagem?: MensagemGateway };
+  const sinal = () => admin.from('helpy_servicos').upsert({ nome: 'discord-gateway', visto_em: new Date().toISOString(), info: corpo.info ?? {} });
+
+  if (corpo.tipo === 'config') {
+    const token = Deno.env.get('DISCORD_BOT_TOKEN');
+    if (!token) return jsonOk({ pronto: false, motivo: 'Falta DISCORD_BOT_TOKEN nas variáveis das funções do Supabase.' });
+    await sinal();
+    await registrarComandosHelpy().catch((e) => console.warn('[gateway] comandos', e?.message));
+    return jsonOk({ pronto: true, token, app_id: DISCORD_HELPY.appId });
+  }
+  if (corpo.tipo === 'ping') {
+    await sinal();
+    return jsonOk({ ok: true });
+  }
+  if (corpo.tipo === 'mensagem' && corpo.mensagem?.id && corpo.mensagem.author?.id) {
+    depois(mensagemDoGateway(corpo.mensagem));
+    return jsonOk({ ok: true });
+  }
+  return ok('', 400);
 }
 
 /** O pedido veio da Meta ou do Discord (e não do chat)? */

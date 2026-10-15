@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { numero, quando } from '@/lib/format';
 import { canalDe, SeloCanal } from '@/components/IconesCanais';
+import { avisarNoCanal } from '@/lib/canais';
 
 const COLUNAS = [
   { id: 'waiting', titulo: 'Na fila', vazio: 'Nenhum chamado esperando.' },
@@ -54,6 +55,7 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
       carregar();
       return;
     }
+    avisarNoCanal(c);
     recarregarUso?.();
   };
 

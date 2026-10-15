@@ -22,7 +22,7 @@ export interface Canal {
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 const GRAPH_IG = 'https://graph.instagram.com/v21.0';
-const DISCORD = 'https://discord.com/api/v10';
+export const DISCORD = 'https://discord.com/api/v10';
 
 export const NOMES: Record<TipoCanal, string> = { whatsapp: 'WhatsApp', instagram: 'Instagram', discord: 'Discord' };
 
@@ -34,6 +34,8 @@ export const NOMES: Record<TipoCanal, string> = { whatsapp: 'WhatsApp', instagra
 export interface Segredo {
   token: string;
   app_secret?: string;
+  /** Discord (bot do Helpy): webhook do canal dos tickets, para a equipe aparecer com o próprio nome */
+  webhook?: { id: string; token: string; canal: string };
 }
 
 export async function segredoDo(db: SupabaseClient, canalId: string): Promise<Segredo> {
@@ -97,7 +99,7 @@ function explicar(servico: string, status: number, corpo: string) {
   return `${servico} recusou (${status}): ${corpo.slice(0, 300)}`;
 }
 
-async function pedir(url: string, init: RequestInit, servico: string) {
+export async function pedir(url: string, init: RequestInit, servico: string) {
   const res = await fetch(url, { ...init, signal: AbortSignal.timeout(15000) });
   if (!res.ok) {
     const corpo = await res.text().catch(() => '');
@@ -106,11 +108,26 @@ async function pedir(url: string, init: RequestInit, servico: string) {
   return res.status === 204 ? null : res.json().catch(() => null);
 }
 
-/** Envia um texto para o contato pelo canal (respostas do assistente e da equipe). */
-export async function enviarPeloCanal(db: SupabaseClient, canal: Canal, contato: string, texto: string) {
+/** Quem da equipe respondeu pelo painel (o nome aparece para o cliente). */
+export interface Autor {
+  nome: string;
+  foto?: string | null;
+}
+
+/**
+ * Envia um texto para o contato pelo canal (respostas do assistente e da equipe).
+ * Com `autor`, é a equipe respondendo pelo painel: o nome de quem atende vai junto.
+ */
+export async function enviarPeloCanal(db: SupabaseClient, canal: Canal, contato: string, texto: string, autor?: Autor | null) {
+  // Discord, ticket: a conversa fica no tópico privado do servidor
+  if (canal.tipo === 'discord' && contato.startsWith('ticket:')) {
+    await postarNoTopico(db, canal, contato.slice(7), texto, autor);
+    return;
+  }
   const token = ehBotDoHelpy(canal) ? tokenDoBotHelpy() : await tokenDo(db, canal.id);
   if (canal.tipo === 'whatsapp') {
-    for (const parte of pedacos(texto, 4000)) {
+    const corpo = autor ? `*${autor.nome}* (equipe)\n${texto}` : texto;
+    for (const parte of pedacos(corpo, 4000)) {
       await pedir(`${GRAPH}/${canal.externo_id}/messages`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -118,12 +135,15 @@ export async function enviarPeloCanal(db: SupabaseClient, canal: Canal, contato:
       }, 'O WhatsApp');
     }
   } else if (canal.tipo === 'instagram') {
-    for (const parte of pedacos(texto, 1000)) {
-      await pedir(`${GRAPH_IG}/me/messages`, {
+    const corpo = autor ? `${autor.nome} (equipe):\n${texto}` : texto;
+    for (const parte of pedacos(corpo, 1000)) {
+      const r = await pedir(`${GRAPH_IG}/me/messages`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipient: { id: contato }, message: { text: parte } }),
-      }, 'O Instagram');
+      }, 'O Instagram') as { message_id?: string } | null;
+      // a Meta devolve um "eco" de tudo que a conta manda; este é nosso (não é alguém respondendo pelo app)
+      if (r?.message_id) await jaVista(db, `ig:eu:${r.message_id}`);
     }
   } else {
     // Discord: mensagem direta do bot para a pessoa
@@ -132,7 +152,8 @@ export async function enviarPeloCanal(db: SupabaseClient, canal: Canal, contato:
       headers: { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipient_id: contato }),
     }, 'O Discord') as { id: string };
-    for (const parte of pedacos(texto, 1900)) {
+    const corpo = autor ? `**${autor.nome}** (equipe)\n${texto}` : texto;
+    for (const parte of pedacos(corpo, 1900)) {
       await pedir(`${DISCORD}/channels/${dm.id}/messages`, {
         method: 'POST',
         headers: { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' },
@@ -140,6 +161,64 @@ export async function enviarPeloCanal(db: SupabaseClient, canal: Canal, contato:
       }, 'O Discord');
     }
   }
+}
+
+/** Chamada à API do Discord com o bot do Helpy. */
+export function botHelpy(caminho: string, init: { method?: string; body?: unknown; motivo?: string } = {}) {
+  const headers: Record<string, string> = { Authorization: `Bot ${tokenDoBotHelpy()}` };
+  if (init.body !== undefined) headers['Content-Type'] = 'application/json';
+  if (init.motivo) headers['X-Audit-Log-Reason'] = encodeURIComponent(init.motivo);
+  return pedir(`${DISCORD}${caminho}`, {
+    method: init.method ?? 'GET',
+    headers,
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+  }, 'O Discord');
+}
+
+/**
+ * Escreve no tópico de um ticket. A equipe sai pelo webhook do canal, com o
+ * nome (e a foto) de quem atende; sem o webhook, o bot escreve com o nome em
+ * negrito. O assistente fala pelo próprio bot, que tem o nome dele no servidor.
+ */
+export async function postarNoTopico(db: SupabaseClient, canal: Canal, topico: string, texto: string, autor?: Autor | null) {
+  if (autor) {
+    const s = await segredoDo(db, canal.id).catch(() => null);
+    if (s?.webhook) {
+      try {
+        for (const parte of pedacos(texto, 1900)) {
+          await pedir(`${DISCORD}/webhooks/${s.webhook.id}/${s.webhook.token}?thread_id=${topico}&wait=true`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: parte,
+              username: `${nomeDeWebhook(autor.nome)} · equipe`,
+              ...(autor.foto ? { avatar_url: autor.foto } : {}),
+              allowed_mentions: { parse: [] },
+            }),
+          }, 'O Discord');
+        }
+        return;
+      } catch (e) {
+        if (!(e instanceof ErroDoCanal)) throw e;
+        // webhook apagado no servidor: esquece; em qualquer recusa, o bot manda no lugar
+        if (e.status === 404 || e.status === 401) {
+          const { webhook: _w, ...resto } = s;
+          await guardarSegredo(db, canal.id, resto).catch(() => {});
+        }
+        console.warn('[discord] webhook da equipe', e.status, e.corpo.slice(0, 200));
+      }
+    }
+  }
+  const corpo = autor ? `**${autor.nome}** · equipe\n${texto}` : texto;
+  for (const parte of pedacos(corpo, 1900)) {
+    await botHelpy(`/channels/${topico}/messages`, { method: 'POST', body: { content: parte, allowed_mentions: { parse: [] } } });
+  }
+}
+
+/** Nome que o Discord aceita num webhook (sem "discord" e "clyde"). */
+function nomeDeWebhook(nome: string) {
+  const limpo = nome.replace(/discord|clyde/gi, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  return limpo || 'Equipe';
 }
 
 /** Mensagem já vista (o WhatsApp e o Instagram reenviam quando demoramos a responder). */
@@ -233,8 +312,48 @@ export const DISCORD_HELPY = {
   appId: Deno.env.get('DISCORD_APP_ID') ?? '1560424740315856979',
   chavePublica: Deno.env.get('DISCORD_PUBLIC_KEY') ?? '014cedaf79afc181578dbdec73d3176a9742b1353f0e5f79daea7772a477f62e',
 };
-// enviar mensagens + mudar o próprio apelido no servidor
-const PERMISSOES_BOT = String(2048 + 67108864);
+// O que o bot pede ao entrar no servidor (sem Administrador):
+export const PERM = {
+  ADMINISTRADOR: 1n << 3n,
+  GERENCIAR_SERVIDOR: 1n << 5n,
+  VER_CANAL: 1n << 10n,
+  ENVIAR: 1n << 11n,
+  LINKS: 1n << 14n,
+  ANEXOS: 1n << 15n,
+  HISTORICO: 1n << 16n,
+  APELIDO: 1n << 26n,
+  WEBHOOKS: 1n << 29n,
+  GERENCIAR_TOPICOS: 1n << 34n,
+  TOPICOS_PRIVADOS: 1n << 36n,
+  ENVIAR_EM_TOPICOS: 1n << 38n,
+};
+export const PERMISSOES_BOT = String(
+  PERM.VER_CANAL | PERM.ENVIAR | PERM.LINKS | PERM.ANEXOS | PERM.HISTORICO | PERM.APELIDO |
+    PERM.WEBHOOKS | PERM.GERENCIAR_TOPICOS | PERM.TOPICOS_PRIVADOS | PERM.ENVIAR_EM_TOPICOS,
+);
+
+/** Os comandos do bot do Helpy (iguais em todos os servidores). */
+type Comando = { name: string; description: string; type: number; contexts: number[]; options?: unknown[]; default_member_permissions?: string };
+export const COMANDOS_HELPY: Comando[] = [
+  {
+    name: 'helpy', description: 'Fale com o atendimento', type: 1, contexts: [0],
+    options: [{ type: 3, name: 'mensagem', description: 'O que você quer saber?', required: true, max_length: 1500 }],
+  },
+  { name: 'atendimento', description: 'Abre um atendimento privado com a empresa', type: 1, contexts: [0] },
+  {
+    name: 'helpy-config', description: 'Configura o atendimento do Helpy neste servidor', type: 1, contexts: [0],
+    default_member_permissions: String(PERM.GERENCIAR_SERVIDOR),
+  },
+];
+
+/** Link para o dono do servidor dar ao bot as permissões que faltam (sem tirar e pôr de novo). */
+export function urlPermissoesBot(servidor: string) {
+  const q = new URLSearchParams({
+    client_id: DISCORD_HELPY.appId, scope: 'bot applications.commands', permissions: PERMISSOES_BOT,
+    guild_id: servidor, disable_guild_select: 'true',
+  });
+  return `https://discord.com/oauth2/authorize?${q}`;
+}
 
 export const ehBotDoHelpy = (c: Pick<Canal, 'tipo' | 'config'>) => c.tipo === 'discord' && c.config?.modo === 'helpy';
 
@@ -288,19 +407,26 @@ export async function prepararBotHelpy(endereco: string) {
   if (app?.interactions_endpoint_url !== endereco) {
     await pedir(`${DISCORD}/applications/@me`, {
       method: 'PATCH', headers: cab,
-      body: JSON.stringify({ interactions_endpoint_url: endereco, description: 'Atendimento da empresa pelo Discord. Use /helpy para falar com o assistente.' }),
+      body: JSON.stringify({
+        interactions_endpoint_url: endereco,
+        description: 'Atendimento com IA para o seu servidor: tickets privados, respostas do assistente da empresa, agendamentos e a equipe no mesmo lugar. helpysupport.com',
+      }),
     }, 'O Discord');
   }
-  const cmds = await pedir(`${DISCORD}/applications/${DISCORD_HELPY.appId}/commands`, { headers: cab }, 'O Discord') as Array<{ name: string }>;
-  if (!cmds?.some((c) => c.name === 'helpy')) {
-    await pedir(`${DISCORD}/applications/${DISCORD_HELPY.appId}/commands`, {
-      method: 'PUT', headers: cab,
-      body: JSON.stringify([{
-        name: 'helpy', description: 'Fale com o atendimento', type: 1, contexts: [0],
-        options: [{ type: 3, name: 'mensagem', description: 'O que você quer saber?', required: true, max_length: 1500 }],
-      }]),
-    }, 'O Discord');
-  }
+  await registrarComandosHelpy();
+}
+
+/** Grava os comandos do bot (só quando mudaram: o Discord limita quantas vezes dá para criar). */
+export async function registrarComandosHelpy() {
+  const cab = { Authorization: `Bot ${tokenDoBotHelpy()}`, 'Content-Type': 'application/json' };
+  const url = `${DISCORD}/applications/${DISCORD_HELPY.appId}/commands`;
+  const atuais = await pedir(url, { headers: cab }, 'O Discord') as Array<{ name: string; description: string; options?: unknown[]; default_member_permissions?: string | null }>;
+  const igual = atuais?.length === COMANDOS_HELPY.length && COMANDOS_HELPY.every((c) => {
+    const a = atuais.find((x) => x.name === c.name);
+    return a && a.description === c.description && (a.options?.length ?? 0) === (c.options?.length ?? 0) &&
+      (a.default_member_permissions ?? null) === (c.default_member_permissions ?? null);
+  });
+  if (!igual) await pedir(url, { method: 'PUT', headers: cab, body: JSON.stringify(COMANDOS_HELPY) }, 'O Discord');
 }
 
 /** No servidor da empresa, o bot do Helpy usa o nome (e, se der, a foto) do assistente. */

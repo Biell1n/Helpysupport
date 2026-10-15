@@ -122,15 +122,26 @@ export const GUIAS = {
   },
 
   discord: {
-    tempo: 'menos de 1 minuto',
+    tempo: 'uns 2 minutos',
     antes: ['Ser administrador (ou ter "Gerenciar servidor") no servidor do Discord onde o assistente vai atender.'],
     passos: [
       { titulo: 'Escolha o assistente', itens: [<>Ele vai atender no servidor com o próprio nome.</>] },
       { titulo: 'Adicione o bot do Helpy', itens: [<>O Discord abre: escolha o servidor e clique em <b>Autorizar</b>.</>] },
-      { titulo: 'Teste', itens: [<>No servidor, digite <b>/helpy</b> e a pergunta. A resposta aparece só para quem perguntou.</>] },
+      {
+        depois: true,
+        titulo: 'Configure os tickets no Discord',
+        itens: [
+          <>No servidor, digite <b>/helpy-config</b> (só quem administra vê esse comando).</>,
+          <>Escolha o <b>canal do atendimento</b> (onde fica o botão e onde os tickets são criados) e o <b>cargo da equipe</b>.</>,
+          <>O menu mostra com ✅ e ❌ o que está faltando. Se faltar permissão, clique em <b>Dar permissões ao bot</b>.</>,
+          <>Clique em <b>Publicar o botão</b>. Pronto: o cliente clica em <b>Abrir atendimento</b> e conversa com o assistente num tópico privado.</>,
+        ],
+      },
     ],
     erros: [
-      ['/helpy não aparece', 'Da primeira vez o comando pode levar alguns minutos. Confira também se o bot está na lista de membros do servidor.'],
+      ['/helpy-config não aparece', 'Da primeira vez os comandos podem levar alguns minutos. Ele só aparece para quem tem "Gerenciar servidor".'],
+      ['"Falta permissão para criar tópicos privados"', 'Abra o /helpy-config e clique em "Dar permissões ao bot", ou libere "Criar tópicos privados" e "Gerenciar tópicos" para o bot no canal.'],
+      ['A equipe não vê os tickets', 'O cargo da equipe precisa de "Gerenciar tópicos" no canal do atendimento para ver todos os tópicos privados.'],
       ['O servidor não aparece na lista do Discord', 'Você precisa ser administrador do servidor (ou ter "Gerenciar servidor").'],
     ],
   },
