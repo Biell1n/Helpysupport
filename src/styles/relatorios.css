@@ -412,23 +412,6 @@
   overflow: visible;
 }
 
-.rel-faisca-linha {
-  fill: none;
-  stroke: var(--g-assistente);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.rel-faisca-area {
-  fill: color-mix(in srgb, var(--g-assistente) 12%, transparent);
-}
-
-.rel-faisca-ponto {
-  fill: var(--g-assistente);
-  stroke: var(--branco);
-  stroke-width: 2;
-}
 
 /* ---------- funil ---------- */
 

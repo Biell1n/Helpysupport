@@ -5,6 +5,7 @@ import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { quando } from '@/lib/format';
 import { IconeDoCanal } from '@/components/IconesCanais';
+import Faisca from '@/components/Faisca';
 import '@/styles/relatorios.css';
 
 const PERIODOS = [
@@ -493,28 +494,10 @@ function PorCanal({ porCanal }) {
   );
 }
 
-/** Minigráfico de tendência no canto do número (sem eixo: só a forma). */
-function Faisca({ valores }) {
-  if (!valores || valores.length < 2 || !valores.some(Boolean)) return null;
-  const w = 96, h = 32, p = 2;
-  const max = Math.max(...valores);
-  const pts = valores.map((v, i) => [p + (i / (valores.length - 1)) * (w - 2 * p), h - p - (max ? v / max : 0) * (h - 2 * p)]);
-  const linha = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join('');
-  const area = `${linha}L${pts.at(-1)[0].toFixed(1)},${h}L${pts[0][0].toFixed(1)},${h}Z`;
-  const [ux, uy] = pts.at(-1);
-  return (
-    <svg className="rel-faisca" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-      <path d={area} className="rel-faisca-area" />
-      <path d={linha} className="rel-faisca-linha" />
-      <circle cx={ux} cy={uy} r="3" className="rel-faisca-ponto" />
-    </svg>
-  );
-}
-
 function Numero({ rotulo, valor, detalhe, variacao, faisca }) {
   return (
     <div className="card rel-numero">
-      <Faisca valores={faisca} />
+      <Faisca valores={faisca} className="rel-faisca" />
       <span className="rel-numero-rotulo">{rotulo}</span>
       <span className="rel-numero-valor">{valor}</span>
       {(detalhe || variacao != null) && (
