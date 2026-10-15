@@ -31,7 +31,7 @@ const SERVICOS = [
   {
     tipo: 'discord',
     nome: 'Discord',
-    frase: 'Um bot da empresa no servidor: o cliente usa /helpy e recebe a resposta na hora.',
+    frase: 'O bot do Helpy entra no seu servidor com o nome do assistente: o cliente usa /helpy e recebe a resposta na hora.',
     meta: false,
   },
 ];
@@ -62,6 +62,56 @@ function Copiavel({ rotulo, valor, dica }) {
       </div>
       {dica && <span className="hint">{dica}</span>}
     </div>
+  );
+}
+
+/** Discord: a empresa só escolhe o assistente e adiciona o bot do Helpy ao servidor dela. */
+function ConectarDiscord({ assistentes, onFechar }) {
+  const [assistente, setAssistente] = useState(assistentes[0]?.id ?? '');
+  const [indo, setIndo] = useState(false);
+  const [erro, setErro] = useState('');
+  const I = Icone.discord;
+
+  const ir = async () => {
+    setIndo(true);
+    setErro('');
+    try {
+      const { url } = await chamar('canais', { action: 'discord_iniciar', assistant_id: assistente, volta: `${window.location.origin}/painel/canais/discord` });
+      window.location.href = url;
+    } catch (e) {
+      setErro(e.message);
+      setIndo(false);
+    }
+  };
+
+  return (
+    <Modal aberto onFechar={onFechar} largura={560}>
+      <div className="row" style={{ gap: 12, marginBottom: 16 }}>
+        <span className="canal-icone canal-discord"><I width={22} height={22} /></span>
+        <div>
+          <h2 style={{ margin: 0 }}>Conectar Discord</h2>
+          <p className="faint" style={{ margin: '2px 0 0', fontSize: 14 }}>O bot do Helpy entra no seu servidor e atende com o nome do assistente.</p>
+        </div>
+      </div>
+      <ol className="passos">
+        <li>Escolha o assistente que vai atender no servidor.</li>
+        <li>Clique em <b>Adicionar ao meu servidor</b>: o Discord abre, você escolhe o servidor e autoriza (precisa ser administrador dele).</li>
+        <li>Você volta para cá com tudo pronto. No servidor, os clientes usam <b>/helpy</b> e a resposta aparece só para quem perguntou.</li>
+      </ol>
+      <label className="field">
+        <span className="label">Assistente que vai atender</span>
+        <select id="discord-assistente" className="input" value={assistente} onChange={(e) => setAssistente(e.target.value)}>
+          {assistentes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
+      </label>
+      {erro && <div className="alert alert-erro" style={{ marginTop: 12 }}><span>{erro}</span></div>}
+      <div className="modal-foot">
+        <button type="button" className="btn btn-ghost" onClick={onFechar}>Cancelar</button>
+        <button type="button" className="btn btn-primary" disabled={!assistente || indo} onClick={ir}>
+          {indo ? 'Abrindo o Discord…' : 'Adicionar ao meu servidor'}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -224,10 +274,16 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
           {assistentes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </label>
-      <button type="button" className="link-btn" style={{ marginTop: 10 }} onClick={() => setAberto((v) => !v)}>
-        {aberto ? 'Esconder endereços' : 'Ver endereços para colar no serviço'}
-      </button>
-      {aberto && (
+      {canal.config?.modo === 'helpy' ? (
+        <p className="faint" style={{ margin: '10px 0 0', fontSize: 13 }}>
+          O bot do Helpy está neste servidor com o nome do assistente. Os clientes digitam <b>/helpy</b> e a pergunta.
+        </p>
+      ) : (
+        <button type="button" className="link-btn" style={{ marginTop: 10 }} onClick={() => setAberto((v) => !v)}>
+          {aberto ? 'Esconder endereços' : 'Ver endereços para colar no serviço'}
+        </button>
+      )}
+      {aberto && canal.config?.modo !== 'helpy' && (
         <div className="stack" style={{ marginTop: 10 }}>
           <Enderecos canal={canal} />
           <TutorialCanal tipo={canal.tipo} soDepois />
@@ -400,7 +456,8 @@ export default function Canais() {
         {plano.canaisMeta > 0 && ` Seu plano conecta até ${plano.canaisMeta} contas de WhatsApp e Instagram (${contasMeta} em uso).`}
       </p>
 
-      {conectando && (
+      {conectando?.tipo === 'discord' && <ConectarDiscord assistentes={assistentes} onFechar={() => setConectando(null)} />}
+      {conectando && conectando.tipo !== 'discord' && (
         <Conectar
           servico={conectando}
           assistentes={assistentes}

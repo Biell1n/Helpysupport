@@ -23,6 +23,7 @@ const Plano = lazy(() => import('@/pages/Plano'));
 const Conta = lazy(() => import('@/pages/Conta'));
 const Equipe = lazy(() => import('@/pages/Equipe'));
 const Canais = lazy(() => import('@/pages/Canais'));
+const DiscordVolta = lazy(() => import('@/pages/DiscordVolta'));
 const Convite = lazy(() => import('@/pages/Convite'));
 const MinhasConversas = lazy(() => import('@/pages/MinhasConversas'));
 
@@ -67,6 +68,7 @@ export default function App() {
               <Route path="assistentes/:id/testar" element={<SoEmpresa><Testar /></SoEmpresa>} />
               <Route path="atendimentos" element={<EmpresaOuEquipe><Atendimentos /></EmpresaOuEquipe>} />
               <Route path="canais" element={<SoEmpresa><Canais /></SoEmpresa>} />
+              <Route path="canais/discord" element={<SoEmpresa><DiscordVolta /></SoEmpresa>} />
               <Route path="dados" element={<SoEmpresa><Dados /></SoEmpresa>} />
               <Route path="agenda" element={<EmpresaOuEquipe><Agenda /></EmpresaOuEquipe>} />
               <Route path="relatorios" element={<SoEmpresa><Relatorios /></SoEmpresa>} />

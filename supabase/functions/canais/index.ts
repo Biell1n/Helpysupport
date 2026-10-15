@@ -23,6 +23,14 @@ import {
   segredoDo,
   type TipoCanal,
   vestirBotDiscord,
+  apelidarBotHelpy,
+  botNoServidor,
+  discordHelpyPronto,
+  ehBotDoHelpy,
+  prepararBotHelpy,
+  sairDoServidor,
+  servidorDoCodigo,
+  urlAdicionarBot,
 } from '../_shared/canais.ts';
 
 const TIPOS: TipoCanal[] = ['whatsapp', 'instagram', 'discord'];
@@ -50,6 +58,19 @@ async function canalDaConta(id: unknown, conta: string): Promise<Canal> {
 /** Nome que o cliente vê: o "nome do assistente" da ficha ou o nome do cadastro. */
 function nomeVisivel(a: { name: string; config?: { fields?: Record<string, { value?: string }> } | null }) {
   return String(a.config?.fields?.nome_assistente?.value ?? '').trim() || a.name;
+}
+
+const ENDERECO_BOT_HELPY = () => `${Deno.env.get('SUPABASE_URL')}/functions/v1/public-chat?discord=helpy`;
+
+/** A volta do Discord só pode cair na tela de Canais do próprio painel. */
+function voltaValida(v: unknown): string {
+  const u = typeof v === 'string' ? v : '';
+  try {
+    const url = new URL(u);
+    const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    if ((url.protocol === 'https:' || local) && url.pathname === '/painel/canais/discord' && !url.search && !url.hash) return url.toString();
+  } catch { /* cai no erro abaixo */ }
+  throw new UserError('Endereço de volta inválido.');
 }
 
 const enderecoDiscord = (canalId: string) => `${Deno.env.get('SUPABASE_URL')}/functions/v1/public-chat?discord=${canalId}`;
@@ -99,6 +120,56 @@ Deno.serve(async (req) => {
     }
 
     if (!dono) throw new UserError('Só o dono da conta conecta e desconecta canais.', 403);
+
+    // ---- Discord pelo bot do Helpy: 1) ir ao Discord adicionar o bot ----
+    if (action === 'discord_iniciar') {
+      const { data: a } = await admin.from('assistants').select('id, owner_id').eq('id', String(body.assistant_id ?? '')).maybeSingle();
+      if (!a || a.owner_id !== conta) throw new UserError('Escolha um dos seus assistentes.');
+      const volta = voltaValida(body.volta);
+      if (!discordHelpyPronto()) throw new UserError('O bot do Helpy no Discord está sendo configurado. Tente de novo em alguns minutos.', 503);
+      try {
+        await prepararBotHelpy(ENDERECO_BOT_HELPY());
+      } catch (e) {
+        console.error('[discord] preparar', e);
+        throw new UserError('O Discord não respondeu agora. Tente de novo em instantes.', 502);
+      }
+      const state = [...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, '0')).join('');
+      await admin.from('canal_convites').delete().lt('criado_em', new Date(Date.now() - 864e5).toISOString());
+      const { error } = await admin.from('canal_convites').insert({ state, owner_id: conta, assistant_id: a.id });
+      if (error) throw error;
+      return json({ url: urlAdicionarBot(state, volta) });
+    }
+
+    // ---- 2) a volta do Discord: liga o servidor ao assistente escolhido ----
+    if (action === 'discord_concluir') {
+      const state = String(body.state ?? '');
+      const { data: convite } = await admin.from('canal_convites').select('*').eq('state', state).maybeSingle();
+      if (!convite || convite.owner_id !== conta) throw new UserError('Este pedido de conexão não é seu ou já foi usado. Comece de novo em Canais.', 403);
+      await admin.from('canal_convites').delete().eq('state', state);
+      if (Date.now() - new Date(convite.criado_em).getTime() > 30 * 60e3) throw new UserError('O pedido de conexão venceu. Comece de novo em Canais.', 410);
+      const volta = voltaValida(body.volta);
+      let servidor;
+      try {
+        servidor = await servidorDoCodigo(String(body.code ?? ''), volta);
+      } catch (e) {
+        throw new UserError(e instanceof ErroDoCanal ? e.message : (e as Error).message, 502);
+      }
+      const { data: existente } = await admin.from('canais').select('id, owner_id').eq('tipo', 'discord').eq('externo_id', servidor.id).maybeSingle();
+      if (existente && existente.owner_id !== conta) throw new UserError('Este servidor já está ligado a outra empresa no Helpy.', 409);
+      const { data: a } = await admin.from('assistants').select('id, name, foto_url, config').eq('id', convite.assistant_id).maybeSingle();
+      if (!a) throw new UserError('O assistente escolhido não existe mais.', 404);
+      const linha = {
+        owner_id: conta, assistant_id: a.id, tipo: 'discord', status: 'ativo', nome: servidor.name.slice(0, 120),
+        externo_id: servidor.id, config: { modo: 'helpy' }, erro: null,
+      };
+      const { data: canal, error } = existente
+        ? await admin.from('canais').update(linha).eq('id', existente.id).select('*').single()
+        : await admin.from('canais').insert(linha).select('*').single();
+      if (error) throw error;
+      const visual = await apelidarBotHelpy(servidor.id, nomeVisivel(a), a.foto_url);
+      const { segredo: _s, ...publico } = canal;
+      return json({ canal: publico, servidor: servidor.name, assistente: nomeVisivel(a), visual });
+    }
 
     if (action === 'conectar') {
       const tipo = String(body.tipo ?? '') as TipoCanal;
@@ -176,6 +247,12 @@ Deno.serve(async (req) => {
 
     if (action === 'testar') {
       const canal = await canalDaConta(body.canal_id, conta);
+      if (ehBotDoHelpy(canal)) {
+        const esta = await botNoServidor(canal.externo_id).catch(() => true);
+        const erro = esta ? null : 'O bot do Helpy não está mais neste servidor (alguém removeu pelo Discord). Conecte de novo.';
+        await admin.from('canais').update({ status: esta ? (canal.status === 'pausado' ? 'pausado' : 'ativo') : 'erro', erro }).eq('id', canal.id);
+        return json(esta ? { ok: true } : { ok: false, erro });
+      }
       const { token } = await segredoDo(admin, canal.id);
       try {
         if (canal.tipo === 'whatsapp') await conferirWhatsApp(canal.externo_id, token);
@@ -203,6 +280,10 @@ Deno.serve(async (req) => {
       if (!a || a.owner_id !== conta) throw new UserError('Escolha um dos seus assistentes.');
       await admin.from('canais').update({ assistant_id: a.id }).eq('id', canal.id);
       // no Discord o bot passa a ter o nome e a foto do assistente novo
+      if (ehBotDoHelpy(canal)) {
+        const feito = await apelidarBotHelpy(canal.externo_id, nomeVisivel(a), a.foto_url);
+        return json({ ok: true, discord: feito });
+      }
       if (canal.tipo === 'discord') {
         const { token } = await segredoDo(admin, canal.id);
         const feito = await vestirBotDiscord(token, { nome: nomeVisivel(a), foto: a.foto_url });
@@ -214,6 +295,8 @@ Deno.serve(async (req) => {
 
     if (action === 'desconectar') {
       const canal = await canalDaConta(body.canal_id, conta);
+      // bot do Helpy: sai do servidor da empresa
+      if (ehBotDoHelpy(canal)) await sairDoServidor(canal.externo_id).catch((e) => console.warn('[discord] sair', e?.message));
       // o gatilho do banco apaga o token do Vault junto
       const { error } = await admin.from('canais').delete().eq('id', canal.id);
       if (error) throw error;
