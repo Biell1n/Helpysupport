@@ -4,19 +4,19 @@
 export const PLANS = {
   trial: {
     id: 'trial', nome: 'Teste grátis', preco: 0, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 25, mensagens: 400,
-    ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, tabelas: 3, funcionarios: 2,
+    ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 0, tabelas: 3, funcionarios: 2,
   },
   essencial: {
     id: 'essencial', nome: 'Essencial', preco: 79, precoCheio: 97, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 200, mensagens: 4000,
-    ticketsAbertos: 20, chamados: true, chamadosAvancados: false, integracoes: false, tabelas: 3, funcionarios: 1,
+    ticketsAbertos: 20, chamados: true, chamadosAvancados: false, integracoes: false, canaisMeta: 0, tabelas: 3, funcionarios: 1,
   },
   profissional: {
     id: 'profissional', nome: 'Profissional', preco: 197, precoCheio: 247, assistentes: 3, builderIA: true, builderMsgs: 150, atendimentos: 600, mensagens: 9000,
-    ticketsAbertos: 100, chamados: true, chamadosAvancados: true, integracoes: true, tabelas: 10, funcionarios: 5, destaque: true,
+    ticketsAbertos: 100, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 2, tabelas: 10, funcionarios: 5, destaque: true,
   },
   business: {
     id: 'business', nome: 'Business', preco: 497, precoCheio: 597, assistentes: 10, builderIA: true, builderMsgs: 300, atendimentos: 1500, mensagens: 24000,
-    ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, tabelas: 50, funcionarios: 20,
+    ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, funcionarios: 20,
   },
 };
 

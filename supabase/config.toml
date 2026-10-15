@@ -15,3 +15,11 @@ verify_jwt = true
 
 [functions.sql-server]
 verify_jwt = true
+
+# Canais: o painel conecta com login; o webhook recebe da Meta e do
+# Discord e confere a assinatura de cada aviso.
+[functions.canais]
+verify_jwt = true
+
+[functions.canal-webhook]
+verify_jwt = false

@@ -771,11 +771,24 @@
 
 .ticket-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
   margin-top: 8px;
   font-size: 11.5px;
   color: var(--tinta-3);
+}
+
+.ticket-meta > span {
+  white-space: nowrap;
+}
+
+/* no chamado aberto (fundo azul) os selos ficam brancos */
+.ticket[aria-current='true'] .ticket-meta .badge,
+.ticket[aria-current='true'] .selo-canal {
+  --cor-canal: #fff;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .inbox-detail {
@@ -2110,4 +2123,122 @@
 
 .swipe-acao-direita {
   right: 0;
+}
+
+/* ---------- canais ---------- */
+
+.canais-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.canal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.canal-topo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.canal-topo .card-title {
+  margin: 0 0 4px;
+}
+
+.canal-frase {
+  font-size: 14px;
+  margin: 0;
+  max-width: 46ch;
+}
+
+.canal-bloqueado .canal-icone {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.canal-icone {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 13px;
+  color: var(--cor-canal, var(--senha));
+  background: color-mix(in srgb, var(--cor-canal, var(--senha)) 11%, transparent);
+}
+
+.canal-link { --cor-canal: var(--senha); }
+.canal-whatsapp { --cor-canal: #138a5e; }
+.canal-instagram { --cor-canal: #c1356f; }
+.canal-discord { --cor-canal: #5865f2; }
+
+.canal-conta {
+  border: 1px solid var(--linha);
+  border-radius: var(--r);
+  padding: 14px;
+  background: var(--papel);
+}
+
+.copiavel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.copiavel-linha {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--linha);
+  border-radius: var(--r-sm);
+  background: var(--branco);
+  padding: 2px 2px 2px 10px;
+}
+
+.copiavel-linha code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.passos {
+  margin: 10px 0 16px;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
+
+.passos b {
+  color: var(--tinta);
+}
+
+.mais summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
+
+.selo-canal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cor-canal);
+  background: color-mix(in srgb, var(--cor-canal) 10%, transparent);
+  white-space: nowrap;
 }

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUp, Bot, CheckCircle2, Columns3, Hand, RotateCcw, Search } from 'lucide-react';
 import QuadroChamados from './QuadroChamados';
-import { supabase } from '@/lib/supabase';
+import { chamar, supabase } from '@/lib/supabase';
+import { canalDe, NOME_DO_CANAL, SeloCanal } from '@/components/IconesCanais';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { Confirmar } from '@/components/Modal';
@@ -19,7 +20,6 @@ const ABAS = [
 
 const nomeCliente = (c) => c.lead_nome?.trim() || 'Visitante';
 const estrelas = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
-
 export default function Atendimentos() {
   const { recarregarUso } = useOutletContext();
   const { user, nome } = useAuth();
@@ -188,13 +188,21 @@ export default function Atendimentos() {
     if (!texto || enviando) return;
     setEnviando(true);
     try {
-      const { error } = await supabase.from('conversation_messages').insert({
+      const { data: msg, error } = await supabase.from('conversation_messages').insert({
         conversation_id: aberta.id,
         role: 'agent',
         content: texto,
         author_name: atendente,
-      });
+      }).select('id').single();
       if (error) throw error;
+      // conversa que veio do WhatsApp, Instagram ou Discord: a resposta sai por lá
+      if (aberta.canal_id) {
+        try {
+          await chamar('canais', { action: 'enviar', message_id: msg.id });
+        } catch (e) {
+          avisar(`Não chegou no ${NOME_DO_CANAL[canalDe(aberta)] ?? 'canal'}`, { erro: true, texto: e.message });
+        }
+      }
       // responder já é assumir: o assistente para de falar por cima
       if (aberta.status !== 'human') {
         await supabase
@@ -283,6 +291,7 @@ export default function Atendimentos() {
                   </div>
                   <div className="ticket-meta">
                     {!c.lido_em && c.status === 'waiting' && <span className="badge badge-waiting">novo</span>}
+                    {canalDe(c) && <SeloCanal tipo={canalDe(c)} />}
                     <span>{quando(c.last_message_at)}</span>
                     <span>· {c.message_count} msgs</span>
                     {c.nota && <span>· {estrelas(c.nota)}</span>}
@@ -315,6 +324,7 @@ export default function Atendimentos() {
                 <h2 style={{ marginTop: 4 }}>{aberta.titulo || aberta.motivo || 'Conversa com o assistente'}</h2>
                 <div className="row" style={{ marginTop: 8 }}>
                   <span className={`badge ${STATUS[aberta.status].classe}`}>{STATUS[aberta.status].rotulo}</span>
+                  {canalDe(aberta) && <SeloCanal tipo={canalDe(aberta)} />}
                   {aberta.assumido_nome && aberta.status === 'human' && <span className="faint" style={{ fontSize: 13 }}>com {aberta.assumido_nome}</span>}
                 </div>
               </div>

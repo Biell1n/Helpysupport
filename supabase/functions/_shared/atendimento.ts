@@ -455,6 +455,8 @@ export interface Rodada {
   integracoes?: boolean;
   /** visitante logado (só quem entrou com a conta abre chamado) */
   cliente: { id: string; email: string | null; nome: string | null } | null;
+  /** chegou por um canal (WhatsApp, Instagram, Discord): a pessoa já está identificada pelo contato */
+  canal?: { tipo: 'whatsapp' | 'instagram' | 'discord'; contato: string; nome: string | null } | null;
   /** o dono testando pelo painel */
   teste: boolean;
   /** recados da rodada para quem chamou (ex.: mostrar o botão de entrar) */
@@ -604,7 +606,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   if (nome === 'chamar_atendente') {
     const chamados = regrasDeChamado(cfg);
     if (!chamados.ativos) return { ok: false, mensagem: 'Este atendimento não abre chamados. Resolva você mesmo.' };
-    if (!r.teste && !r.cliente) {
+    if (!r.teste && !r.cliente && !r.canal) {
       r.sinais.pedirLogin = true;
       return {
         ok: false,
@@ -662,7 +664,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   }
 
   if (nome === 'pedir_login') {
-    if (r.cliente) return { ok: true, mensagem: 'A pessoa já entrou na conta. Pode seguir.' };
+    if (r.cliente || r.canal) return { ok: true, mensagem: 'A pessoa já está identificada. Pode seguir.' };
     r.sinais.pedirLogin = true;
     r.sinais.motivoLogin = String(args.motivo ?? '').slice(0, 120) || undefined;
     return { ok: true, mensagem: 'O botão de entrar apareceu para a pessoa. Diga em uma frase que ela precisa entrar e que depois volta para esta conversa.' };
@@ -672,7 +674,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     return await horariosLivres(db, agenda, String(args.data ?? ''), Number(args.duracao_min) || undefined);
   }
   if (agenda && nome === 'agendar') {
-    if (/^s[oó]/i.test(valueOf(cfg, 'agenda_quem')) && !r.cliente && !r.teste) {
+    if (/^s[oó]/i.test(valueOf(cfg, 'agenda_quem')) && !r.cliente && !r.canal && !r.teste) {
       r.sinais.pedirLogin = true;
       r.sinais.motivoLogin = 'para marcar seu horário';
       return { erro: 'Só quem entrou na conta pode marcar. O botão de entrar já apareceu para a pessoa: peça para ela entrar e voltar a esta conversa.' };
@@ -729,7 +731,11 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     {
       type: 'text',
       text: `Agora: ${agora} (hoje é ${hojeNoFuso(fuso)}).\nVisitante: ${
-        r.teste ? 'o dono testando (trate como quem entrou na conta)' : r.cliente ? `entrou na conta${r.cliente.nome ? ` (${r.cliente.nome})` : ''}` : 'não entrou na conta'
+        r.teste
+          ? 'o dono testando (trate como quem entrou na conta)'
+          : r.canal
+            ? `falando pelo ${{ whatsapp: 'WhatsApp', instagram: 'Instagram (Direct)', discord: 'Discord' }[r.canal.tipo]}${r.canal.nome ? ` (${r.canal.nome})` : ''}; já está identificado (trate como quem entrou na conta). Não fale de botão de entrar nem de link; respostas curtas, como numa conversa de mensagens`
+            : r.cliente ? `entrou na conta${r.cliente.nome ? ` (${r.cliente.nome})` : ''}` : 'não entrou na conta'
       }.${
         agenda
           ? `\nJÁ MARCADO NESTA CONVERSA: ${marcados.length ? `\n${marcados.map((m) => `- ${descreverAgendamento(m, fuso)}`).join('\n')}` : 'nada ainda.'}`
