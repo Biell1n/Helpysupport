@@ -8,6 +8,7 @@ import { Confirmar, Modal } from '@/components/Modal';
 import { planOf } from '@/lib/plans';
 import { quando } from '@/lib/format';
 import { IconeDoCanal as Icone } from '@/components/IconesCanais';
+import TutorialCanal from '@/components/TutorialCanal';
 
 // os avisos da Meta e do Discord chegam pelo mesmo endereço do chat público
 const BASE = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/public-chat`;
@@ -64,38 +65,6 @@ function Copiavel({ rotulo, valor, dica }) {
   );
 }
 
-/** O passo a passo de cada serviço, do jeito que aparece no painel deles. */
-function Passos({ tipo }) {
-  if (tipo === 'whatsapp') {
-    return (
-      <ol className="passos">
-        <li>No <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">painel de apps da Meta</a>, abra o app da empresa com o produto <b>WhatsApp</b>.</li>
-        <li>Em <b>WhatsApp → Configuração da API</b>, copie a <b>Identificação do número de telefone</b> e a <b>Identificação da conta do WhatsApp Business</b>.</li>
-        <li>Gere um <b>token de acesso permanente</b> (usuário do sistema, com as permissões <i>whatsapp_business_messaging</i> e <i>whatsapp_business_management</i>).</li>
-        <li>Cole tudo aqui. Depois de conectar, o Helpy mostra o endereço do webhook para colar em <b>WhatsApp → Configuração</b>.</li>
-      </ol>
-    );
-  }
-  if (tipo === 'instagram') {
-    return (
-      <ol className="passos">
-        <li>A conta precisa ser <b>profissional</b> (comercial ou criador de conteúdo).</li>
-        <li>No <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">painel de apps da Meta</a>, adicione o produto <b>Instagram</b> e escolha <b>API com login do Instagram</b>.</li>
-        <li>Em <b>Gerar tokens de acesso</b>, adicione a conta e copie o token.</li>
-        <li>Cole aqui. Depois o Helpy mostra o endereço do webhook para colar em <b>Configurar webhooks</b> (campo <i>messages</i>).</li>
-      </ol>
-    );
-  }
-  return (
-    <ol className="passos">
-      <li>No <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">Discord Developer Portal</a>, crie um aplicativo com o nome da empresa.</li>
-      <li>Em <b>Bot</b>, clique em <b>Reset Token</b> e copie o token do bot.</li>
-      <li>Cole aqui. O Helpy confere o token e cria o comando <b>/helpy</b> sozinho.</li>
-      <li>Depois é só colar o endereço que aparece em <b>General Information → Interactions Endpoint URL</b> e convidar o bot para o servidor.</li>
-    </ol>
-  );
-}
-
 function Conectar({ servico, assistentes, onFechar, onPronto }) {
   const avisar = useToast();
   const [f, setF] = useState({ assistant_id: assistentes[0]?.id ?? '', token: '', phone_number_id: '', waba_id: '', app_secret: '' });
@@ -120,13 +89,17 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
 
   const I = Icone[servico.tipo];
   return (
-    <Modal aberto onFechar={onFechar} largura={560}>
-      <div className="row" style={{ gap: 12, marginBottom: 6 }}>
+    <Modal aberto onFechar={onFechar} largura={1000}>
+      <div className="row" style={{ gap: 12, marginBottom: 16 }}>
         <span className={`canal-icone canal-${servico.tipo}`}><I width={22} height={22} /></span>
-        <h2 style={{ margin: 0 }}>Conectar {servico.nome}</h2>
+        <div>
+          <h2 style={{ margin: 0 }}>Conectar {servico.nome}</h2>
+          <p className="faint" style={{ margin: '2px 0 0', fontSize: 14 }}>Siga os passos e cole aqui o que for pedido. Você pode deixar esta janela aberta enquanto faz.</p>
+        </div>
       </div>
-      <Passos tipo={servico.tipo} />
-      <form className="stack" onSubmit={enviar}>
+      <div className="conectar-grade">
+      <TutorialCanal tipo={servico.tipo} />
+      <form className="stack conectar-form" onSubmit={enviar}>
         <label className="field">
           <span className="label">Assistente que vai responder</span>
           <select className="input" value={f.assistant_id} onChange={set('assistant_id')} required>
@@ -151,14 +124,11 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
           <span className="hint">Fica guardado criptografado no cofre do servidor. Ninguém da equipe consegue ver depois.</span>
         </label>
         {servico.meta && (
-          <details className="mais">
-            <summary>Usa um app próprio da Meta?</summary>
-            <label className="field" style={{ marginTop: 10 }}>
-              <span className="label">Chave secreta do app</span>
-              <input className="input mono" type="password" autoComplete="off" value={f.app_secret} onChange={set('app_secret')} />
-              <span className="hint">Em Configurações do app → Básico. Serve para o Helpy confirmar que o aviso de mensagem nova veio mesmo da Meta.</span>
-            </label>
-          </details>
+          <label className="field">
+            <span className="label">{servico.tipo === 'instagram' ? 'Chave secreta do app do Instagram' : 'Chave secreta do app'}</span>
+            <input className="input mono" type="password" autoComplete="off" value={f.app_secret} onChange={set('app_secret')} required />
+            <span className="hint">Serve para o Helpy confirmar que cada mensagem veio mesmo da Meta. Também fica no cofre.</span>
+          </label>
         )}
         {erro && <div className="alert alert-erro"><span>{erro}</span></div>}
         <div className="modal-foot">
@@ -168,6 +138,7 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
           </button>
         </div>
       </form>
+      </div>
     </Modal>
   );
 }
@@ -188,7 +159,7 @@ function Enderecos({ canal }) {
   return (
     <div className="grid-2">
       <Copiavel rotulo="URL de callback" valor={WEBHOOK} />
-      <Copiavel rotulo="Verificar token" valor={canal.verificar_token} dica={canal.tipo === 'whatsapp' ? 'Assine o campo "messages".' : 'Assine o campo "messages".'} />
+      <Copiavel rotulo="Verificar token" valor={canal.verificar_token} dica='Depois de salvar, assine o campo "messages".' />
     </div>
   );
 }
@@ -247,7 +218,12 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
       <button type="button" className="link-btn" style={{ marginTop: 10 }} onClick={() => setAberto((v) => !v)}>
         {aberto ? 'Esconder endereços' : 'Ver endereços para colar no serviço'}
       </button>
-      {aberto && <div style={{ marginTop: 10 }}><Enderecos canal={canal} /></div>}
+      {aberto && (
+        <div className="stack" style={{ marginTop: 10 }}>
+          <Enderecos canal={canal} />
+          <TutorialCanal tipo={canal.tipo} soDepois />
+        </div>
+      )}
       <div className="row row-wrap" style={{ gap: 8, marginTop: 12 }}>
         <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('testar')}><RefreshCw size={15} /> Testar</button>
         {canal.status === 'pausado' ? (
