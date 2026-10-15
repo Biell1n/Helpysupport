@@ -77,8 +77,15 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
     setEnviando(true);
     setErro('');
     try {
-      const { canal } = await chamar('canais', { action: 'conectar', tipo: servico.tipo, ...f });
-      avisar(`${servico.nome} conectado`, { texto: 'Falta só um passo: colar o endereço no painel do serviço.' });
+      const { canal, discord } = await chamar('canais', { action: 'conectar', tipo: servico.tipo, ...f });
+      if (discord) {
+        const partes = [discord.nome && 'o bot já tem o nome do assistente', discord.foto && 'a foto', discord.endereco && 'o endereço foi cadastrado no Discord'].filter(Boolean);
+        avisar('Discord conectado', {
+          texto: `${partes.length ? `Pronto: ${partes.join(', ')}. ` : ''}Agora é só convidar o bot para o servidor.`,
+        });
+      } else {
+        avisar(`${servico.nome} conectado`, { texto: 'Falta só um passo: colar o endereço no painel do serviço.' });
+      }
       onPronto(canal);
     } catch (err) {
       setErro(err.message);
@@ -147,9 +154,11 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
 function Enderecos({ canal }) {
   if (canal.tipo === 'discord') {
     const convite = `https://discord.com/oauth2/authorize?client_id=${canal.externo_id}&scope=bot+applications.commands&permissions=2048`;
+    const automatico = canal.config?.endereco_automatico === 'sim';
     return (
       <div className="stack-sm">
-        <Copiavel rotulo="Interactions Endpoint URL" valor={`${BASE}?discord=${canal.id}`} dica="Cole em General Information no Developer Portal e salve." />
+        {automatico && <p className="faint" style={{ margin: 0, fontSize: 13 }}>O Helpy já cadastrou este endereço no Discord. Só precisa colar se tiver apagado de lá.</p>}
+        <Copiavel rotulo="Interactions Endpoint URL" valor={`${BASE}?discord=${canal.id}`} dica={automatico ? undefined : 'Cole em General Information no Developer Portal e salve.'} />
         <a className="btn btn-ghost btn-sm" href={convite} target="_blank" rel="noreferrer" style={{ alignSelf: 'flex-start' }}>
           <ExternalLink size={15} /> Convidar o bot para um servidor
         </a>
@@ -285,6 +294,13 @@ export default function Canais() {
       const r = await chamar('canais', { action, canal_id: canal.id, ...extra });
       if (action === 'testar') {
         avisar(r.ok ? 'Tudo certo com a conexão' : 'A conexão falhou', r.ok ? {} : { erro: true, texto: r.erro });
+      }
+      if (action === 'trocar_assistente' && r.discord) {
+        avisar(r.discord.nome ? 'O bot mudou de nome' : 'Assistente trocado', {
+          texto: r.discord.nome
+            ? 'No Discord ele já aparece com o nome do assistente novo.'
+            : 'O Discord limita a troca de nome do bot a duas por hora; o nome muda na próxima tentativa.',
+        });
       }
       await carregar();
     } catch (e) {

@@ -22,6 +22,7 @@ import {
   NOMES,
   segredoDo,
   type TipoCanal,
+  vestirBotDiscord,
 } from '../_shared/canais.ts';
 
 const TIPOS: TipoCanal[] = ['whatsapp', 'instagram', 'discord'];
@@ -45,6 +46,13 @@ async function canalDaConta(id: unknown, conta: string): Promise<Canal> {
   if (!data || data.owner_id !== conta) throw new UserError('Canal não encontrado.', 404);
   return data as Canal;
 }
+
+/** Nome que o cliente vê: o "nome do assistente" da ficha ou o nome do cadastro. */
+function nomeVisivel(a: { name: string; config?: { fields?: Record<string, { value?: string }> } | null }) {
+  return String(a.config?.fields?.nome_assistente?.value ?? '').trim() || a.name;
+}
+
+const enderecoDiscord = (canalId: string) => `${Deno.env.get('SUPABASE_URL')}/functions/v1/public-chat?discord=${canalId}`;
 
 const texto = (v: unknown, max = 600) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
@@ -96,7 +104,7 @@ Deno.serve(async (req) => {
       const tipo = String(body.tipo ?? '') as TipoCanal;
       if (!TIPOS.includes(tipo)) throw new UserError('Escolha WhatsApp, Instagram ou Discord.');
       const assistantId = String(body.assistant_id ?? '');
-      const { data: a } = await admin.from('assistants').select('id, owner_id').eq('id', assistantId).maybeSingle();
+      const { data: a } = await admin.from('assistants').select('id, owner_id, name, foto_url, config').eq('id', assistantId).maybeSingle();
       if (!a || a.owner_id !== conta) throw new UserError('Escolha um dos seus assistentes.');
       const token = texto(body.token, 2000);
       if (token.length < 20) throw new UserError('Cole o token de acesso completo.');
@@ -150,8 +158,20 @@ Deno.serve(async (req) => {
       if (error) throw error;
       await guardarSegredo(admin, canal.id, { token, ...(appSecret ? { app_secret: appSecret } : {}) });
       await assinarAvisos(tipo, token, dados.config?.waba_id ?? '');
+      // Discord: o bot ganha o nome e a foto do assistente e o endereço é cadastrado sozinho
+      let discord = null;
+      if (tipo === 'discord') {
+        const nome = nomeVisivel(a);
+        discord = await vestirBotDiscord(token, {
+          nome, foto: a.foto_url, endereco: enderecoDiscord(canal.id),
+          descricao: `${nome} atende pelo comando /helpy.`,
+        });
+        if (discord.nome) await admin.from('canais').update({ nome: nome.slice(0, 120) }).eq('id', canal.id);
+        canal.config = { ...canal.config, endereco_automatico: discord.endereco ? 'sim' : 'nao' };
+        await admin.from('canais').update({ config: canal.config }).eq('id', canal.id);
+      }
       const { segredo: _s, ...publico } = canal;
-      return json({ canal: publico });
+      return json({ canal: publico, discord });
     }
 
     if (action === 'testar') {
@@ -179,9 +199,16 @@ Deno.serve(async (req) => {
 
     if (action === 'trocar_assistente') {
       const canal = await canalDaConta(body.canal_id, conta);
-      const { data: a } = await admin.from('assistants').select('id, owner_id').eq('id', String(body.assistant_id ?? '')).maybeSingle();
+      const { data: a } = await admin.from('assistants').select('id, owner_id, name, foto_url, config').eq('id', String(body.assistant_id ?? '')).maybeSingle();
       if (!a || a.owner_id !== conta) throw new UserError('Escolha um dos seus assistentes.');
       await admin.from('canais').update({ assistant_id: a.id }).eq('id', canal.id);
+      // no Discord o bot passa a ter o nome e a foto do assistente novo
+      if (canal.tipo === 'discord') {
+        const { token } = await segredoDo(admin, canal.id);
+        const feito = await vestirBotDiscord(token, { nome: nomeVisivel(a), foto: a.foto_url });
+        if (feito.nome) await admin.from('canais').update({ nome: nomeVisivel(a).slice(0, 120) }).eq('id', canal.id);
+        return json({ ok: true, discord: feito });
+      }
       return json({ ok: true });
     }
 

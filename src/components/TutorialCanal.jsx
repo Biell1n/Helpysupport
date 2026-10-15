@@ -129,8 +129,7 @@ export const GUIAS = {
       {
         titulo: 'Crie o aplicativo',
         itens: [
-          <>Abra o <A href={DISCORD}>Discord Developer Portal</A> e clique em <b>New Application</b>. Use o nome da sua empresa: é o nome que os clientes vão ver.</>,
-          <>Se quiser, coloque uma foto em <b>App Icon</b>.</>,
+          <>Abra o <A href={DISCORD}>Discord Developer Portal</A> e clique em <b>New Application</b>. O nome pode ser qualquer um: ao conectar, o Helpy troca o nome e a foto do bot pelos do assistente.</>,
         ],
       },
       {
@@ -142,20 +141,21 @@ export const GUIAS = {
       },
       {
         titulo: 'Clique em Conectar',
-        itens: [<>O Helpy confere o token, pega a chave pública do app e cria o comando <b>/helpy</b> sozinho.</>],
+        itens: [<>O Helpy confere o token, cria o comando <b>/helpy</b>, dá ao bot o nome e a foto do assistente e cadastra sozinho o endereço das interações no Discord.</>],
       },
       {
         depois: true,
-        titulo: 'Cole o endereço e convide o bot',
+        titulo: 'Convide o bot para o servidor',
         itens: [
-          <>No Developer Portal, abra <b>General Information</b> e cole em <b>Interactions Endpoint URL</b> o endereço que o Helpy mostrar. Clique em <b>Save Changes</b> (o Discord testa na hora e precisa aparecer "All your edits have been carefully recorded").</>,
-          <>De volta ao Helpy, clique em <b>Convidar o bot para um servidor</b> e escolha o servidor.</>,
+          <>No Helpy, clique em <b>Convidar o bot para um servidor</b> e escolha o servidor.</>,
+          <>Só se o Helpy avisar que não conseguiu cadastrar o endereço: no Developer Portal, abra <b>General Information</b>, cole em <b>Interactions Endpoint URL</b> o endereço que o Helpy mostrar e clique em <b>Save Changes</b>.</>,
           <>Teste no servidor: digite <b>/helpy</b>, escreva a pergunta e envie. A resposta aparece só para quem perguntou.</>,
         ],
       },
     ],
     erros: [
       ['O Discord não aceita o endereço', 'Conecte no Helpy primeiro e só depois cole o endereço: ele precisa da chave pública que o Helpy guarda ao conectar.'],
+      ['O nome do bot não mudou', 'O Discord deixa trocar o nome de um bot só duas vezes por hora. Espere um pouco e troque o assistente de novo em Canais, ou mude o nome em Bot → Username.'],
       ['/helpy não aparece', 'O comando pode levar alguns minutos para aparecer. Confira se o bot foi convidado com o botão do Helpy (ele já pede a permissão de comandos).'],
     ],
   },

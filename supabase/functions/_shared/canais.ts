@@ -224,6 +224,67 @@ export async function conferirDiscord(token: string) {
   return { externo_id: app.id, nome: app.name ?? 'Bot do Discord', config: { public_key: app.verify_key } };
 }
 
+/** Nome que o Discord aceita para um bot: 2 a 32 caracteres, sem @ # : ``` e sem a palavra "discord". */
+function nomeDeBot(nome: string) {
+  const limpo = nome.replace(/[@#:`]/g, '').replace(/discord/gi, '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  return limpo.length >= 2 ? limpo : 'Atendimento';
+}
+
+/**
+ * Discord: deixa o bot com a cara do assistente (nome e foto) e cadastra
+ * sozinho o endereço das interações, para a empresa não precisar colar.
+ * Cada parte pode falhar sem impedir a conexão (o Discord limita a troca
+ * de nome a duas por hora); o resultado diz o que deu certo.
+ */
+export async function vestirBotDiscord(token: string, o: { nome: string; foto?: string | null; endereco?: string; descricao?: string }) {
+  const feito = { nome: false, foto: false, endereco: false };
+  const cab = { Authorization: `Bot ${token}`, 'Content-Type': 'application/json' };
+
+  const perfil: Record<string, string> = { username: nomeDeBot(o.nome) };
+  if (o.foto) {
+    try {
+      const r = await fetch(o.foto, { signal: AbortSignal.timeout(10000) });
+      const tipo = r.headers.get('content-type') ?? 'image/png';
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      if (r.ok && bytes.length < 8_000_000 && /^image\//.test(tipo)) {
+        let bin = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        perfil.avatar = `data:${tipo};base64,${btoa(bin)}`;
+      }
+    } catch {
+      /* sem foto: fica a que já estava */
+    }
+  }
+  try {
+    await pedir(`${DISCORD}/users/@me`, { method: 'PATCH', headers: cab, body: JSON.stringify(perfil) }, 'O Discord');
+    feito.nome = true;
+    feito.foto = !!perfil.avatar;
+  } catch (e) {
+    console.warn('[discord] nome/foto', (e as Error).message);
+    // a foto sozinha às vezes passa quando o nome bateu no limite de trocas
+    if (perfil.avatar) {
+      try {
+        await pedir(`${DISCORD}/users/@me`, { method: 'PATCH', headers: cab, body: JSON.stringify({ avatar: perfil.avatar }) }, 'O Discord');
+        feito.foto = true;
+      } catch { /* segue */ }
+    }
+  }
+
+  if (o.endereco) {
+    try {
+      // o Discord testa o endereço na hora (PING assinado); por isso o canal já precisa estar salvo
+      await pedir(`${DISCORD}/applications/@me`, {
+        method: 'PATCH', headers: cab,
+        body: JSON.stringify({ interactions_endpoint_url: o.endereco, ...(o.descricao ? { description: o.descricao.slice(0, 400) } : {}) }),
+      }, 'O Discord');
+      feito.endereco = true;
+    } catch (e) {
+      console.warn('[discord] endereço', (e as Error).message);
+    }
+  }
+  return feito;
+}
+
 /** Discord: troca a resposta "pensando…" pela resposta de verdade. */
 export async function responderInteracaoDiscord(applicationId: string, interacaoToken: string, texto: string) {
   const [primeira, ...resto] = pedacos(texto, 1900);
