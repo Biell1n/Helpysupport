@@ -4,7 +4,6 @@ import Lenis from 'lenis';
 import { ArrowRight, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap, QrCode } from 'lucide-react';
 import { IconeDoCanal } from '@/components/IconesCanais';
 import Logo, { Marca } from '@/components/Logo';
-import HeroMascote from '@/components/HeroMascote';
 import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
 import SkylineHorarios from '@/components/SkylineHorarios';
 import Contador from '@/components/Contador';
@@ -145,7 +144,7 @@ function Topo({ user, deslizar }) {
 }
 
 // ------------------------------------------------------------
-// Hero: o mascote no meio do título, com mensagens chegando de todos os canais
+// Hero: o título se abre em volta do robô, que acompanha o mouse
 // ------------------------------------------------------------
 function Hero({ user, deslizar }) {
   const ref = useRef(null);
@@ -162,8 +161,8 @@ function Hero({ user, deslizar }) {
       </h1>
 
       <div className="lp-robo-figura">
-        <div className="lp-entra" style={{ '--d': '0.2s', height: '100%' }}>
-          <HeroMascote />
+        <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
+          <img src="/img/robo.webp" alt="O Helpy, um robozinho branco com fones de ouvido, acenando" width="1328" height="1184" />
         </div>
       </div>
 
