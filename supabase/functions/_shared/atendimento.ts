@@ -50,6 +50,8 @@ interface Tabela {
   api_config: ApiConfig | null;
   sincronizada_em: string | null;
   colunas: Array<{ chave: string; rotulo: string }>;
+  /** nome da ferramenta desta tabela, único mesmo com duas tabelas de mesmo nome */
+  ferramenta: string;
 }
 
 const semAcento = (s: string) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -150,7 +152,7 @@ export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConf
 
   const blocoTabelas = tabelas.length
     ? `DADOS AO VIVO — a fonte de verdade
-${tabelas.map((t) => `- ${t.nome}${t.proposito ? `: ${t.proposito}` : ''} (colunas: ${t.colunas.map((c) => c.rotulo).join(', ')}) → ${toolName(t.nome)}`).join('\n')}
+${tabelas.map((t) => `- ${t.nome}${t.proposito ? `: ${t.proposito}` : ''} (colunas: ${t.colunas.map((c) => c.rotulo).join(', ')}) → ${t.ferramenta}`).join('\n')}
 Nunca afirme preço, disponibilidade, quantidade ou detalhe destes itens sem consultar a tabela antes, na mesma resposta. Se a consulta não achar, diga que não encontrou.`
     : '';
 
@@ -226,6 +228,9 @@ ${blocoChamados}
 
 NUNCA INVENTE. Nunca chute, nunca aproxime, nunca diga "provavelmente". Nunca prometa desconto, prazo, brinde, reembolso ou exceção que não esteja na ficha.
 
+QUANDO ALGO PARECE ERRADO
+Se os dados ou a ficha parecerem errados — itens que não combinam com o negócio (ex.: informática numa loja de roupa), preço absurdo, informações que se contradizem, uma consulta que falhou — chame avisar_equipe uma vez e siga atendendo: não passe o dado suspeito como certo, diga que vai confirmar com a equipe e ofereça outra ajuda.
+
 LOGIN DO VISITANTE
 O fim destas instruções diz se o visitante entrou na conta. Se uma regra do dono exigir conta para alguma coisa (marcar, comprar, falar de um pedido…) e a pessoa não entrou, chame pedir_login: aparece um botão de entrar para ela, e você explica em uma frase. Nunca peça senha ou código no chat.
 
@@ -261,14 +266,24 @@ export async function carregarTabelas(db: SupabaseClient, assistantId: string): 
     db.from('tabelas').select('id, nome, proposito, fonte, api_config, api_segredo, sincronizada_em').in('id', ids),
     db.from('tabela_colunas').select('tabela_id, chave, rotulo, ordem').in('tabela_id', ids).order('ordem'),
   ]);
-  return await Promise.all((tabs ?? []).map(async ({ api_segredo, ...t }) => {
+  const lista = await Promise.all((tabs ?? []).map(async ({ api_segredo, ...t }) => {
     // a chave da API mora criptografada no Vault; só o servidor abre, na hora de usar
     if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config && api_segredo) {
       const { data: valor } = await db.rpc('helpy_segredo_api', { p_tabela: t.id });
       if (valor) t.api_config = { ...t.api_config, header_valor: String(valor) };
     }
-    return { ...t, colunas: (cols ?? []).filter((c) => c.tabela_id === t.id) };
+    return { ...t, colunas: (cols ?? []).filter((c) => c.tabela_id === t.id), ferramenta: '' } as Tabela;
   }));
+  // duas tabelas com o mesmo nome ("Produtos") dariam duas ferramentas iguais, e a IA recusa
+  // a chamada inteira: a segunda vira consultar_produtos_2, e assim por diante
+  const usados = new Map<string, number>();
+  for (const t of lista) {
+    const base = toolName(t.nome).slice(0, 56);
+    const n = (usados.get(base) ?? 0) + 1;
+    usados.set(base, n);
+    t.ferramenta = n === 1 ? base : `${base}_${n}`;
+  }
+  return lista;
 }
 
 function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null): Anthropic.Tool[] {
@@ -277,7 +292,7 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
 
   for (const t of tabelas) {
     tools.push({
-      name: toolName(t.nome),
+      name: t.ferramenta,
       description: `Consulta a tabela "${t.nome}"${t.proposito ? ` — ${t.proposito}` : ''}. Colunas: ${t.colunas.map((c) => c.rotulo).join(', ')}. Use sempre antes de afirmar preço, disponibilidade ou detalhe desta lista: o dado aqui é o atual.`,
       input_schema: {
         type: 'object',
@@ -344,6 +359,18 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
           pergunta: { type: 'string', description: 'Como a pessoa perguntou' },
         },
         required: ['assunto', 'pergunta'],
+      },
+    },
+    {
+      name: 'avisar_equipe',
+      description: 'Avisa a empresa, no painel, que algo parece errado na configuração ou nos dados: item que não combina com o negócio, preço ou informação absurda, dados que se contradizem, ferramenta que falhou. O cliente não vê o aviso. Não use para pedido de atendimento (isso é chamar_atendente).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          assunto: { type: 'string', description: 'Em poucas palavras. Ex.: "Tabela Produtos com itens de informática"' },
+          detalhe: { type: 'string', description: 'O que você viu e por que parece errado, em 1 a 3 frases' },
+        },
+        required: ['assunto', 'detalhe'],
       },
     },
     {
@@ -432,8 +459,26 @@ export interface Rodada {
   sinais: { pedirLogin?: boolean; motivoLogin?: string };
 }
 
+/** Avisa a empresa (dono e equipe veem no painel). A mesma chave no mesmo dia não repete o aviso. */
+export async function alertar(
+  db: SupabaseClient,
+  ownerId: string,
+  a: { assistant_id?: string; conversation_id?: string | null; origem: 'assistente' | 'sistema'; assunto: string; detalhe?: string; chave?: string },
+) {
+  const { error } = await db.from('alertas').insert({
+    owner_id: ownerId,
+    assistant_id: a.assistant_id ?? null,
+    conversation_id: a.conversation_id ?? null,
+    origem: a.origem,
+    assunto: a.assunto.slice(0, 160),
+    detalhe: a.detalhe?.slice(0, 1000) || null,
+    chave: a.chave?.slice(0, 200) ?? null,
+  });
+  if (error && error.code !== '23505') console.error('[alerta]', error.message);
+}
+
 /** Tabela ligada à API ou ao banco SQL da empresa: pergunta ao vivo. */
-async function consultarSistema(t: Tabela, busca: string) {
+async function consultarSistema(r: Rodada, t: Tabela, busca: string) {
   try {
     const { total, linhas } = t.fonte === 'sql'
       ? await consultarSql(configSql(t.api_config), busca)
@@ -457,6 +502,11 @@ async function consultarSistema(t: Tabela, busca: string) {
     };
   } catch (e) {
     console.error('[api]', t.id, e instanceof Error ? e.message : e);
+    await alertar(r.db, r.assistant.owner_id, {
+      assistant_id: r.assistant.id, conversation_id: r.conversationId, origem: 'sistema', chave: `fonte:${t.id}`,
+      assunto: `"${t.nome}" não respondeu`,
+      detalhe: `O assistente tentou consultar ${t.fonte === 'sql' ? 'o banco SQL' : 'o sistema'} de "${t.nome}" e deu erro: ${e instanceof Error ? e.message : String(e)}. Confira a conexão em Dados.`,
+    });
     return { erro: `O sistema de "${t.nome}" não respondeu agora. Diga que não conseguiu consultar e ofereça chamar a equipe.` };
   }
 }
@@ -466,12 +516,19 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   const cfg = assistant.config;
 
   if (nome.startsWith('consultar_')) {
-    const t = tabelas.find((x) => toolName(x.nome) === nome);
+    const t = tabelas.find((x) => x.ferramenta === nome);
     if (!t) return { erro: 'tabela não encontrada' };
-    if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config) return await consultarSistema(t, String(args.busca ?? ''));
+    if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config) return await consultarSistema(r, t, String(args.busca ?? ''));
     if (t.fonte === 'url' && Date.now() - new Date(t.sincronizada_em ?? 0).getTime() > VALIDADE_URL_MS) {
       // planilha por link desatualizada: tenta trazer a versão nova; se falhar, usa a última cópia
-      await sincronizarUrl(db, t.id).catch((e) => console.error('[sincronizar]', t.id, e?.message ?? e));
+      await sincronizarUrl(db, t.id).catch(async (e) => {
+        console.error('[sincronizar]', t.id, e?.message ?? e);
+        await alertar(db, assistant.owner_id, {
+          assistant_id: assistant.id, conversation_id: conversationId, origem: 'sistema', chave: `planilha:${t.id}`,
+          assunto: `A planilha "${t.nome}" não atualizou`,
+          detalhe: `O link da planilha não abriu (${e?.message ?? e}). O assistente está usando a última cópia salva. Confira o link em Dados.`,
+        });
+      });
       t.sincronizada_em = new Date().toISOString();
     }
     const termo = semAcento(String(args.busca ?? '').trim());
@@ -579,6 +636,17 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       resumo: String(args.motivo ?? '').slice(0, 500) || null,
     }).eq('id', conversationId);
     return { ok: true, mensagem: 'Conversa encerrada. Agora pode se despedir em uma frase curta.' };
+  }
+
+  if (nome === 'avisar_equipe') {
+    const assunto = String(args.assunto ?? '').trim();
+    if (!assunto) return { erro: 'Diga o assunto do aviso.' };
+    await alertar(db, assistant.owner_id, {
+      assistant_id: assistant.id, conversation_id: conversationId, origem: 'assistente',
+      chave: `conv:${conversationId}:${assunto.toLowerCase().slice(0, 60)}`,
+      assunto, detalhe: String(args.detalhe ?? ''),
+    });
+    return { ok: true, mensagem: 'A equipe foi avisada no painel. Para o cliente, diga só que vai confirmar a informação com a equipe; não fale de erro interno.' };
   }
 
   if (nome === 'pedir_login') {

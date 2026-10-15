@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { ArrowRight, Bot, Check, Plus, Sparkles } from 'lucide-react';
+import AlertasDaConta from '@/components/AlertasDaConta';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { diasDeTeste, planOf } from '@/lib/plans';
@@ -79,6 +80,8 @@ export default function Painel() {
           <Plus /> Novo assistente
         </Link>
       </header>
+
+      <AlertasDaConta />
 
       {dias != null && (
         <div className={`alert ${dias <= 0 ? 'alert-erro' : ''}`} style={{ marginBottom: 20 }}>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowUp, CalendarCheck, CalendarClock, CalendarX, LogIn, Star, UserCheck } from 'lucide-react';
 import { useToast } from '@/components/Toasts';
+import LatticeLoader from '@/components/LatticeLoader';
 import { chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolverDesafio } from '@/lib/prova';
@@ -287,7 +288,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         {pensando && !humano && (
           <div className="msg msg-bot">
             <span className="msg-who">{nome}</span>
-            <div className="msg-body typing" aria-label="Digitando"><i /><i /><i /></div>
+            <div className="msg-body pensando"><LatticeLoader label="Pensando" color="var(--senha)" fontSize={13} /></div>
           </div>
         )}
 
@@ -349,7 +350,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
 
       <div className="composer">
         <div className="publico-in">
-          <div className="composer-row">
+          <div className="composer-row" data-pensando={pensando || undefined}>
             <textarea
               ref={area}
               rows={1}

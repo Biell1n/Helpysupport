@@ -347,6 +347,12 @@
   font-size: 13px;
 }
 
+.pensando {
+  display: inline-flex;
+  padding: 12px 16px;
+  color: var(--tinta-2);
+}
+
 .typing {
   display: inline-flex;
   gap: 4px;
@@ -1878,4 +1884,92 @@
   .chat-evento {
     animation: none;
   }
+}
+
+/* caixa de mensagem enquanto o assistente pensa: um brilho azul corre pela borda */
+@property --brilho-angulo {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.composer-row[data-pensando] {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--branco), var(--branco)) padding-box,
+    conic-gradient(from var(--brilho-angulo), var(--linha-forte) 0 62%, #9dc2ff 74%, var(--senha) 82%, #9dc2ff 88%, var(--linha-forte) 100%) border-box;
+  box-shadow: 0 0 0 4px var(--senha-clara), 0 10px 30px -18px rgba(31, 102, 244, 0.55);
+  animation: brilho-gira 2.2s linear infinite;
+}
+
+@keyframes brilho-gira {
+  to {
+    --brilho-angulo: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-row[data-pensando] {
+    animation: none;
+  }
+}
+
+/* avisos do assistente / do sistema no painel */
+.alertas {
+  margin-bottom: 20px;
+  border-color: rgba(201, 73, 44, 0.3);
+}
+
+.alertas .card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brasa);
+}
+
+.alertas ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.alertas li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding-top: 12px;
+  border-top: 1px solid var(--linha);
+}
+
+.alertas li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.alertas li p {
+  margin: 2px 0 4px;
+  font-size: 13.5px;
+  color: var(--tinta-2);
+}
+
+.alertas li .faint {
+  font-size: 12.5px;
+}
+
+.alertas-icone {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--senha-clara);
+  color: var(--senha);
+}
+
+.alertas-icone[data-origem='sistema'] {
+  background: var(--brasa-clara);
+  color: var(--brasa);
 }

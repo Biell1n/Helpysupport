@@ -61,7 +61,16 @@ async function baixar(u: URL, headers: Record<string, string> = {}): Promise<{ t
   }
   try {
     if (res!.status === 401 || res!.status === 403) {
-      throw new UserError(`O sistema recusou o acesso (${res!.status}). Confira o cabeçalho de autorização.`);
+      // planilha da Microsoft: o link exige login (compartilhado só com a organização)
+      if (/sharepoint\.com|onedrive|1drv\.ms/i.test(u.hostname + atual.hostname)) {
+        throw new UserError(
+          'A Microsoft pediu login para abrir esse link. No Excel, clique em Compartilhar → Configurações do link e escolha ' +
+          '"Qualquer pessoa com o link pode exibir". Se essa opção não aparecer, a sua empresa bloqueia links públicos: ' +
+          'use um OneDrive pessoal, o Google Planilhas ou importe o arquivo .xlsx.',
+        );
+      }
+      if (Object.keys(headers).length) throw new UserError(`O sistema recusou o acesso (${res!.status}). Confira o cabeçalho de autorização.`);
+      throw new UserError(`O endereço recusou o acesso (${res!.status}). Confira se o link está público para quem tem o link.`);
     }
     if (!res!.ok) throw new UserError(`O endereço respondeu com erro ${res!.status}.`);
     const tamanho = Number(res!.headers.get('content-length') ?? 0);
