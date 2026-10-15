@@ -5,8 +5,8 @@
    ============================================================ */
 
 .rel-page {
-  --g-assistente: #b78d00;
-  --g-equipe: #5889e6;
+  --g-assistente: #1f66f4;
+  --g-equipe: #7fb0ff;
   /* rampa sequencial em uma só cor: do fundo ao azul forte */
   --g-seq-0: var(--papel-2);
   --g-seq-1: color-mix(in oklab, var(--azul-forte) 18%, var(--papel-2));
@@ -396,5 +396,160 @@
 
   .rel-calor-hora {
     font-size: 9.5px;
+  }
+}
+
+/* ---------- minigráfico nos números ---------- */
+
+.rel-numero {
+  position: relative;
+}
+
+.rel-faisca {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  overflow: visible;
+}
+
+.rel-faisca-linha {
+  fill: none;
+  stroke: var(--g-assistente);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.rel-faisca-area {
+  fill: color-mix(in srgb, var(--g-assistente) 12%, transparent);
+}
+
+.rel-faisca-ponto {
+  fill: var(--g-assistente);
+  stroke: var(--branco);
+  stroke-width: 2;
+}
+
+/* ---------- funil ---------- */
+
+.rel-funil {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.rel-funil li {
+  display: grid;
+  gap: 6px;
+}
+
+.rel-funil-texto {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.rel-funil-texto small {
+  font-size: 12.5px;
+}
+
+.rel-funil-texto b {
+  font-variant-numeric: tabular-nums;
+}
+
+.rel-funil-trilho {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--papel-2);
+  overflow: hidden;
+}
+
+.rel-funil-trilho i {
+  display: block;
+  height: 100%;
+  width: var(--w);
+  border-radius: 999px;
+  /* a mesma cor, mais clara a cada etapa */
+  background: color-mix(in oklab, var(--g-assistente) calc(100% - var(--i) * 18%), var(--papel-2));
+  transform-origin: left;
+  animation: rel-cresce 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i) * 0.08s) both;
+}
+
+.rel-funil-passou {
+  font-size: 12px;
+  color: var(--tinta-3);
+}
+
+@keyframes rel-cresce {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- por canal ---------- */
+
+.rel-particao {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  margin: 6px 0 16px;
+}
+
+.rel-particao i {
+  min-width: 6px;
+  border-radius: 4px;
+}
+
+.rel-particao-legenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.rel-particao-legenda li {
+  display: grid;
+  grid-template-columns: 1fr auto 44px;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.rel-particao-legenda li[data-vazio] {
+  opacity: 0.5;
+}
+
+.rel-particao-legenda b {
+  font-variant-numeric: tabular-nums;
+}
+
+.rel-particao-legenda span:last-child {
+  text-align: right;
+  font-size: 12.5px;
+}
+
+.rel-particao-nome {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rel-particao-nome > i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.rel-particao-nome svg {
+  color: var(--tinta-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rel-funil-trilho i {
+    animation: none;
   }
 }
