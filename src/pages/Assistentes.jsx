@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Copy, ExternalLink, MessageCircle, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, MessageCircle, Pencil, Plus, QrCode, RefreshCw, Trash2 } from 'lucide-react';
 import { supabase, chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -8,6 +8,7 @@ import { Confirmar } from '@/components/Modal';
 import { Marca } from '@/components/Logo';
 import { planOf } from '@/lib/plans';
 import { MODELOS } from '@/lib/documento';
+import QrAssistente from '@/components/QrAssistente';
 
 export const linkPublico = (token) => `${window.location.origin}/c/${token}`;
 
@@ -17,6 +18,7 @@ export default function Assistentes() {
   const plano = planOf(profile);
   const [lista, setLista] = useState(null);
   const [excluir, setExcluir] = useState(null);
+  const [qr, setQr] = useState(null);
 
   const carregar = useCallback(async () => {
     const { data } = await supabase
@@ -122,12 +124,15 @@ export default function Assistentes() {
               </code>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => copiar(a.public_token)}><Copy /> Copiar</button>
               <a href={linkPublico(a.public_token)} target="_blank" rel="noreferrer" className="btn btn-quiet btn-sm"><ExternalLink /> Abrir</a>
+              <button type="button" className="btn btn-quiet btn-sm" onClick={() => setQr(a)}><QrCode /> QR code</button>
               <button type="button" className="btn btn-quiet btn-sm" onClick={() => alternar(a)}>{a.is_public ? 'Desligar' : 'Ligar'}</button>
               <button type="button" className="btn btn-quiet btn-sm" title="Gera um endereço novo e desativa o antigo" onClick={() => trocarLink(a)}><RefreshCw /> Trocar link</button>
             </div>
           </article>
         ))}
       </div>
+
+      <QrAssistente assistente={qr} link={qr ? linkPublico(qr.public_token) : ''} onFechar={() => setQr(null)} />
 
       <Confirmar
         aberto={!!excluir}

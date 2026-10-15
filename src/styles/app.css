@@ -1978,3 +1978,27 @@
   background: var(--brasa-clara);
   color: var(--brasa);
 }
+
+/* QR code do assistente */
+.qr-caixa {
+  width: min(300px, 100%);
+  margin: 0 auto;
+  padding: 12px;
+  border-radius: var(--r);
+  background: #fff;
+  border: 1px solid var(--linha);
+}
+
+.qr-caixa svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.qr-link {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
