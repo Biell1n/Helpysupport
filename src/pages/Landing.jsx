@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Lenis from 'lenis';
-import { ArrowRight, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap } from 'lucide-react';
+import { ArrowRight, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap, QrCode } from 'lucide-react';
+import { IconeDoCanal } from '@/components/IconesCanais';
 import Logo, { Marca } from '@/components/Logo';
+import HeroMascote from '@/components/HeroMascote';
 import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
 import SkylineHorarios from '@/components/SkylineHorarios';
 import Contador from '@/components/Contador';
@@ -143,7 +145,7 @@ function Topo({ user, deslizar }) {
 }
 
 // ------------------------------------------------------------
-// Hero: o título se abre em volta do vídeo, e o vídeo cresce ao rolar
+// Hero: o mascote no meio do título, com mensagens chegando de todos os canais
 // ------------------------------------------------------------
 function Hero({ user, deslizar }) {
   const ref = useRef(null);
@@ -160,8 +162,8 @@ function Hero({ user, deslizar }) {
       </h1>
 
       <div className="lp-robo-figura">
-        <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
-          <img src="/img/robo.webp" alt="O Helpy, um robozinho branco com fones de ouvido, acenando" width="1328" height="1184" />
+        <div className="lp-entra" style={{ '--d': '0.2s', height: '100%' }}>
+          <HeroMascote />
         </div>
       </div>
 
@@ -299,6 +301,14 @@ const FONTES = [
 ];
 
 /** Curva de uma fonte até o centro, puxada um pouco para o lado. */
+const CANAIS = [
+  { icone: Link2, nome: 'Link e site', x: 50, y: 12 },
+  { icone: (p) => <IconeDoCanal.whatsapp {...p} />, nome: 'WhatsApp', x: 88, y: 40, canal: 'whatsapp' },
+  { icone: (p) => <IconeDoCanal.instagram {...p} />, nome: 'Instagram', x: 76, y: 84, canal: 'instagram' },
+  { icone: (p) => <IconeDoCanal.discord {...p} />, nome: 'Discord', x: 24, y: 84, canal: 'discord' },
+  { icone: QrCode, nome: 'QR code', x: 12, y: 40 },
+];
+
 function feixe({ x, y }) {
   const mx = (x + 50) / 2 + (50 - y) * 0.18;
   const my = (y + 50) / 2 - (50 - x) * 0.18;
@@ -318,7 +328,7 @@ const FAQ = [
   ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu atendente, do começo ao fim. Cada plano tem uma cota de atendimentos e um total de mensagens de clientes no mês, que folga para conversas de todos os tamanhos.'],
   ['E quando a cota acaba?', 'O atendente não some: as conversas passam a virar recados e chamados para a sua equipe até a cota renovar, e você recebe um aviso no painel antes de chegar lá.'],
   ['Consigo ligar no meu sistema?', 'Sim. Ele lê planilhas do Excel (inclusive no OneDrive e no SharePoint), Google Planilhas, bancos PostgreSQL, MySQL e SQL Server direto, e sistemas com API REST, como SAP e TOTVS Protheus. Sempre só leitura, e só com a sua autorização.'],
-  ['Funciona no WhatsApp?', 'Hoje o atendimento é pelo link do Helpy. A integração com WhatsApp está no nosso caminho.'],
+  ['Funciona no WhatsApp?', 'Funciona. Do plano Profissional em diante, o mesmo assistente responde no WhatsApp e no Instagram pela API oficial da Meta (sem chip no celular e sem risco de bloqueio), e o painel mostra o passo a passo para conectar. Em qualquer plano dá para usar o link do chat, o QR code e um bot no Discord.'],
 ];
 
 export default function Landing() {
@@ -429,6 +439,35 @@ export default function Landing() {
                 <Icone aria-hidden="true" /> {nome}
               </span>
             ))}
+          </Reveal>
+        </div>
+      </section>
+
+      <section id="canais" className="lp-sec">
+        <div className="lp-in lp-duas lp-duas-inverte">
+          <Reveal className="lp-fontes lp-canais" atraso={120}>
+            <svg className="lp-feixes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {CANAIS.map((f, i) => (
+                <g key={f.nome}>
+                  <path d={feixe(f)} className="lp-feixe-base" />
+                  <path d={feixe(f)} className="lp-feixe-luz lp-feixe-sai" pathLength="1" style={{ '--i': i }} />
+                </g>
+              ))}
+            </svg>
+            <span className="lp-fontes-centro"><Marca size={52} /></span>
+            {CANAIS.map(({ icone: Icone, nome, canal }, i) => (
+              <span key={nome} className={`lp-fonte lp-fonte-${i + 1}${canal ? ` canal-${canal}` : ''}`}>
+                <Icone aria-hidden="true" width={18} height={18} /> {nome}
+              </span>
+            ))}
+          </Reveal>
+          <Reveal>
+            <span className="lp-etiqueta">Canais</span>
+            <h2 className="lp-h2">Um assistente, todos os canais.</h2>
+            <p className="lp-lead">
+              O mesmo atendente responde no link do chat, no WhatsApp, no Instagram e no Discord. Preços, regras e agenda são os
+              mesmos em todo lugar, e as conversas caem todas no mesmo painel.
+            </p>
           </Reveal>
         </div>
       </section>
