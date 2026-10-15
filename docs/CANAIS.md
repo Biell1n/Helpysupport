@@ -39,7 +39,9 @@ tela Canais):
    Business; gerar um **token permanente** (usuário do sistema com
    `whatsapp_business_messaging` e `whatsapp_business_management`).
 3. Colar em Canais → Conectar WhatsApp, junto com a **chave secreta do app**
-   (Configurações do app → Básico).
+   (Configurações do app → Básico). A chave é obrigatória enquanto o Helpy
+   não tiver o próprio app aprovado: sem ela não dá para conferir a
+   assinatura dos avisos.
 4. Em WhatsApp → Configuração: URL de callback e "Verificar token" que a tela
    mostra; assinar o campo `messages`.
 

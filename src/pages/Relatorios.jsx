@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDownRight, ArrowUpRight, BarChart3, RefreshCw, Table as TableIcon } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, BarChart3, Link2, RefreshCw, Table as TableIcon } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { quando } from '@/lib/format';
+import { IconeDoCanal } from '@/components/IconesCanais';
+import Faisca from '@/components/Faisca';
 import '@/styles/relatorios.css';
 
 const PERIODOS = [
@@ -397,9 +399,105 @@ function Assuntos({ dias }) {
 // ------------------------------------------------------------
 // Página
 // ------------------------------------------------------------
-function Numero({ rotulo, valor, detalhe, variacao }) {
+// ------------------------------------------------------------
+// Funil: do primeiro "oi" até o resultado
+// ------------------------------------------------------------
+function Funil({ r }) {
+  const etapas = [
+    { rotulo: 'Conversas', valor: r.conversas, dica: 'alguém escreveu' },
+    { rotulo: 'Tiveram resposta', valor: r.com_resposta, dica: 'o assistente respondeu' },
+    { rotulo: 'Deixaram contato', valor: r.leads, dica: 'nome, telefone ou e-mail' },
+    { rotulo: 'Marcaram horário', valor: r.agendamentos, dica: 'pela agenda do assistente' },
+  ];
+  const topo = Math.max(1, etapas[0].valor);
+  return (
+    <div className="card rel-card">
+      <div className="card-head">
+        <div>
+          <h2 className="card-title">Do primeiro oi ao resultado</h2>
+          <p className="faint rel-sub">Quantas conversas chegaram em cada etapa no período.</p>
+        </div>
+      </div>
+      <ol className="rel-funil">
+        {etapas.map((e, i) => {
+          const parte = Math.min(1, e.valor / topo);
+          const anterior = i ? etapas[i - 1].valor : null;
+          const passou = anterior ? Math.round((e.valor / anterior) * 100) : null;
+          return (
+            <li key={e.rotulo} style={{ '--w': `${Math.max(parte * 100, e.valor ? 3 : 0)}%`, '--i': i }}>
+              <div className="rel-funil-texto">
+                <span>{e.rotulo} <small className="faint">· {e.dica}</small></span>
+                <b>{fmt(e.valor)}</b>
+              </div>
+              <div className="rel-funil-trilho"><i /></div>
+              {passou != null && <span className="rel-funil-passou">{passou}% da etapa anterior</span>}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
+// De onde vieram: uma barra dividida por canal
+// ------------------------------------------------------------
+const CANAIS_REL = [
+  { chave: 'site', nome: 'Link e site', cor: '#1F66F4' },
+  { chave: 'whatsapp', nome: 'WhatsApp', cor: '#1BAF7A' },
+  { chave: 'instagram', nome: 'Instagram', cor: '#EB6834' },
+  { chave: 'discord', nome: 'Discord', cor: '#4A3AA7' },
+];
+
+function PorCanal({ porCanal }) {
+  const itens = CANAIS_REL.map((c) => ({ ...c, valor: Number(porCanal?.[c.chave] ?? 0) }));
+  const total = itens.reduce((a, c) => a + c.valor, 0);
+  const visiveis = itens.filter((c) => c.valor > 0);
+  const soSite = visiveis.length <= 1 && (visiveis[0]?.chave ?? 'site') === 'site';
+  return (
+    <div className="card rel-card">
+      <div className="card-head">
+        <div>
+          <h2 className="card-title">De onde vieram</h2>
+          <p className="faint rel-sub">Conversas por canal no período.</p>
+        </div>
+      </div>
+      {total ? (
+        <>
+          <div className="rel-particao" role="img" aria-label={visiveis.map((c) => `${c.nome}: ${c.valor}`).join(', ')}>
+            {visiveis.map((c) => (
+              <i key={c.chave} style={{ flexGrow: c.valor, background: c.cor }} title={`${c.nome}: ${fmt(c.valor)}`} />
+            ))}
+          </div>
+          <ul className="rel-particao-legenda">
+            {itens.map((c) => {
+              const I = c.chave === 'site' ? Link2 : IconeDoCanal[c.chave];
+              return (
+                <li key={c.chave} data-vazio={c.valor ? undefined : ''}>
+                  <span className="rel-particao-nome"><i style={{ background: c.cor }} /><I width={14} height={14} aria-hidden="true" /> {c.nome}</span>
+                  <b>{fmt(c.valor)}</b>
+                  <span className="faint">{pct(c.valor, total)}%</span>
+                </li>
+              );
+            })}
+          </ul>
+          {soSite && (
+            <p className="faint rel-sub" style={{ marginTop: 12 }}>
+              Tudo veio pelo link. <Link to="/painel/canais">Conecte WhatsApp, Instagram ou Discord</Link> para atender onde o cliente já está.
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="faint">Sem conversas no período.</p>
+      )}
+    </div>
+  );
+}
+
+function Numero({ rotulo, valor, detalhe, variacao, faisca }) {
   return (
     <div className="card rel-numero">
+      <Faisca valores={faisca} className="rel-faisca" />
       <span className="rel-numero-rotulo">{rotulo}</span>
       <span className="rel-numero-valor">{valor}</span>
       {(detalhe || variacao != null) && (
@@ -475,6 +573,7 @@ export default function Relatorios() {
               valor={fmt(r.conversas)}
               variacao={variacao}
               detalhe={variacao != null ? ` vs. ${dias} dias antes` : r.conversas ? `em ${dias} dias` : 'nenhuma ainda'}
+              faisca={(dados.por_dia ?? []).map((d) => d.conversas)}
             />
             <Numero
               rotulo="Resolvidas pelo assistente"
@@ -484,6 +583,7 @@ export default function Relatorios() {
             <Numero
               rotulo="Viraram chamado"
               valor={fmt(r.chamados)}
+              faisca={(dados.por_dia ?? []).map((d) => d.chamados)}
               detalhe={r.chamados_abertos ? `${fmt(r.chamados_abertos)} ainda abertos` : 'nenhum aberto'}
             />
             <Numero
@@ -513,6 +613,11 @@ export default function Relatorios() {
           )}
 
           <ConversasPorDia serie={dados.por_dia ?? []} />
+
+          <section className="rel-duas">
+            <Funil r={r} />
+            <PorCanal porCanal={dados.por_canal} />
+          </section>
 
           <section className="rel-duas">
             <Assuntos dias={dias} />

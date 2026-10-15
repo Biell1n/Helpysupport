@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { ArrowRight, Bot, Check, Plus, Sparkles } from 'lucide-react';
 import AlertasDaConta from '@/components/AlertasDaConta';
+import Faisca from '@/components/Faisca';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { diasDeTeste, planOf } from '@/lib/plans';
@@ -23,11 +24,18 @@ export default function Painel() {
   const [lacunas, setLacunas] = useState([]);
   const [proximos, setProximos] = useState([]);
   const [nota, setNota] = useState(null);
+  const [porDia, setPorDia] = useState(null); // atendimentos dos últimos 14 dias
+  const [mesPassado, setMesPassado] = useState(null); // até o mesmo dia do mês passado
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [a, f, l, p, n] = await Promise.all([
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const desde14 = new Date(hoje.getTime() - 13 * 864e5);
+      const iniMesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      const mesmoDiaMesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, Math.min(hoje.getDate(), 28) + 1);
+      const [a, f, l, p, n, d, mp] = await Promise.all([
         supabase.from('assistants').select('id, name, business_type, is_public, public_token').order('created_at'),
         supabase
           .from('conversations')
@@ -45,7 +53,17 @@ export default function Painel() {
           .order('inicio')
           .limit(5),
         supabase.from('conversations').select('nota').not('nota', 'is', null).gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString()),
+        supabase.from('conversations').select('created_at').eq('teste', false).gte('created_at', desde14.toISOString()).limit(5000),
+        supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('teste', false)
+          .gte('created_at', iniMesPassado.toISOString()).lt('created_at', mesmoDiaMesPassado.toISOString()),
       ]);
+      const contagem = Array(14).fill(0);
+      for (const c of d.data ?? []) {
+        const i = Math.floor((new Date(c.created_at).getTime() - desde14.getTime()) / 864e5);
+        if (i >= 0 && i < 14) contagem[i]++;
+      }
+      setPorDia(contagem);
+      setMesPassado(mp.count ?? null);
       setAssistentes(a.data ?? []);
       setFila(f.data ?? []);
       setLacunas(l.data ?? []);
@@ -108,6 +126,7 @@ export default function Painel() {
 
       <section className="grid-3" style={{ marginBottom: 16 }}>
         <div className="card kpi">
+          <Faisca valores={porDia} className="kpi-faisca" />
           <span className="eyebrow">Atendimentos no mês</span>
           <span className="kpi-valor">
             {uso?.atendimentos ?? '—'} <small>de {plano.atendimentos}</small>
@@ -115,6 +134,14 @@ export default function Painel() {
           <div className="meter" data-nivel={(uso?.atendimentos ?? 0) / plano.atendimentos >= 0.85 ? 'alto' : undefined} style={{ marginTop: 8 }}>
             <span style={{ width: `${Math.min(100, ((uso?.atendimentos ?? 0) / plano.atendimentos) * 100)}%` }} />
           </div>
+          {mesPassado > 0 && uso?.atendimentos != null && (() => {
+            const v = Math.round(((uso.atendimentos - mesPassado) / mesPassado) * 100);
+            return (
+              <span className="kpi-variacao">
+                <b data-sinal={v < 0 ? 'menos' : 'mais'}>{v > 0 ? '+' : ''}{v}%</b> vs. o mesmo período do mês passado
+              </span>
+            );
+          })()}
         </div>
         <div className="card kpi">
           <span className="eyebrow">Chamados abertos</span>

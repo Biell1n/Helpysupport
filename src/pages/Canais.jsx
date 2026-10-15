@@ -8,6 +8,7 @@ import { Confirmar, Modal } from '@/components/Modal';
 import { planOf } from '@/lib/plans';
 import { quando } from '@/lib/format';
 import { IconeDoCanal as Icone } from '@/components/IconesCanais';
+import TutorialCanal from '@/components/TutorialCanal';
 
 // os avisos da Meta e do Discord chegam pelo mesmo endereço do chat público
 const BASE = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/public-chat`;
@@ -64,38 +65,6 @@ function Copiavel({ rotulo, valor, dica }) {
   );
 }
 
-/** O passo a passo de cada serviço, do jeito que aparece no painel deles. */
-function Passos({ tipo }) {
-  if (tipo === 'whatsapp') {
-    return (
-      <ol className="passos">
-        <li>No <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">painel de apps da Meta</a>, abra o app da empresa com o produto <b>WhatsApp</b>.</li>
-        <li>Em <b>WhatsApp → Configuração da API</b>, copie a <b>Identificação do número de telefone</b> e a <b>Identificação da conta do WhatsApp Business</b>.</li>
-        <li>Gere um <b>token de acesso permanente</b> (usuário do sistema, com as permissões <i>whatsapp_business_messaging</i> e <i>whatsapp_business_management</i>).</li>
-        <li>Cole tudo aqui. Depois de conectar, o Helpy mostra o endereço do webhook para colar em <b>WhatsApp → Configuração</b>.</li>
-      </ol>
-    );
-  }
-  if (tipo === 'instagram') {
-    return (
-      <ol className="passos">
-        <li>A conta precisa ser <b>profissional</b> (comercial ou criador de conteúdo).</li>
-        <li>No <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">painel de apps da Meta</a>, adicione o produto <b>Instagram</b> e escolha <b>API com login do Instagram</b>.</li>
-        <li>Em <b>Gerar tokens de acesso</b>, adicione a conta e copie o token.</li>
-        <li>Cole aqui. Depois o Helpy mostra o endereço do webhook para colar em <b>Configurar webhooks</b> (campo <i>messages</i>).</li>
-      </ol>
-    );
-  }
-  return (
-    <ol className="passos">
-      <li>No <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">Discord Developer Portal</a>, crie um aplicativo com o nome da empresa.</li>
-      <li>Em <b>Bot</b>, clique em <b>Reset Token</b> e copie o token do bot.</li>
-      <li>Cole aqui. O Helpy confere o token e cria o comando <b>/helpy</b> sozinho.</li>
-      <li>Depois é só colar o endereço que aparece em <b>General Information → Interactions Endpoint URL</b> e convidar o bot para o servidor.</li>
-    </ol>
-  );
-}
-
 function Conectar({ servico, assistentes, onFechar, onPronto }) {
   const avisar = useToast();
   const [f, setF] = useState({ assistant_id: assistentes[0]?.id ?? '', token: '', phone_number_id: '', waba_id: '', app_secret: '' });
@@ -120,13 +89,17 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
 
   const I = Icone[servico.tipo];
   return (
-    <Modal aberto onFechar={onFechar} largura={560}>
-      <div className="row" style={{ gap: 12, marginBottom: 6 }}>
+    <Modal aberto onFechar={onFechar} largura={1000}>
+      <div className="row" style={{ gap: 12, marginBottom: 16 }}>
         <span className={`canal-icone canal-${servico.tipo}`}><I width={22} height={22} /></span>
-        <h2 style={{ margin: 0 }}>Conectar {servico.nome}</h2>
+        <div>
+          <h2 style={{ margin: 0 }}>Conectar {servico.nome}</h2>
+          <p className="faint" style={{ margin: '2px 0 0', fontSize: 14 }}>Siga os passos e cole aqui o que for pedido. Você pode deixar esta janela aberta enquanto faz.</p>
+        </div>
       </div>
-      <Passos tipo={servico.tipo} />
-      <form className="stack" onSubmit={enviar}>
+      <div className="conectar-grade">
+      <TutorialCanal tipo={servico.tipo} />
+      <form className="stack conectar-form" onSubmit={enviar}>
         <label className="field">
           <span className="label">Assistente que vai responder</span>
           <select className="input" value={f.assistant_id} onChange={set('assistant_id')} required>
@@ -151,14 +124,11 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
           <span className="hint">Fica guardado criptografado no cofre do servidor. Ninguém da equipe consegue ver depois.</span>
         </label>
         {servico.meta && (
-          <details className="mais">
-            <summary>Usa um app próprio da Meta?</summary>
-            <label className="field" style={{ marginTop: 10 }}>
-              <span className="label">Chave secreta do app</span>
-              <input className="input mono" type="password" autoComplete="off" value={f.app_secret} onChange={set('app_secret')} />
-              <span className="hint">Em Configurações do app → Básico. Serve para o Helpy confirmar que o aviso de mensagem nova veio mesmo da Meta.</span>
-            </label>
-          </details>
+          <label className="field">
+            <span className="label">{servico.tipo === 'instagram' ? 'Chave secreta do app do Instagram' : 'Chave secreta do app'}</span>
+            <input className="input mono" type="password" autoComplete="off" value={f.app_secret} onChange={set('app_secret')} required />
+            <span className="hint">Serve para o Helpy confirmar que cada mensagem veio mesmo da Meta. Também fica no cofre.</span>
+          </label>
         )}
         {erro && <div className="alert alert-erro"><span>{erro}</span></div>}
         <div className="modal-foot">
@@ -168,6 +138,7 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
           </button>
         </div>
       </form>
+      </div>
     </Modal>
   );
 }
@@ -188,15 +159,45 @@ function Enderecos({ canal }) {
   return (
     <div className="grid-2">
       <Copiavel rotulo="URL de callback" valor={WEBHOOK} />
-      <Copiavel rotulo="Verificar token" valor={canal.verificar_token} dica={canal.tipo === 'whatsapp' ? 'Assine o campo "messages".' : 'Assine o campo "messages".'} />
+      <Copiavel rotulo="Verificar token" valor={canal.verificar_token} dica='Depois de salvar, assine o campo "messages".' />
     </div>
   );
 }
 
-function CanalConectado({ canal, assistentes, ocupado, onAcao }) {
+/** Uma barrinha por dia nos últimos 30 dias: altura = conversas que chegaram por este canal. */
+function Atividade({ dias }) {
+  if (!dias) return null;
+  const max = Math.max(1, ...dias);
+  const total = dias.reduce((a, b) => a + b, 0);
+  const hoje = new Date();
+  return (
+    <div className="canal-atividade">
+      <div className="canal-atividade-barras" role="img" aria-label={`${total} conversas nos últimos 30 dias`}>
+        {dias.map((v, i) => {
+          const d = new Date(hoje.getTime() - (dias.length - 1 - i) * 864e5);
+          return (
+            <i
+              key={i}
+              data-vazio={v ? undefined : ''}
+              style={{ '--h': `${Math.max(14, (v / max) * 100)}%` }}
+              title={`${d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}: ${v} ${v === 1 ? 'conversa' : 'conversas'}`}
+            />
+          );
+        })}
+      </div>
+      <div className="canal-atividade-legenda faint">
+        <span>30 dias atrás</span>
+        <span>{total} {total === 1 ? 'conversa' : 'conversas'}</span>
+        <span>hoje</span>
+      </div>
+    </div>
+  );
+}
+
+function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
   const [aberto, setAberto] = useState(!canal.ultimo_evento_em);
   return (
-    <div className="canal-conta">
+    <div className={`canal-conta canal-${canal.tipo}`}>
       <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <b>{canal.nome || canal.externo_id}</b>
@@ -207,6 +208,7 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao }) {
         <span className={`badge ${CLASSE_STATUS[canal.status] ?? ''}`}>{ROTULO_STATUS[canal.status] ?? canal.status}</span>
       </div>
       {canal.erro && <div className="alert alert-erro" style={{ marginTop: 10 }}><span>{canal.erro}</span></div>}
+      <Atividade dias={atividade} />
       <label className="field" style={{ marginTop: 12 }}>
         <span className="label">Assistente</span>
         <select className="input" value={canal.assistant_id} disabled={ocupado} onChange={(e) => onAcao('trocar_assistente', { assistant_id: e.target.value })}>
@@ -216,7 +218,12 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao }) {
       <button type="button" className="link-btn" style={{ marginTop: 10 }} onClick={() => setAberto((v) => !v)}>
         {aberto ? 'Esconder endereços' : 'Ver endereços para colar no serviço'}
       </button>
-      {aberto && <div style={{ marginTop: 10 }}><Enderecos canal={canal} /></div>}
+      {aberto && (
+        <div className="stack" style={{ marginTop: 10 }}>
+          <Enderecos canal={canal} />
+          <TutorialCanal tipo={canal.tipo} soDepois />
+        </div>
+      )}
       <div className="row row-wrap" style={{ gap: 8, marginTop: 12 }}>
         <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('testar')}><RefreshCw size={15} /> Testar</button>
         {canal.status === 'pausado' ? (
@@ -240,6 +247,7 @@ export default function Canais() {
   const [conectando, setConectando] = useState(null);
   const [ocupado, setOcupado] = useState(false);
   const [apagar, setApagar] = useState(null);
+  const [atividade, setAtividade] = useState({});
 
   const carregar = useCallback(async () => {
     const [c, a] = await Promise.all([
@@ -249,6 +257,21 @@ export default function Canais() {
     if (c.error) avisar('Não deu para carregar os canais', { erro: true, texto: c.error.message });
     setCanais(c.data ?? []);
     setAssistentes(a.data ?? []);
+    // conversas por canal nos últimos 30 dias, para as barrinhas de atividade
+    if (c.data?.length) {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const desde = new Date(hoje.getTime() - 29 * 864e5);
+      const { data: conv } = await supabase.from('conversations').select('canal_id, created_at')
+        .not('canal_id', 'is', null).gte('created_at', desde.toISOString()).limit(10000);
+      const mapa = {};
+      for (const k of c.data) mapa[k.id] = Array(30).fill(0);
+      for (const x of conv ?? []) {
+        const i = Math.floor((new Date(x.created_at).getTime() - desde.getTime()) / 864e5);
+        if (mapa[x.canal_id] && i >= 0 && i < 30) mapa[x.canal_id][i]++;
+      }
+      setAtividade(mapa);
+    }
   }, [avisar]);
 
   useEffect(() => {
@@ -333,7 +356,7 @@ export default function Canais() {
               <p className="muted canal-frase">{s.frase}</p>
 
               {doTipo.map((c) => (
-                <CanalConectado key={c.id} canal={c} assistentes={assistentes} ocupado={ocupado} onAcao={(a, extra) => acao(c, a, extra)} />
+                <CanalConectado key={c.id} canal={c} assistentes={assistentes} ocupado={ocupado} atividade={atividade[c.id]} onAcao={(a, extra) => acao(c, a, extra)} />
               ))}
 
               {bloqueado ? (

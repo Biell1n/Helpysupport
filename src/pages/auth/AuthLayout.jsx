@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import Logo from '@/components/Logo';
+import FundoShader from '@/components/FundoShader';
 
 export default function AuthLayout({ children }) {
   return (
     <div className="auth">
       <div className="auth-arte">
+        <FundoShader />
         <Link to="/" aria-label="Helpy, início">
           <Logo size={28} />
         </Link>
