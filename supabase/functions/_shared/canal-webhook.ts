@@ -16,6 +16,7 @@ import {
   assinaturaDiscordOk,
   assinaturaMetaOk,
   type Canal,
+  DISCORD_HELPY,
   enviarPeloCanal,
   jaVista,
   responderInteracaoDiscord,
@@ -163,38 +164,60 @@ async function meta(req: Request): Promise<Response> {
 // Discord (comando /helpy)
 // ------------------------------------------------------------
 type Interacao = {
-  type: number; id: string; token: string; application_id: string;
+  type: number; id: string; token: string; application_id: string; guild_id?: string;
   data?: { name?: string; options?: { name: string; value: string }[] };
   member?: { user?: { id: string; username?: string; global_name?: string } };
   user?: { id: string; username?: string; global_name?: string };
 };
 
-async function discord(req: Request, canalId: string): Promise<Response> {
-  if (req.method !== 'POST' || !/^[0-9a-f-]{36}$/i.test(canalId)) return ok('', 404);
-  const { data } = await admin.from('canais').select('*').eq('id', canalId).eq('tipo', 'discord').maybeSingle();
-  const canal = data as Canal | null;
-  if (!canal) return ok('', 404);
+const efemera = (content: string) => jsonOk({ type: 4, data: { content, flags: 64 } });
+
+/**
+ * Discord. Dois jeitos de chegar aqui:
+ *   ?discord=helpy  → o bot do próprio Helpy, um só para todas as empresas;
+ *                     o servidor (guild_id) diz qual canal e qual assistente
+ *   ?discord=<id>   → bot próprio da empresa (jeito antigo), pelo id do canal
+ */
+async function discord(req: Request, alvo: string): Promise<Response> {
+  if (req.method !== 'POST') return ok('', 404);
+  const doHelpy = alvo === 'helpy';
+  let canal: Canal | null = null;
+  if (!doHelpy) {
+    if (!/^[0-9a-f-]{36}$/i.test(alvo)) return ok('', 404);
+    const { data } = await admin.from('canais').select('*').eq('id', alvo).eq('tipo', 'discord').maybeSingle();
+    canal = data as Canal | null;
+    if (!canal) return ok('', 404);
+  }
 
   const bruto = await req.text();
-  const assinou = await assinaturaDiscordOk(
-    bruto, req.headers.get('X-Signature-Ed25519'), req.headers.get('X-Signature-Timestamp'), canal.config?.public_key ?? '',
-  );
+  const chave = doHelpy ? DISCORD_HELPY.chavePublica : canal?.config?.public_key ?? '';
+  const assinou = await assinaturaDiscordOk(bruto, req.headers.get('X-Signature-Ed25519'), req.headers.get('X-Signature-Timestamp'), chave);
   if (!assinou) return ok('assinatura inválida', 401);
 
   const i = JSON.parse(bruto) as Interacao;
   if (i.type === 1) return jsonOk({ type: 1 }); // PING do Discord ao salvar o endereço
-  if (i.type !== 2 || i.data?.name !== 'helpy') return jsonOk({ type: 4, data: { content: 'Comando desconhecido.', flags: 64 } });
-  if (canal.status === 'pausado') {
-    return jsonOk({ type: 4, data: { content: 'O atendimento por aqui está pausado no momento.', flags: 64 } });
+  if (i.type !== 2 || i.data?.name !== 'helpy') return efemera('Comando desconhecido.');
+
+  if (doHelpy) {
+    if (!i.guild_id) return efemera('Use o /helpy dentro do servidor da empresa.');
+    const { data } = await admin.from('canais').select('*')
+      .eq('tipo', 'discord').eq('externo_id', i.guild_id).eq('config->>modo', 'helpy').maybeSingle();
+    canal = data as Canal | null;
+    if (!canal) {
+      return efemera('Este servidor ainda não está ligado a um assistente. Quem administra o servidor pode ligar em Canais, no painel do Helpy.');
+    }
   }
+  if (!canal) return ok('', 404);
+  if (canal.status === 'pausado') return efemera('O atendimento por aqui está pausado no momento.');
 
   const pessoa = i.member?.user ?? i.user;
   const texto = String(i.data.options?.find((o) => o.name === 'mensagem')?.value ?? '');
-  if (!pessoa?.id) return jsonOk({ type: 4, data: { content: 'Não consegui identificar quem mandou.', flags: 64 } });
+  if (!pessoa?.id) return efemera('Não consegui identificar quem mandou.');
 
+  const atual = canal;
   depois((async () => {
     try {
-      const resposta = await atenderNoCanal(admin, canal, { id: pessoa.id, nome: pessoa.global_name ?? pessoa.username ?? null }, texto);
+      const resposta = await atenderNoCanal(admin, atual, { id: pessoa.id, nome: pessoa.global_name ?? pessoa.username ?? null }, texto);
       await responderInteracaoDiscord(i.application_id, i.token, resposta ?? COM_A_EQUIPE);
     } catch (e) {
       console.error('canal: discord', e);

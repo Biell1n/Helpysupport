@@ -108,7 +108,7 @@ async function pedir(url: string, init: RequestInit, servico: string) {
 
 /** Envia um texto para o contato pelo canal (respostas do assistente e da equipe). */
 export async function enviarPeloCanal(db: SupabaseClient, canal: Canal, contato: string, texto: string) {
-  const token = await tokenDo(db, canal.id);
+  const token = ehBotDoHelpy(canal) ? tokenDoBotHelpy() : await tokenDo(db, canal.id);
   if (canal.tipo === 'whatsapp') {
     for (const parte of pedacos(texto, 4000)) {
       await pedir(`${GRAPH}/${canal.externo_id}/messages`, {
@@ -222,6 +222,131 @@ export async function conferirDiscord(token: string) {
     }]),
   }, 'O Discord');
   return { externo_id: app.id, nome: app.name ?? 'Bot do Discord', config: { public_key: app.verify_key } };
+}
+
+// ------------------------------------------------------------
+// O bot do Discord do próprio Helpy (um só para todas as empresas)
+// ------------------------------------------------------------
+// Id e chave pública do app não são segredo; o token do bot e o segredo do
+// OAuth ficam nas variáveis das funções (DISCORD_BOT_TOKEN, DISCORD_CLIENT_SECRET).
+export const DISCORD_HELPY = {
+  appId: Deno.env.get('DISCORD_APP_ID') ?? '1560424740315856979',
+  chavePublica: Deno.env.get('DISCORD_PUBLIC_KEY') ?? '014cedaf79afc181578dbdec73d3176a9742b1353f0e5f79daea7772a477f62e',
+};
+// enviar mensagens + mudar o próprio apelido no servidor
+const PERMISSOES_BOT = String(2048 + 67108864);
+
+export const ehBotDoHelpy = (c: Pick<Canal, 'tipo' | 'config'>) => c.tipo === 'discord' && c.config?.modo === 'helpy';
+
+export function tokenDoBotHelpy(): string {
+  const t = Deno.env.get('DISCORD_BOT_TOKEN');
+  if (!t) throw new Error('O bot do Helpy no Discord ainda não foi configurado (falta DISCORD_BOT_TOKEN).');
+  return t;
+}
+
+export function discordHelpyPronto() {
+  return !!Deno.env.get('DISCORD_BOT_TOKEN') && !!Deno.env.get('DISCORD_CLIENT_SECRET');
+}
+
+/** Endereço do Discord para adicionar o bot do Helpy a um servidor (com a volta para o painel). */
+export function urlAdicionarBot(state: string, redirect: string) {
+  const q = new URLSearchParams({
+    client_id: DISCORD_HELPY.appId,
+    scope: 'bot applications.commands identify',
+    permissions: PERMISSOES_BOT,
+    response_type: 'code',
+    redirect_uri: redirect,
+    state,
+    prompt: 'consent',
+  });
+  return `https://discord.com/oauth2/authorize?${q}`;
+}
+
+/** Troca o código da volta pelo servidor onde o bot foi adicionado (o Discord confirma qual foi). */
+export async function servidorDoCodigo(code: string, redirect: string): Promise<{ id: string; name: string }> {
+  const segredo = Deno.env.get('DISCORD_CLIENT_SECRET');
+  if (!segredo) throw new Error('O bot do Helpy no Discord ainda não foi configurado (falta DISCORD_CLIENT_SECRET).');
+  const r = await pedir(`${DISCORD}/oauth2/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code', code, redirect_uri: redirect,
+      client_id: DISCORD_HELPY.appId, client_secret: segredo,
+    }),
+  }, 'O Discord') as { guild?: { id: string; name: string } };
+  if (!r?.guild?.id) throw new Error('O Discord não disse em qual servidor o bot entrou. Tente adicionar de novo.');
+  return { id: r.guild.id, name: r.guild.name };
+}
+
+/**
+ * Deixa o app do Helpy pronto para atender: endereço das interações e o
+ * comando /helpy (global). Só muda o que estiver diferente.
+ */
+export async function prepararBotHelpy(endereco: string) {
+  const cab = { Authorization: `Bot ${tokenDoBotHelpy()}`, 'Content-Type': 'application/json' };
+  const app = await pedir(`${DISCORD}/applications/@me`, { headers: cab }, 'O Discord') as { interactions_endpoint_url?: string | null };
+  if (app?.interactions_endpoint_url !== endereco) {
+    await pedir(`${DISCORD}/applications/@me`, {
+      method: 'PATCH', headers: cab,
+      body: JSON.stringify({ interactions_endpoint_url: endereco, description: 'Atendimento da empresa pelo Discord. Use /helpy para falar com o assistente.' }),
+    }, 'O Discord');
+  }
+  const cmds = await pedir(`${DISCORD}/applications/${DISCORD_HELPY.appId}/commands`, { headers: cab }, 'O Discord') as Array<{ name: string }>;
+  if (!cmds?.some((c) => c.name === 'helpy')) {
+    await pedir(`${DISCORD}/applications/${DISCORD_HELPY.appId}/commands`, {
+      method: 'PUT', headers: cab,
+      body: JSON.stringify([{
+        name: 'helpy', description: 'Fale com o atendimento', type: 1, contexts: [0],
+        options: [{ type: 3, name: 'mensagem', description: 'O que você quer saber?', required: true, max_length: 1500 }],
+      }]),
+    }, 'O Discord');
+  }
+}
+
+/** No servidor da empresa, o bot do Helpy usa o nome (e, se der, a foto) do assistente. */
+export async function apelidarBotHelpy(servidor: string, nome: string, foto?: string | null) {
+  const cab = { Authorization: `Bot ${tokenDoBotHelpy()}`, 'Content-Type': 'application/json' };
+  const feito = { nome: false, foto: false };
+  try {
+    await pedir(`${DISCORD}/guilds/${servidor}/members/@me`, { method: 'PATCH', headers: cab, body: JSON.stringify({ nick: nome.slice(0, 32) }) }, 'O Discord');
+    feito.nome = true;
+  } catch (e) {
+    console.warn('[discord] apelido', (e as Error).message);
+  }
+  if (foto) {
+    try {
+      const r = await fetch(foto, { signal: AbortSignal.timeout(10000) });
+      const tipo = r.headers.get('content-type') ?? 'image/png';
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      if (r.ok && /^image\//.test(tipo) && bytes.length < 8_000_000) {
+        let bin = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        await pedir(`${DISCORD}/guilds/${servidor}/members/@me`, {
+          method: 'PATCH', headers: cab, body: JSON.stringify({ avatar: `data:${tipo};base64,${btoa(bin)}` }),
+        }, 'O Discord');
+        feito.foto = true;
+      }
+    } catch (e) {
+      console.warn('[discord] foto no servidor', (e as Error).message);
+    }
+  }
+  return feito;
+}
+
+/** O bot do Helpy ainda está neste servidor? (o dono pode ter removido pelo Discord) */
+export async function botNoServidor(servidor: string): Promise<boolean> {
+  try {
+    await pedir(`${DISCORD}/guilds/${servidor}`, { headers: { Authorization: `Bot ${tokenDoBotHelpy()}` } }, 'O Discord');
+    return true;
+  } catch (e) {
+    if (e instanceof ErroDoCanal && (e.status === 403 || e.status === 404)) return false;
+    throw e;
+  }
+}
+
+/** O bot do Helpy sai do servidor (ao desconectar o canal). */
+export async function sairDoServidor(servidor: string) {
+  await pedir(`${DISCORD}/users/@me/guilds/${servidor}`, { method: 'DELETE', headers: { Authorization: `Bot ${tokenDoBotHelpy()}` } }, 'O Discord');
 }
 
 /** Nome que o Discord aceita para um bot: 2 a 32 caracteres, sem @ # : ``` e sem a palavra "discord". */

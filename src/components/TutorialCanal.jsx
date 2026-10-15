@@ -3,7 +3,6 @@ import { ChevronDown } from 'lucide-react';
 
 const META = 'https://developers.facebook.com/apps';
 const NEGOCIOS = 'https://business.facebook.com/settings/system-users';
-const DISCORD = 'https://discord.com/developers/applications';
 
 const A = ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>;
 
@@ -123,40 +122,16 @@ export const GUIAS = {
   },
 
   discord: {
-    tempo: 'uns 5 minutos',
-    antes: ['Ser administrador (ou ter permissão de "Gerenciar servidor") no servidor do Discord onde o bot vai ficar.'],
+    tempo: 'menos de 1 minuto',
+    antes: ['Ser administrador (ou ter "Gerenciar servidor") no servidor do Discord onde o assistente vai atender.'],
     passos: [
-      {
-        titulo: 'Crie o aplicativo',
-        itens: [
-          <>Abra o <A href={DISCORD}>Discord Developer Portal</A> e clique em <b>New Application</b>. O nome pode ser qualquer um: ao conectar, o Helpy troca o nome e a foto do bot pelos do assistente.</>,
-        ],
-      },
-      {
-        titulo: 'Pegue o token do bot',
-        itens: [
-          <>No menu da esquerda, abra <b>Bot</b> e clique em <b>Reset Token</b> (confirme com a senha ou o código).</>,
-          <>Copie o token e cole no campo <b>Token do bot</b> aqui ao lado. Não precisa ligar nenhuma opção de "Intents".</>,
-        ],
-      },
-      {
-        titulo: 'Clique em Conectar',
-        itens: [<>O Helpy confere o token, cria o comando <b>/helpy</b>, dá ao bot o nome e a foto do assistente e cadastra sozinho o endereço das interações no Discord.</>],
-      },
-      {
-        depois: true,
-        titulo: 'Convide o bot para o servidor',
-        itens: [
-          <>No Helpy, clique em <b>Convidar o bot para um servidor</b> e escolha o servidor.</>,
-          <>Só se o Helpy avisar que não conseguiu cadastrar o endereço: no Developer Portal, abra <b>General Information</b>, cole em <b>Interactions Endpoint URL</b> o endereço que o Helpy mostrar e clique em <b>Save Changes</b>.</>,
-          <>Teste no servidor: digite <b>/helpy</b>, escreva a pergunta e envie. A resposta aparece só para quem perguntou.</>,
-        ],
-      },
+      { titulo: 'Escolha o assistente', itens: [<>Ele vai atender no servidor com o próprio nome.</>] },
+      { titulo: 'Adicione o bot do Helpy', itens: [<>O Discord abre: escolha o servidor e clique em <b>Autorizar</b>.</>] },
+      { titulo: 'Teste', itens: [<>No servidor, digite <b>/helpy</b> e a pergunta. A resposta aparece só para quem perguntou.</>] },
     ],
     erros: [
-      ['O Discord não aceita o endereço', 'Conecte no Helpy primeiro e só depois cole o endereço: ele precisa da chave pública que o Helpy guarda ao conectar.'],
-      ['O nome do bot não mudou', 'O Discord deixa trocar o nome de um bot só duas vezes por hora. Espere um pouco e troque o assistente de novo em Canais, ou mude o nome em Bot → Username.'],
-      ['/helpy não aparece', 'O comando pode levar alguns minutos para aparecer. Confira se o bot foi convidado com o botão do Helpy (ele já pede a permissão de comandos).'],
+      ['/helpy não aparece', 'Da primeira vez o comando pode levar alguns minutos. Confira também se o bot está na lista de membros do servidor.'],
+      ['O servidor não aparece na lista do Discord', 'Você precisa ser administrador do servidor (ou ter "Gerenciar servidor").'],
     ],
   },
 };
