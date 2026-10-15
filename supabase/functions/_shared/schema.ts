@@ -250,6 +250,12 @@ const CORE_TAIL: Section[] = [
         hint: 'Cria e preenche a tabela "Agendamentos" (cliente, serviço, data, valor) para você ver o quanto entrou.',
         depende: { campo: 'usar_agenda', valores: ['Sim, marca sozinho', 'Sim, mas eu confirmo'] },
       },
+      {
+        key: 'agenda_quem', label: 'Quem pode marcar?', type: 'select', importance: 'optional',
+        options: ['Qualquer pessoa', 'Só quem entrou na conta'],
+        hint: '"Só quem entrou na conta": o assistente pede para a pessoa entrar antes de marcar.',
+        depende: { campo: 'usar_agenda', valores: ['Sim, marca sozinho', 'Sim, mas eu confirmo'] },
+      },
     ],
     collections: [],
   },

@@ -330,7 +330,7 @@
 .msg-agent .msg-body {
   background: var(--branco);
   border: 1px solid var(--linha);
-  box-shadow: inset 2px 0 0 rgba(255, 207, 51, 0.7);
+  box-shadow: inset 2px 0 0 rgba(31, 102, 244, 0.7);
   border-bottom-left-radius: var(--r-sm);
 }
 
@@ -345,6 +345,12 @@
   border: 1px dashed var(--linha-forte);
   color: var(--tinta-2);
   font-size: 13px;
+}
+
+.pensando {
+  display: inline-flex;
+  padding: 12px 16px;
+  color: var(--tinta-2);
 }
 
 .typing {
@@ -443,9 +449,12 @@
   display: grid;
   grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
   height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .builder-chat {
+  position: relative;
   border-right: 1px solid var(--linha);
   background: var(--papel);
   display: flex;
@@ -462,6 +471,8 @@
 }
 
 .builder-doc {
+  /* relative: nada escondido lá dentro estica a página para baixo */
+  position: relative;
   overflow-y: auto;
   background: var(--branco);
   min-height: 0;
@@ -490,7 +501,15 @@
 
 .doc {
   padding: 28px 36px 80px;
-  max-width: 820px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.doc-falta {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 10px 36px 0;
+  font-size: 13px;
 }
 
 .doc-section {
@@ -617,6 +636,7 @@
   .builder {
     grid-template-columns: minmax(0, 1fr);
     height: auto;
+    overflow: visible;
   }
 
   .builder-chat {
@@ -723,13 +743,13 @@
 }
 
 .ticket[aria-current='true'] .stub-num {
-  border-right-color: rgba(12, 14, 19, 0.35);
+  border-right-color: rgba(255, 255, 255, 0.4);
 }
 
 .ticket[aria-current='true'] .ticket-sub,
 .ticket[aria-current='true'] .ticket-meta,
 .ticket[aria-current='true'] .stub-num small {
-  color: rgba(12, 14, 19, 0.7);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .ticket-title {
@@ -954,7 +974,6 @@
   background: var(--tinta);
   border-color: var(--tinta);
   color: var(--sobre-tinta);
-  color: var(--sobre-senha);
 }
 
 .chip small {
@@ -1000,16 +1019,29 @@
   color: var(--tinta-3);
 }
 
+.cal-head.hoje {
+  /* uma linha azul em cima marca a coluna de hoje */
+  box-shadow: inset 0 3px 0 var(--senha);
+}
+
+.cal-head.hoje span {
+  color: var(--senha);
+}
+
 .cal-head.hoje b {
-  color: var(--sobre-tinta);
-  display: flex;
-  margin: 0 auto;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 36px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: 2px auto 0;
   border-radius: 50%;
-  background: var(--tinta);
+  background: var(--senha);
+  color: var(--sobre-senha);
+  font-size: 20px;
+  font-stretch: 100%;
+  font-weight: 500;
+  letter-spacing: 0;
+  box-shadow: 0 6px 14px -6px rgba(31, 102, 244, 0.6);
 }
 
 .cal-corner {
@@ -1648,6 +1680,7 @@
 }
 
 .interruptor {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 14px;
@@ -1656,6 +1689,8 @@
 
 .interruptor input {
   position: absolute;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   pointer-events: none;
 }
@@ -1736,3 +1771,205 @@
 .quadro-card[data-prioridade='alta'] { border-left: 4px solid var(--brasa); }
 .quadro-mover { margin-top: 6px; font: inherit; font-size: 12px; border: 1px solid var(--linha); border-radius: 8px; padding: 4px 6px; background: var(--papel); color: var(--tinta-2); justify-self: start; }
 @media (max-width: 760px) { .quadro { grid-template-columns: repeat(3, 82vw); scroll-snap-type: x mandatory; } .quadro-col { scroll-snap-align: start; } }
+
+/* serviços da agenda no documento do builder: nome, duração e valor */
+.agenda-servicos {
+  list-style: none;
+  margin: 4px 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+.agenda-servicos li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 90px;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.agenda-servicos b {
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 12.5px;
+}
+
+.agenda-servicos b.falta {
+  color: var(--brasa);
+}
+
+.agenda-servicos li > span:last-child {
+  text-align: right;
+}
+
+/* agenda dentro do chamado */
+.chamado-agenda {
+  grid-column: 1 / -1;
+}
+
+.chamado-agenda-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.chamado-agenda-item > span {
+  margin-right: 6px;
+}
+
+.horas-livres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.horas-livres .chip {
+  font-family: var(--f-mono);
+}
+
+/* aviso de ação concluída na conversa do cliente (horário marcado, atendimento assumido) */
+.chat-evento {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(440px, 100%);
+  padding: 12px 16px 12px 12px;
+  border-radius: var(--r);
+  background: var(--senha-clara);
+  border: 1px solid rgba(31, 102, 244, 0.25);
+  animation: chat-evento 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.chat-evento-icone {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--senha);
+  color: var(--sobre-senha);
+}
+
+.chat-evento b {
+  display: block;
+  font-size: 14px;
+}
+
+.chat-evento span {
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.chat-evento[data-tipo='cancelado'] {
+  background: var(--brasa-clara);
+  border-color: rgba(201, 73, 44, 0.25);
+}
+
+.chat-evento[data-tipo='cancelado'] .chat-evento-icone {
+  background: var(--brasa);
+}
+
+@keyframes chat-evento {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-evento {
+    animation: none;
+  }
+}
+
+/* caixa de mensagem enquanto o assistente pensa: um brilho azul corre pela borda */
+@property --brilho-angulo {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.composer-row[data-pensando] {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--branco), var(--branco)) padding-box,
+    conic-gradient(from var(--brilho-angulo), var(--linha-forte) 0 62%, #9dc2ff 74%, var(--senha) 82%, #9dc2ff 88%, var(--linha-forte) 100%) border-box;
+  box-shadow: 0 0 0 4px var(--senha-clara), 0 10px 30px -18px rgba(31, 102, 244, 0.55);
+  animation: brilho-gira 2.2s linear infinite;
+}
+
+@keyframes brilho-gira {
+  to {
+    --brilho-angulo: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-row[data-pensando] {
+    animation: none;
+  }
+}
+
+/* avisos do assistente / do sistema no painel */
+.alertas {
+  margin-bottom: 20px;
+  border-color: rgba(201, 73, 44, 0.3);
+}
+
+.alertas .card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brasa);
+}
+
+.alertas ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.alertas li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding-top: 12px;
+  border-top: 1px solid var(--linha);
+}
+
+.alertas li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.alertas li p {
+  margin: 2px 0 4px;
+  font-size: 13.5px;
+  color: var(--tinta-2);
+}
+
+.alertas li .faint {
+  font-size: 12.5px;
+}
+
+.alertas-icone {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--senha-clara);
+  color: var(--senha);
+}
+
+.alertas-icone[data-origem='sistema'] {
+  background: var(--brasa-clara);
+  color: var(--brasa);
+}

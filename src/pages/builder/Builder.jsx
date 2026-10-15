@@ -6,7 +6,11 @@ import Documento, { EscolherModelo } from './Documento';
 import { Marca } from '@/components/Logo';
 import { Confirmar } from '@/components/Modal';
 import { useToast } from '@/components/Toasts';
+import LatticeLoader from '@/components/LatticeLoader';
 import { labelOf } from '@/lib/documento';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { planOf } from '@/lib/plans';
 
 const SUGESTOES = [
   'Tenho uma loja de roupas femininas, vendo pelo Instagram e entrego na cidade.',
@@ -109,7 +113,7 @@ function Conversa() {
         {b.sending && (
           <div className="msg msg-bot">
             <span className="msg-who">Helpy</span>
-            <div className="msg-body typing" aria-label="Escrevendo"><i /><i /><i /></div>
+            <div className="msg-body pensando"><LatticeLoader label="Pensando" color="var(--senha)" fontSize={13} /></div>
           </div>
         )}
         <div ref={fim} />
@@ -127,7 +131,7 @@ function Conversa() {
             ))}
           </div>
         )}
-        <div className="composer-row">
+        <div className="composer-row" data-pensando={b.sending || undefined}>
           <button
             type="button"
             className="btn btn-quiet btn-icon"
@@ -320,7 +324,7 @@ function Tela() {
           </button>
         </div>
         {faltando.length > 0 && b.modelo && (
-          <p className="faint" style={{ fontSize: 13, padding: '10px 36px 0' }}>
+          <p className="faint doc-falta">
             Para publicar falta: {faltando.join(', ')}.
           </p>
         )}
@@ -345,6 +349,34 @@ function Tela() {
 
 export default function Builder() {
   const { id } = useParams();
+  const { profile } = useAuth();
+  const plano = planOf(profile);
+  // assistente novo: confere o limite do plano antes de abrir o criador (e não só na hora de publicar)
+  const [cheio, setCheio] = useState(id ? false : null);
+  useEffect(() => {
+    if (id) return;
+    supabase.from('assistants').select('id', { count: 'exact', head: true }).then(({ count }) => setCheio((count ?? 0) >= plano.assistentes));
+  }, [id, plano.assistentes]);
+
+  if (cheio === null) return null;
+  if (cheio) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 16 }}>
+        <div className="card stack" style={{ maxWidth: 460 }}>
+          <Lock size={22} />
+          <h1 style={{ fontSize: 24 }}>Seu plano já está com todos os assistentes</h1>
+          <p className="muted">
+            O plano {plano.nome} permite {plano.assistentes} assistente{plano.assistentes > 1 ? 's' : ''}. Para criar outro, mude de plano ou
+            edite um que você já tem.
+          </p>
+          <div className="row row-wrap">
+            <Link to="/painel/plano" className="btn btn-primary">Ver planos</Link>
+            <Link to="/painel/assistentes" className="btn btn-ghost">Meus assistentes</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <BuilderProvider key={id ?? 'novo'} assistantId={id ?? null}>
       <Tela />

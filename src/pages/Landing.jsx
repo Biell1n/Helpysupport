@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Lenis from 'lenis';
-import {
-  ArrowRight, CalendarCheck, ChartColumn, Database, FileSpreadsheet, Link2, MessageSquareText, Plus, PlugZap, Sparkles, Ticket,
-} from 'lucide-react';
+import { ArrowRight, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap } from 'lucide-react';
 import Logo, { Marca } from '@/components/Logo';
+import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
+import SkylineHorarios from '@/components/SkylineHorarios';
+import Contador from '@/components/Contador';
 import { EMPRESA } from '@/lib/empresa';
 import Reveal from '@/components/Reveal';
 import VideoDemo, { reduzido } from '@/components/VideoDemo';
@@ -160,9 +161,6 @@ function Hero({ user, deslizar }) {
         <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
           <img src="/img/robo.webp" alt="O Helpy, um robozinho branco com fones de ouvido, acenando" width="1328" height="1184" />
         </div>
-        <span className="lp-ponto lp-ponto-a"><i /><b>Responde às 23h</b></span>
-        <span className="lp-ponto lp-ponto-b"><i /><b>Marca na sua agenda</b></span>
-        <span className="lp-ponto lp-ponto-c"><i /><b>Chama você quando precisa</b></span>
       </div>
 
       <p className="lp-robo-lado">
@@ -247,22 +245,64 @@ const PASSOS = [
   },
 ];
 
+// cada recurso vem com uma prova pequena do que ele faz, em vez de ícone
 const RECURSOS = [
-  { icone: MessageSquareText, titulo: 'Responde do jeito da casa', texto: 'Vendedor numa loja, recepção numa clínica, professor para alunos. Sem inventar preço nem prazo.' },
-  { icone: CalendarCheck, titulo: 'Marca horários', texto: 'Vê os horários livres da sua agenda, confirma com o cliente e deixa marcado.' },
-  { icone: Database, titulo: 'Consulta seus dados', texto: 'Preço, estoque, cardápio, status de pedido: ele lê a tabela antes de responder.' },
-  { icone: Ticket, titulo: 'Chama você quando precisa', texto: 'Reclamação ou negociação vira chamado numerado, com o resumo do que aconteceu.' },
-  { icone: Sparkles, titulo: 'Mostra o que não sabia', texto: 'Toda pergunta sem resposta aparece no painel. Você ensina uma vez e pronto.' },
-  { icone: ChartColumn, titulo: 'Conta o que querem', texto: 'Assuntos mais perguntados, horários de pico e a nota de cada atendimento.' },
+  {
+    titulo: 'Responde do jeito da casa',
+    texto: 'Vendedor numa loja, recepção numa clínica, professor para alunos. Sem inventar preço nem prazo.',
+    prova: <q className="lp-prova-fala">Opa! O degradê sai R$ 45. Quer que eu marque?</q>,
+  },
+  {
+    titulo: 'Marca horários',
+    texto: 'Vê os horários livres da sua agenda, confirma com o cliente e deixa marcado.',
+    prova: (
+      <span className="lp-prova-linha">
+        <i className="lp-prova-ok" /> sáb 09:40 · corte · confirmado
+      </span>
+    ),
+  },
+  {
+    titulo: 'Consulta seus dados',
+    texto: 'Preço, estoque, cardápio, status de pedido: ele lê a tabela antes de responder.',
+    prova: <span className="lp-prova-linha">estoque › óleo 5W30 › <b>12 un.</b></span>,
+  },
+  {
+    titulo: 'Chama você quando precisa',
+    texto: 'Reclamação ou negociação vira chamado numerado, com o resumo do que aconteceu.',
+    prova: <span className="lp-prova-senha"><b>Nº 0042</b> aberto 23:15</span>,
+  },
+  {
+    titulo: 'Mostra o que não sabia',
+    texto: 'Toda pergunta sem resposta aparece no painel. Você ensina uma vez e pronto.',
+    prova: <span className="lp-prova-linha"><b>3</b> perguntas novas · ensinar →</span>,
+  },
+  {
+    titulo: 'Conta o que querem',
+    texto: 'Assuntos mais perguntados, horários de pico e a nota de cada atendimento.',
+    prova: (
+      <span className="lp-prova-barras" aria-hidden="true">
+        {[30, 52, 44, 70, 96, 62, 38].map((a, i) => <i key={i} style={{ '--a': `${a}%`, '--i': i }} />)}
+      </span>
+    ),
+  },
 ];
 
+// x, y em % da área: as mesmas posições das pílulas no CSS (.lp-fonte-N)
 const FONTES = [
-  { icone: FileSpreadsheet, nome: 'Excel e CSV' },
-  { icone: Link2, nome: 'Google Planilhas' },
-  { icone: PlugZap, nome: 'TOTVS Protheus' },
-  { icone: PlugZap, nome: 'SAP' },
-  { icone: Database, nome: 'Seu banco, por API' },
+  { icone: FileSpreadsheet, nome: 'Excel e CSV', x: 50, y: 12 },
+  { icone: Cloud, nome: 'OneDrive e SharePoint', x: 88, y: 40 },
+  { icone: Link2, nome: 'Google Planilhas', x: 76, y: 84 },
+  { icone: Database, nome: 'Banco SQL', x: 24, y: 84 },
+  { icone: PlugZap, nome: 'SAP, TOTVS e APIs', x: 12, y: 40 },
 ];
+
+/** Curva de uma fonte até o centro, puxada um pouco para o lado. */
+function feixe({ x, y }) {
+  const mx = (x + 50) / 2 + (50 - y) * 0.18;
+  const my = (y + 50) / 2 - (50 - x) * 0.18;
+  return `M${x} ${y} Q${mx} ${my} 50 50`;
+}
+
 
 const ASSUNTOS = [
   ['Preço e formas de pagamento', 58],
@@ -275,7 +315,7 @@ const FAQ = [
   ['Preciso saber programar?', 'Não. Você conversa, revisa o documento e publica um link. Dá para colocar na bio, no site ou mandar pelo WhatsApp.'],
   ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu atendente, do começo ao fim, com quantas mensagens precisar. É isso que a cota mensal conta.'],
   ['E quando a cota acaba?', 'O atendente não some: ele passa a anotar recados e abrir chamados para a sua equipe, e você pode comprar um pacote extra.'],
-  ['Consigo ligar no meu sistema?', 'Sim, por API. Funciona com sistemas que expõem uma API REST, como TOTVS Protheus e SAP. Para banco SQL, coloque uma API na frente: é mais seguro do que abrir o banco para a internet.'],
+  ['Consigo ligar no meu sistema?', 'Sim. Ele lê planilhas do Excel (inclusive no OneDrive e no SharePoint), Google Planilhas, bancos PostgreSQL, MySQL e SQL Server direto, e sistemas com API REST, como SAP e TOTVS Protheus. Sempre só leitura, e só com a sua autorização.'],
   ['Funciona no WhatsApp?', 'Hoje o atendimento é pelo link do Helpy. A integração com WhatsApp está no nosso caminho.'],
 ];
 
@@ -284,9 +324,12 @@ export default function Landing() {
   const deslizar = useRolagemSuave();
   const pagos = [PLANS.essencial, PLANS.profissional, PLANS.business];
   const destino = user ? '/painel' : '/criar-conta';
+  const [abertura, setAbertura] = useState(deveMostrarAbertura);
+  const [esperando, setEsperando] = useState(abertura);
 
   return (
-    <div className="lp">
+    <div className="lp" data-abertura={esperando ? 'on' : 'off'} data-logo-voando={abertura ? 'sim' : 'nao'}>
+      {abertura && <IntroLogo onSaindo={() => setEsperando(false)} onFim={() => setAbertura(false)} />}
       <Topo user={user} deslizar={deslizar} />
       <Hero user={user} deslizar={deslizar} />
       <Filme />
@@ -317,15 +360,16 @@ export default function Landing() {
             <span className="lp-etiqueta">O que ele faz</span>
             <h2 className="lp-h2">Atende a noite toda.<br />Sem robô engessado.</h2>
           </Reveal>
-          <div className="lp-recursos">
-            {RECURSOS.map(({ icone: Icone, titulo, texto }, i) => (
-              <Reveal as="article" key={titulo} atraso={(i % 3) * 90}>
-                <span className="lp-recurso-icone"><Icone aria-hidden="true" /></span>
+          <ol className="lp-recursos">
+            {RECURSOS.map(({ titulo, texto, prova }, i) => (
+              <Reveal as="li" key={titulo} atraso={i * 70} className="lp-recurso">
+                <span className="lp-recurso-n">{String(i + 1).padStart(2, '0')}</span>
                 <h3>{titulo}</h3>
                 <p>{texto}</p>
+                <div className="lp-recurso-prova">{prova}</div>
               </Reveal>
             ))}
-          </div>
+          </ol>
         </div>
       </section>
 
@@ -369,6 +413,14 @@ export default function Landing() {
             </p>
           </Reveal>
           <Reveal className="lp-fontes" atraso={120}>
+            <svg className="lp-feixes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {FONTES.map((f, i) => (
+                <g key={f.nome}>
+                  <path d={feixe(f)} className="lp-feixe-base" />
+                  <path d={feixe(f)} className="lp-feixe-luz" pathLength="1" style={{ '--i': i }} />
+                </g>
+              ))}
+            </svg>
             <span className="lp-fontes-centro"><Marca size={52} /></span>
             {FONTES.map(({ icone: Icone, nome }, i) => (
               <span key={nome} className={`lp-fonte lp-fonte-${i + 1}`}>
@@ -381,16 +433,20 @@ export default function Landing() {
 
       <section className="lp-sec">
         <div className="lp-in lp-duas lp-duas-inverte">
-          <Reveal className="lp-relatorio" aria-label="Exemplo de relatório: assuntos mais perguntados">
+          <Reveal className="lp-relatorio" aria-label="Exemplo de relatório: horários de pico e assuntos mais perguntados">
             <div className="lp-relatorio-cab">
-              <b>O que mais perguntaram</b>
+              <b>Horários de pico</b>
               <span>Últimos 30 dias</span>
+            </div>
+            <SkylineHorarios />
+            <div className="lp-relatorio-cab lp-relatorio-sub">
+              <b>Assuntos mais perguntados</b>
             </div>
             <ul>
               {ASSUNTOS.map(([a, n], i) => (
                 <li key={a} style={{ '--i': i, '--w': n / ASSUNTOS[0][1] }}>
                   <span>{a}</span>
-                  <b>{n}</b>
+                  <b><Contador valor={n} atraso={i * 120} /></b>
                   <i aria-hidden="true" />
                 </li>
               ))}

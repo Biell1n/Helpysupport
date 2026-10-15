@@ -113,6 +113,10 @@ const estado = (c: Conversa) => ({
   ja_avaliou: c.nota != null,
 });
 
+/** O cliente vê a conversa e os avisos de agenda; avisos internos do sistema ficam só para a equipe. */
+const paraOCliente = (m: { role: string; author_name?: string | null }) =>
+  m.role !== 'system' || String(m.author_name ?? '').startsWith('evento:');
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -161,10 +165,10 @@ Deno.serve(async (req) => {
         .from('conversation_messages')
         .select('role, content, author_name, created_at')
         .eq('conversation_id', c.id)
-        .in('role', ['user', 'assistant', 'agent'])
+        .in('role', ['user', 'assistant', 'agent', 'system'])
         .order('created_at', { ascending: true })
         .limit(100);
-      return json({ ...estado(c), messages: msgs ?? [] });
+      return json({ ...estado(c), messages: (msgs ?? []).filter(paraOCliente) });
     }
 
     if (action === 'poll') {
@@ -174,12 +178,12 @@ Deno.serve(async (req) => {
         .from('conversation_messages')
         .select('role, content, author_name, created_at')
         .eq('conversation_id', c.id)
-        .eq('role', 'agent')
+        .in('role', ['agent', 'system'])
         .order('created_at', { ascending: true })
         .limit(30);
       if (body.desde) q = q.gt('created_at', String(body.desde));
       const { data: msgs } = await q;
-      return json({ ...estado(c), messages: msgs ?? [] });
+      return json({ ...estado(c), messages: (msgs ?? []).filter(paraOCliente) });
     }
 
     if (action === 'feedback') {
@@ -340,7 +344,8 @@ Deno.serve(async (req) => {
       .limit(24);
 
     let resposta: string;
-    const sinais: { pedirLogin?: boolean } = {};
+    const sinais: { pedirLogin?: boolean; motivoLogin?: string } = {};
+    const inicioRodada = new Date().toISOString();
     try {
       // o plano decide o que dos chamados vale, não importa o que está no documento
       const cfgDoPlano = structuredClone(cfg);
@@ -368,13 +373,24 @@ Deno.serve(async (req) => {
       throw new UserError('Não consegui responder agora. Pode mandar de novo?', 502);
     }
 
+    // avisos que as ferramentas deixaram nesta rodada (horário marcado, remarcado, cancelado)
+    const { data: eventos } = await admin
+      .from('conversation_messages')
+      .select('role, content, author_name, created_at')
+      .eq('conversation_id', c.id)
+      .eq('role', 'system')
+      .like('author_name', 'evento:%')
+      .gte('created_at', inicioRodada)
+      .order('created_at');
     await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: resposta });
     const atual = (await conversaDo(assistant.id, visitorId, clienteId, c.id)) ?? c;
     return json({
       ...estado(atual),
       message: resposta,
+      eventos: eventos ?? [],
       modo: atual.status === 'bot' || atual.status === 'closed' ? 'bot' : 'humano',
       precisa_login: sinais.pedirLogin === true,
+      motivo_login: sinais.motivoLogin ?? null,
     });
   } catch (err) {
     if (err instanceof UserError) return json({ error: err.message }, err.status);

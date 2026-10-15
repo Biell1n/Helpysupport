@@ -354,95 +354,6 @@
   }
 }
 
-.lp-ponto {
-  position: absolute;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  opacity: calc(1 - var(--p, 0) * 3);
-}
-
-.lp-ponto i {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--branco);
-  border: 4px solid var(--azul-forte);
-  flex-shrink: 0;
-  animation: lp-pisca 2.4s ease-out infinite;
-}
-
-.lp-ponto b {
-  position: relative;
-  padding: 9px 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  font-size: 13.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: 0 14px 30px -14px rgba(11, 26, 44, 0.35);
-}
-
-.lp-ponto b::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 52px;
-  height: 1.5px;
-  background: rgba(44, 93, 143, 0.55);
-}
-
-/* pontos para a esquerda: rótulo antes do ponto */
-.lp-ponto-a,
-.lp-ponto-c {
-  flex-direction: row-reverse;
-  translate: -100% 0;
-}
-
-.lp-ponto-a b,
-.lp-ponto-c b {
-  margin-right: 52px;
-}
-
-.lp-ponto-a b::before,
-.lp-ponto-c b::before {
-  left: 100%;
-}
-
-.lp-ponto-b b {
-  margin-left: 52px;
-}
-
-.lp-ponto-b b::before {
-  right: 100%;
-}
-
-.lp-ponto-a {
-  left: 22%;
-  top: 70%;
-}
-
-.lp-ponto-b {
-  left: 84%;
-  top: 34%;
-}
-
-.lp-ponto-c {
-  left: 30%;
-  top: 92%;
-}
-
-@keyframes lp-pisca {
-  0% {
-    box-shadow: 0 0 0 0 rgba(44, 93, 143, 0.45);
-  }
-  70%,
-  100% {
-    box-shadow: 0 0 0 12px rgba(44, 93, 143, 0);
-  }
-}
-
 .lp-robo-lado {
   position: absolute;
   z-index: 3;
@@ -743,53 +654,238 @@
   position: relative;
 }
 
+/* uma lista numerada, como índice de revista: número, título largo,
+   explicação e uma prova pequena do que ele faz. Ao passar o mouse a
+   linha escurece. */
 .lp-recursos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--linha-forte);
+}
+
+.lp-recurso {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  grid-template-columns: 72px minmax(0, 1.15fr) minmax(0, 1fr) 260px;
+  align-items: center;
+  gap: 28px;
+  padding: 34px 20px;
+  border-bottom: 1px solid var(--linha-forte);
+  isolation: isolate;
 }
 
-.lp-recursos article {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--branco);
-  border-radius: 26px;
-  padding: 30px;
-  box-shadow: var(--sombra);
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s;
+.lp-recurso::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--tinta);
+  opacity: 0;
+  transition: opacity 0.35s ease;
 }
 
-.lp-recursos article:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 2px 4px rgba(11, 26, 44, 0.04), 0 26px 50px -24px rgba(11, 26, 44, 0.25);
+.lp-recurso-n {
+  font-family: var(--f-mono);
+  font-size: 13px;
+  color: var(--tinta-3);
+  transition: color 0.4s;
 }
 
-.lp-recurso-icone {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: var(--azul-claro);
-  color: var(--azul-forte);
-  margin-bottom: 22px;
-}
-
-.lp-recurso-icone svg {
-  width: 22px;
-  height: 22px;
-}
-
-.lp-recursos h3 {
-  font-size: 19px;
+.lp-recurso h3 {
+  margin: 0;
+  font-family: var(--f-display);
+  font-stretch: 118%;
   font-weight: 600;
-  margin-bottom: 8px;
+  font-size: clamp(22px, 2.5vw, 34px);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  transition: color 0.4s, translate 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.lp-recursos p {
+.lp-recurso p {
+  margin: 0;
   font-size: 15px;
   line-height: 1.6;
   color: var(--tinta-2);
+  max-width: 40ch;
+  transition: color 0.4s;
+}
+
+.lp-recurso-prova {
+  justify-self: end;
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  color: var(--tinta-2);
+  transition: color 0.4s, translate 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) {
+  .lp-recurso:hover::before {
+    opacity: 1;
+  }
+
+  .lp-recurso:hover h3 {
+    color: var(--sobre-tinta);
+  }
+
+  .lp-recurso:hover .lp-recurso-n {
+    color: var(--senha);
+  }
+
+  .lp-recurso:hover p,
+  .lp-recurso:hover .lp-recurso-prova {
+    color: rgba(255, 255, 255, 0.74);
+  }
+
+  .lp-recurso:hover .lp-prova-fala {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
+    color: #fff;
+  }
+
+  .lp-recurso:hover .lp-prova-linha b {
+    color: #fff;
+  }
+}
+
+.lp-prova-fala {
+  display: block;
+  quotes: none;
+  font-family: var(--f-body);
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--tinta);
+  background: var(--branco);
+  border: 1px solid var(--linha);
+  padding: 10px 14px;
+  border-radius: 14px 14px 14px 4px;
+  transition: background 0.4s, border-color 0.4s, color 0.4s;
+}
+
+.lp-prova-linha {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.lp-prova-linha b {
+  font-weight: 500;
+  color: var(--tinta);
+  transition: color 0.4s;
+}
+
+.lp-prova-ok {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--folha);
+  box-shadow: 0 0 0 4px var(--folha-clara);
+}
+
+.lp-prova-senha {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 12px;
+  background: var(--senha);
+  color: var(--sobre-senha);
+  border-radius: 6px;
+  white-space: nowrap;
+  -webkit-mask: radial-gradient(circle 5px at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 5px at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle 5px at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 5px at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
+}
+
+.lp-prova-senha b {
+  font-weight: 500;
+  padding-right: 10px;
+  border-right: 1.5px dashed rgba(255, 255, 255, 0.45);
+}
+
+.lp-prova-barras {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 34px;
+}
+
+.lp-prova-barras i {
+  width: 9px;
+  height: var(--a);
+  border-radius: 3px 3px 1px 1px;
+  background: var(--azul);
+  transform: scaleY(0.15);
+  transform-origin: bottom;
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 60ms + 200ms), background 0.4s;
+}
+
+.lp-prova-barras i:nth-child(5) {
+  background: var(--senha);
+}
+
+.lp-recurso[data-visto='true'] .lp-prova-barras i {
+  transform: none;
+}
+
+/* ---------- horários de pico em perspectiva (relatório de exemplo) ---------- */
+
+.skyline {
+  position: relative;
+  margin: -6px -8px 22px;
+}
+
+.skyline-canvas {
+  display: block;
+  width: 100%;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.skyline-dica {
+  position: absolute;
+  translate: -50% calc(-100% - 12px);
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 12.5px;
+  background: var(--tinta);
+  color: var(--sobre-tinta);
+  padding: 6px 10px;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px -10px rgba(11, 26, 44, 0.5);
+}
+
+.skyline-dica b {
+  font-family: var(--f-mono);
+  font-weight: 500;
+}
+
+.skyline-legenda {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 0 8px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--tinta-3);
+}
+
+.skyline-legenda span {
+  margin: 0 5px;
+}
+
+.skyline-legenda i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.lp-relatorio-sub {
+  padding-top: 22px;
+  border-top: 1px solid var(--linha);
 }
 
 /* ---------- chamados ---------- */
@@ -830,7 +926,7 @@
   line-height: 1.55;
 }
 
-/* a senha: o canhoto amarelo do chamado */
+/* a senha: o canhoto azul do chamado */
 .lp-senha {
   --furo: 10px;
   display: grid;
@@ -840,7 +936,7 @@
   color: var(--sobre-senha);
   border-radius: 10px;
   transform: rotate(-2deg);
-  box-shadow: 0 30px 60px -28px rgba(120, 90, 0, 0.45);
+  box-shadow: 0 30px 60px -28px rgba(21, 79, 196, 0.55);
   -webkit-mask: radial-gradient(circle var(--furo) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
     radial-gradient(circle var(--furo) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
   mask: radial-gradient(circle var(--furo) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
@@ -849,7 +945,7 @@
 
 .lp-senha-num {
   padding: 20px 22px;
-  border-right: 2px dashed rgba(20, 18, 14, 0.3);
+  border-right: 2px dashed rgba(255, 255, 255, 0.4);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -960,6 +1056,42 @@
   width: 16px;
   height: 16px;
   color: var(--azul-forte);
+}
+
+/* feixes: a informação sai de cada fonte e corre até o Helpy */
+.lp-feixes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.lp-feixes path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.lp-feixe-base {
+  vector-effect: non-scaling-stroke;
+  stroke: rgba(44, 93, 143, 0.18);
+  stroke-width: 1.5;
+}
+
+.lp-feixe-luz {
+  stroke: var(--senha);
+  stroke-width: 0.55; /* em unidades da área de 100: uns 3px na tela */
+  stroke-dasharray: 0.16 1;
+  stroke-dashoffset: 0.16;
+  filter: drop-shadow(0 0 4px rgba(31, 102, 244, 0.7));
+  animation: lp-feixe 2.8s cubic-bezier(0.45, 0, 0.25, 1) calc(var(--i) * 0.55s) infinite;
+}
+
+@keyframes lp-feixe {
+  70%,
+  100% {
+    stroke-dashoffset: -1;
+  }
 }
 
 .lp-fonte-1 { left: 50%; top: 12%; }
@@ -1277,12 +1409,13 @@
     grid-template-columns: auto 1fr;
   }
 
-  .lp-recursos {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .lp-recurso {
+    grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  .lp-ponto {
-    display: none;
+  .lp-recurso-prova {
+    grid-column: 2 / -1;
+    justify-self: start;
   }
 }
 
@@ -1389,7 +1522,6 @@
   }
 
   .lp-passos,
-  .lp-recursos,
   .lp-duas,
   .lp-chamado,
   .lp-planos {
@@ -1455,7 +1587,6 @@
   }
 
   .lp-fontes::before,
-  .lp-ponto i,
   .lp-robo-flutua img,
   .lp-robo-ceu {
     animation: none;
@@ -1546,5 +1677,122 @@
 
   .auth-arte {
     display: none;
+  }
+}
+
+/* ============================================================
+   Abertura: um círculo vira balão, "digitando…" vira os olhinhos,
+   o nome entra e o conjunto voa até o topo
+   (a coreografia fica no IntroLogo.jsx; aqui só o visual)
+   ============================================================ */
+
+.abertura {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.abertura-fundo {
+  position: absolute;
+  inset: 0;
+  background: #f2f6fa;
+}
+
+.abertura[data-fase='sai'] {
+  pointer-events: none;
+}
+
+/* quem pula vê tudo esmaecer de uma vez */
+.abertura[data-pulou] {
+  animation: ab-sai 0.4s ease forwards;
+}
+
+@keyframes ab-sai {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.abertura-logo {
+  position: relative;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.abertura-svg {
+  display: block;
+  width: min(72vw, 560px);
+  height: auto;
+  overflow: visible;
+}
+
+.abertura-pular {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  border: 1px solid rgba(11, 26, 44, 0.16);
+  background: transparent;
+  color: rgba(11, 26, 44, 0.6);
+  font: 500 12px/1 var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  animation: ab-aparece 0.4s ease 0.5s backwards;
+}
+
+.abertura[data-fase='sai'] .abertura-pular {
+  display: none;
+}
+
+@keyframes ab-aparece {
+  from {
+    opacity: 0;
+  }
+}
+
+.abertura-pular:hover {
+  color: #0b1a2c;
+  border-color: rgba(11, 26, 44, 0.4);
+}
+
+/* a logo do topo espera a da abertura chegar voando */
+.lp[data-logo-voando='sim'] .lp-top-marca {
+  visibility: hidden;
+}
+
+/* enquanto a abertura está na tela, o topo da página espera para entrar */
+.lp[data-abertura='on'] .lp-entra {
+  animation-play-state: paused;
+}
+
+@media (max-width: 860px) {
+  .lp-recurso {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px 14px;
+    padding: 26px 4px;
+  }
+
+  .lp-recurso p,
+  .lp-recurso-prova {
+    grid-column: 2;
+  }
+
+  .lp-recurso-prova {
+    justify-self: start;
+    margin-top: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-feixe-luz {
+    animation: none;
+    stroke-dasharray: none;
+    opacity: 0.35;
   }
 }

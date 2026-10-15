@@ -3,6 +3,8 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { MailCheck } from 'lucide-react';
 import { lembrarAceite, TERMOS_VERSAO } from '@/lib/termos';
 import { resolverProva } from '@/lib/prova';
+import { AVISO_VAZADA, vezesVazada } from '@/lib/senhaVazada';
+import Captcha, { captchaLigado, useCaptcha } from '@/components/Captcha';
 import { erroAuth } from '@/lib/erroAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,6 +22,8 @@ export default function CriarConta() {
   const [aceite, setAceite] = useState(false);
   // "não sou um robô": prova de trabalho sobre o e-mail, conferida pelo banco no cadastro
   const [robo, setRobo] = useState({ estado: 'nao', prova: null, email: '' });
+  // com o Turnstile ligado, a caixinha da Cloudflare aparece; a prova de trabalho continua por trás
+  const cap = useCaptcha();
   const [params] = useSearchParams();
   const destino = destinoSeguro(params.get('de'));
   const deQuery = destino === '/painel' ? '' : `?de=${encodeURIComponent(destino)}`;
@@ -53,8 +57,9 @@ export default function CriarConta() {
     e.preventDefault();
     setErro('');
     if (f.senha.length < 8) return setErro('A senha precisa de pelo menos 8 caracteres.');
+    if (await vezesVazada(f.senha)) return setErro(AVISO_VAZADA);
     if (!aceite) return setErro('Para criar a conta, aceite os termos de uso e a política de privacidade.');
-    if (robo.estado === 'nao') return setErro('Marque a caixinha “não sou um robô”.');
+    if (captchaLigado ? cap.falta : robo.estado === 'nao') return setErro('Confirme a verificação “não sou um robô”.');
     setEnviando(true);
     const email = f.email.trim().toLowerCase();
     // e-mail mudou depois da caixinha: refaz a prova com o novo
@@ -72,9 +77,11 @@ export default function CriarConta() {
           prova_nonce: String(prova.nonce),
         },
         emailRedirectTo: `${window.location.origin}${destino}`,
+        ...cap.extra,
       },
     });
     setEnviando(false);
+    cap.nova();
     if (error) {
       setRobo({ estado: 'nao', prova: null, email: '' });
       return setErro(
@@ -166,13 +173,17 @@ export default function CriarConta() {
             <Link to="/privacidade" target="_blank">política de privacidade (LGPD)</Link>, e autorizo o tratamento dos meus dados como descrito nelas.
           </span>
         </label>
-        <label className="check-robo" data-estado={robo.estado}>
-          <input type="checkbox" checked={robo.estado !== 'nao'} disabled={robo.estado === 'verificando'} onChange={marcarRobo} />
-          <span>{robo.estado === 'verificando' ? 'Verificando…' : 'Não sou um robô'}</span>
-          <small>verificação sem imagens</small>
-        </label>
+        {captchaLigado ? (
+          <Captcha {...cap.props} />
+        ) : (
+          <label className="check-robo" data-estado={robo.estado}>
+            <input type="checkbox" checked={robo.estado !== 'nao'} disabled={robo.estado === 'verificando'} onChange={marcarRobo} />
+            <span>{robo.estado === 'verificando' ? 'Verificando…' : 'Não sou um robô'}</span>
+            <small>verificação sem imagens</small>
+          </label>
+        )}
         {erro && <p className="error-text" role="alert">{erro}</p>}
-        <button className="btn btn-senha btn-lg btn-block" disabled={enviando || !aceite || robo.estado !== 'ok'}>
+        <button className="btn btn-senha btn-lg btn-block" disabled={enviando || !aceite || (captchaLigado ? cap.falta : robo.estado !== 'ok')}>
           {enviando ? 'Criando…' : 'Criar conta'}
         </button>
       </form>

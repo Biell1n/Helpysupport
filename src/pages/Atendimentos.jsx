@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { Confirmar } from '@/components/Modal';
+import AgendaDoChamado from '@/components/AgendaDoChamado';
 import { numero, quando, STATUS } from '@/lib/format';
 
 const ABAS = [
@@ -306,6 +307,7 @@ export default function Atendimentos() {
               {aberta.motivo && <div><dt>Motivo</dt><dd>{aberta.motivo}</dd></div>}
               {aberta.lead_interesse && <div><dt>Interesse</dt><dd>{aberta.lead_interesse}</dd></div>}
               {aberta.resumo && <div style={{ gridColumn: '1 / -1' }}><dt>Resumo do assistente</dt><dd>{aberta.resumo}</dd></div>}
+              <AgendaDoChamado key={aberta.id} conversa={aberta} onMudou={() => carregarAberta(aberta.id)} />
               {aberta.nota && (
                 <div style={{ gridColumn: '1 / -1' }}>
                   <dt>Avaliação</dt>

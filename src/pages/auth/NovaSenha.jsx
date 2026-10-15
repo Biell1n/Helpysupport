@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AVISO_VAZADA, vezesVazada } from '@/lib/senhaVazada';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +25,7 @@ export default function NovaSenha() {
     e.preventDefault();
     setErro('');
     if (senha.length < 8) return setErro('A senha precisa de pelo menos 8 caracteres.');
+    if (await vezesVazada(senha)) return setErro(AVISO_VAZADA);
     if (senha !== repete) return setErro('As duas senhas não são iguais.');
     setEnviando(true);
     const { error } = await supabase.auth.updateUser({ password: senha });

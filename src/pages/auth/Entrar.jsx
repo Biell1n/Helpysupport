@@ -8,6 +8,7 @@ import { erroAuth } from '@/lib/erroAuth';
 import AuthLayout from './AuthLayout';
 import GoogleBotao from './GoogleBotao';
 import ReenviarConfirmacao from './ReenviarConfirmacao';
+import Captcha, { useCaptcha } from '@/components/Captcha';
 
 const traduz = erroAuth;
 
@@ -23,15 +24,18 @@ export default function Entrar() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const cap = useCaptcha();
 
   if (user) return <Navigate to={destino} replace />;
 
   const enviar = async (e) => {
     e.preventDefault();
     setErro('');
+    if (cap.falta) return setErro('Confirme a verificação "não sou um robô".');
     setEnviando(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha, options: cap.extra });
     setEnviando(false);
+    cap.nova();
     if (error) return setErro(traduz(error.message));
     navigate(destino, { replace: true });
   };
@@ -63,6 +67,7 @@ export default function Entrar() {
           </span>
           <input className="input" type="password" autoComplete="current-password" required value={senha} onChange={(e) => setSenha(e.target.value)} />
         </label>
+        <Captcha {...cap.props} />
         {erro && <p className="error-text" role="alert">{erro}</p>}
         {/confirme seu e-mail/i.test(erro) && <ReenviarConfirmacao email={email.trim().toLowerCase()} destino={destino} />}
         <button className="btn btn-primary btn-lg btn-block" disabled={enviando}>

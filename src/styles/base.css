@@ -1,8 +1,8 @@
 /* ============================================================
    Helpy — sistema visual
    Conceito: a senha de atendimento. Branco e azul de céu claro, tinta
-   azul-marinho, letra larga da logo, e o amarelo do canhoto só onde
-   existe senha.
+   azul-marinho, letra larga da logo, e o azul elétrico do canhoto só
+   onde existe senha.
    ============================================================ */
 
 :root {
@@ -28,11 +28,11 @@
   --azul-claro: #dbe8f4;
   --azul-forte: #2c5d8f;
 
-  /* o amarelo do canhoto: só onde existe senha (marca, chamado, número) */
-  --senha: #ffcf33;
-  --senha-escura: #e8b200;
-  --senha-clara: rgba(255, 207, 51, 0.18);
-  --sobre-senha: #14120e;
+  /* o azul elétrico do canhoto: só onde existe senha (marca, chamado, número) */
+  --senha: #1f66f4;
+  --senha-escura: #154fc4;
+  --senha-clara: rgba(31, 102, 244, 0.13);
+  --sobre-senha: #ffffff;
 
   --folha: #1d8656;
   --folha-clara: rgba(29, 134, 86, 0.1);
@@ -255,7 +255,7 @@ button, input, select, textarea {
   background: #1c3450;
 }
 
-/* chamada principal: mesmo peso do primário, para o amarelo ficar com a senha */
+/* chamada principal: mesmo peso do primário, para o azul elétrico ficar com a senha */
 .btn-senha {
   background: var(--tinta);
   color: var(--sobre-tinta);
@@ -535,12 +535,12 @@ button, input, select, textarea {
 }
 
 .stub-senha .stub-num {
-  border-right-color: rgba(18, 48, 46, 0.35);
+  border-right-color: rgba(255, 255, 255, 0.4);
 }
 
 .stub-senha .stub-num small,
 .stub-senha p {
-  color: rgba(12, 14, 19, 0.7);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 /* ---------- medidor de uso ---------- */

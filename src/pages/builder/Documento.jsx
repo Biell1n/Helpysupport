@@ -305,20 +305,32 @@ function PainelAgenda() {
               <span><b>Quero confirmar antes</b> — o horário fica pendente na Agenda até você aprovar.</span>
             </label>
             <label className="check-linha">
+              <input type="checkbox" checked={/^s[oó]/i.test(b.config.fields.agenda_quem?.value ?? '')} onChange={(e) => b.setField('agenda_quem', e.target.checked ? 'Só quem entrou na conta' : 'Qualquer pessoa')} />
+              <span><b>Só quem entrou na conta pode marcar</b> — o assistente pede para a pessoa entrar antes de marcar.</span>
+            </label>
+            <label className="check-linha">
               <input type="checkbox" checked={registra} onChange={(e) => b.setField('agenda_registrar', e.target.checked ? 'Sim, com o valor' : 'Não')} />
               <span><b>Atualizar os Dados sozinho</b> — cada agendamento entra na tabela “Agendamentos” com cliente, serviço e valor.</span>
             </label>
             <div className="agenda-resumo">
               <span className="label">Dias e horários</span>
               <p className="muted" style={{ fontSize: 13.5 }}>
-                {dias.length ? dias.map(([d, f]) => `${d} ${f.map((x) => x.join('–')).join(', ')}`).join(' · ') : 'Ainda não definidos. Diga no chat (ex.: “seg a sex 9h às 18h”) ou ajuste na Agenda.'}
+                {dias.length ? dias.map(([d, f]) => `${d} ${f.map((x) => x.join('–')).join(', ')}`).join(' · ') : 'Ainda não definidos. Diga no chat (ex.: “seg a sex 9h às 18h, almoço das 12h às 13h”) ou ajuste na Agenda.'}
               </p>
               <span className="label">Serviços</span>
-              <p className="muted" style={{ fontSize: 13.5 }}>
-                {agenda?.servicos?.length
-                  ? agenda.servicos.map((x) => `${x.nome}${x.duracao_min ? ` ${x.duracao_min} min` : ''}${x.valor != null ? ` R$ ${Number(x.valor).toFixed(2).replace('.', ',')}` : ''}`).join(' · ')
-                  : 'Nenhum ainda. Ex.: “corte 40 min R$ 45”.'}
-              </p>
+              {agenda?.servicos?.length ? (
+                <ul className="agenda-servicos">
+                  {agenda.servicos.map((x) => (
+                    <li key={x.nome}>
+                      <span>{x.nome}</span>
+                      {x.duracao_min ? <b>{duracaoBonita(x.duracao_min)}</b> : <b className="falta">quanto tempo?</b>}
+                      <span className="faint">{x.valor != null ? `R$ ${Number(x.valor).toFixed(2).replace('.', ',')}` : 'sem valor'}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted" style={{ fontSize: 13.5 }}>Nenhum ainda. Ex.: “corte 1h R$ 45, corte e barba 1h30 R$ 70”.</p>
+              )}
               <Link to="/painel/agenda" target="_blank" style={{ fontSize: 13 }}>Abrir a Agenda</Link>
             </div>
           </>
@@ -326,6 +338,14 @@ function PainelAgenda() {
       </div>
     </details>
   );
+}
+
+/** 90 → "1h30", 60 → "1h", 40 → "40 min". */
+function duracaoBonita(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (!h) return `${m} min`;
+  return m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
 }
 
 /** Chamados: tudo por clique, numa seção que abre e fecha. */

@@ -9,11 +9,15 @@
 //   convite_aceitar   → quem abriu o link entra na equipe
 //   convite_cancelar  → dono desfaz um link que ainda não foi usado
 //   equipe_remover    → dono tira alguém da equipe
+//   agenda_*          → quem atende o chamado (dono ou funcionário) vê
+//                       horários livres, marca, remarca e cancela, igual
+//                       ao atendente virtual
 // ============================================================
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, profileOf, requireUser } from '../_shared/db.ts';
 import { planOf } from '../_shared/plans.ts';
+import { agendamentosDaConversa, alterarAgendamento, descreverAgendamento, horariosLivres, marcar, type AgendaConfig } from '../_shared/agenda.ts';
 
 const CONVITE_RE = /^[A-Za-z0-9_-]{20,64}$/;
 
@@ -23,11 +27,12 @@ function novoToken(): string {
 }
 
 /** Confere a senha sem abrir sessão nova no navegador. */
-async function senhaConfere(email: string, senha: string): Promise<boolean> {
+async function senhaConfere(email: string, senha: string, captcha?: string): Promise<boolean> {
   const r = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: Deno.env.get('SUPABASE_ANON_KEY')!, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password: senha }),
+    // com o captcha ligado no Supabase, a conferência da senha também precisa do token
+    body: JSON.stringify({ email, password: senha, ...(captcha ? { gotrue_meta_security: { captcha_token: captcha } } : {}) }),
   });
   if (!r.ok) return false;
   // a sessão criada só para conferir é encerrada na hora
@@ -81,7 +86,8 @@ Deno.serve(async (req) => {
     if (action === 'excluir') {
       const temSenha = (user.app_metadata?.providers ?? [user.app_metadata?.provider]).includes('email');
       if (temSenha) {
-        if (!(await senhaConfere(user.email!, String(body.senha ?? '')))) throw new UserError('Senha incorreta.', 403);
+        const captcha = typeof body.captcha === 'string' ? body.captcha.slice(0, 4096) : undefined;
+        if (!(await senhaConfere(user.email!, String(body.senha ?? ''), captcha))) throw new UserError('Senha incorreta (ou a verificação "não sou um robô" expirou).', 403);
       } else if (String(body.confirmacao ?? '').trim().toUpperCase() !== 'EXCLUIR') {
         throw new UserError('Digite EXCLUIR para confirmar.');
       }
@@ -94,6 +100,77 @@ Deno.serve(async (req) => {
       const { error } = await admin.auth.admin.deleteUser(user.id);
       if (error) throw error;
       return json({ ok: true });
+    }
+
+    // ---- agenda pelo chamado: dono ou funcionário da empresa dona da conversa ----
+    if (action.startsWith('agenda_')) {
+      const { data: p } = await admin.from('profiles').select('tipo, empresa_id').eq('id', user.id).maybeSingle();
+      let conta = user.id;
+      if (p?.tipo === 'funcionario') {
+        const { data: eq } = await admin.from('equipe').select('owner_id').eq('user_id', user.id).maybeSingle();
+        if (!eq) throw new UserError('Você não está mais na equipe desta empresa.', 403);
+        conta = eq.owner_id;
+      } else if (p?.tipo === 'cliente') {
+        throw new UserError('Só a empresa pode mexer na agenda.', 403);
+      }
+      const { data: cfg } = await admin.from('agenda_config').select('*').eq('owner_id', conta).maybeSingle();
+      if (!cfg?.ativa) throw new UserError('A agenda está desligada. Ligue em Agenda → Horários.');
+      const agenda = cfg as AgendaConfig;
+
+      const conversa = String(body.conversation_id ?? '');
+      const { data: c } = await admin.from('conversations').select('id, assistant_id, owner_id').eq('id', conversa).maybeSingle();
+      if (!c || c.owner_id !== conta) throw new UserError('Conversa não encontrada.', 404);
+      const { data: a } = await admin.from('assistants').select('config').eq('id', c.assistant_id).maybeSingle();
+      const campo = (k: string) => String((a?.config as { fields?: Record<string, { value?: string }> })?.fields?.[k]?.value ?? '');
+      const registrar = /^sim/i.test(campo('agenda_registrar'));
+
+      if (action === 'agenda_ver') {
+        const marcados = await agendamentosDaConversa(admin, conversa);
+        return json({
+          servicos: agenda.servicos ?? [],
+          duracao_min: agenda.duracao_min,
+          marcados: marcados.map((m) => ({ ...m, texto: descreverAgendamento(m, agenda.fuso).replace(/ \(id [^)]+\)$/, '') })),
+        });
+      }
+      if (action === 'agenda_horarios') {
+        const sv = (agenda.servicos ?? []).find((x) => x.nome === body.servico);
+        return json(await horariosLivres(admin, agenda, String(body.dia ?? ''), sv?.duracao_min));
+      }
+
+      // a conversa sobe na lista de atendimentos (o aviso destacado é gravado pelo agenda.ts)
+      const tocar = () => admin.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversa);
+
+      if (action === 'agenda_marcar') {
+        const r = await marcar(admin, agenda, {
+          dia: String(body.dia ?? ''),
+          hora: String(body.hora ?? ''),
+          nome: String(body.nome ?? ''),
+          contato: String(body.contato ?? ''),
+          servico: body.servico ? String(body.servico) : undefined,
+          observacao: body.observacao ? String(body.observacao) : undefined,
+          registrar,
+          adicional: true, // a equipe pode marcar mais de um horário na mesma conversa
+          origem: 'manual',
+          assistant_id: c.assistant_id,
+          conversation_id: conversa,
+        });
+        if ('erro' in r && r.erro) throw new UserError(r.erro);
+        await tocar();
+        return json(r);
+      }
+      if (action === 'agenda_alterar') {
+        const r = await alterarAgendamento(admin, agenda, conversa, {
+          id: String(body.id ?? ''),
+          dia: body.dia ? String(body.dia) : undefined,
+          hora: body.hora ? String(body.hora) : undefined,
+          cancelar: body.cancelar === true,
+          registrar,
+        });
+        if ('erro' in r && r.erro) throw new UserError(r.erro);
+        await tocar();
+        return json(r);
+      }
+      throw new UserError(`Ação desconhecida: ${action}`);
     }
 
     if (action === 'virar_empresa') {

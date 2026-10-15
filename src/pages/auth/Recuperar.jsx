@@ -3,21 +3,26 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { erroAuth } from '@/lib/erroAuth';
 import AuthLayout from './AuthLayout';
+import Captcha, { useCaptcha } from '@/components/Captcha';
 
 export default function Recuperar() {
   const [email, setEmail] = useState('');
   const [enviado, setEnviado] = useState(false);
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const cap = useCaptcha();
 
   const enviar = async (e) => {
     e.preventDefault();
     setErro('');
+    if (cap.falta) return setErro('Confirme a verificação "não sou um robô".');
     setEnviando(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: `${window.location.origin}/nova-senha`,
+      ...cap.extra,
     });
     setEnviando(false);
+    cap.nova();
     if (error) return setErro(erroAuth(error.message));
     setEnviado(true);
   };
@@ -39,6 +44,7 @@ export default function Recuperar() {
             <span className="label">E-mail</span>
             <input className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
+          <Captcha {...cap.props} />
           {erro && <p className="error-text" role="alert">{erro}</p>}
           <button className="btn btn-primary btn-lg btn-block" disabled={enviando}>{enviando ? 'Enviando…' : 'Enviar link'}</button>
           <Link to="/entrar" style={{ fontSize: 14 }}>Lembrei a senha</Link>
