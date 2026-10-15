@@ -12,6 +12,7 @@ import { alertar, type Assistant, responder } from './atendimento.ts';
 import { profileOf } from './db.ts';
 import { inicioDoMes, planOf, trialExpirado } from './plans.ts';
 import { type Canal, NOMES } from './canais.ts';
+import { usarExtra } from './extra.ts';
 
 const PASSOU_PARA_EQUIPE =
   'Vou passar para alguém da equipe continuar daqui. É só aguardar: respondemos por aqui mesmo.';
@@ -63,7 +64,7 @@ export async function atenderNoCanal(
     else if ((mes ?? 0) >= plan.atendimentos) {
       if (profile.creditos_extra > 0) {
         await db.from('profiles').update({ creditos_extra: profile.creditos_extra - 1 }).eq('id', profile.id);
-      } else recado = true;
+      } else if (!(await usarExtra(db, profile, 'atendimento'))) recado = true;
     }
     const contatoTexto = contato.telefone ? `+${contato.telefone}` : `${NOMES[canal.tipo]} ${contato.id}`;
     const { data: nova, error } = await db.from('conversations').insert({
@@ -102,10 +103,13 @@ export async function atenderNoCanal(
     .select('id, conversations!inner(owner_id, teste)', { count: 'exact', head: true })
     .eq('role', 'user').eq('conversations.owner_id', canal.owner_id).eq('conversations.teste', false)
     .gte('created_at', inicioDoMes());
-  if ((daConversa ?? 0) > plan.msgsPorAtendimento || (doMes ?? 0) > plan.mensagens) {
+  // além das mensagens do plano, o uso extra pode cobrir (se estiver ligado e couber no limite)
+  const passouConversa = (daConversa ?? 0) > plan.msgsPorAtendimento;
+  const semMensagens = !passouConversa && (doMes ?? 0) > plan.mensagens && !(await usarExtra(db, profile, 'mensagem'));
+  if (passouConversa || semMensagens) {
     await db.from('conversations').update({
       status: 'waiting', titulo: 'Conversa longa', escalado_em: new Date().toISOString(),
-      motivo: (doMes ?? 0) > plan.mensagens ? 'As mensagens do mês do plano acabaram.' : 'Passou do limite de mensagens por atendimento.',
+      motivo: semMensagens ? 'As mensagens do mês do plano acabaram.' : 'Passou do limite de mensagens por atendimento.',
     }).eq('id', c.id);
     await db.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: PASSOU_PARA_EQUIPE });
     return PASSOU_PARA_EQUIPE;

@@ -39,6 +39,9 @@ export function recursosDoPlano(p) {
   ].filter(Boolean);
 }
 
+/** Uso extra: o que passa da cota do plano, cobrado à parte até o limite do mês. Espelha PRECO_EXTRA de plans.ts. */
+export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.02 };
+
 /** Vaga de funcionário além das incluídas no plano. */
 export const PRECO_FUNCIONARIO_EXTRA = 19;
 

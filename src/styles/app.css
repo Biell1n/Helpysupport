@@ -2503,3 +2503,60 @@
 .kpi-variacao b[data-sinal='menos'] {
   color: var(--tinta-2);
 }
+
+/* ---------- uso extra (Plano) ---------- */
+
+.uso-extra {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.uso-extra-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.uso-extra-grade {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.uso-extra-precos {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
+
+.uso-extra-precos b {
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+.uso-extra-limite {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.uso-extra-limite .input {
+  max-width: 140px;
+  font-variant-numeric: tabular-nums;
+}
+
+.interruptor[aria-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 860px) {
+  .uso-extra-grade {
+    grid-template-columns: 1fr;
+  }
+}

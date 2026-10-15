@@ -1,6 +1,7 @@
 import { useOutletContext } from 'react-router-dom';
 import { Check, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import UsoExtra from '@/components/UsoExtra';
 import { diasDeTeste, PLANS, planOf, reais, recursosDoPlano, PRECO_FUNCIONARIO_EXTRA } from '@/lib/plans';
 
 const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
@@ -49,9 +50,11 @@ export default function Plano() {
         </div>
         {profile?.creditos_extra > 0 && <p className="muted">Você tem <b>{profile.creditos_extra}</b> atendimentos extras de pacote.</p>}
         <p className="faint" style={{ fontSize: 13 }}>
-          Quando os atendimentos ou as mensagens do mês acabam, o atendente não some: as conversas viram recados e chamados para a equipe até a cota renovar.
+          Quando os atendimentos ou as mensagens do mês acabam, o atendente não some: as conversas viram recados e chamados para a equipe até a cota renovar, a não ser que o uso extra esteja ligado.
         </p>
       </section>
+
+      <UsoExtra plano={atual} />
 
       <div className="lp-planos">
         {[PLANS.essencial, PLANS.profissional, PLANS.business].map((p) => {
