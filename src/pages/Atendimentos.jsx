@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { Confirmar } from '@/components/Modal';
 import AgendaDoChamado from '@/components/AgendaDoChamado';
+import SwipeRow from '@/components/SwipeRow';
 import { numero, quando, STATUS } from '@/lib/format';
 
 const ABAS = [
@@ -52,6 +53,7 @@ export default function Atendimentos() {
   const [resposta, setResposta] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [confirmar, setConfirmar] = useState(null);
+  const [deslizada, setDeslizada] = useState(null);
   const fim = useRef(null);
 
   const atendente = nome || user?.email?.split('@')[0] || 'Equipe';
@@ -153,6 +155,34 @@ export default function Atendimentos() {
       { titulo: 'Devolvido ao assistente', texto: 'Ele volta a responder esta conversa.' },
     );
 
+  // ações rápidas pela lista (deslizando a linha no celular)
+  const mudarDaLista = async (c, patch, titulo) => {
+    setDeslizada(null);
+    const { error } = await supabase.from('conversations').update(patch).eq('id', c.id);
+    if (error) return avisar('Não deu para atualizar o chamado', { erro: true, texto: error.message });
+    avisar(titulo);
+    await Promise.all([carregar(), aberta?.id === c.id ? carregarAberta(c.id) : null]);
+    recarregarUso();
+  };
+
+  const acoesDaLinha = (c) => ({
+    esquerda: c.status === 'waiting'
+      ? {
+          rotulo: 'Assumir', icone: <Hand />, cor: 'var(--senha)',
+          onAcao: () => mudarDaLista(c, { status: 'human', assumido_por: user.id, assumido_nome: atendente, assumido_em: new Date().toISOString() }, 'Chamado assumido'),
+        }
+      : null,
+    direita: c.status === 'closed'
+      ? {
+          rotulo: 'Reabrir', icone: <RotateCcw />, cor: 'var(--tinta-2)',
+          onAcao: () => mudarDaLista(c, { status: c.assumido_por ? 'human' : 'waiting', fechado_em: null, encerrado_por: null }, 'Chamado reaberto'),
+        }
+      : {
+          rotulo: 'Encerrar', icone: <CheckCircle2 />, cor: 'var(--tinta)',
+          onAcao: () => mudarDaLista(c, { status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'equipe' }, 'Chamado encerrado'),
+        },
+  });
+
   const responder = async () => {
     const texto = resposta.trim();
     if (!texto || enviando) return;
@@ -236,7 +266,8 @@ export default function Atendimentos() {
             </p>
           )}
           {visiveis?.map((c) => (
-            <button key={c.id} type="button" className="ticket" aria-current={aberta?.id === c.id} onClick={() => abrir(c.id)}>
+            <SwipeRow key={c.id} {...acoesDaLinha(c)} aberta={deslizada === c.id} onAbrir={() => setDeslizada(c.id)}>
+            <button type="button" className="ticket" aria-current={aberta?.id === c.id} onClick={() => abrir(c.id)}>
               <div className="stub">
                 <div className="stub-num">
                   <small>Senha</small>
@@ -259,6 +290,7 @@ export default function Atendimentos() {
                 </div>
               </div>
             </button>
+            </SwipeRow>
           ))}
         </div>
       </section>

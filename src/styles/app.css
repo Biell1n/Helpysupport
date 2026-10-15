@@ -2058,3 +2058,56 @@
   object-fit: cover;
   padding: 0;
 }
+
+/* linha que desliza no celular (ações rápidas nos atendimentos) */
+.swipe {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r);
+}
+
+.swipe-frente {
+  position: relative;
+  z-index: 1;
+  background: var(--papel);
+  touch-action: pan-y;
+  transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.swipe-frente[data-arrastando] {
+  transition: none;
+}
+
+.swipe-frente > .ticket {
+  width: 100%;
+}
+
+.swipe-acao {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.swipe-acao svg {
+  width: 20px;
+  height: 20px;
+}
+
+.swipe-acao-esquerda {
+  left: 0;
+}
+
+.swipe-acao-direita {
+  right: 0;
+}
