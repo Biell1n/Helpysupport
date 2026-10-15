@@ -27,7 +27,7 @@ type Conversa = { id: string; status: string; escalado_em: string | null; last_m
 export async function atenderNoCanal(
   db: SupabaseClient,
   canal: Canal,
-  contato: { id: string; nome?: string | null; telefone?: string | null },
+  contato: { id: string; nome?: string | null; telefone?: string | null; rotulo?: string | null },
   texto: string,
 ): Promise<string | null> {
   texto = texto.trim().slice(0, 2000);
@@ -66,7 +66,7 @@ export async function atenderNoCanal(
         await db.from('profiles').update({ creditos_extra: profile.creditos_extra - 1 }).eq('id', profile.id);
       } else if (!(await usarExtra(db, profile, 'atendimento'))) recado = true;
     }
-    const contatoTexto = contato.telefone ? `+${contato.telefone}` : `${NOMES[canal.tipo]} ${contato.id}`;
+    const contatoTexto = contato.rotulo || (contato.telefone ? `+${contato.telefone}` : `${NOMES[canal.tipo]} ${contato.id}`);
     const { data: nova, error } = await db.from('conversations').insert({
       assistant_id: canal.assistant_id,
       owner_id: canal.owner_id,

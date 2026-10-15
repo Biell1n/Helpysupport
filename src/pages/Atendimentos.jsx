@@ -11,6 +11,7 @@ import AgendaDoChamado from '@/components/AgendaDoChamado';
 import SwipeRow from '@/components/SwipeRow';
 import Abas from '@/components/Abas';
 import { numero, quando, STATUS } from '@/lib/format';
+import { avisarNoCanal } from '@/lib/canais';
 
 const ABAS = [
   { id: 'waiting', rotulo: 'Na fila' },
@@ -126,6 +127,7 @@ export default function Atendimentos() {
       avisar('Não deu para atualizar o chamado', { erro: true, texto: error.message });
       return false;
     }
+    avisarNoCanal(aberta);
     if (msgOk) avisar(msgOk.titulo, { texto: msgOk.texto });
     await Promise.all([carregarAberta(aberta.id), carregar()]);
     recarregarUso();
@@ -161,6 +163,7 @@ export default function Atendimentos() {
     setDeslizada(null);
     const { error } = await supabase.from('conversations').update(patch).eq('id', c.id);
     if (error) return avisar('Não deu para atualizar o chamado', { erro: true, texto: error.message });
+    avisarNoCanal(c);
     avisar(titulo);
     await Promise.all([carregar(), aberta?.id === c.id ? carregarAberta(c.id) : null]);
     recarregarUso();
@@ -210,6 +213,7 @@ export default function Atendimentos() {
           .from('conversations')
           .update({ status: 'human', assumido_por: user.id, assumido_nome: atendente, assumido_em: aberta.assumido_em ?? new Date().toISOString() })
           .eq('id', aberta.id);
+        avisarNoCanal(aberta);
       }
       setResposta('');
       await Promise.all([carregarAberta(aberta.id), carregar()]);

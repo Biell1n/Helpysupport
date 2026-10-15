@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, ExternalLink, Link2, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
+import { Check, CheckCircle2, CircleDashed, Copy, ExternalLink, Link2, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -31,7 +31,7 @@ const SERVICOS = [
   {
     tipo: 'discord',
     nome: 'Discord',
-    frase: 'O bot do Helpy entra no seu servidor com o nome do assistente: o cliente usa /helpy e recebe a resposta na hora.',
+    frase: 'O bot do Helpy entra no seu servidor com o nome do assistente: o cliente abre um ticket privado e conversa com ele ali.',
     meta: false,
   },
 ];
@@ -96,7 +96,7 @@ function ConectarDiscord({ assistentes, onFechar }) {
       <ol className="passos">
         <li>Escolha o assistente que vai atender no servidor.</li>
         <li>Clique em <b>Adicionar ao meu servidor</b>: o Discord abre, você escolhe o servidor e autoriza (precisa ser administrador dele).</li>
-        <li>Você volta para cá com tudo pronto. No servidor, os clientes usam <b>/helpy</b> e a resposta aparece só para quem perguntou.</li>
+        <li>No servidor, digite <b>/helpy-config</b>: escolha o canal do atendimento e o cargo da equipe e publique o botão <b>Abrir atendimento</b>.</li>
       </ol>
       <label className="field">
         <span className="label">Assistente que vai atender</span>
@@ -253,6 +253,41 @@ function Atividade({ dias }) {
   );
 }
 
+/** Bot do Helpy no Discord: como estão os tickets neste servidor. */
+function TicketsDiscord({ canal }) {
+  const [livre, setLivre] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    chamar('canais', { action: 'discord_status' }).then((r) => vivo && setLivre(!!r?.gateway)).catch(() => vivo && setLivre(false));
+    return () => { vivo = false; };
+  }, []);
+  const publicado = !!canal.config?.painel_msg;
+  const itens = [
+    [publicado, publicado
+      ? <>Botão <b>Abrir atendimento</b> publicado. Cada cliente ganha um ticket privado.</>
+      : <>Falta configurar: no servidor, digite <b>/helpy-config</b>, escolha o canal e o cargo da equipe e publique o botão.</>],
+    [!!canal.config?.cargo_equipe, canal.config?.cargo_equipe
+      ? 'Cargo da equipe escolhido: ele é chamado quando o cliente pede uma pessoa.'
+      : 'Sem cargo da equipe: escolha no /helpy-config para a equipe ser chamada.'],
+    [livre, livre === null ? 'Conferindo a conversa livre…' : livre
+      ? 'Conversa livre ligada: o cliente e a equipe escrevem direto no ticket.'
+      : 'Conversa livre desligada: no ticket, o cliente fala com /helpy.'],
+  ];
+  return (
+    <div className="discord-tickets">
+      <ul>
+        {itens.map(([ok, texto], i) => (
+          <li key={i} data-ok={ok ? '' : undefined}>
+            {ok ? <CheckCircle2 size={15} /> : <CircleDashed size={15} />}
+            <span>{texto}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="faint">Os tickets aparecem em Atendimentos. O que você responde por lá chega no Discord com o seu nome, e quem responde pelo Discord aparece aqui.</p>
+    </div>
+  );
+}
+
 function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
   const [aberto, setAberto] = useState(!canal.ultimo_evento_em);
   return (
@@ -275,9 +310,7 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
         </select>
       </label>
       {canal.config?.modo === 'helpy' ? (
-        <p className="faint" style={{ margin: '10px 0 0', fontSize: 13 }}>
-          O bot do Helpy está neste servidor com o nome do assistente. Os clientes digitam <b>/helpy</b> e a pergunta.
-        </p>
+        <TicketsDiscord canal={canal} />
       ) : (
         <button type="button" className="link-btn" style={{ marginTop: 10 }} onClick={() => setAberto((v) => !v)}>
           {aberto ? 'Esconder endereços' : 'Ver endereços para colar no serviço'}
