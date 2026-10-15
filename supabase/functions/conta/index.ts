@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
       await admin.from('profiles').update({
         tipo: 'empresa',
         plan: 'trial',
-        trial_ends_at: new Date(Date.now() + 14 * 864e5).toISOString(),
+        trial_ends_at: new Date(Date.now() + 7 * 864e5).toISOString(),
         company_name: String(body.empresa ?? '').trim().slice(0, 120) || null,
       }).eq('id', user.id);
       return json({ ok: true });

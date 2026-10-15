@@ -28,7 +28,7 @@ export default function MinhasConversas() {
   }, []);
 
   const virarEmpresa = async () => {
-    if (!window.confirm('Criar um atendente para a sua empresa? Sua conta passa a ser de empresa, com 14 dias de teste grátis.')) return;
+    if (!window.confirm('Criar um atendente para a sua empresa? Sua conta passa a ser de empresa, com 7 dias de teste grátis.')) return;
     setVirando(true);
     try {
       await chamar('conta', { action: 'virar_empresa' });

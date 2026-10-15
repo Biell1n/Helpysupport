@@ -119,7 +119,7 @@ export default function CriarConta() {
             ? 'Depois de confirmar o e-mail, você entra na equipe pelo mesmo link.'
             : visitante
             ? 'Para falar com a equipe das empresas e acompanhar seus chamados.'
-            : '14 dias com tudo liberado.'}{' '}
+            : '7 dias com tudo liberado.'}{' '}
           Já tem conta?{' '}
           <Link to={`/entrar${deQuery}`}>Entrar</Link>
         </p>

@@ -1266,7 +1266,12 @@
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
 
-.fonte-opcao:hover {
+.fonte-opcao:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.fonte-opcao:not(:disabled):hover {
   border-color: var(--tinta-2);
   background: rgba(44, 93, 143, 0.04);
   transform: translateY(-1px);

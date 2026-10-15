@@ -21,7 +21,7 @@ export default function AuthLayout({ children }) {
             </div>
             <div className="lp-senha-corpo">
               <b>O seu primeiro atendente</b>
-              <span>14 dias para testar, sem cartão</span>
+              <span>7 dias para testar, sem cartão</span>
             </div>
           </div>
         </div>

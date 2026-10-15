@@ -451,6 +451,8 @@ export interface Rodada {
   assistant: Assistant;
   conversationId: string;
   maxTicketsAbertos: number | null;
+  /** o plano permite consultar API e banco SQL da empresa */
+  integracoes?: boolean;
   /** visitante logado (só quem entrou com a conta abre chamado) */
   cliente: { id: string; email: string | null; nome: string | null } | null;
   /** o dono testando pelo painel */
@@ -518,7 +520,17 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   if (nome.startsWith('consultar_')) {
     const t = tabelas.find((x) => x.ferramenta === nome);
     if (!t) return { erro: 'tabela não encontrada' };
-    if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config) return await consultarSistema(r, t, String(args.busca ?? ''));
+    if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config) {
+      if (r.integracoes === false) {
+        await alertar(db, assistant.owner_id, {
+          assistant_id: assistant.id, conversation_id: conversationId, origem: 'sistema', chave: `plano:integracoes:${t.id}`,
+          assunto: `"${t.nome}" precisa do plano Profissional`,
+          detalhe: `O assistente tentou consultar ${t.fonte === 'sql' ? 'o banco SQL' : 'o sistema'} de "${t.nome}", mas a conexão com API e banco SQL faz parte do plano Profissional em diante.`,
+        });
+        return { erro: `Não dá para consultar "${t.nome}" agora. Diga que não conseguiu consultar e ofereça chamar a equipe.` };
+      }
+      return await consultarSistema(r, t, String(args.busca ?? ''));
+    }
     if (t.fonte === 'url' && Date.now() - new Date(t.sincronizada_em ?? 0).getTime() > VALIDADE_URL_MS) {
       // planilha por link desatualizada: tenta trazer a versão nova; se falhar, usa a última cópia
       await sincronizarUrl(db, t.id).catch(async (e) => {

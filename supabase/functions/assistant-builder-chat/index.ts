@@ -1205,7 +1205,7 @@ Deno.serve(async (req) => {
       const { plan, payload } = await planInfo(user.id);
       if (payload.expirado) throw new UserError('Seu teste grátis terminou. Escolha um plano para continuar.', 402);
       if (!plan.builderIA) {
-        throw new UserError(`Montar conversando com a IA faz parte do plano Profissional. No ${plan.nome}, preencha o documento ao lado.`, 402);
+        throw new UserError(`Montar conversando com a IA não faz parte do plano ${plan.nome}. Preencha o documento ao lado.`, 402);
       }
       if (payload.builderRestantes <= 0) {
         throw new UserError('Você usou todas as mensagens de montagem deste mês. O documento continua editável à mão.', 429);

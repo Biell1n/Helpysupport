@@ -9,7 +9,8 @@
 // ============================================================
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
-import { admin, requireUser } from '../_shared/db.ts';
+import { admin, profileOf, requireUser } from '../_shared/db.ts';
+import { planOf } from '../_shared/plans.ts';
 import { addUsage, anthropic, emptyUsage, logUsage, MODELS } from '../_shared/ai.ts';
 import { type ApiConfig, baixarCsv, consultarApi, sincronizarUrl } from '../_shared/fontes.ts';
 import { configSql, consultarSql } from '../_shared/sql.ts';
@@ -115,6 +116,13 @@ Deno.serve(async (req) => {
       const tabelaId = String(body.tabela_id ?? '');
       await tabelaDoDono(user.id, tabelaId);
       return json(await sincronizarUrl(admin, tabelaId));
+    }
+
+    // API e banco SQL fazem parte do plano Profissional em diante
+    if (action === 'testar_api' || action === 'testar_sql') {
+      if (!planOf(await profileOf(user.id)).integracoes) {
+        throw new UserError('Conectar API e banco SQL faz parte do plano Profissional. Mude de plano em Plano para usar.', 402);
+      }
     }
 
     if (action === 'testar_api') {

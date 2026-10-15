@@ -10,7 +10,9 @@ import { EMPRESA } from '@/lib/empresa';
 import Reveal from '@/components/Reveal';
 import VideoDemo, { reduzido } from '@/components/VideoDemo';
 import { useAuth } from '@/contexts/AuthContext';
-import { PLANS, reais } from '@/lib/plans';
+import { DIAS_DE_TESTE, PLANS, reais, recursosDoPlano } from '@/lib/plans';
+
+const VENDAS_LP = import.meta.env.VITE_CONTATO_VENDAS;
 
 /** Rolagem suave só na landing; o painel continua com a rolagem nativa. */
 function useRolagemSuave() {
@@ -172,7 +174,7 @@ function Hero({ user, deslizar }) {
 
       <div className="lp-robo-acoes lp-entra" style={{ '--d': '0.75s' }}>
         <Link to={user ? '/painel' : '/criar-conta'} className="lp-btn lp-btn-cheio">
-          {user ? 'Ir para o painel' : 'Testar grátis por 14 dias'} <ArrowRight />
+          {user ? 'Ir para o painel' : `Testar grátis por ${DIAS_DE_TESTE} dias`} <ArrowRight />
         </Link>
         <a href="#filme" className="lp-btn lp-btn-vidro" onClick={deslizar}>Ver funcionando</a>
       </div>
@@ -313,8 +315,8 @@ const ASSUNTOS = [
 
 const FAQ = [
   ['Preciso saber programar?', 'Não. Você conversa, revisa o documento e publica um link. Dá para colocar na bio, no site ou mandar pelo WhatsApp.'],
-  ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu atendente, do começo ao fim, com quantas mensagens precisar. É isso que a cota mensal conta.'],
-  ['E quando a cota acaba?', 'O atendente não some: ele passa a anotar recados e abrir chamados para a sua equipe, e você pode comprar um pacote extra.'],
+  ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu atendente, do começo ao fim. Cada plano tem uma cota de atendimentos e um total de mensagens de clientes no mês, que folga para conversas de todos os tamanhos.'],
+  ['E quando a cota acaba?', 'O atendente não some: as conversas passam a virar recados e chamados para a sua equipe até a cota renovar, e você recebe um aviso no painel antes de chegar lá.'],
   ['Consigo ligar no meu sistema?', 'Sim. Ele lê planilhas do Excel (inclusive no OneDrive e no SharePoint), Google Planilhas, bancos PostgreSQL, MySQL e SQL Server direto, e sistemas com API REST, como SAP e TOTVS Protheus. Sempre só leitura, e só com a sua autorização.'],
   ['Funciona no WhatsApp?', 'Hoje o atendimento é pelo link do Helpy. A integração com WhatsApp está no nosso caminho.'],
 ];
@@ -467,31 +469,30 @@ export default function Landing() {
         <div className="lp-in">
           <Reveal className="lp-cab lp-cab-centro">
             <span className="lp-etiqueta">Planos</span>
-            <h2 className="lp-h2">Paga por atendimento,<br />não por mensagem.</h2>
-            <p className="lp-lead">Todos começam com 14 dias grátis, sem cartão.</p>
+            <h2 className="lp-h2">Um preço fixo por mês,<br />sem surpresa na fatura.</h2>
+            <p className="lp-lead">Todos começam com {DIAS_DE_TESTE} dias grátis, sem cartão. Preço de lançamento: quem assina agora mantém.</p>
           </Reveal>
           <div className="lp-planos">
             {pagos.map((p, i) => (
-              <Reveal as="article" key={p.id} atraso={i * 100} className={`lp-plano${p.id === 'profissional' ? ' lp-plano-destaque' : ''}`}>
+              <Reveal as="article" key={p.id} atraso={i * 100} className={`lp-plano${p.destaque ? ' lp-plano-destaque' : ''}`}>
                 <div className="lp-plano-topo">
                   <h3>{p.nome}</h3>
-                  {p.id === 'profissional' && <span className="lp-plano-tag">Mais escolhido</span>}
+                  {p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
                 </div>
-                <p className="lp-preco">{reais(p.preco)}<small>/mês</small></p>
+                <p className="lp-preco">
+                  {p.precoCheio && <s className="lp-preco-cheio">{reais(p.precoCheio)}</s>}
+                  {reais(p.preco)}<small>/mês</small>
+                </p>
                 <ul>
-                  <li>{p.atendimentos.toLocaleString('pt-BR')} atendimentos por mês</li>
-                  <li>{p.assistentes} {p.assistentes > 1 ? 'assistentes' : 'assistente'}</li>
-                  <li>{p.builderIA ? 'Montagem conversando com a IA' : 'Montagem por formulário'}</li>
-                  <li>{p.ticketsAbertos ? `${p.ticketsAbertos} chamados abertos ao mesmo tempo` : 'Chamados sem limite'}</li>
-                  <li>{p.tabelas} tabelas, agenda e relatórios</li>
+                  {recursosDoPlano(p).map((r) => <li key={r}>{r}</li>)}
                 </ul>
-                <Link to="/criar-conta" className={`lp-btn lp-btn-bloco ${p.id === 'profissional' ? 'lp-btn-claro' : 'lp-btn-cheio'}`}>
+                <Link to="/criar-conta" className={`lp-btn lp-btn-bloco ${p.destaque ? 'lp-btn-claro' : 'lp-btn-cheio'}`}>
                   Começar o teste
                 </Link>
               </Reveal>
             ))}
           </div>
-          <p className="lp-nota">Precisa de mais? Pacotes de +100 atendimentos por R$ 29, sem trocar de plano.</p>
+          <p className="lp-nota">Precisa de algo do tamanho da sua empresa? {VENDAS_LP ? <a href={VENDAS_LP.startsWith('mailto:') ? `${VENDAS_LP}?subject=${encodeURIComponent('Plano personalizado do Helpy')}` : VENDAS_LP} target="_blank" rel="noreferrer">Fale com a gente sobre um plano personalizado.</a> : 'Fale com a gente sobre um plano personalizado.'}</p>
         </div>
       </section>
 
@@ -518,7 +519,7 @@ export default function Landing() {
       <section className="lp-sec lp-sec-final">
         <div className="lp-in">
           <Reveal className="lp-final">
-            <h2>Teste grátis<br />por 14 dias.</h2>
+            <h2>Teste grátis<br />por {DIAS_DE_TESTE} dias.</h2>
             <p>Em uma tarde o seu atendente está no ar. Sem cartão para testar.</p>
             <Link to={destino} className="lp-btn lp-btn-claro">
               {user ? 'Ir para o painel' : 'Criar meu atendente'} <ArrowRight />
