@@ -1855,3 +1855,71 @@
     opacity: 0.35;
   }
 }
+
+/* ---------- efeitos de mouse (lib/efeitosDoMouse.js) ---------- */
+
+/* luz que acompanha o mouse dentro do cartão */
+[data-luz] {
+  position: relative;
+  isolation: isolate;
+}
+
+[data-luz]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(340px circle at var(--lx, 50%) var(--ly, 0%), rgba(31, 102, 244, 0.13), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+[data-luz]:hover::after {
+  opacity: 1;
+}
+
+.lp-plano-destaque[data-luz]::after {
+  background: radial-gradient(380px circle at var(--lx, 50%) var(--ly, 0%), rgba(91, 144, 255, 0.28), transparent 70%);
+}
+
+/* ímã: o próprio JS move o botão; aqui só a volta macia */
+[data-ima] {
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s, box-shadow 0.2s, color 0.2s;
+  will-change: transform;
+}
+
+/* feixe de luz correndo pela borda do plano em destaque */
+@property --feixe {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.lp-plano-destaque::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(from var(--feixe), transparent 0deg 300deg, rgba(91, 144, 255, 0.15) 315deg, #8fb3ff 345deg, #ffffff 355deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: lp-feixe-borda 5s linear infinite;
+}
+
+@keyframes lp-feixe-borda {
+  to {
+    --feixe: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-plano-destaque::before {
+    animation: none;
+    opacity: 0.5;
+  }
+}
