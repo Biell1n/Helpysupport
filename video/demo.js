@@ -2,22 +2,24 @@
 // No navegador o relógio anda sozinho; para gerar o arquivo, o render.mjs
 // chama window.__quadro(t) quadro a quadro e tira um print de cada um.
 
+import { CONJUNTO, CORES, LETRAS, NOME, OLHOS, senha } from '../src/components/marcaDesenho.js';
+
 export const DURACAO = 40000;
 
+// a marca atual do Helpy, desenhada pelo mesmo código do site
 const MARCA = (tamanho) => `
-<svg width="${tamanho}" height="${tamanho}" viewBox="0 0 64 64" aria-hidden="true">
-  <defs>
-    <mask id="mr${tamanho}"><rect width="64" height="64" fill="#fff"/><circle cx="5" cy="27" r="5" fill="#000"/><circle cx="59" cy="27" r="5" fill="#000"/></mask>
-    <clipPath id="mc${tamanho}"><rect x="44" y="0" width="20" height="64"/></clipPath>
-  </defs>
-  <g mask="url(#mr${tamanho})">
-    <rect x="5" y="9" width="54" height="36" rx="9" fill="#0B1A2C"/>
-    <path d="M14 43 L11 57 L27 43 Z" fill="#0B1A2C"/>
-    <rect x="5" y="9" width="54" height="36" rx="9" fill="#FFCF33" clip-path="url(#mc${tamanho})"/>
-  </g>
-  <path d="M44 13.5v27" stroke="#0B1A2C" stroke-width="2.4" stroke-dasharray="2.6 3.2"/>
-  <path d="M15.5 21.5h18M15.5 31h11" stroke="#FFFFFF" stroke-width="4.2" stroke-linecap="round"/>
+<svg width="${tamanho}" height="${tamanho}" viewBox="0 0 200 200" aria-hidden="true">
+  <path d="${senha()}" fill="${CORES.azul}"/>
+  ${OLHOS.map((o) => `<rect x="${o.cx - o.w / 2}" y="${o.cy - o.h / 2}" width="${o.w}" height="${o.h}" rx="${o.w / 2}" fill="#fff"/>`).join('')}
 </svg>`;
+
+/** O nome "helpy" em vetor, alinhado ao símbolo como no site. */
+const NOME_SVG = (tamanho) => {
+  const px = (u) => (u * CONJUNTO.escala * tamanho) / 200;
+  return `<svg class="nome" width="${px(NOME.largura)}" height="${px(NOME.topo + NOME.base)}" viewBox="0 ${-NOME.topo} ${NOME.largura} ${NOME.topo + NOME.base}"
+    style="margin-top:${((CONJUNTO.linhaBase - NOME.topo * CONJUNTO.escala) * tamanho) / 200}px" aria-hidden="true">
+    <g fill="${CORES.marinho}">${LETRAS.map((l) => `<path d="${l.d}" transform="translate(${l.x} 0)"/>`).join('')}</g></svg>`;
+};
 
 const suave = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
 
@@ -26,7 +28,7 @@ export function iniciar() {
 
   doc.querySelectorAll('[data-marca]').forEach((el) => {
     const n = Number(el.dataset.marca);
-    el.innerHTML = `${MARCA(n)}${n < 60 ? '<b>helpy</b>' : ''}`;
+    el.innerHTML = `${MARCA(n)}${n < 60 ? NOME_SVG(n) : ''}`;
   });
 
   // mapa de calor com um padrão de semana de barbearia
