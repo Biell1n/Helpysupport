@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { balao, CONJUNTO, CORES, LETRAS, NOME } from '@/components/marcaDesenho';
 
 const CHAVE = 'helpy-abertura';
 
-// linha do tempo da abertura, em ms
+// linha do tempo da abertura, em segundos
 const T = {
-  pontos: 0, // os três pontinhos de "digitando" aparecem
-  pula: 260, // e pulam, como no chat
-  junta: 1180, // se juntam e viram líquido
-  balao: 1250, // o líquido vira o balão
-  rabo: 1560, // o rabinho escorre
-  nitido: 1820, // o líquido dá lugar ao desenho final
-  canhoto: 1900, // o canhoto azul é picotado
-  linhas: 2120, // as duas linhas de texto
-  digita: 2330, // "helpy" é digitado
-  letra: 95, // intervalo entre letras
-  acorde: 2900,
-  voa: 3350, // a logo voa até o topo do site
-  fim: 4150,
+  entra: 0.35, // o círculo nasce
+  molda: 0.77, // o canto vira a pontinha do balão
+  pontos: 0.62, // os três pontinhos de "digitando" aparecem
+  onda: [0.8, 2.05], // e fazem a ondinha
+  vira: [1.95, 2.45], // as pontas viram os olhinhos, o do meio some
+  pisca: 2.72,
+  nome: 2.7, // "helpy" entra letra por letra
+  voa: 3.95, // o conjunto voa até o topo do site
+  fim: 4.75,
 };
 
 /** Mostra a abertura uma vez por visita, e nunca para quem pediu menos movimento. */
@@ -29,6 +26,111 @@ export function deveMostrarAbertura() {
   } catch {
     return true;
   }
+}
+
+/* ---------- curvas de movimento ---------- */
+const cl = (x) => Math.max(0, Math.min(1, x));
+const jan = (t, a, b) => cl((t - a) / (b - a));
+const inOut = (x) => ((x = cl(x)), x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const outCubic = (x) => 1 - Math.pow(1 - cl(x), 3);
+const outQuart = (x) => 1 - Math.pow(1 - cl(x), 4);
+const outBack = (x, k = 1.7) => ((x = cl(x)), 1 + (k + 1) * Math.pow(x - 1, 3) + k * Math.pow(x - 1, 2));
+const sino = (t, a, b) => Math.pow(Math.sin(Math.PI * jan(t, a, b)), 2);
+const lerp = (a, b, x) => a + (b - a) * x;
+
+/** Pontos-chave (tempo, valor, velocidade): a velocidade continua nas viradas, nada trava. */
+function chaves(...p) {
+  return (t) => {
+    if (t <= p[0][0]) return p[0][1] + p[0][2] * (t - p[0][0]);
+    const u = p[p.length - 1];
+    if (t >= u[0]) return u[1] + u[2] * (t - u[0]);
+    for (let i = 0; i < p.length - 1; i++) {
+      const [t0, v0, d0] = p[i];
+      const [t1, v1, d1] = p[i + 1];
+      if (t <= t1) {
+        const h = t1 - t0, s = (t - t0) / h, s2 = s * s, s3 = s2 * s;
+        return (2 * s3 - 3 * s2 + 1) * v0 + (s3 - 2 * s2 + s) * h * d0 + (-2 * s3 + 3 * s2) * v1 + (s3 - s2) * h * d1;
+      }
+    }
+    return u[1];
+  };
+}
+
+const { escala: E, vao: VAO, linhaBase: BASE } = CONJUNTO;
+const LARG = 200 + VAO + NOME.largura * E; // largura do conjunto final
+const X0 = (LARG - 200) / 2; // começa com o balão no centro da tela
+const deslize = chaves([2.55, 0, 0], [3.05, 0.62, 1.55], [3.75, 1, 0.05]);
+
+function pilula(el, cx, cy, w, h) {
+  w = Math.max(w, 0);
+  h = Math.max(h, 0);
+  el.setAttribute('x', cx - w / 2);
+  el.setAttribute('y', cy - h / 2);
+  el.setAttribute('width', w);
+  el.setAttribute('height', h);
+  el.setAttribute('rx', Math.min(w, h) / 2);
+}
+
+/** Desenha o quadro do instante t (em segundos). */
+function desenhar(t, el) {
+  // o balão nasce como círculo e o canto se molda na pontinha, com um leve elástico
+  const e = outBack(jan(t, T.entra, T.entra + 0.55), 1.9);
+  const m = outBack(jan(t, T.molda, T.molda + 0.58), 2.4);
+  el.forma.setAttribute('d', balao(Math.max(4, lerp(80, 19.2, m))));
+  const puxa = 0.05 * sino(t, T.molda, T.molda + 0.63);
+
+  // vida: o balão respira junto com a ondinha dos pontinhos e balança de leve
+  const env = jan(t, T.onda[0], T.onda[0] + 0.25) * (1 - inOut(jan(t, T.onda[1] - 0.3, T.onda[1])));
+  const ondas = [0, 1, 2].map((i) => Math.pow(Math.sin(Math.PI * Math.max(0, (t - T.onda[0] - i * 0.13) / 0.62)), 2) * env);
+  const respiraOnda = 0.024 * (ondas[0] + ondas[1] + ondas[2]) / 3;
+  const balanca = 2.4 * Math.sin((2 * Math.PI * (t - T.onda[0])) / 1.24) * env;
+  // depois de pronto ele continua vivo: flutua e respira devagar
+  const vivo = jan(t, 2.2, 2.7);
+  const flutua = -3.2 * Math.sin((2 * Math.PI * (t - 2.2)) / 2.1) * vivo;
+  const respira = 0.012 * Math.sin((2 * Math.PI * (t - 2.2)) / 2.1 + Math.PI / 2) * vivo;
+  // ao deslizar para a esquerda, inclina como quem tem peso e depois assenta
+  const vel = (deslize(t + 0.008) - deslize(t)) / 0.008;
+  const inclina = 6 * Math.max(0, vel) * jan(t, 2.55, 2.6);
+
+  const rot = -14 * (1 - outCubic(jan(t, T.entra, T.entra + 1.0))) + balanca + inclina;
+  const pulo = -9 * sino(t, T.pisca - 0.05, T.pisca + 0.42);
+  const acha = 0.045 * sino(t, T.pisca + 0.28, T.pisca + 0.6);
+  const s = e * (1 + respiraOnda + respira);
+  el.corpo.setAttribute(
+    'transform',
+    `translate(100 ${100 + pulo + flutua}) rotate(${rot}) rotate(45) scale(${1 + puxa} ${1 - puxa * 0.6}) rotate(-45) ` +
+      `scale(${s * (1 + acha)} ${s * (1 - acha)}) translate(-100 -100)`,
+  );
+
+  // os pontinhos: digitam, e as pontas viram os olhinhos (que depois olham para o nome)
+  const v = inOut(jan(t, ...T.vira));
+  const olha = 3.5 * outCubic(jan(t, 2.75, 3.25));
+  const piscar = (() => {
+    if (t < T.pisca) return 1;
+    if (t < T.pisca + 0.12) return lerp(1, 0.12, Math.pow(jan(t, T.pisca, T.pisca + 0.08), 2));
+    return 0.12 + 0.88 * outBack(jan(t, T.pisca + 0.12, T.pisca + 0.36), 2.2);
+  })();
+  [[64, 84], [100, 104], [136, 124]].forEach(([x0, x1], i) => {
+    const nasce = outBack(jan(t, T.pontos + i * 0.07, T.pontos + 0.33 + i * 0.07), 2);
+    const cx = lerp(x0, x1, v) + olha;
+    const cy = lerp(100 - 11 * ondas[i], 94, v) + pulo + flutua;
+    if (i === 1) {
+      const d = 26 * nasce * (1 - inOut(jan(t, T.vira[0], T.vira[0] + 0.32)));
+      pilula(el.pontos[i], cx, cy, d, d);
+    } else {
+      const w = lerp(26, 17, v) * nasce;
+      const h = lerp(26, 44, outBack(v, 1.3)) * nasce * piscar;
+      pilula(el.pontos[i], cx, cy, w, h);
+    }
+  });
+
+  // o conjunto desliza para a esquerda e o nome entra letra por letra, vindo de trás do balão
+  el.conjunto.setAttribute('transform', `translate(${X0 * (1 - deslize(t))} 0)`);
+  el.letras.forEach((l, j) => {
+    const k = outQuart(jan(t, T.nome + 0.1 + j * 0.055, T.nome + 0.75 + j * 0.055));
+    l.style.opacity = k;
+    l.setAttribute('transform', `translate(${LETRAS[j].x - 40 * (1 - k)} ${10 * (1 - k)})`);
+  });
 }
 
 /**
@@ -91,69 +193,54 @@ function criarSom() {
     src.stop(t + dur + 0.05);
   };
 
-  const s = (ms) => ms / 1000;
   const sons = [
-    // pontinhos surgindo e pulando
-    ...[0, 1, 2].map((i) => [T.pontos + i * 80, (t) => tom(t, 620 + i * 90, { dur: 0.09, vol: 0.06, ate: 900 + i * 90 })]),
-    ...[0, 1, 2, 3, 4, 5].map((i) => [T.pula + i * 150, (t) => tom(t, 1150 + (i % 3) * 120, { dur: 0.05, vol: 0.022 })]),
-    // o líquido se juntando: um "blup" grave subindo
-    [T.junta, (t) => tom(t, 170, { dur: 0.32, vol: 0.16, ate: 520, filtro: 1400 })],
-    [T.rabo, (t) => tom(t, 380, { dur: 0.16, vol: 0.08, ate: 760, filtro: 2000 })],
-    // picote do canhoto
-    [T.canhoto, (t) => { chiado(t, { dur: 0.05, vol: 0.09, freq: 3200 }); tom(t, 1600, { dur: 0.06, vol: 0.07, ate: 800 }); }],
-    [T.linhas, (t) => chiado(t, { dur: 0.025, vol: 0.04, freq: 4200 })],
-    [T.linhas + 110, (t) => chiado(t, { dur: 0.025, vol: 0.04, freq: 4600 })],
-    // teclas
-    ...[0, 1, 2, 3, 4].map((i) => [T.digita + i * T.letra, (t) => {
-      chiado(t, { dur: 0.03, vol: 0.07, freq: 2400 + Math.random() * 1400, tipo: 'highpass' });
-      tom(t, 180 + Math.random() * 40, { dur: 0.04, vol: 0.05, filtro: 600 });
-    }]),
+    // o círculo nasce ("pop") e o canto se molda ("blup")
+    [T.entra, (t) => tom(t, 420, { dur: 0.14, vol: 0.12, ate: 820 })],
+    [T.molda, (t) => tom(t, 260, { dur: 0.22, vol: 0.09, ate: 520, filtro: 1500 })],
+    // pontinhos surgindo e digitando
+    ...[0, 1, 2].map((i) => [T.pontos + i * 0.07, (t) => tom(t, 760 + i * 110, { dur: 0.07, vol: 0.05, ate: 1000 + i * 110 })]),
+    ...[0, 1].flatMap((k) => [0, 1, 2].map((i) => [T.onda[0] + i * 0.13 + k * 0.62, (t) => tom(t, 1150 + i * 120, { dur: 0.05, vol: 0.02 })])),
+    // os olhinhos se formando e a piscada
+    [T.vira[0], (t) => tom(t, 300, { dur: 0.26, vol: 0.1, ate: 640, filtro: 1600 })],
+    [T.pisca, (t) => tom(t, 1250, { dur: 0.09, vol: 0.05, ate: 1700 })],
+    // letras
+    ...LETRAS.map((_, j) => [T.nome + 0.1 + j * 0.055, (t) => chiado(t, { dur: 0.03, vol: 0.05, freq: 2400 + j * 260, tipo: 'highpass' })]),
     // acorde final e o sopro do voo até o topo
-    [T.acorde, (t) => {
-      tom(t, 659.25, { dur: 1.3, vol: 0.07, tipo: 'triangle' });
-      tom(t + 0.06, 987.77, { dur: 1.2, vol: 0.055, tipo: 'triangle' });
-      tom(t + 0.06, 1318.5, { dur: 0.8, vol: 0.018 });
+    [T.nome + 0.55, (t) => {
+      tom(t, 659.25, { dur: 1.3, vol: 0.06, tipo: 'triangle' });
+      tom(t + 0.06, 987.77, { dur: 1.2, vol: 0.045, tipo: 'triangle' });
+      tom(t + 0.06, 1318.5, { dur: 0.8, vol: 0.015 });
     }],
-    [T.voa, (t) => chiado(t, { dur: 0.6, vol: 0.05, freq: 2600, ate: 300 })],
+    [T.voa, (t) => chiado(t, { dur: 0.6, vol: 0.04, freq: 2600, ate: 300 })],
   ];
 
   return {
     ctx,
     liberado: () => ctx.state === 'running',
-    /** Agenda os sons que ainda não passaram, contando que a abertura começou há "decorrido" ms. */
+    /** Agenda os sons que ainda não passaram, contando que a abertura começou há "decorrido" segundos. */
     tocarDesde(decorrido) {
       const agora = ctx.currentTime + 0.02;
-      for (const [ms, fn] of sons) if (ms >= decorrido) fn(agora + s(ms - decorrido));
+      for (const [s, fn] of sons) if (s >= decorrido) fn(agora + (s - decorrido));
     },
     fechar: () => ctx.close().catch(() => {}),
   };
 }
 
-const anima = (el, quadros, opcoes) => el?.animate(quadros, { fill: 'forwards', ...opcoes });
-const MOLA = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
-const SUAVE = 'cubic-bezier(0.16, 1, 0.3, 1)';
-
 /**
- * A abertura: "digitando…" vira a logo. Os três pontinhos do chat pulam,
- * se fundem como líquido e modelam o balão; o canhoto é picotado, "helpy"
- * é digitado e a logo voa até o lugar dela no topo do site.
+ * A abertura: um círculo vira balão, os pontinhos de "digitando…" viram os
+ * olhinhos, ele pisca, "helpy" entra e o conjunto voa até o lugar dele no topo.
  */
 export default function IntroLogo({ onSaindo, onFim }) {
   const [fase, setFase] = useState('monta');
   const raiz = useRef(null);
-  const q = (sel) => raiz.current?.querySelector(sel);
-  const qs = (sel) => [...(raiz.current?.querySelectorAll(sel) ?? [])];
   const som = useRef(null);
-  const inicio = useRef(0);
-  const timers = useRef([]);
   const acabou = useRef(false);
-
-  const depois = (ms, fn) => timers.current.push(setTimeout(fn, ms));
+  const quadro = useRef(0);
 
   const encerrar = useCallback((pulou = false) => {
     if (acabou.current) return;
     acabou.current = true;
-    timers.current.forEach(clearTimeout);
+    cancelAnimationFrame(quadro.current);
     try {
       sessionStorage.setItem(CHAVE, '1');
     } catch {
@@ -166,33 +253,45 @@ export default function IntroLogo({ onSaindo, onFim }) {
     const s = som.current;
     if (pulou) s?.fechar();
     else setTimeout(() => s?.fechar(), 1600); // deixa o acorde terminar
-    setTimeout(() => onFim?.(), pulou ? 450 : T.fim - T.voa);
+    setTimeout(() => onFim?.(), pulou ? 450 : (T.fim - T.voa) * 1000);
   }, [onSaindo, onFim]);
 
-  // a logo encolhe e voa até a logo do topo; o fundo esmaece junto
+  // o conjunto encolhe e voa até a logo do topo; o fundo esmaece junto
   const voar = useCallback(() => {
-    const logo = q('.abertura-logo');
-    const alvo = document.querySelector('.lp-top-marca');
-    const fundo = q('.abertura-fundo');
-    const dur = T.fim - T.voa;
-    anima(fundo, [{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.8, easing: 'ease-in-out' });
-    anima(q('.abertura-luz'), [{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.5 });
-    if (logo && alvo) {
-      const a = logo.getBoundingClientRect();
+    const r = raiz.current;
+    const logo = r?.querySelector('.abertura-logo');
+    const caixa = r?.querySelector('.ab-caixa');
+    const alvo = document.querySelector('.lp-top-marca svg');
+    const dur = (T.fim - T.voa) * 1000;
+    r?.querySelector('.abertura-fundo')?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur * 0.8, easing: 'ease-in-out', fill: 'forwards' });
+    if (logo && caixa && alvo) {
+      // a caixa 200×200 do símbolo da abertura precisa cair em cima da caixa do símbolo do topo
+      const L = logo.getBoundingClientRect();
+      const a = caixa.getBoundingClientRect();
       const b = alvo.getBoundingClientRect();
-      const esc = b.height / a.height;
-      const dx = b.left + b.width / 2 - (a.left + a.width / 2);
-      const dy = b.top + b.height / 2 - (a.top + a.height / 2);
-      anima(logo, [{ transform: 'none' }, { transform: `translate(${dx}px, ${dy}px) scale(${esc})` }], { duration: dur, easing: 'cubic-bezier(0.65, 0, 0.2, 1)' });
+      const s = b.width / a.width;
+      const c = { x: L.left + L.width / 2, y: L.top + L.height / 2 };
+      const dx = b.left - c.x - s * (a.left - c.x);
+      const dy = b.top - c.y - s * (a.top - c.y);
+      logo.animate([{ transform: 'none' }, { transform: `translate(${dx}px, ${dy}px) scale(${s})` }], {
+        duration: dur, easing: 'cubic-bezier(0.65, 0, 0.2, 1)', fill: 'forwards',
+      });
     }
-    raiz.current?.setAttribute('data-cor', 'escura');
     encerrar(false);
   }, [encerrar]);
 
   useEffect(() => {
     const r = raiz.current;
-    if (!r) return;
-    inicio.current = performance.now();
+    if (!r) return undefined;
+    const el = {
+      forma: r.querySelector('.ab-forma'),
+      corpo: r.querySelector('.ab-corpo'),
+      conjunto: r.querySelector('.ab-conjunto'),
+      pontos: [...r.querySelectorAll('.ab-ponto')],
+      letras: [...r.querySelectorAll('.ab-letra')],
+    };
+    desenhar(0, el);
+    const inicio = performance.now();
 
     // som: toca se o navegador já deixa; senão, o que faltar toca no primeiro toque
     const s = criarSom();
@@ -204,7 +303,7 @@ export default function IntroLogo({ onSaindo, onFim }) {
     const liberar = () => {
       const x = som.current;
       if (!x || x.liberado() || acabou.current) return;
-      x.ctx.resume().then(() => x.tocarDesde(performance.now() - inicio.current)).catch(() => {});
+      x.ctx.resume().then(() => x.tocarDesde((performance.now() - inicio) / 1000)).catch(() => {});
     };
     const tecla = (e) => {
       if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') encerrar(true);
@@ -215,65 +314,21 @@ export default function IntroLogo({ onSaindo, onFim }) {
     const html = document.documentElement;
     html.style.overflow = 'hidden';
 
-    // a palavra começa fora da conta: a marca fica no centro e anda conforme as letras entram
-    const palavra = q('.abertura-palavra');
-    const gap = parseFloat(getComputedStyle(q('.abertura-logo')).columnGap) || 0;
-    const desloc = ((palavra?.offsetWidth ?? 0) + gap) / 2;
-    const trilho = q('.abertura-trilho');
-    trilho.style.transform = `translateX(${desloc}px)`;
-
-    // 1. pontinhos surgem e pulam
-    qs('.ab-ponto').forEach((p, i) => {
-      anima(p, [{ transform: 'scale(0)' }, { transform: 'scale(1)' }], { duration: 380, delay: T.pontos + i * 80, easing: MOLA });
-      anima(p, [
-        { translate: '0 0' }, { translate: '0 -5px', offset: 0.35 }, { translate: '0 0', offset: 0.7 }, { translate: '0 0' },
-      ], { duration: 450, delay: T.pula + i * 150, iterations: 2, easing: 'ease-in-out', fill: 'none' });
-      // 2. se juntam no meio
-      const dx = (1 - i) * 10;
-      anima(p, [{ translate: '0 0' }, { translate: `${dx}px 0` }], { duration: 260, delay: T.junta, easing: 'cubic-bezier(0.5, 0, 0.75, 0)' });
-    });
-    // 3. o líquido estica e vira o balão (com um quique de massinha)
-    anima(q('.ab-massa'), [
-      { transform: 'scale(0.06, 0.12)' },
-      { transform: 'scale(1.12, 0.82)', offset: 0.45 },
-      { transform: 'scale(0.95, 1.06)', offset: 0.72 },
-      { transform: 'scale(1, 1)' },
-    ], { duration: 620, delay: T.balao, easing: 'ease-out' });
-    anima(q('.ab-gota'), [
-      { transform: 'scale(0)' }, { transform: 'scale(1.15, 1.25)', offset: 0.6 }, { transform: 'scale(1)' },
-    ], { duration: 360, delay: T.rabo, easing: MOLA });
-    // 4. troca o líquido pelo desenho nítido
-    anima(q('.ab-liquido'), [{ opacity: 1 }, { opacity: 0 }], { duration: 220, delay: T.nitido });
-    anima(q('.ab-nitido'), [{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: T.nitido });
-    // 5. canhoto picotado: o azul desce, o picote corre
-    anima(q('.ab-canhoto'), [{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 300, delay: T.canhoto, easing: SUAVE });
-    anima(q('.ab-picote'), [{ strokeDashoffset: 40 }, { strokeDashoffset: 0 }], { duration: 300, delay: T.canhoto, easing: 'linear' });
-    qs('.ab-linha').forEach((l, i) => {
-      anima(l, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 200, delay: T.linhas + i * 110, easing: SUAVE });
-    });
-    // 6. "helpy" digitado, com cursor
-    const letras = qs('.abertura-palavra span');
-    const cursor = q('.abertura-cursor');
-    anima(cursor, [{ opacity: 0 }, { opacity: 1 }], { duration: 1, delay: T.digita - 120 });
-    letras.forEach((l, i) => {
-      anima(l, [{ opacity: 0, transform: 'translateY(0.18em)' }, { opacity: 1, transform: 'none' }], { duration: 160, delay: T.digita + i * T.letra, easing: SUAVE });
-      depois(T.digita + i * T.letra, () => {
-        if (cursor) cursor.style.left = `${l.offsetLeft + l.offsetWidth}px`;
-      });
-    });
-    anima(trilho, [{ transform: `translateX(${desloc}px)` }, { transform: 'translateX(0)' }], {
-      duration: letras.length * T.letra + 380, delay: T.digita - 60, easing: SUAVE,
-    });
-    depois(T.digita - 120, () => cursor?.setAttribute('data-pisca', 'nao'));
-    depois(T.digita + letras.length * T.letra + 60, () => cursor?.setAttribute('data-pisca', 'sim'));
-    anima(q('.abertura-luz'), [{ opacity: 0, transform: 'scale(0.6)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 1600, delay: T.balao, easing: SUAVE });
-    // 7. voa até o topo
-    depois(T.voa - 120, () => cursor && anima(cursor, [{ opacity: 1 }, { opacity: 0 }], { duration: 120 }));
-    depois(T.voa, voar);
+    const passo = (agora) => {
+      if (acabou.current) return;
+      const t = (agora - inicio) / 1000;
+      if (t >= T.voa) {
+        desenhar(T.voa, el);
+        voar();
+        return;
+      }
+      desenhar(t, el);
+      quadro.current = requestAnimationFrame(passo);
+    };
+    quadro.current = requestAnimationFrame(passo);
 
     return () => {
-      timers.current.forEach(clearTimeout);
-      timers.current = [];
+      cancelAnimationFrame(quadro.current);
       window.removeEventListener('pointerdown', liberar);
       window.removeEventListener('keydown', tecla);
       html.style.overflow = '';
@@ -285,52 +340,19 @@ export default function IntroLogo({ onSaindo, onFim }) {
   return (
     <div className="abertura" data-fase={fase} ref={raiz} role="presentation" aria-hidden="true">
       <div className="abertura-fundo" />
-      <div className="abertura-luz" />
       <div className="abertura-logo">
-        <div className="abertura-trilho">
-          <svg className="abertura-marca" viewBox="0 0 64 64">
-            <defs>
-              {/* o efeito "massinha": borra e corta, e as formas próximas se grudam */}
-              <filter id="ab-goo" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="2.4" />
-                <feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" />
-              </filter>
-              <mask id="ab-furos">
-                <rect width="64" height="64" fill="#fff" />
-                <circle cx="5" cy="27" r="5" fill="#000" />
-                <circle cx="59" cy="27" r="5" fill="#000" />
-              </mask>
-              <clipPath id="ab-lado">
-                <rect x="44" y="0" width="20" height="64" />
-              </clipPath>
-            </defs>
-
-            <g className="ab-liquido" filter="url(#ab-goo)">
-              <rect className="ab-massa" x="5" y="9" width="54" height="36" rx="12" />
-              <path className="ab-gota" d="M14 41 L11 57 L27 41 Z" />
-              <circle className="ab-ponto" cx="22" cy="27" r="4.6" />
-              <circle className="ab-ponto" cx="32" cy="27" r="4.6" />
-              <circle className="ab-ponto" cx="42" cy="27" r="4.6" />
+        <svg className="abertura-svg" viewBox={`0 -40 ${LARG} 280`}>
+          <g className="ab-conjunto">
+            <rect className="ab-caixa" width="200" height="200" fill="none" />
+            <g className="ab-corpo">
+              <path className="ab-forma" fill={CORES.azul} />
             </g>
-
-            <g className="ab-nitido">
-              <g mask="url(#ab-furos)">
-                <rect className="ab-corpo" x="5" y="9" width="54" height="36" rx="9" />
-                <path className="ab-corpo" d="M14 43 L11 57 L27 43 Z" />
-                <g clipPath="url(#ab-lado)">
-                  <rect className="ab-canhoto" x="5" y="9" width="54" height="36" rx="9" fill="#1F66F4" />
-                </g>
-              </g>
-              <path className="ab-picote" d="M44 13.5v27" strokeWidth="2.4" strokeDasharray="2.6 3.2" />
-              <path className="ab-linha" d="M15.5 21.5h18" pathLength="1" strokeWidth="4.2" strokeLinecap="round" />
-              <path className="ab-linha" d="M15.5 31h11" pathLength="1" strokeWidth="4.2" strokeLinecap="round" />
+            {[0, 1, 2].map((i) => <rect key={i} className="ab-ponto" fill={CORES.branco} />)}
+            <g transform={`translate(${200 + VAO} ${BASE}) scale(${E})`} fill={CORES.marinho}>
+              {LETRAS.map((l) => <path key={l.x} className="ab-letra" d={l.d} opacity="0" />)}
             </g>
-          </svg>
-          <span className="abertura-palavra">
-            {'helpy'.split('').map((l, i) => <span key={i}>{l}</span>)}
-            <i className="abertura-cursor" data-pisca="sim" />
-          </span>
-        </div>
+          </g>
+        </svg>
       </div>
       <button type="button" className="abertura-pular" tabIndex={-1} onClick={() => encerrar(true)}>
         Pular

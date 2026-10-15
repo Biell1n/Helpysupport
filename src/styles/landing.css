@@ -1681,25 +1681,24 @@
 }
 
 /* ============================================================
-   Abertura: "digitando…" vira a logo e voa até o topo
+   Abertura: um círculo vira balão, "digitando…" vira os olhinhos,
+   o nome entra e o conjunto voa até o topo
    (a coreografia fica no IntroLogo.jsx; aqui só o visual)
    ============================================================ */
 
 .abertura {
-  --tam: clamp(64px, 9vw, 96px);
   position: fixed;
   inset: 0;
   z-index: 1000;
   display: grid;
   place-items: center;
   overflow: hidden;
-  color: #fff;
 }
 
 .abertura-fundo {
   position: absolute;
   inset: 0;
-  background: #0b1a2c;
+  background: #f2f6fa;
 }
 
 .abertura[data-fase='sai'] {
@@ -1718,142 +1717,26 @@
   }
 }
 
-.abertura-luz {
-  position: absolute;
-  width: 70vmax;
-  height: 70vmax;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(31, 102, 244, 0.34), rgba(31, 102, 244, 0) 70%);
-  opacity: 0;
-}
-
 .abertura-logo {
   position: relative;
-  column-gap: calc(var(--tam) * 0.3);
   transform-origin: center;
   will-change: transform;
 }
 
-.abertura-trilho {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--tam) * 0.3);
-}
-
-.abertura-marca {
-  width: var(--tam);
-  height: var(--tam);
+.abertura-svg {
+  display: block;
+  width: min(72vw, 560px);
+  height: auto;
   overflow: visible;
-}
-
-.abertura-marca * {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-.ab-liquido {
-  fill: #fff;
-}
-
-.ab-massa {
-  transform: scale(0);
-}
-
-.ab-gota {
-  transform: scale(0);
-  transform-origin: 20% 0;
-}
-
-.ab-ponto {
-  transform: scale(0);
-}
-
-.ab-nitido {
-  opacity: 0;
-}
-
-.ab-corpo {
-  fill: #fff;
-  transition: fill 0.6s ease;
-}
-
-.ab-canhoto {
-  transform: scaleY(0);
-  transform-origin: top;
-}
-
-.ab-picote {
-  stroke: #0b1a2c;
-}
-
-.ab-linha {
-  stroke: #0b1a2c;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  transition: stroke 0.6s ease;
-}
-
-/* no voo a logo troca para as cores do topo (fundo claro) */
-.abertura[data-cor='escura'] .ab-corpo {
-  fill: #0b1a2c;
-}
-
-.abertura[data-cor='escura'] .ab-linha {
-  stroke: #fff;
-}
-
-.abertura[data-cor='escura'] .abertura-palavra {
-  color: #0b1a2c;
-}
-
-.abertura-palavra {
-  position: relative;
-  display: inline-flex;
-  font-family: var(--f-display);
-  font-weight: 800;
-  font-stretch: 118%;
-  font-size: calc(var(--tam) * 0.82);
-  letter-spacing: -0.04em;
-  line-height: 1;
-  color: #fff;
-  transition: color 0.6s ease;
-}
-
-.abertura-palavra span {
-  display: inline-block;
-  opacity: 0;
-}
-
-.abertura-cursor {
-  position: absolute;
-  left: 0;
-  top: 0.08em;
-  width: 0.09em;
-  height: 0.98em;
-  margin-left: 0.06em;
-  border-radius: 2px;
-  background: #1f66f4;
-  opacity: 0;
-  transition: left 0.08s linear;
-}
-
-.abertura-cursor[data-pisca='sim'] {
-  animation: ab-pisca 0.9s steps(1) infinite;
-}
-
-@keyframes ab-pisca {
-  50% {
-    visibility: hidden;
-  }
 }
 
 .abertura-pular {
   position: absolute;
   right: 24px;
   bottom: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(11, 26, 44, 0.16);
   background: transparent;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(11, 26, 44, 0.6);
   font: 500 12px/1 var(--f-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1874,8 +1757,8 @@
 }
 
 .abertura-pular:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.5);
+  color: #0b1a2c;
+  border-color: rgba(11, 26, 44, 0.4);
 }
 
 /* a logo do topo espera a da abertura chegar voando */

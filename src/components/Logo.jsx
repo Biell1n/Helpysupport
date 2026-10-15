@@ -1,55 +1,49 @@
-import { useId } from 'react';
+import { balao, CONJUNTO, CORES, LETRAS, NOME, OLHOS } from '@/components/marcaDesenho';
 
 /**
- * A marca: balão de conversa com o canhoto picotado de uma senha de
- * atendimento. Conversa que vira chamado.
- * tom="claro" para fundo escuro; o padrão é para fundo claro.
+ * A marca: um balão de conversa com dois olhinhos. Quem atende está ali,
+ * ouvindo. tom="claro" para fundo escuro; o padrão é para fundo claro
+ * (o balão é azul nos dois casos).
  */
-export function Marca({ size = 32, tom = 'escuro' }) {
-  const id = useId().replace(/:/g, '');
-  const corpo = tom === 'claro' ? '#FFFFFF' : '#0B1A2C';
-  const linhas = tom === 'claro' ? '#0B1A2C' : '#FFFFFF';
+export function Marca({ size = 32 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <mask id={`r${id}`}>
-          <rect width="64" height="64" fill="#fff" />
-          <circle cx="5" cy="27" r="5" fill="#000" />
-          <circle cx="59" cy="27" r="5" fill="#000" />
-        </mask>
-        <clipPath id={`c${id}`}>
-          <rect x="44" y="0" width="20" height="64" />
-        </clipPath>
-      </defs>
-      <g mask={`url(#r${id})`}>
-        <rect x="5" y="9" width="54" height="36" rx="9" fill={corpo} />
-        <path d="M14 43 L11 57 L27 43 Z" fill={corpo} />
-        <rect x="5" y="9" width="54" height="36" rx="9" fill="#1F66F4" clipPath={`url(#c${id})`} />
+    <svg width={size} height={size} viewBox="0 0 200 200" aria-hidden="true">
+      <path d={balao()} fill={CORES.azul} />
+      {OLHOS.map((o) => (
+        <rect key={o.cx} x={o.cx - o.w / 2} y={o.cy - o.h / 2} width={o.w} height={o.h} rx={o.w / 2} fill={CORES.branco} />
+      ))}
+    </svg>
+  );
+}
+
+/** O nome "helpy" desenhado em vetor, na mesma proporção do conjunto da marca. */
+export function Nome({ size = 30, tom = 'escuro', className = 'logo-word' }) {
+  const { escala } = CONJUNTO;
+  const px = (u) => (u * escala * size) / 200; // unidades do nome → pixels
+  return (
+    <svg
+      className={className}
+      width={px(NOME.largura)}
+      height={px(NOME.topo + NOME.base)}
+      viewBox={`0 ${-NOME.topo} ${NOME.largura} ${NOME.topo + NOME.base}`}
+      aria-hidden="true"
+    >
+      <g fill={tom === 'claro' ? CORES.branco : CORES.marinho}>
+        {LETRAS.map((l) => <path key={l.x} d={l.d} transform={`translate(${l.x} 0)`} />)}
       </g>
-      <path d="M44 13.5v27" stroke="#0B1A2C" strokeWidth="2.4" strokeDasharray="2.6 3.2" />
-      <path d="M15.5 21.5h18M15.5 31h11" stroke={linhas} strokeWidth="4.2" strokeLinecap="round" />
     </svg>
   );
 }
 
 export default function Logo({ size = 30, tom = 'escuro' }) {
+  const { escala, vao, linhaBase } = CONJUNTO;
+  // o nome fica alinhado pela linha de base do conjunto, não pelo centro
+  const topoNome = ((linhaBase - NOME.topo * escala) * size) / 200;
   return (
-    <span className="row" style={{ gap: size * 0.3 }}>
-      <Marca size={size} tom={tom} />
-      <span
-        className="logo-word"
-        style={{
-          // a palavra da marca é sempre Archivo larga, independente do tema
-          fontFamily: "'Archivo Variable', system-ui, sans-serif",
-          fontWeight: 800,
-          fontStretch: '118%',
-          fontSize: size * 0.82,
-          letterSpacing: '-0.04em',
-          lineHeight: 1,
-          color: tom === 'claro' ? '#FFFFFF' : '#0B1A2C',
-        }}
-      >
-        helpy
+    <span className="row" style={{ gap: (vao * size) / 200, alignItems: 'flex-start' }} role="img" aria-label="helpy">
+      <Marca size={size} />
+      <span style={{ display: 'block', marginTop: topoNome, lineHeight: 0 }}>
+        <Nome size={size} tom={tom} />
       </span>
     </span>
   );
