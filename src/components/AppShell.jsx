@@ -8,6 +8,7 @@ import { aceitar, gravarAceitePendente, TERMOS_VERSAO } from '@/lib/termos';
 import { useUso } from '@/lib/useUso';
 import { diasDeTeste, planOf } from '@/lib/plans';
 import { iniciais } from '@/lib/format';
+import { Avatar } from '@/components/TrocarFoto';
 
 const NAV = [
   { to: '/painel', label: 'Painel', icon: LayoutGrid, end: true, tipos: ['empresa'] },
@@ -128,7 +129,7 @@ export default function AppShell() {
           )}
 
           <div className="side-user">
-            <span className="avatar">{iniciais(nome || user?.email)}</span>
+            {profile?.foto_url ? <Avatar foto={profile.foto_url} tamanho={30} redondo /> : <span className="avatar">{iniciais(nome || user?.email)}</span>}
             <Link to="/painel/conta" style={{ textDecoration: 'none', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {nome || user?.email}
             </Link>

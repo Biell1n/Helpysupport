@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
 
     // ---- qual assistente ----
     const teste = body.teste === true;
-    let assistant: (Assistant & { is_public: boolean; public_token: string }) | null = null;
+    let assistant: (Assistant & { is_public: boolean; public_token: string; foto_url?: string | null }) | null = null;
 
     if (teste) {
       const user = await requireUser(req);
@@ -148,6 +148,7 @@ Deno.serve(async (req) => {
         name: valueOf(cfg, 'nome_assistente') || assistant.name,
         negocio: valueOf(cfg, 'nome_negocio'),
         saudacao: valueOf(cfg, 'saudacao'),
+        foto: assistant.foto_url ?? null,
         business_model: assistant.business_model,
         desafio: { agora: Date.now(), bits: BITS_DESAFIO },
       });

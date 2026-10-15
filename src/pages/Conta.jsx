@@ -5,6 +5,7 @@ import { PainelDuasEtapas } from '@/components/DuasEtapas';
 import { erroAuth } from '@/lib/erroAuth';
 import { AVISO_VAZADA, vezesVazada } from '@/lib/senhaVazada';
 import Captcha, { useCaptcha } from '@/components/Captcha';
+import TrocarFoto from '@/components/TrocarFoto';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 
@@ -75,6 +76,25 @@ export default function Conta() {
     }
   };
 
+  const salvarFoto = async (url) => {
+    const { error } = await supabase.from('profiles').update({ foto_url: url }).eq('id', user.id);
+    if (error) throw new Error(error.message);
+    await reloadProfile();
+  };
+
+  const [novoEmail, setNovoEmail] = useState('');
+  const [emailEnviado, setEmailEnviado] = useState('');
+  const trocarEmail = async (e) => {
+    e.preventDefault();
+    const email = novoEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return avisar('Confira o e-mail', { erro: true });
+    if (email === user.email) return avisar('Esse já é o seu e-mail', { erro: true });
+    const { error } = await supabase.auth.updateUser({ email }, { emailRedirectTo: `${window.location.origin}/painel/conta` });
+    if (error) return avisar('Não deu para trocar o e-mail', { erro: true, texto: erroAuth(error.message) });
+    setEmailEnviado(email);
+    setNovoEmail('');
+  };
+
   const sairDeTudo = async () => {
     if (!window.confirm('Sair desta conta em todos os aparelhos, inclusive este?')) return;
     await supabase.auth.signOut({ scope: 'global' });
@@ -92,6 +112,7 @@ export default function Conta() {
 
       <form className="card stack" onSubmit={salvar} style={{ marginBottom: 16 }}>
         <h2 className="card-title">Dados</h2>
+        <TrocarFoto userId={user.id} nomeArquivo="perfil" foto={profile?.foto_url} nome={f.full_name || user?.email} onSalvar={salvarFoto} redondo />
         <div className="grid-2">
           <label className="field">
             <span className="label">Seu nome</span>
@@ -108,6 +129,21 @@ export default function Conta() {
           </label>
         </div>
         <div><button className="btn btn-primary">Salvar dados</button></div>
+      </form>
+
+      <form className="card stack" onSubmit={trocarEmail} style={{ marginBottom: 16 }}>
+        <h2 className="card-title">E-mail</h2>
+        <p className="muted" style={{ fontSize: 14 }}>
+          Você entra com <b>{user?.email}</b>. Para trocar, enviamos um link de confirmação para o e-mail novo (e um aviso para o atual). A troca só vale depois de confirmar.
+        </p>
+        {emailEnviado ? (
+          <p className="muted" style={{ fontSize: 14 }}>Mandamos o link para <b>{emailEnviado}</b>. Abra o e-mail e confirme para concluir a troca.</p>
+        ) : (
+          <div className="row row-wrap">
+            <input className="input" type="email" autoComplete="email" placeholder="novo@email.com" style={{ flex: 1, minWidth: 220 }} value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)} />
+            <button className="btn btn-ghost" disabled={!novoEmail.trim()}>Trocar e-mail</button>
+          </div>
+        )}
       </form>
 
       <form className="card stack" onSubmit={trocarSenha} style={{ marginBottom: 16 }}>

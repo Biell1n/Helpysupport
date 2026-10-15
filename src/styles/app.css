@@ -2002,3 +2002,59 @@
   text-align: center;
   overflow-wrap: anywhere;
 }
+
+/* fotos (perfil e assistente) */
+.avatar-foto {
+  display: block;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--r);
+  background: var(--papel-2);
+  box-shadow: inset 0 0 0 1px var(--linha-forte);
+}
+
+.avatar-inicial {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r);
+  background: var(--papel-2);
+  color: var(--tinta);
+  box-shadow: inset 0 0 0 1px var(--linha-forte);
+  font-family: var(--f-display);
+  font-weight: 600;
+}
+
+.foto-troca {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--r);
+}
+
+.foto-troca-icone {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--senha);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--papel);
+}
+
+.foto-troca-icone svg {
+  width: 13px;
+  height: 13px;
+}
+
+.publico-avatar-foto {
+  object-fit: cover;
+  padding: 0;
+}

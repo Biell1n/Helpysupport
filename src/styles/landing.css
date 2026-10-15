@@ -1242,11 +1242,14 @@
 
 /* preço cheio riscado ao lado do preço de lançamento */
 .lp-preco-cheio {
-  margin-right: 10px;
-  font-size: 0.42em;
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--f-body);
+  font-stretch: 100%;
+  font-size: 15px;
   font-weight: 400;
-  opacity: 0.45;
-  text-decoration-thickness: 2px;
+  letter-spacing: 0;
+  opacity: 0.5;
 }
 
 .lp-preco-nota {

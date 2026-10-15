@@ -256,7 +256,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
       {cabecalho && (
         <header className="publico-top">
           <div className="publico-top-in">
-            <span className="publico-avatar" aria-hidden="true">{nome[0]?.toUpperCase()}</span>
+            {info?.foto ? <img className="publico-avatar publico-avatar-foto" src={info.foto} alt="" /> : <span className="publico-avatar" aria-hidden="true">{nome[0]?.toUpperCase()}</span>}
             <div style={{ flex: 1, minWidth: 0 }}>
               <b style={{ display: 'block' }}>{nome}</b>
               <span className="faint" style={{ fontSize: 13 }}>{info?.negocio || 'Atendimento online'}</span>

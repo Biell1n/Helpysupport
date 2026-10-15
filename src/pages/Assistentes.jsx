@@ -9,11 +9,12 @@ import { Marca } from '@/components/Logo';
 import { planOf } from '@/lib/plans';
 import { MODELOS } from '@/lib/documento';
 import QrAssistente from '@/components/QrAssistente';
+import TrocarFoto from '@/components/TrocarFoto';
 
 export const linkPublico = (token) => `${window.location.origin}/c/${token}`;
 
 export default function Assistentes() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const avisar = useToast();
   const plano = planOf(profile);
   const [lista, setLista] = useState(null);
@@ -23,7 +24,7 @@ export default function Assistentes() {
   const carregar = useCallback(async () => {
     const { data } = await supabase
       .from('assistants')
-      .select('id, name, business_type, business_model, public_token, is_public, updated_at')
+      .select('id, name, business_type, business_model, public_token, is_public, updated_at, foto_url')
       .order('created_at');
     setLista(data ?? []);
   }, []);
@@ -99,12 +100,23 @@ export default function Assistentes() {
         {lista?.map((a) => (
           <article key={a.id} className="card">
             <div className="row row-wrap" style={{ alignItems: 'flex-start' }}>
-              <div className="publico-avatar" aria-hidden="true">{(a.name || '?')[0].toUpperCase()}</div>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <h2 style={{ fontSize: 22 }}>{a.name}</h2>
-                <p className="muted" style={{ fontSize: 14 }}>
+                <p className="muted" style={{ fontSize: 14, marginBottom: 12 }}>
                   {[a.business_type, MODELOS.find((m) => m.id === a.business_model)?.nome].filter(Boolean).join(' · ')}
                 </p>
+                <TrocarFoto
+                  userId={user.id}
+                  nomeArquivo={`assistente-${a.id}`}
+                  foto={a.foto_url}
+                  nome={a.name}
+                  tamanho={56}
+                  onSalvar={async (url) => {
+                    const { error } = await supabase.from('assistants').update({ foto_url: url }).eq('id', a.id);
+                    if (error) throw new Error(error.message);
+                    carregar();
+                  }}
+                />
               </div>
               <div className="row row-wrap">
                 <Link to={`/painel/assistentes/${a.id}/testar`} className="btn btn-ghost btn-sm"><MessageCircle /> Testar</Link>
