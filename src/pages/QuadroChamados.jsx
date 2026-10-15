@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { numero, quando } from '@/lib/format';
+import { canalDe, SeloCanal } from '@/components/IconesCanais';
 
 const COLUNAS = [
   { id: 'waiting', titulo: 'Na fila', vazio: 'Nenhum chamado esperando.' },
@@ -112,7 +113,10 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
                 >
                   <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
                     <span className="mono faint" style={{ fontSize: 12 }}>{numero(c.numero)}</span>
-                    {c.prioridade === 'alta' && <span className="flag">urgente</span>}
+                    <span className="row" style={{ gap: 6 }}>
+                      {canalDe(c) && <SeloCanal tipo={canalDe(c)} />}
+                      {c.prioridade === 'alta' && <span className="flag">urgente</span>}
+                    </span>
                   </div>
                   <b>{c.titulo || c.motivo || 'Atendimento'}</b>
                   <span className="faint" style={{ fontSize: 12.5 }}>

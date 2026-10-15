@@ -13,12 +13,14 @@ Notas de trabalho para quem continuar o desenvolvimento.
   (`HELPY_MODEL_BUILDER`, `HELPY_MODEL_ATENDIMENTO`).
 - **Planos** (`supabase/functions/_shared/plans.ts`, espelhado em `src/lib/plans.js`):
 
-  | Plano        | R$/mês | Assistentes | Builder com IA | Atendimentos/mês | Tickets abertos |
-  |--------------|-------:|------------:|:--------------:|-----------------:|----------------:|
-  | Teste (14 d) | 0      | 1           | sim            | 50               | 10              |
-  | Essencial    | 79     | 1           | não (formulário) | 200            | 20              |
-  | Profissional | 197    | 3           | sim            | 600              | 100             |
-  | Business     | 497    | 10          | sim            | 1.500            | sem limite      |
+  | Plano        | R$/mês (cheio) | Assistentes | Criador IA (msgs/mês) | Atendimentos/mês | Mensagens/mês | API/SQL | WhatsApp+Instagram |
+  |--------------|---------------:|------------:|----------------------:|-----------------:|--------------:|:-------:|-------------------:|
+  | Teste (7 d)  | 0              | 1           | 40                    | 25               | 400           | sim     | —                  |
+  | Essencial    | 79 (97)        | 1           | 40                    | 200              | 4.000         | não     | —                  |
+  | Profissional | 197 (247)      | 3           | 150                   | 600              | 9.000         | sim     | 2 contas           |
+  | Business     | 497 (597)      | 10          | 300                   | 1.500            | 24.000        | sim     | 20 contas          |
+
+  Link, QR code e Discord em todos. Canais: veja `docs/CANAIS.md`.
 
   Cota estourada → o atendente entra em modo "deixe seu recado" (abre
   chamado, custo zero de IA). Cada chamada de IA grava tokens e custo em

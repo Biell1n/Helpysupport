@@ -8,7 +8,7 @@
   --azul: #9dbbd8;
   --azul-claro: #dbe8f4;
   --azul-forte: #2c5d8f;
-  --senha: #ffcf33;
+  --senha: #1f66f4;
   --mola: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -105,8 +105,8 @@ body {
 
 .marca {
   display: inline-flex;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;
+  gap: 7px;
 }
 
 .marca b {
@@ -623,15 +623,15 @@ body {
   width: 640px;
   background: var(--senha);
   border-radius: 10px;
-  color: #14120e;
-  box-shadow: 0 40px 80px -30px rgba(120, 90, 0, 0.45);
+  color: #fff;
+  box-shadow: 0 40px 80px -30px rgba(31, 102, 244, 0.5);
   -webkit-mask: radial-gradient(circle var(--furo) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
     radial-gradient(circle var(--furo) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
 }
 
 .senha-num {
   padding: 28px 30px;
-  border-right: 2px dashed rgba(20, 18, 14, 0.35);
+  border-right: 2px dashed rgba(255, 255, 255, 0.45);
 }
 
 .senha-num small {
@@ -727,10 +727,12 @@ body {
   padding: 12px 0;
   border-radius: 10px;
   background: var(--senha);
+  color: #fff;
 }
 
 .mini-senha.cinza {
   background: var(--azul-claro);
+  color: var(--tinta);
 }
 
 .estado {
@@ -924,6 +926,10 @@ body {
 .plano em {
   font-style: normal;
   color: var(--senha);
+}
+
+.plano.destaque em {
+  color: #8fb3ff;
 }
 
 .plano > b {

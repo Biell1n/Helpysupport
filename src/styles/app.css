@@ -771,11 +771,24 @@
 
 .ticket-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
   margin-top: 8px;
   font-size: 11.5px;
   color: var(--tinta-3);
+}
+
+.ticket-meta > span {
+  white-space: nowrap;
+}
+
+/* no chamado aberto (fundo azul) os selos ficam brancos */
+.ticket[aria-current='true'] .ticket-meta .badge,
+.ticket[aria-current='true'] .selo-canal {
+  --cor-canal: #fff;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .inbox-detail {
@@ -1266,7 +1279,12 @@
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
 
-.fonte-opcao:hover {
+.fonte-opcao:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.fonte-opcao:not(:disabled):hover {
   border-color: var(--tinta-2);
   background: rgba(44, 93, 143, 0.04);
   transform: translateY(-1px);
@@ -1972,4 +1990,255 @@
 .alertas-icone[data-origem='sistema'] {
   background: var(--brasa-clara);
   color: var(--brasa);
+}
+
+/* QR code do assistente */
+.qr-caixa {
+  width: min(300px, 100%);
+  margin: 0 auto;
+  padding: 12px;
+  border-radius: var(--r);
+  background: #fff;
+  border: 1px solid var(--linha);
+}
+
+.qr-caixa svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.qr-link {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* fotos (perfil e assistente) */
+.avatar-foto {
+  display: block;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--r);
+  background: var(--papel-2);
+  box-shadow: inset 0 0 0 1px var(--linha-forte);
+}
+
+.avatar-inicial {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r);
+  background: var(--papel-2);
+  color: var(--tinta);
+  box-shadow: inset 0 0 0 1px var(--linha-forte);
+  font-family: var(--f-display);
+  font-weight: 600;
+}
+
+.foto-troca {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--r);
+}
+
+.foto-troca-icone {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--senha);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--papel);
+}
+
+.foto-troca-icone svg {
+  width: 13px;
+  height: 13px;
+}
+
+.publico-avatar-foto {
+  object-fit: cover;
+  padding: 0;
+}
+
+/* linha que desliza no celular (ações rápidas nos atendimentos) */
+.swipe {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r);
+}
+
+.swipe-frente {
+  position: relative;
+  z-index: 1;
+  background: var(--papel);
+  touch-action: pan-y;
+  transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.swipe-frente[data-arrastando] {
+  transition: none;
+}
+
+.swipe-frente > .ticket {
+  width: 100%;
+}
+
+.swipe-acao {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.swipe-acao svg {
+  width: 20px;
+  height: 20px;
+}
+
+.swipe-acao-esquerda {
+  left: 0;
+}
+
+.swipe-acao-direita {
+  right: 0;
+}
+
+/* ---------- canais ---------- */
+
+.canais-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.canal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.canal-topo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.canal-topo .card-title {
+  margin: 0 0 4px;
+}
+
+.canal-frase {
+  font-size: 14px;
+  margin: 0;
+  max-width: 46ch;
+}
+
+.canal-bloqueado .canal-icone {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.canal-icone {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 13px;
+  color: var(--cor-canal, var(--senha));
+  background: color-mix(in srgb, var(--cor-canal, var(--senha)) 11%, transparent);
+}
+
+.canal-link { --cor-canal: var(--senha); }
+.canal-whatsapp { --cor-canal: #138a5e; }
+.canal-instagram { --cor-canal: #c1356f; }
+.canal-discord { --cor-canal: #5865f2; }
+
+.canal-conta {
+  border: 1px solid var(--linha);
+  border-radius: var(--r);
+  padding: 14px;
+  background: var(--papel);
+}
+
+.copiavel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.copiavel-linha {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--linha);
+  border-radius: var(--r-sm);
+  background: var(--branco);
+  padding: 2px 2px 2px 10px;
+}
+
+.copiavel-linha code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.passos {
+  margin: 10px 0 16px;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
+
+.passos b {
+  color: var(--tinta);
+}
+
+.mais summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
+
+.selo-canal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cor-canal);
+  background: color-mix(in srgb, var(--cor-canal) 10%, transparent);
+  white-space: nowrap;
 }

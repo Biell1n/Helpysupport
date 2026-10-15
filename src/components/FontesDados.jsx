@@ -4,13 +4,15 @@ import { chamar, supabase } from '@/lib/supabase';
 import { quando } from '@/lib/format';
 import { colunasDe, lerArquivo, LIMITE_LINHAS, registrosDe } from '@/lib/planilha';
 import { Modal } from '@/components/Modal';
+import { useAuth } from '@/contexts/AuthContext';
+import { planOf } from '@/lib/plans';
 
 const FONTES = [
   { id: 'manual', icone: Table2, titulo: 'Começar do zero', texto: 'Uma planilha em branco para digitar ou colar aqui no Helpy.' },
   { id: 'arquivo', icone: FileSpreadsheet, titulo: 'Importar Excel ou CSV', texto: 'Envie um .xlsx ou .csv. As colunas vêm do cabeçalho.' },
   { id: 'url', icone: Link2, titulo: 'Ligar a uma planilha online', texto: 'Google Planilhas ou link de CSV. Mudou lá, o Helpy atualiza.' },
-  { id: 'api', icone: PlugZap, titulo: 'Conectar ao seu sistema', texto: 'ERP (TOTVS Protheus, SAP) por uma API.' },
-  { id: 'sql', icone: Database, titulo: 'Conectar um banco de dados', texto: 'PostgreSQL, MySQL ou SQL Server, direto e só leitura.' },
+  { id: 'api', icone: PlugZap, titulo: 'Conectar ao seu sistema', texto: 'ERP (TOTVS Protheus, SAP) por uma API.', integracao: true },
+  { id: 'sql', icone: Database, titulo: 'Conectar um banco de dados', texto: 'PostgreSQL, MySQL ou SQL Server, direto e só leitura.', integracao: true },
 ];
 
 const SQL_VAZIO = { motor: 'postgres', host: '', porta: '', banco: '', usuario: '', header_valor: '', tabela: '', ssl: true };
@@ -136,6 +138,8 @@ function EscolherAba({ abas, aba, setAba }) {
 // Nova tabela: escolha da fonte e cada caminho
 // ------------------------------------------------------------
 export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) {
+  const { profile } = useAuth();
+  const integracoes = planOf(profile).integracoes;
   const [fonte, setFonte] = useState(null);
   const [nome, setNome] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -320,13 +324,16 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
           <h2>Nova tabela</h2>
           <p className="muted" style={{ marginBottom: 16 }}>De onde vêm os dados que o assistente vai consultar?</p>
           <div className="fonte-opcoes">
-            {FONTES.map(({ id, icone: Icone, titulo, texto }) => (
-              <button key={id} type="button" className="fonte-opcao" onClick={() => setFonte(id)}>
-                <Icone />
-                <b>{titulo}</b>
-                <span>{texto}</span>
-              </button>
-            ))}
+            {FONTES.map(({ id, icone: Icone, titulo, texto, integracao }) => {
+              const travada = integracao && !integracoes;
+              return (
+                <button key={id} type="button" className="fonte-opcao" disabled={travada} onClick={() => setFonte(id)}>
+                  <Icone />
+                  <b>{titulo}</b>
+                  <span>{travada ? 'Disponível a partir do plano Profissional.' : texto}</span>
+                </button>
+              );
+            })}
           </div>
         </>
       ) : (

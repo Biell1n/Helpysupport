@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUp, Bot, CheckCircle2, Columns3, Hand, RotateCcw, Search } from 'lucide-react';
 import QuadroChamados from './QuadroChamados';
-import { supabase } from '@/lib/supabase';
+import { chamar, supabase } from '@/lib/supabase';
+import { canalDe, NOME_DO_CANAL, SeloCanal } from '@/components/IconesCanais';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { Confirmar } from '@/components/Modal';
 import AgendaDoChamado from '@/components/AgendaDoChamado';
+import SwipeRow from '@/components/SwipeRow';
 import { numero, quando, STATUS } from '@/lib/format';
 
 const ABAS = [
@@ -18,7 +20,6 @@ const ABAS = [
 
 const nomeCliente = (c) => c.lead_nome?.trim() || 'Visitante';
 const estrelas = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
-
 export default function Atendimentos() {
   const { recarregarUso } = useOutletContext();
   const { user, nome } = useAuth();
@@ -52,6 +53,7 @@ export default function Atendimentos() {
   const [resposta, setResposta] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [confirmar, setConfirmar] = useState(null);
+  const [deslizada, setDeslizada] = useState(null);
   const fim = useRef(null);
 
   const atendente = nome || user?.email?.split('@')[0] || 'Equipe';
@@ -153,18 +155,54 @@ export default function Atendimentos() {
       { titulo: 'Devolvido ao assistente', texto: 'Ele volta a responder esta conversa.' },
     );
 
+  // ações rápidas pela lista (deslizando a linha no celular)
+  const mudarDaLista = async (c, patch, titulo) => {
+    setDeslizada(null);
+    const { error } = await supabase.from('conversations').update(patch).eq('id', c.id);
+    if (error) return avisar('Não deu para atualizar o chamado', { erro: true, texto: error.message });
+    avisar(titulo);
+    await Promise.all([carregar(), aberta?.id === c.id ? carregarAberta(c.id) : null]);
+    recarregarUso();
+  };
+
+  const acoesDaLinha = (c) => ({
+    esquerda: c.status === 'waiting'
+      ? {
+          rotulo: 'Assumir', icone: <Hand />, cor: 'var(--senha)',
+          onAcao: () => mudarDaLista(c, { status: 'human', assumido_por: user.id, assumido_nome: atendente, assumido_em: new Date().toISOString() }, 'Chamado assumido'),
+        }
+      : null,
+    direita: c.status === 'closed'
+      ? {
+          rotulo: 'Reabrir', icone: <RotateCcw />, cor: 'var(--tinta-2)',
+          onAcao: () => mudarDaLista(c, { status: c.assumido_por ? 'human' : 'waiting', fechado_em: null, encerrado_por: null }, 'Chamado reaberto'),
+        }
+      : {
+          rotulo: 'Encerrar', icone: <CheckCircle2 />, cor: 'var(--tinta)',
+          onAcao: () => mudarDaLista(c, { status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'equipe' }, 'Chamado encerrado'),
+        },
+  });
+
   const responder = async () => {
     const texto = resposta.trim();
     if (!texto || enviando) return;
     setEnviando(true);
     try {
-      const { error } = await supabase.from('conversation_messages').insert({
+      const { data: msg, error } = await supabase.from('conversation_messages').insert({
         conversation_id: aberta.id,
         role: 'agent',
         content: texto,
         author_name: atendente,
-      });
+      }).select('id').single();
       if (error) throw error;
+      // conversa que veio do WhatsApp, Instagram ou Discord: a resposta sai por lá
+      if (aberta.canal_id) {
+        try {
+          await chamar('canais', { action: 'enviar', message_id: msg.id });
+        } catch (e) {
+          avisar(`Não chegou no ${NOME_DO_CANAL[canalDe(aberta)] ?? 'canal'}`, { erro: true, texto: e.message });
+        }
+      }
       // responder já é assumir: o assistente para de falar por cima
       if (aberta.status !== 'human') {
         await supabase
@@ -236,7 +274,8 @@ export default function Atendimentos() {
             </p>
           )}
           {visiveis?.map((c) => (
-            <button key={c.id} type="button" className="ticket" aria-current={aberta?.id === c.id} onClick={() => abrir(c.id)}>
+            <SwipeRow key={c.id} {...acoesDaLinha(c)} aberta={deslizada === c.id} onAbrir={() => setDeslizada(c.id)}>
+            <button type="button" className="ticket" aria-current={aberta?.id === c.id} onClick={() => abrir(c.id)}>
               <div className="stub">
                 <div className="stub-num">
                   <small>Senha</small>
@@ -252,6 +291,7 @@ export default function Atendimentos() {
                   </div>
                   <div className="ticket-meta">
                     {!c.lido_em && c.status === 'waiting' && <span className="badge badge-waiting">novo</span>}
+                    {canalDe(c) && <SeloCanal tipo={canalDe(c)} />}
                     <span>{quando(c.last_message_at)}</span>
                     <span>· {c.message_count} msgs</span>
                     {c.nota && <span>· {estrelas(c.nota)}</span>}
@@ -259,6 +299,7 @@ export default function Atendimentos() {
                 </div>
               </div>
             </button>
+            </SwipeRow>
           ))}
         </div>
       </section>
@@ -283,6 +324,7 @@ export default function Atendimentos() {
                 <h2 style={{ marginTop: 4 }}>{aberta.titulo || aberta.motivo || 'Conversa com o assistente'}</h2>
                 <div className="row" style={{ marginTop: 8 }}>
                   <span className={`badge ${STATUS[aberta.status].classe}`}>{STATUS[aberta.status].rotulo}</span>
+                  {canalDe(aberta) && <SeloCanal tipo={canalDe(aberta)} />}
                   {aberta.assumido_nome && aberta.status === 'human' && <span className="faint" style={{ fontSize: 13 }}>com {aberta.assumido_nome}</span>}
                 </div>
               </div>

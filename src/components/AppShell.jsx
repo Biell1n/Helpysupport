@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, MessagesSquare, Table2, Ticket, Users } from 'lucide-react';
+import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, Table2, Ticket, Users } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { VerificarCodigo } from '@/components/DuasEtapas';
@@ -8,12 +8,14 @@ import { aceitar, gravarAceitePendente, TERMOS_VERSAO } from '@/lib/termos';
 import { useUso } from '@/lib/useUso';
 import { diasDeTeste, planOf } from '@/lib/plans';
 import { iniciais } from '@/lib/format';
+import { Avatar } from '@/components/TrocarFoto';
 
 const NAV = [
   { to: '/painel', label: 'Painel', icon: LayoutGrid, end: true, tipos: ['empresa'] },
   { to: '/painel', label: 'Minhas conversas', icon: MessagesSquare, end: true, tipos: ['cliente'] },
   { to: '/painel/assistentes', label: 'Assistentes', icon: Bot, tipos: ['empresa'] },
   { to: '/painel/atendimentos', label: 'Atendimentos', icon: Ticket, contador: 'tickets_abertos', tipos: ['empresa', 'funcionario'] },
+  { to: '/painel/canais', label: 'Canais', icon: Radio, tipos: ['empresa'] },
   { to: '/painel/dados', label: 'Dados', icon: Table2, tipos: ['empresa'] },
   { to: '/painel/agenda', label: 'Agenda', icon: CalendarDays, tipos: ['empresa', 'funcionario'] },
   { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart3, tipos: ['empresa'] },
@@ -128,7 +130,7 @@ export default function AppShell() {
           )}
 
           <div className="side-user">
-            <span className="avatar">{iniciais(nome || user?.email)}</span>
+            {profile?.foto_url ? <Avatar foto={profile.foto_url} tamanho={30} redondo /> : <span className="avatar">{iniciais(nome || user?.email)}</span>}
             <Link to="/painel/conta" style={{ textDecoration: 'none', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {nome || user?.email}
             </Link>

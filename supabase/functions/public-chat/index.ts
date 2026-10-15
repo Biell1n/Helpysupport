@@ -21,9 +21,10 @@
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, profileOf, requireUser, userFrom } from '../_shared/db.ts';
 import { logUsage } from '../_shared/ai.ts';
-import { type Assistant, responder } from '../_shared/atendimento.ts';
+import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { normalizeConfig, valueOf } from '../_shared/schema.ts';
+import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
 
 const MAX_CHARS = 2000;
 const BITS_DESAFIO = 17;
@@ -119,6 +120,8 @@ const paraOCliente = (m: { role: string; author_name?: string | null }) =>
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  // WhatsApp, Instagram e Discord avisam neste mesmo endereço
+  if (ehDoCanal(req)) return receberDoCanal(req);
 
   try {
     const body = await req.json().catch(() => ({}));
@@ -127,7 +130,7 @@ Deno.serve(async (req) => {
 
     // ---- qual assistente ----
     const teste = body.teste === true;
-    let assistant: (Assistant & { is_public: boolean; public_token: string }) | null = null;
+    let assistant: (Assistant & { is_public: boolean; public_token: string; foto_url?: string | null }) | null = null;
 
     if (teste) {
       const user = await requireUser(req);
@@ -148,6 +151,7 @@ Deno.serve(async (req) => {
         name: valueOf(cfg, 'nome_assistente') || assistant.name,
         negocio: valueOf(cfg, 'nome_negocio'),
         saudacao: valueOf(cfg, 'saudacao'),
+        foto: assistant.foto_url ?? null,
         business_model: assistant.business_model,
         desafio: { agora: Date.now(), bits: BITS_DESAFIO },
       });
@@ -335,6 +339,39 @@ Deno.serve(async (req) => {
       return json({ ...estado(c), status: 'waiting', message: aviso, modo: 'humano' });
     }
 
+    // total de mensagens do mês, somando todas as conversas: passou do plano, a equipe assume
+    if (!teste) {
+      const { count: doMes } = await admin.from('conversation_messages')
+        .select('id, conversations!inner(owner_id, teste)', { count: 'exact', head: true })
+        .eq('role', 'user').eq('conversations.owner_id', assistant.owner_id).eq('conversations.teste', false)
+        .gte('created_at', inicioDoMes());
+      const n = doMes ?? 0;
+      const mes = inicioDoMes().slice(0, 7);
+      if (n === Math.ceil(plan.mensagens * 0.8)) {
+        await alertar(admin, assistant.owner_id, {
+          origem: 'sistema', chave: `cota80:${mes}`, assunto: 'Você já usou 80% das mensagens do mês',
+          detalhe: `Foram ${n} de ${plan.mensagens} mensagens de clientes no plano ${plan.nome}. Quando acabar, a equipe passa a responder pelos chamados até o mês virar. Veja os planos em Plano.`,
+        });
+      }
+      if (n > plan.mensagens) {
+        await alertar(admin, assistant.owner_id, {
+          origem: 'sistema', chave: `cota100:${mes}`, assunto: 'As mensagens do mês acabaram',
+          detalhe: `O plano ${plan.nome} inclui ${plan.mensagens} mensagens de clientes por mês. Até o mês virar, as conversas novas vão para a equipe. Para continuar com o atendimento automático, mude de plano.`,
+        });
+        if (!cliente) {
+          await admin.from('conversations').update({ status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'assistente' }).eq('id', c.id);
+          const fimTexto = `O atendimento automático está indisponível no momento. ${PEDE_LOGIN}`;
+          await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: fimTexto });
+          return json({ ...estado(c), status: 'closed', message: fimTexto, modo: 'login', precisa_login: true });
+        }
+        await admin.from('conversations').update({
+          status: 'waiting', titulo: c.escalado_em ? undefined : 'Recado', motivo: 'As mensagens do mês do plano acabaram.', escalado_em: new Date().toISOString(),
+        }).eq('id', c.id);
+        await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'system', content: RECADO });
+        return json({ ...estado(c), status: 'waiting', message: RECADO, modo: 'recado' });
+      }
+    }
+
     const { data: hist } = await admin
       .from('conversation_messages')
       .select('role, content')
@@ -360,6 +397,7 @@ Deno.serve(async (req) => {
           assistant: { ...assistant, config: cfgDoPlano },
           conversationId: c.id,
           maxTicketsAbertos: plan.ticketsAbertos,
+          integracoes: plan.integracoes,
           cliente: clienteInfo,
           teste,
           sinais,

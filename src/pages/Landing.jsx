@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Lenis from 'lenis';
-import { ArrowRight, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap } from 'lucide-react';
+import { ArrowRight, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap, QrCode } from 'lucide-react';
+import { IconeDoCanal } from '@/components/IconesCanais';
 import Logo, { Marca } from '@/components/Logo';
+import HeroMascote from '@/components/HeroMascote';
 import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
 import SkylineHorarios from '@/components/SkylineHorarios';
 import Contador from '@/components/Contador';
@@ -10,7 +12,9 @@ import { EMPRESA } from '@/lib/empresa';
 import Reveal from '@/components/Reveal';
 import VideoDemo, { reduzido } from '@/components/VideoDemo';
 import { useAuth } from '@/contexts/AuthContext';
-import { PLANS, reais } from '@/lib/plans';
+import { DIAS_DE_TESTE, PLANS, reais, recursosDoPlano } from '@/lib/plans';
+
+const VENDAS_LP = import.meta.env.VITE_CONTATO_VENDAS;
 
 /** Rolagem suave só na landing; o painel continua com a rolagem nativa. */
 function useRolagemSuave() {
@@ -141,7 +145,7 @@ function Topo({ user, deslizar }) {
 }
 
 // ------------------------------------------------------------
-// Hero: o título se abre em volta do vídeo, e o vídeo cresce ao rolar
+// Hero: o mascote no meio do título, com mensagens chegando de todos os canais
 // ------------------------------------------------------------
 function Hero({ user, deslizar }) {
   const ref = useRef(null);
@@ -158,8 +162,8 @@ function Hero({ user, deslizar }) {
       </h1>
 
       <div className="lp-robo-figura">
-        <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
-          <img src="/img/robo.webp" alt="O Helpy, um robozinho branco com fones de ouvido, acenando" width="1328" height="1184" />
+        <div className="lp-entra" style={{ '--d': '0.2s', height: '100%' }}>
+          <HeroMascote />
         </div>
       </div>
 
@@ -172,7 +176,7 @@ function Hero({ user, deslizar }) {
 
       <div className="lp-robo-acoes lp-entra" style={{ '--d': '0.75s' }}>
         <Link to={user ? '/painel' : '/criar-conta'} className="lp-btn lp-btn-cheio">
-          {user ? 'Ir para o painel' : 'Testar grátis por 14 dias'} <ArrowRight />
+          {user ? 'Ir para o painel' : `Testar grátis por ${DIAS_DE_TESTE} dias`} <ArrowRight />
         </Link>
         <a href="#filme" className="lp-btn lp-btn-vidro" onClick={deslizar}>Ver funcionando</a>
       </div>
@@ -297,6 +301,14 @@ const FONTES = [
 ];
 
 /** Curva de uma fonte até o centro, puxada um pouco para o lado. */
+const CANAIS = [
+  { icone: Link2, nome: 'Link e site', x: 50, y: 12 },
+  { icone: (p) => <IconeDoCanal.whatsapp {...p} />, nome: 'WhatsApp', x: 88, y: 40, canal: 'whatsapp' },
+  { icone: (p) => <IconeDoCanal.instagram {...p} />, nome: 'Instagram', x: 76, y: 84, canal: 'instagram' },
+  { icone: (p) => <IconeDoCanal.discord {...p} />, nome: 'Discord', x: 24, y: 84, canal: 'discord' },
+  { icone: QrCode, nome: 'QR code', x: 12, y: 40 },
+];
+
 function feixe({ x, y }) {
   const mx = (x + 50) / 2 + (50 - y) * 0.18;
   const my = (y + 50) / 2 - (50 - x) * 0.18;
@@ -313,10 +325,10 @@ const ASSUNTOS = [
 
 const FAQ = [
   ['Preciso saber programar?', 'Não. Você conversa, revisa o documento e publica um link. Dá para colocar na bio, no site ou mandar pelo WhatsApp.'],
-  ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu atendente, do começo ao fim, com quantas mensagens precisar. É isso que a cota mensal conta.'],
-  ['E quando a cota acaba?', 'O atendente não some: ele passa a anotar recados e abrir chamados para a sua equipe, e você pode comprar um pacote extra.'],
+  ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu atendente, do começo ao fim. Cada plano tem uma cota de atendimentos e um total de mensagens de clientes no mês, que folga para conversas de todos os tamanhos.'],
+  ['E quando a cota acaba?', 'O atendente não some: as conversas passam a virar recados e chamados para a sua equipe até a cota renovar, e você recebe um aviso no painel antes de chegar lá.'],
   ['Consigo ligar no meu sistema?', 'Sim. Ele lê planilhas do Excel (inclusive no OneDrive e no SharePoint), Google Planilhas, bancos PostgreSQL, MySQL e SQL Server direto, e sistemas com API REST, como SAP e TOTVS Protheus. Sempre só leitura, e só com a sua autorização.'],
-  ['Funciona no WhatsApp?', 'Hoje o atendimento é pelo link do Helpy. A integração com WhatsApp está no nosso caminho.'],
+  ['Funciona no WhatsApp?', 'Funciona. Do plano Profissional em diante, o mesmo assistente responde no WhatsApp e no Instagram pela API oficial da Meta (sem chip no celular e sem risco de bloqueio), e o painel mostra o passo a passo para conectar. Em qualquer plano dá para usar o link do chat, o QR code e um bot no Discord.'],
 ];
 
 export default function Landing() {
@@ -431,6 +443,35 @@ export default function Landing() {
         </div>
       </section>
 
+      <section id="canais" className="lp-sec">
+        <div className="lp-in lp-duas lp-duas-inverte">
+          <Reveal className="lp-fontes lp-canais" atraso={120}>
+            <svg className="lp-feixes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {CANAIS.map((f, i) => (
+                <g key={f.nome}>
+                  <path d={feixe(f)} className="lp-feixe-base" />
+                  <path d={feixe(f)} className="lp-feixe-luz lp-feixe-sai" pathLength="1" style={{ '--i': i }} />
+                </g>
+              ))}
+            </svg>
+            <span className="lp-fontes-centro"><Marca size={52} /></span>
+            {CANAIS.map(({ icone: Icone, nome, canal }, i) => (
+              <span key={nome} className={`lp-fonte lp-fonte-${i + 1}${canal ? ` canal-${canal}` : ''}`}>
+                <Icone aria-hidden="true" width={18} height={18} /> {nome}
+              </span>
+            ))}
+          </Reveal>
+          <Reveal>
+            <span className="lp-etiqueta">Canais</span>
+            <h2 className="lp-h2">Um assistente, todos os canais.</h2>
+            <p className="lp-lead">
+              O mesmo atendente responde no link do chat, no WhatsApp, no Instagram e no Discord. Preços, regras e agenda são os
+              mesmos em todo lugar, e as conversas caem todas no mesmo painel.
+            </p>
+          </Reveal>
+        </div>
+      </section>
+
       <section className="lp-sec">
         <div className="lp-in lp-duas lp-duas-inverte">
           <Reveal className="lp-relatorio" aria-label="Exemplo de relatório: horários de pico e assuntos mais perguntados">
@@ -467,31 +508,30 @@ export default function Landing() {
         <div className="lp-in">
           <Reveal className="lp-cab lp-cab-centro">
             <span className="lp-etiqueta">Planos</span>
-            <h2 className="lp-h2">Paga por atendimento,<br />não por mensagem.</h2>
-            <p className="lp-lead">Todos começam com 14 dias grátis, sem cartão.</p>
+            <h2 className="lp-h2">Um preço fixo por mês,<br />sem surpresa na fatura.</h2>
+            <p className="lp-lead">Todos começam com {DIAS_DE_TESTE} dias grátis, sem cartão. Preço de lançamento: quem assina agora mantém.</p>
           </Reveal>
           <div className="lp-planos">
             {pagos.map((p, i) => (
-              <Reveal as="article" key={p.id} atraso={i * 100} className={`lp-plano${p.id === 'profissional' ? ' lp-plano-destaque' : ''}`}>
+              <Reveal as="article" key={p.id} atraso={i * 100} className={`lp-plano${p.destaque ? ' lp-plano-destaque' : ''}`}>
                 <div className="lp-plano-topo">
                   <h3>{p.nome}</h3>
-                  {p.id === 'profissional' && <span className="lp-plano-tag">Mais escolhido</span>}
+                  {p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
                 </div>
-                <p className="lp-preco">{reais(p.preco)}<small>/mês</small></p>
+                <p className="lp-preco">
+                  {p.precoCheio && <s className="lp-preco-cheio">{reais(p.precoCheio)}</s>}
+                  {reais(p.preco)}<small>/mês</small>
+                </p>
                 <ul>
-                  <li>{p.atendimentos.toLocaleString('pt-BR')} atendimentos por mês</li>
-                  <li>{p.assistentes} {p.assistentes > 1 ? 'assistentes' : 'assistente'}</li>
-                  <li>{p.builderIA ? 'Montagem conversando com a IA' : 'Montagem por formulário'}</li>
-                  <li>{p.ticketsAbertos ? `${p.ticketsAbertos} chamados abertos ao mesmo tempo` : 'Chamados sem limite'}</li>
-                  <li>{p.tabelas} tabelas, agenda e relatórios</li>
+                  {recursosDoPlano(p).map((r) => <li key={r}>{r}</li>)}
                 </ul>
-                <Link to="/criar-conta" className={`lp-btn lp-btn-bloco ${p.id === 'profissional' ? 'lp-btn-claro' : 'lp-btn-cheio'}`}>
+                <Link to="/criar-conta" className={`lp-btn lp-btn-bloco ${p.destaque ? 'lp-btn-claro' : 'lp-btn-cheio'}`}>
                   Começar o teste
                 </Link>
               </Reveal>
             ))}
           </div>
-          <p className="lp-nota">Precisa de mais? Pacotes de +100 atendimentos por R$ 29, sem trocar de plano.</p>
+          <p className="lp-nota">Precisa de algo do tamanho da sua empresa? {VENDAS_LP ? <a href={VENDAS_LP.startsWith('mailto:') ? `${VENDAS_LP}?subject=${encodeURIComponent('Plano personalizado do Helpy')}` : VENDAS_LP} target="_blank" rel="noreferrer">Fale com a gente sobre um plano personalizado.</a> : 'Fale com a gente sobre um plano personalizado.'}</p>
         </div>
       </section>
 
@@ -518,7 +558,7 @@ export default function Landing() {
       <section className="lp-sec lp-sec-final">
         <div className="lp-in">
           <Reveal className="lp-final">
-            <h2>Teste grátis<br />por 14 dias.</h2>
+            <h2>Teste grátis<br />por {DIAS_DE_TESTE} dias.</h2>
             <p>Em uma tarde o seu atendente está no ar. Sem cartão para testar.</p>
             <Link to={destino} className="lp-btn lp-btn-claro">
               {user ? 'Ir para o painel' : 'Criar meu atendente'} <ArrowRight />

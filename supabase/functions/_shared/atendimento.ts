@@ -451,8 +451,12 @@ export interface Rodada {
   assistant: Assistant;
   conversationId: string;
   maxTicketsAbertos: number | null;
+  /** o plano permite consultar API e banco SQL da empresa */
+  integracoes?: boolean;
   /** visitante logado (só quem entrou com a conta abre chamado) */
   cliente: { id: string; email: string | null; nome: string | null } | null;
+  /** chegou por um canal (WhatsApp, Instagram, Discord): a pessoa já está identificada pelo contato */
+  canal?: { tipo: 'whatsapp' | 'instagram' | 'discord'; contato: string; nome: string | null } | null;
   /** o dono testando pelo painel */
   teste: boolean;
   /** recados da rodada para quem chamou (ex.: mostrar o botão de entrar) */
@@ -518,7 +522,17 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   if (nome.startsWith('consultar_')) {
     const t = tabelas.find((x) => x.ferramenta === nome);
     if (!t) return { erro: 'tabela não encontrada' };
-    if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config) return await consultarSistema(r, t, String(args.busca ?? ''));
+    if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config) {
+      if (r.integracoes === false) {
+        await alertar(db, assistant.owner_id, {
+          assistant_id: assistant.id, conversation_id: conversationId, origem: 'sistema', chave: `plano:integracoes:${t.id}`,
+          assunto: `"${t.nome}" precisa do plano Profissional`,
+          detalhe: `O assistente tentou consultar ${t.fonte === 'sql' ? 'o banco SQL' : 'o sistema'} de "${t.nome}", mas a conexão com API e banco SQL faz parte do plano Profissional em diante.`,
+        });
+        return { erro: `Não dá para consultar "${t.nome}" agora. Diga que não conseguiu consultar e ofereça chamar a equipe.` };
+      }
+      return await consultarSistema(r, t, String(args.busca ?? ''));
+    }
     if (t.fonte === 'url' && Date.now() - new Date(t.sincronizada_em ?? 0).getTime() > VALIDADE_URL_MS) {
       // planilha por link desatualizada: tenta trazer a versão nova; se falhar, usa a última cópia
       await sincronizarUrl(db, t.id).catch(async (e) => {
@@ -592,7 +606,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   if (nome === 'chamar_atendente') {
     const chamados = regrasDeChamado(cfg);
     if (!chamados.ativos) return { ok: false, mensagem: 'Este atendimento não abre chamados. Resolva você mesmo.' };
-    if (!r.teste && !r.cliente) {
+    if (!r.teste && !r.cliente && !r.canal) {
       r.sinais.pedirLogin = true;
       return {
         ok: false,
@@ -650,7 +664,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   }
 
   if (nome === 'pedir_login') {
-    if (r.cliente) return { ok: true, mensagem: 'A pessoa já entrou na conta. Pode seguir.' };
+    if (r.cliente || r.canal) return { ok: true, mensagem: 'A pessoa já está identificada. Pode seguir.' };
     r.sinais.pedirLogin = true;
     r.sinais.motivoLogin = String(args.motivo ?? '').slice(0, 120) || undefined;
     return { ok: true, mensagem: 'O botão de entrar apareceu para a pessoa. Diga em uma frase que ela precisa entrar e que depois volta para esta conversa.' };
@@ -660,7 +674,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     return await horariosLivres(db, agenda, String(args.data ?? ''), Number(args.duracao_min) || undefined);
   }
   if (agenda && nome === 'agendar') {
-    if (/^s[oó]/i.test(valueOf(cfg, 'agenda_quem')) && !r.cliente && !r.teste) {
+    if (/^s[oó]/i.test(valueOf(cfg, 'agenda_quem')) && !r.cliente && !r.canal && !r.teste) {
       r.sinais.pedirLogin = true;
       r.sinais.motivoLogin = 'para marcar seu horário';
       return { erro: 'Só quem entrou na conta pode marcar. O botão de entrar já apareceu para a pessoa: peça para ela entrar e voltar a esta conversa.' };
@@ -717,7 +731,11 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     {
       type: 'text',
       text: `Agora: ${agora} (hoje é ${hojeNoFuso(fuso)}).\nVisitante: ${
-        r.teste ? 'o dono testando (trate como quem entrou na conta)' : r.cliente ? `entrou na conta${r.cliente.nome ? ` (${r.cliente.nome})` : ''}` : 'não entrou na conta'
+        r.teste
+          ? 'o dono testando (trate como quem entrou na conta)'
+          : r.canal
+            ? `falando pelo ${{ whatsapp: 'WhatsApp', instagram: 'Instagram (Direct)', discord: 'Discord' }[r.canal.tipo]}${r.canal.nome ? ` (${r.canal.nome})` : ''}; já está identificado (trate como quem entrou na conta). Não fale de botão de entrar nem de link; respostas curtas, como numa conversa de mensagens`
+            : r.cliente ? `entrou na conta${r.cliente.nome ? ` (${r.cliente.nome})` : ''}` : 'não entrou na conta'
       }.${
         agenda
           ? `\nJÁ MARCADO NESTA CONVERSA: ${marcados.length ? `\n${marcados.map((m) => `- ${descreverAgendamento(m, fuso)}`).join('\n')}` : 'nada ainda.'}`

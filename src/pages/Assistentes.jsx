@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Copy, ExternalLink, MessageCircle, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, MessageCircle, Pencil, Plus, QrCode, RefreshCw, Trash2 } from 'lucide-react';
 import { supabase, chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -8,20 +8,23 @@ import { Confirmar } from '@/components/Modal';
 import { Marca } from '@/components/Logo';
 import { planOf } from '@/lib/plans';
 import { MODELOS } from '@/lib/documento';
+import QrAssistente from '@/components/QrAssistente';
+import TrocarFoto from '@/components/TrocarFoto';
 
 export const linkPublico = (token) => `${window.location.origin}/c/${token}`;
 
 export default function Assistentes() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const avisar = useToast();
   const plano = planOf(profile);
   const [lista, setLista] = useState(null);
   const [excluir, setExcluir] = useState(null);
+  const [qr, setQr] = useState(null);
 
   const carregar = useCallback(async () => {
     const { data } = await supabase
       .from('assistants')
-      .select('id, name, business_type, business_model, public_token, is_public, updated_at')
+      .select('id, name, business_type, business_model, public_token, is_public, updated_at, foto_url')
       .order('created_at');
     setLista(data ?? []);
   }, []);
@@ -97,12 +100,23 @@ export default function Assistentes() {
         {lista?.map((a) => (
           <article key={a.id} className="card">
             <div className="row row-wrap" style={{ alignItems: 'flex-start' }}>
-              <div className="publico-avatar" aria-hidden="true">{(a.name || '?')[0].toUpperCase()}</div>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <h2 style={{ fontSize: 22 }}>{a.name}</h2>
-                <p className="muted" style={{ fontSize: 14 }}>
+                <p className="muted" style={{ fontSize: 14, marginBottom: 12 }}>
                   {[a.business_type, MODELOS.find((m) => m.id === a.business_model)?.nome].filter(Boolean).join(' · ')}
                 </p>
+                <TrocarFoto
+                  userId={user.id}
+                  nomeArquivo={`assistente-${a.id}`}
+                  foto={a.foto_url}
+                  nome={a.name}
+                  tamanho={56}
+                  onSalvar={async (url) => {
+                    const { error } = await supabase.from('assistants').update({ foto_url: url }).eq('id', a.id);
+                    if (error) throw new Error(error.message);
+                    carregar();
+                  }}
+                />
               </div>
               <div className="row row-wrap">
                 <Link to={`/painel/assistentes/${a.id}/testar`} className="btn btn-ghost btn-sm"><MessageCircle /> Testar</Link>
@@ -122,12 +136,15 @@ export default function Assistentes() {
               </code>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => copiar(a.public_token)}><Copy /> Copiar</button>
               <a href={linkPublico(a.public_token)} target="_blank" rel="noreferrer" className="btn btn-quiet btn-sm"><ExternalLink /> Abrir</a>
+              <button type="button" className="btn btn-quiet btn-sm" onClick={() => setQr(a)}><QrCode /> QR code</button>
               <button type="button" className="btn btn-quiet btn-sm" onClick={() => alternar(a)}>{a.is_public ? 'Desligar' : 'Ligar'}</button>
               <button type="button" className="btn btn-quiet btn-sm" title="Gera um endereço novo e desativa o antigo" onClick={() => trocarLink(a)}><RefreshCw /> Trocar link</button>
             </div>
           </article>
         ))}
       </div>
+
+      <QrAssistente assistente={qr} link={qr ? linkPublico(qr.public_token) : ''} onFechar={() => setQr(null)} />
 
       <Confirmar
         aberto={!!excluir}

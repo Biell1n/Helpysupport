@@ -15,3 +15,9 @@ verify_jwt = true
 
 [functions.sql-server]
 verify_jwt = true
+
+# Canais: o painel conecta com login. Os avisos da Meta e do Discord
+# chegam pelo public-chat (?canal=meta, ?discord=<id>), que confere a
+# assinatura de cada um.
+[functions.canais]
+verify_jwt = true
