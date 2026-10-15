@@ -93,7 +93,13 @@ export default function AppShell() {
   const plano = planOf(profile);
   const dias = diasDeTeste(profile);
   const usados = uso?.atendimentos ?? 0;
-  const pct = Math.min(100, Math.round((usados / plano.atendimentos) * 100));
+  const pctAt = Math.min(100, Math.round((usados / plano.atendimentos) * 100));
+  const pctMsg = Math.min(100, Math.round(((uso?.mensagens ?? 0) / plano.mensagens) * 100));
+  // a barra mostra o que está mais perto de acabar: atendimentos ou mensagens
+  const pelasMensagens = pctMsg > pctAt;
+  const pct = Math.max(pctAt, pctMsg);
+  const hoje = new Date();
+  const renova = Math.ceil((new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1) - hoje) / 864e5);
 
   return (
     <div className="shell">
@@ -124,7 +130,13 @@ export default function AppShell() {
               <span style={{ width: `${pct}%` }} />
             </div>
             <span className="num">
-              {usados} de {plano.atendimentos} atendimentos no mês
+              {pelasMensagens
+                ? `${(uso?.mensagens ?? 0).toLocaleString('pt-BR')} de ${plano.mensagens.toLocaleString('pt-BR')} mensagens no mês`
+                : `${usados} de ${plano.atendimentos} atendimentos no mês`}
+            </span>
+            <span className="side-plan-rodape">
+              <span className="faint">renova em {renova} {renova === 1 ? 'dia' : 'dias'}</span>
+              {(pct >= 80 || (dias != null && dias <= 2)) && <span className="side-plan-subir">Aumentar plano</span>}
             </span>
           </Link>
           )}

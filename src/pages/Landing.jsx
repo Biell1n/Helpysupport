@@ -9,6 +9,7 @@ import SkylineHorarios from '@/components/SkylineHorarios';
 import Contador from '@/components/Contador';
 import { EMPRESA } from '@/lib/empresa';
 import Reveal from '@/components/Reveal';
+import { useEfeitosDoMouse } from '@/lib/efeitosDoMouse';
 import VideoDemo, { reduzido } from '@/components/VideoDemo';
 import { useAuth } from '@/contexts/AuthContext';
 import { DIAS_DE_TESTE, PLANS, reais, recursosDoPlano } from '@/lib/plans';
@@ -174,7 +175,7 @@ function Hero({ user, deslizar }) {
       </p>
 
       <div className="lp-robo-acoes lp-entra" style={{ '--d': '0.75s' }}>
-        <Link to={user ? '/painel' : '/criar-conta'} className="lp-btn lp-btn-cheio">
+        <Link to={user ? '/painel' : '/criar-conta'} className="lp-btn lp-btn-cheio" data-ima="">
           {user ? 'Ir para o painel' : `Testar grátis por ${DIAS_DE_TESTE} dias`} <ArrowRight />
         </Link>
         <a href="#filme" className="lp-btn lp-btn-vidro" onClick={deslizar}>Ver funcionando</a>
@@ -333,6 +334,7 @@ const FAQ = [
 export default function Landing() {
   const { user } = useAuth();
   const deslizar = useRolagemSuave();
+  useEfeitosDoMouse();
   const pagos = [PLANS.essencial, PLANS.profissional, PLANS.business];
   const destino = user ? '/painel' : '/criar-conta';
   const [abertura, setAbertura] = useState(deveMostrarAbertura);
@@ -353,7 +355,7 @@ export default function Landing() {
           </Reveal>
           <ol className="lp-passos">
             {PASSOS.map((p, i) => (
-              <Reveal as="li" key={p.titulo} atraso={i * 120} className="lp-passo">
+              <Reveal as="li" key={p.titulo} atraso={i * 120} className="lp-passo" data-luz="">
                 <div className="lp-passo-tela">{p.tela}</div>
                 <span className="lp-passo-n">{String(i + 1).padStart(2, '0')}</span>
                 <h3>{p.titulo}</h3>
@@ -512,7 +514,7 @@ export default function Landing() {
           </Reveal>
           <div className="lp-planos">
             {pagos.map((p, i) => (
-              <Reveal as="article" key={p.id} atraso={i * 100} className={`lp-plano${p.destaque ? ' lp-plano-destaque' : ''}`}>
+              <Reveal as="article" key={p.id} atraso={i * 100} className={`lp-plano${p.destaque ? ' lp-plano-destaque' : ''}`} data-luz="">
                 <div className="lp-plano-topo">
                   <h3>{p.nome}</h3>
                   {p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
@@ -559,7 +561,7 @@ export default function Landing() {
           <Reveal className="lp-final">
             <h2>Teste grátis<br />por {DIAS_DE_TESTE} dias.</h2>
             <p>Em uma tarde o seu atendente está no ar. Sem cartão para testar.</p>
-            <Link to={destino} className="lp-btn lp-btn-claro">
+            <Link to={destino} className="lp-btn lp-btn-claro" data-ima="">
               {user ? 'Ir para o painel' : 'Criar meu atendente'} <ArrowRight />
             </Link>
           </Reveal>
