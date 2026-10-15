@@ -47,6 +47,13 @@ export const PLANS: Record<PlanId, Plan> = {
   },
 };
 
+/**
+ * Uso extra: o que passa da cota do plano, cobrado à parte até o limite do
+ * mês que o dono escolher. Custo de IA no pior caso: atendimento ≈ R$ 0,20
+ * (30 mensagens) e mensagem ≈ R$ 0,007; os preços deixam margem folgada.
+ */
+export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.02 } as const;
+
 export interface Profile {
   id: string;
   plan: PlanId;

@@ -3,6 +3,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { ArrowRight, Bot, Check, Plus, Sparkles } from 'lucide-react';
 import AlertasDaConta from '@/components/AlertasDaConta';
 import Faisca from '@/components/Faisca';
+import ListaViva from '@/components/ListaViva';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { diasDeTeste, planOf } from '@/lib/plans';
@@ -71,6 +72,22 @@ export default function Painel() {
       const notas = (n.data ?? []).map((x) => Number(x.nota)).filter((x) => x >= 1 && x <= 5);
       setNota(notas.length ? { media: notas.reduce((s, x) => s + x, 0) / notas.length, total: notas.length } : null);
     })();
+  }, [user]);
+
+  // a fila se atualiza sozinha: chamado novo entra no topo com uma mola
+  useEffect(() => {
+    if (!user) return undefined;
+    const t = setInterval(async () => {
+      const { data } = await supabase
+        .from('conversations')
+        .select('id, numero, titulo, motivo, status, lead_nome, last_message_at, prioridade')
+        .eq('teste', false)
+        .in('status', ['waiting', 'human'])
+        .order('last_message_at', { ascending: false })
+        .limit(5);
+      if (data) setFila(data);
+    }, 20000);
+    return () => clearInterval(t);
   }, [user]);
 
   const resolverLacuna = async (id) => {
@@ -168,9 +185,10 @@ export default function Painel() {
           {fila.length === 0 ? (
             <p className="faint">Quando o atendente precisar de alguém da equipe, o chamado aparece aqui.</p>
           ) : (
-            <div className="stack stack-sm">
-              {fila.map((c) => (
-                <Link key={c.id} to={`/painel/atendimentos?id=${c.id}`} className="ticket" style={{ textDecoration: 'none' }}>
+            <ListaViva
+              itens={fila}
+              render={(c) => (
+                <Link to={`/painel/atendimentos?id=${c.id}`} className="ticket" style={{ textDecoration: 'none' }}>
                   <div className="stub" style={{ background: 'var(--papel)' }}>
                     <div className="stub-num"><small>Senha</small><b>{numero(c.numero)}</b></div>
                     <div className="stub-body">
@@ -182,8 +200,8 @@ export default function Painel() {
                     </div>
                   </div>
                 </Link>
-              ))}
-            </div>
+              )}
+            />
           )}
         </div>
 

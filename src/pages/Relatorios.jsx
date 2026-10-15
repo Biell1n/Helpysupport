@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { quando } from '@/lib/format';
 import { IconeDoCanal } from '@/components/IconesCanais';
 import Faisca from '@/components/Faisca';
+import Abas from '@/components/Abas';
 import '@/styles/relatorios.css';
 
 const PERIODOS = [
@@ -550,13 +551,13 @@ export default function Relatorios() {
           <h1>Relatórios</h1>
           <p>Como o seu atendimento está indo: volume, o que resolve sozinho, quando o movimento aperta e o que os clientes mais querem saber.</p>
         </div>
-        <div className="tabs rel-periodo" role="tablist" aria-label="Período">
-          {PERIODOS.map((p) => (
-            <button key={p.dias} type="button" role="tab" className="tab" aria-selected={dias === p.dias} onClick={() => setDias(p.dias)}>
-              {p.rotulo}
-            </button>
-          ))}
-        </div>
+        <Abas
+          className="rel-periodo"
+          rotulo="Período"
+          ativa={dias}
+          onMudar={setDias}
+          abas={PERIODOS.map((p) => ({ id: p.dias, rotulo: p.rotulo }))}
+        />
       </header>
 
       {erro && <div className="alert alert-erro" style={{ marginBottom: 16 }}>Não foi possível carregar: {erro}</div>}

@@ -9,6 +9,7 @@ import { useToast } from '@/components/Toasts';
 import { Confirmar } from '@/components/Modal';
 import AgendaDoChamado from '@/components/AgendaDoChamado';
 import SwipeRow from '@/components/SwipeRow';
+import Abas from '@/components/Abas';
 import { numero, quando, STATUS } from '@/lib/format';
 
 const ABAS = [
@@ -252,14 +253,16 @@ export default function Atendimentos() {
               <Columns3 size={15} /> Quadro
             </button>
           </div>
-          <div className="tabs" role="tablist">
-            {ABAS.map((a) => (
-              <button key={a.id} type="button" role="tab" className="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}>
-                {a.rotulo}
-                {contagem[a.id] > 0 && a.id !== 'closed' && <span className="mono">{contagem[a.id]}</span>}
-              </button>
-            ))}
-          </div>
+          <Abas
+            rotulo="Situação dos atendimentos"
+            ativa={aba}
+            onMudar={setAba}
+            abas={ABAS.map((a) => ({
+              id: a.id,
+              rotulo: a.rotulo,
+              extra: contagem[a.id] > 0 && a.id !== 'closed' ? <span className="mono">{contagem[a.id]}</span> : null,
+            }))}
+          />
           <label className="row" style={{ position: 'relative' }}>
             <Search size={16} style={{ position: 'absolute', left: 12, color: 'var(--tinta-3)' }} aria-hidden="true" />
             <input className="input" style={{ paddingLeft: 36 }} placeholder="Buscar por nome, número ou assunto" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar atendimentos" />

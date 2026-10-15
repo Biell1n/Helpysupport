@@ -24,6 +24,7 @@ import { logUsage } from '../_shared/ai.ts';
 import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { normalizeConfig, valueOf } from '../_shared/schema.ts';
+import { usarExtra } from '../_shared/extra.ts';
 import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
 
 const MAX_CHARS = 2000;
@@ -259,7 +260,7 @@ Deno.serve(async (req) => {
         else if ((mes ?? 0) >= plan.atendimentos) {
           if (profile.creditos_extra > 0) {
             await admin.from('profiles').update({ creditos_extra: profile.creditos_extra - 1 }).eq('id', profile.id);
-          } else recado = true;
+          } else if (!(await usarExtra(admin, profile, 'atendimento'))) recado = true;
         }
         // sem login não vira recado na fila da equipe (seria a porta do spam)
         if (recado && !cliente) {
@@ -350,13 +351,14 @@ Deno.serve(async (req) => {
       if (n === Math.ceil(plan.mensagens * 0.8)) {
         await alertar(admin, assistant.owner_id, {
           origem: 'sistema', chave: `cota80:${mes}`, assunto: 'Você já usou 80% das mensagens do mês',
-          detalhe: `Foram ${n} de ${plan.mensagens} mensagens de clientes no plano ${plan.nome}. Quando acabar, a equipe passa a responder pelos chamados até o mês virar. Veja os planos em Plano.`,
+          detalhe: `Foram ${n} de ${plan.mensagens} mensagens de clientes no plano ${plan.nome}. Quando acabar, a equipe passa a responder pelos chamados até o mês virar, a não ser que o uso extra esteja ligado. Veja em Plano.`,
         });
       }
-      if (n > plan.mensagens) {
+      // passou do plano: o uso extra cobre esta mensagem, se estiver ligado e couber no limite
+      if (n > plan.mensagens && !(await usarExtra(admin, profile, 'mensagem'))) {
         await alertar(admin, assistant.owner_id, {
           origem: 'sistema', chave: `cota100:${mes}`, assunto: 'As mensagens do mês acabaram',
-          detalhe: `O plano ${plan.nome} inclui ${plan.mensagens} mensagens de clientes por mês. Até o mês virar, as conversas novas vão para a equipe. Para continuar com o atendimento automático, mude de plano.`,
+          detalhe: `O plano ${plan.nome} inclui ${plan.mensagens} mensagens de clientes por mês. Até o mês virar, as conversas novas vão para a equipe. Para continuar com o atendimento automático, ligue o uso extra ou mude de plano em Plano.`,
         });
         if (!cliente) {
           await admin.from('conversations').update({ status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'assistente' }).eq('id', c.id);
