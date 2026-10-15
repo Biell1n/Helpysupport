@@ -193,10 +193,40 @@ function Enderecos({ canal }) {
   );
 }
 
-function CanalConectado({ canal, assistentes, ocupado, onAcao }) {
+/** Uma barrinha por dia nos últimos 30 dias: altura = conversas que chegaram por este canal. */
+function Atividade({ dias }) {
+  if (!dias) return null;
+  const max = Math.max(1, ...dias);
+  const total = dias.reduce((a, b) => a + b, 0);
+  const hoje = new Date();
+  return (
+    <div className="canal-atividade">
+      <div className="canal-atividade-barras" role="img" aria-label={`${total} conversas nos últimos 30 dias`}>
+        {dias.map((v, i) => {
+          const d = new Date(hoje.getTime() - (dias.length - 1 - i) * 864e5);
+          return (
+            <i
+              key={i}
+              data-vazio={v ? undefined : ''}
+              style={{ '--h': `${Math.max(14, (v / max) * 100)}%` }}
+              title={`${d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}: ${v} ${v === 1 ? 'conversa' : 'conversas'}`}
+            />
+          );
+        })}
+      </div>
+      <div className="canal-atividade-legenda faint">
+        <span>30 dias atrás</span>
+        <span>{total} {total === 1 ? 'conversa' : 'conversas'}</span>
+        <span>hoje</span>
+      </div>
+    </div>
+  );
+}
+
+function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
   const [aberto, setAberto] = useState(!canal.ultimo_evento_em);
   return (
-    <div className="canal-conta">
+    <div className={`canal-conta canal-${canal.tipo}`}>
       <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <b>{canal.nome || canal.externo_id}</b>
@@ -207,6 +237,7 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao }) {
         <span className={`badge ${CLASSE_STATUS[canal.status] ?? ''}`}>{ROTULO_STATUS[canal.status] ?? canal.status}</span>
       </div>
       {canal.erro && <div className="alert alert-erro" style={{ marginTop: 10 }}><span>{canal.erro}</span></div>}
+      <Atividade dias={atividade} />
       <label className="field" style={{ marginTop: 12 }}>
         <span className="label">Assistente</span>
         <select className="input" value={canal.assistant_id} disabled={ocupado} onChange={(e) => onAcao('trocar_assistente', { assistant_id: e.target.value })}>
@@ -240,6 +271,7 @@ export default function Canais() {
   const [conectando, setConectando] = useState(null);
   const [ocupado, setOcupado] = useState(false);
   const [apagar, setApagar] = useState(null);
+  const [atividade, setAtividade] = useState({});
 
   const carregar = useCallback(async () => {
     const [c, a] = await Promise.all([
@@ -249,6 +281,21 @@ export default function Canais() {
     if (c.error) avisar('Não deu para carregar os canais', { erro: true, texto: c.error.message });
     setCanais(c.data ?? []);
     setAssistentes(a.data ?? []);
+    // conversas por canal nos últimos 30 dias, para as barrinhas de atividade
+    if (c.data?.length) {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const desde = new Date(hoje.getTime() - 29 * 864e5);
+      const { data: conv } = await supabase.from('conversations').select('canal_id, created_at')
+        .not('canal_id', 'is', null).gte('created_at', desde.toISOString()).limit(10000);
+      const mapa = {};
+      for (const k of c.data) mapa[k.id] = Array(30).fill(0);
+      for (const x of conv ?? []) {
+        const i = Math.floor((new Date(x.created_at).getTime() - desde.getTime()) / 864e5);
+        if (mapa[x.canal_id] && i >= 0 && i < 30) mapa[x.canal_id][i]++;
+      }
+      setAtividade(mapa);
+    }
   }, [avisar]);
 
   useEffect(() => {
@@ -333,7 +380,7 @@ export default function Canais() {
               <p className="muted canal-frase">{s.frase}</p>
 
               {doTipo.map((c) => (
-                <CanalConectado key={c.id} canal={c} assistentes={assistentes} ocupado={ocupado} onAcao={(a, extra) => acao(c, a, extra)} />
+                <CanalConectado key={c.id} canal={c} assistentes={assistentes} ocupado={ocupado} atividade={atividade[c.id]} onAcao={(a, extra) => acao(c, a, extra)} />
               ))}
 
               {bloqueado ? (
