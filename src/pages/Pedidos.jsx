@@ -5,6 +5,7 @@ import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { Confirmar } from '@/components/Modal';
+import Counter from '@/components/Counter';
 import { reais } from '@/lib/plans';
 import { quando } from '@/lib/format';
 
@@ -116,8 +117,8 @@ export default function Pedidos() {
       {pedidos?.length > 0 && (
         <>
           <div className="pedidos-resumo">
-            <div className="card"><span className="faint">Vendido</span><b>{reais(resumo.vendido)}</b><span className="faint">{resumo.pagos} pago{resumo.pagos === 1 ? '' : 's'}</span></div>
-            <div className="card"><span className="faint">Aguardando pagamento</span><b>{reais(resumo.emAberto)}</b><span className="faint">{resumo.aguardando} pedido{resumo.aguardando === 1 ? '' : 's'}</span></div>
+            <div className="card"><span className="faint">Vendido</span><b><Counter value={resumo.vendido} format={{ style: 'currency', currency: 'BRL' }} /></b><span className="faint">{resumo.pagos} pago{resumo.pagos === 1 ? '' : 's'}</span></div>
+            <div className="card"><span className="faint">Aguardando pagamento</span><b><Counter value={resumo.emAberto} format={{ style: 'currency', currency: 'BRL' }} /></b><span className="faint">{resumo.aguardando} pedido{resumo.aguardando === 1 ? '' : 's'}</span></div>
           </div>
 
           <div className="row row-wrap" style={{ gap: 6, margin: '20px 0 12px' }} role="tablist" aria-label="Filtrar pedidos">
@@ -190,6 +191,7 @@ export default function Pedidos() {
         texto={devolvendo ? `${Number(devolvendo.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} voltam para o cliente pelo Asaas, na mesma forma de pagamento.${devolvendo.tipo === 'agendamento' ? ' O horário é cancelado.' : ' O estoque não volta sozinho: ajuste em Dados se precisar.'}` : ''}
         acao="Devolver"
         voltar="Voltar"
+        segurar
         perigo
         onFechar={() => setDevolvendo(null)}
         onConfirmar={devolver}

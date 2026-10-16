@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import HoldButton from '@/components/HoldButton';
 
 export function Modal({ aberto, onFechar, children, largura }) {
   useEffect(() => {
@@ -42,7 +43,8 @@ export function Drawer({ aberto, onFechar, titulo, sub, children, rodape }) {
 }
 
 /** Confirmação para ações que não têm volta. */
-export function Confirmar({ aberto, titulo, texto, acao = 'Confirmar', perigo, onConfirmar, onFechar, voltar = 'Cancelar', secundaria }) {
+/** segurar: a ação só acontece segurando o botão (para o que mexe com dinheiro). */
+export function Confirmar({ aberto, titulo, texto, acao = 'Confirmar', perigo, onConfirmar, onFechar, voltar = 'Cancelar', secundaria, segurar }) {
   return (
     <Modal aberto={aberto} onFechar={onFechar}>
       <h2>{titulo}</h2>
@@ -56,9 +58,15 @@ export function Confirmar({ aberto, titulo, texto, acao = 'Confirmar', perigo, o
             {secundaria.rotulo}
           </button>
         )}
-        <button type="button" className={`btn ${perigo ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirmar}>
-          {acao}
-        </button>
+        {segurar ? (
+          <HoldButton size="sm" radius={999} fillColor={perigo ? '#c8352d' : 'var(--senha)'} doneLabel="Feito" resetAfter={0} onHold={onConfirmar}>
+            Segure para {acao.charAt(0).toLowerCase() + acao.slice(1)}
+          </HoldButton>
+        ) : (
+          <button type="button" className={`btn ${perigo ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirmar}>
+            {acao}
+          </button>
+        )}
       </div>
     </Modal>
   );
