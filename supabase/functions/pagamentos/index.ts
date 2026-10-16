@@ -8,7 +8,8 @@
 //   cancelar          → cancela a assinatura (vale até o fim do período pago)
 //   loja_conectar     → { chave, ambiente } liga a conta Asaas da empresa
 //   loja_desconectar  → desliga
-//   pedido_cancelar   → { id } cancela um pedido que ainda não foi pago
+//   pedido_cancelar   → { id } cancela um pedido que ainda não foi pago (e o horário que ele guardava)
+//   estornar          → { id } devolve ao cliente um pedido pago (só o dono); cancela o horário ligado
 //
 // Avisos do Asaas (sem login; conferidos pelo token):
 //   ?asaas=helpy             → pagamentos dos planos (conta do Helpy)
@@ -165,7 +166,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!dono) throw new UserError('Só o dono da conta mexe em pagamentos.', 403);
+    if (!dono && action !== 'pedido_cancelar') throw new UserError('Só o dono da conta mexe em pagamentos.', 403);
 
     if (action === 'assinar') {
       const plano = String(body.plano ?? '') as PlanId;
@@ -254,13 +255,37 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    if (action === 'estornar') {
+      if (!dono) throw new UserError('Só o dono da conta pode devolver um pagamento.', 403);
+      const id = String(body.id ?? '');
+      if (!UUID.test(id)) throw new UserError('Pedido inválido.');
+      const { data: ped } = await admin.from('pedidos').select('*').eq('id', id).maybeSingle();
+      if (!ped || ped.owner_id !== conta) throw new UserError('Pedido não encontrado.', 404);
+      if (ped.status !== 'pago' || !ped.pagamento_id) throw new UserError('Só dá para devolver um pedido pago.');
+      const loja = await contaDaLoja(admin, conta);
+      if (!loja) throw new UserError('Ligue de novo o recebimento em Canais para devolver pelo Asaas.');
+      await loja.pedir(`/payments/${ped.pagamento_id}/refund`, { method: 'POST', body: {} });
+      await admin.from('pedidos').update({ status: 'estornado' }).eq('id', id);
+      if (ped.agendamento_id) await admin.from('agendamentos').update({ status: 'cancelado' }).eq('id', ped.agendamento_id);
+      if (ped.conversation_id) {
+        await admin.from('conversation_messages').insert({
+          conversation_id: ped.conversation_id, role: 'system', author_name: 'evento:cancelado',
+          content: `${ped.tipo === 'agendamento' ? 'Horário cancelado. ' : ''}O valor de ${Number(ped.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} foi devolvido pela mesma forma de pagamento.`,
+        });
+      }
+      return json({ ok: true });
+    }
+
     if (action === 'pedido_cancelar') {
       const id = String(body.id ?? '');
       if (!UUID.test(id)) throw new UserError('Pedido inválido.');
-      const { data: ped } = await admin.from('pedidos').select('id, owner_id, status, link_id').eq('id', id).maybeSingle();
+      const { data: ped } = await admin.from('pedidos').select('id, owner_id, status, link_id, agendamento_id').eq('id', id).maybeSingle();
       if (!ped || ped.owner_id !== conta) throw new UserError('Pedido não encontrado.', 404);
       if (ped.status !== 'aguardando') throw new UserError('Só dá para cancelar pedido que ainda não foi pago.');
       await admin.from('pedidos').update({ status: 'cancelado' }).eq('id', id);
+      if (ped.agendamento_id) {
+        await admin.from('agendamentos').update({ status: 'cancelado', reserva_ate: null }).eq('id', ped.agendamento_id).eq('status', 'aguardando_pagamento');
+      }
       if (ped.link_id) {
         const loja = await contaDaLoja(admin, conta);
         await loja?.pedir(`/paymentLinks/${ped.link_id}`, { method: 'DELETE' }).catch(() => {});

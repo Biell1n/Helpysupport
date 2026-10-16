@@ -42,15 +42,20 @@ export function Drawer({ aberto, onFechar, titulo, sub, children, rodape }) {
 }
 
 /** Confirmação para ações que não têm volta. */
-export function Confirmar({ aberto, titulo, texto, acao = 'Confirmar', perigo, onConfirmar, onFechar }) {
+export function Confirmar({ aberto, titulo, texto, acao = 'Confirmar', perigo, onConfirmar, onFechar, voltar = 'Cancelar', secundaria }) {
   return (
     <Modal aberto={aberto} onFechar={onFechar}>
       <h2>{titulo}</h2>
       {texto && <p className="muted">{texto}</p>}
       <div className="modal-foot">
         <button type="button" className="btn btn-ghost" onClick={onFechar}>
-          Cancelar
+          {voltar}
         </button>
+        {secundaria && (
+          <button type="button" className="btn btn-ghost" onClick={secundaria.onClick}>
+            {secundaria.rotulo}
+          </button>
+        )}
         <button type="button" className={`btn ${perigo ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirmar}>
           {acao}
         </button>

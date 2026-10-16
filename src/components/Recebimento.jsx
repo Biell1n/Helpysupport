@@ -72,6 +72,10 @@ export default function Recebimento() {
       <p className="muted canal-frase">
         O assistente fecha a compra na conversa: confirma os produtos e manda um link de Pix, cartão ou boleto. Quando o pagamento cai, ele avisa o cliente, o pedido aparece em Pedidos e o estoque da tabela baixa sozinho. Funciona no site, WhatsApp, Instagram e Discord. O dinheiro vai direto para a sua conta Asaas.
       </p>
+      <p className="faint" style={{ margin: 0, fontSize: 13.5, maxWidth: 680 }}>
+        Ligado aqui, você escolhe em cada assistente (Assistentes → Editar → Como funciona): <b>Fechar a venda no chat?</b> e, se ele marca horários, <b>Cobrar para marcar?</b>.
+        Quem não vende, como um professor ou um suporte, nem mostra essas opções.
+      </p>
 
       {rec ? (
         <div className="stack-sm">

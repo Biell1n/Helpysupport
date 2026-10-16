@@ -6,14 +6,17 @@
 //                  o link de pagamento na conta Asaas da empresa e devolve
 //                  o link para mandar no chat (site, WhatsApp, Instagram,
 //                  Discord — é só texto)
+// cobrarHorario  → horário que só confirma pago: o pedido é o serviço
 // pagamentoDaLoja → o Asaas avisou que pagaram: marca o pedido, baixa o
-//                  estoque e avisa o cliente na mesma conversa e canal
+//                  estoque (se o dono quiser) ou confirma o horário, e
+//                  avisa o cliente na mesma conversa e canal
 // ============================================================
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { asaas, type Ambiente, type ClienteAsaas, FORMA, pago } from './asaas.ts';
 import { buscar } from './busca.ts';
 import { type Canal, enviarPeloCanal } from './canais.ts';
+import { horarioPago, RESERVA_MIN } from './agenda.ts';
 
 const reais = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -116,9 +119,95 @@ async function montarItens(
   return { itens, problemas };
 }
 
+/** Link de pagamento no Asaas da empresa: a pessoa escolhe Pix, cartão ou boleto. */
+async function criarLink(conta: ClienteAsaas, pedidoId: string, nome: string, descricao: string, valor: number, dias: number) {
+  try {
+    return await conta.pedir<{ id: string; url: string }>('/paymentLinks', {
+      method: 'POST',
+      body: {
+        name: nome.slice(0, 100), description: descricao, value: valor,
+        billingType: 'UNDEFINED', chargeType: 'DETACHED', dueDateLimitDays: dias,
+        notificationEnabled: false, externalReference: pedidoId,
+      },
+    });
+  } catch (e) {
+    console.error('[pedido] link', (e as Error).message);
+    return null;
+  }
+}
+
+/** O Asaas não gera cobrança abaixo de R$ 5. */
+export const MINIMO_COBRANCA = 5;
+
+/** Quanto cobrar para marcar: o valor do serviço ou o sinal ("30%", "R$ 20"). */
+export function valorDaReserva(valorServico: number | undefined, sinal: string | null): number | null {
+  if (sinal === null) return valorServico && valorServico > 0 ? Math.round(valorServico * 100) / 100 : null;
+  const pct = /(\d+(?:[.,]\d+)?)\s*%/.exec(sinal);
+  if (pct) {
+    if (!valorServico) return null;
+    return Math.round(valorServico * Math.min(100, Number(pct[1].replace(',', '.')))) / 100;
+  }
+  return lerPreco(sinal);
+}
+
+/**
+ * Horário que só confirma pago: o pedido é o serviço (ou o sinal) e o
+ * horário fica guardado até o pagamento cair.
+ */
+export async function cobrarHorario(
+  db: SupabaseClient,
+  ctx: { ownerId: string; assistantId: string; conversationId: string | null; negocio: string; teste: boolean },
+  ag: { id: string; quando: string; servico?: string; valorServico?: number; cobrar: number; sinal: boolean; cliente_nome?: string },
+) {
+  const conta = await contaDaLoja(db, ctx.ownerId);
+  const desfazer = async (msg: string) => {
+    await db.from('agendamentos').update({ status: 'cancelado' }).eq('id', ag.id);
+    return { erro: msg };
+  };
+  if (!conta) return desfazer('O pagamento pelo chat não está ligado. O horário NÃO foi marcado: ofereça a equipe.');
+  const rotulo = `${ag.sinal ? 'Sinal · ' : ''}${ag.servico || 'Horário'} · ${ag.quando}`.slice(0, 200);
+  const { data: ped, error } = await db.from('pedidos').insert({
+    owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId,
+    tipo: 'agendamento', agendamento_id: ag.id, numero: 0,
+    itens: [{ produto: rotulo, quantidade: 1, preco: ag.cobrar, subtotal: ag.cobrar }],
+    total: ag.cobrar, cliente_nome: ag.cliente_nome?.trim().slice(0, 120) || null,
+  }).select('id, numero').single();
+  if (error || !ped) return desfazer('Não consegui registrar a cobrança. O horário NÃO foi marcado: peça desculpas e ofereça a equipe.');
+  const link = await criarLink(conta, ped.id, `${ag.servico || 'Horário'}${ctx.negocio ? ` — ${ctx.negocio}` : ''}`, rotulo, ag.cobrar, 1);
+  if (!link) {
+    await db.from('pedidos').update({ status: 'cancelado' }).eq('id', ped.id);
+    return desfazer('Não consegui gerar o link de pagamento. O horário NÃO foi marcado: peça desculpas e ofereça a equipe.');
+  }
+  await db.from('pedidos').update({ link_id: link.id, link_url: link.url }).eq('id', ped.id);
+  await db.from('agendamentos').update({ pedido_id: ped.id }).eq('id', ag.id);
+  const resto = ag.sinal && ag.valorServico && ag.valorServico > ag.cobrar ? ag.valorServico - ag.cobrar : 0;
+  return {
+    ok: true,
+    situacao: 'GUARDADO, AINDA NÃO CONFIRMADO: o horário só confirma quando o pagamento cair.',
+    quando: ag.quando,
+    valor: reais(ag.cobrar),
+    link: link.url,
+    mensagem: `Diga que o horário (${ag.quando}) está guardado por ${RESERVA_MIN / 60} horas e só confirma com o pagamento de ${reais(ag.cobrar)}${
+      ag.sinal ? ` (sinal${resto ? `; o resto, ${reais(resto)}, é pago no dia` : ''})` : ''
+    }. Mande o link exatamente como veio (Pix, cartão ou boleto) e diga que você confirma aqui mesmo quando o pagamento cair.${
+      ctx.teste ? ' (É um teste do dono: o link é de verdade no ambiente configurado.)' : ''
+    }`,
+  };
+}
+
+/** Cancela um pedido que ainda não foi pago e tira o link do ar. */
+export async function cancelarPedido(db: SupabaseClient, ownerId: string, pedidoId: string) {
+  const { data: ped } = await db.from('pedidos').update({ status: 'cancelado' })
+    .eq('id', pedidoId).eq('owner_id', ownerId).eq('status', 'aguardando').select('link_id').maybeSingle();
+  if (ped?.link_id) {
+    const conta = await contaDaLoja(db, ownerId);
+    await conta?.pedir(`/paymentLinks/${ped.link_id}`, { method: 'DELETE' }).catch(() => {});
+  }
+}
+
 export async function fecharPedido(
   db: SupabaseClient,
-  ctx: { ownerId: string; assistantId: string; conversationId: string; negocio: string; teste: boolean },
+  ctx: { ownerId: string; assistantId: string; conversationId: string; negocio: string; teste: boolean; baixarEstoque: boolean },
   args: { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string },
   tabelas: TabelaPedido[],
   catalogo: Record<string, string>[],
@@ -128,8 +217,10 @@ export async function fecharPedido(
   const conta = await contaDaLoja(db, ctx.ownerId);
   if (!conta) return { erro: 'O pagamento pelo chat não está ligado nesta empresa. Ofereça a equipe para fechar a compra.' };
 
-  const { itens, problemas } = await montarItens(db, pedidos, tabelas, catalogo);
+  const { itens: achados, problemas } = await montarItens(db, pedidos, tabelas, catalogo);
   if (problemas.length) return { erro: 'O pedido NÃO foi criado.', problemas };
+  // sem baixa de estoque: o item não leva a coluna, e o pagamento não mexe na tabela
+  const itens = ctx.baixarEstoque ? achados : achados.map(({ estoque_chave: _, ...i }) => i);
   const total = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
 
   const { data: ped, error } = await db.from('pedidos').insert({
@@ -139,24 +230,9 @@ export async function fecharPedido(
   if (error || !ped) throw error ?? new Error('pedido não criado');
 
   const descricao = itens.map((i) => `${i.quantidade}x ${i.produto}`).join(', ').slice(0, 450);
-  let link: { id: string; url: string };
-  try {
-    link = await conta.pedir<{ id: string; url: string }>('/paymentLinks', {
-      method: 'POST',
-      body: {
-        name: `Pedido ${ped.numero}${ctx.negocio ? ` — ${ctx.negocio}` : ''}`.slice(0, 100),
-        description: descricao,
-        value: total,
-        billingType: 'UNDEFINED', // a pessoa escolhe: Pix, cartão ou boleto
-        chargeType: 'DETACHED',
-        dueDateLimitDays: 3,
-        notificationEnabled: false,
-        externalReference: ped.id,
-      },
-    });
-  } catch (e) {
+  const link = await criarLink(conta, ped.id, `Pedido ${ped.numero}${ctx.negocio ? ` — ${ctx.negocio}` : ''}`, descricao, total, 3);
+  if (!link) {
     await db.from('pedidos').update({ status: 'cancelado' }).eq('id', ped.id);
-    console.error('[pedido] link', (e as Error).message);
     return { erro: 'Não consegui gerar o link de pagamento agora. Peça desculpas e ofereça a equipe para fechar a compra.' };
   }
   await db.from('pedidos').update({ link_id: link.id, link_url: link.url }).eq('id', ped.id);
@@ -173,23 +249,72 @@ export async function fecharPedido(
   };
 }
 
+/** Mensagem na conversa (e no canal de onde o cliente escreveu: WhatsApp, Instagram, Discord). */
+async function avisarCliente(db: SupabaseClient, conversationId: string | null, evento: string, texto: string) {
+  if (!conversationId) return;
+  await db.from('conversation_messages').insert({ conversation_id: conversationId, role: 'system', author_name: `evento:${evento}`, content: texto });
+  const { data: conv } = await db.from('conversations').select('canal_id, contato_externo').eq('id', conversationId).maybeSingle();
+  if (conv?.canal_id && conv.contato_externo) {
+    const { data: canal } = await db.from('canais').select('*').eq('id', conv.canal_id).maybeSingle();
+    if (canal) await enviarPeloCanal(db, canal as Canal, conv.contato_externo, `✅ ${texto}`).catch((e) => console.warn('[pedido] canal', e?.message));
+  }
+}
+
 /**
  * O Asaas da empresa avisou de um pagamento. Se for de um pedido do
- * assistente: marca como pago, baixa o estoque e avisa o cliente no chat.
+ * assistente: marca como pago, baixa o estoque (venda) ou confirma o
+ * horário (agendamento), e avisa o cliente no chat.
  */
 export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, evento: { event?: string; payment?: Record<string, unknown> }) {
   const pg = evento.payment ?? {};
   const linkId = String(pg.paymentLink ?? '');
   if (!linkId || !pago(String(pg.status), evento.event)) return;
   const { data: ped } = await db.from('pedidos').select('*').eq('owner_id', ownerId).eq('link_id', linkId).maybeSingle();
-  if (!ped || ped.status === 'pago') return;
+  if (!ped || ped.status === 'pago' || ped.status === 'estornado') return;
 
   const { data: mudou } = await db.from('pedidos')
     .update({ status: 'pago', pago_em: new Date().toISOString(), pagamento_id: String(pg.id ?? ''), forma: FORMA[String(pg.billingType)] ?? null })
-    .eq('id', ped.id).eq('status', 'aguardando').select('id');
+    .eq('id', ped.id).in('status', ['aguardando', 'cancelado']).select('id');
   if (!mudou?.length) return; // outro aviso já tratou
 
-  // baixa de estoque nas linhas da tabela
+  const conta = await contaDaLoja(db, ownerId);
+  // o link já cumpriu o papel: tira do ar para ninguém pagar duas vezes
+  await conta?.pedir(`/paymentLinks/${linkId}`, { method: 'DELETE' }).catch(() => {});
+  const alerta = (assunto: string, detalhe: string) => db.from('alertas').insert({
+    owner_id: ownerId, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',
+    assunto: assunto.slice(0, 160), detalhe: detalhe.slice(0, 1000), chave: `pedido:${ped.id}`,
+  });
+  const lista = ((ped.itens ?? []) as Item[]).map((i) => `${i.quantidade}x ${i.produto}`).join(', ');
+
+  // pagaram um pedido que já tinha sido cancelado: o dinheiro entrou, a equipe decide
+  if (ped.status === 'cancelado') {
+    await alerta(`Pagamento de pedido cancelado — nº ${ped.numero} (${reais(Number(ped.total))})`,
+      `O cliente pagou depois que o pedido foi cancelado. Combine com ele: seguir com o pedido ou devolver o valor pelo Asaas. ${lista}`);
+    await avisarCliente(db, ped.conversation_id, 'pago', `Recebemos o seu pagamento de ${reais(Number(ped.total))}. A equipe vai falar com você para seguir.`);
+    return;
+  }
+
+  if (ped.tipo === 'agendamento' && ped.agendamento_id) {
+    const { data: a } = await db.from('assistants').select('config').eq('id', ped.assistant_id).maybeSingle();
+    const usar = String((a?.config as { fields?: Record<string, { value?: string }> })?.fields?.usar_agenda?.value ?? '');
+    const r = await horarioPago(db, ped.agendamento_id, /confirmo/i.test(usar));
+    if (r.situacao === 'confirmado') {
+      await avisarCliente(db, ped.conversation_id, 'agendado', `Pagamento confirmado (${reais(Number(ped.total))}). Seu horário está marcado: ${r.quando}.`);
+      await alerta(`Horário pago — ${reais(Number(ped.total))}`, `${ped.cliente_nome ?? 'Cliente'} · ${lista}`);
+    } else if (r.situacao === 'pendente') {
+      await avisarCliente(db, ped.conversation_id, 'pendente', `Pagamento confirmado (${reais(Number(ped.total))}). Agora o negócio confirma o horário (${r.quando}) e você recebe o aviso aqui.`);
+      await alerta(`Horário pago esperando você confirmar — ${reais(Number(ped.total))}`, `${ped.cliente_nome ?? 'Cliente'} · ${lista}. Confirme em Agenda.`);
+    } else {
+      await avisarCliente(db, ped.conversation_id, 'pago', `Recebemos o seu pagamento de ${reais(Number(ped.total))}. A equipe vai falar com você para acertar o horário.`);
+      await alerta(`Horário pago precisa de atenção — ${reais(Number(ped.total))}`,
+        r.situacao === 'choque'
+          ? `A reserva venceu antes do pagamento e outra pessoa pegou o horário. Remarque com o cliente ou devolva o valor. ${lista}`
+          : `O pagamento caiu, mas o horário já tinha sido cancelado. Remarque com o cliente ou devolva o valor. ${lista}`);
+    }
+    return;
+  }
+
+  // venda: baixa de estoque nas linhas da tabela (só os itens que levaram a coluna de estoque)
   for (const it of (ped.itens ?? []) as Item[]) {
     if (!it.linha_id || !it.estoque_chave) continue;
     const { data: linha } = await db.from('tabela_linhas').select('dados').eq('id', it.linha_id).maybeSingle();
@@ -197,24 +322,7 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
     if (!linha || !Number.isFinite(atual)) continue;
     await db.from('tabela_linhas').update({ dados: { ...linha.dados, [it.estoque_chave]: String(Math.max(0, atual - it.quantidade)) } }).eq('id', it.linha_id);
   }
-
-  const texto = `Pagamento do pedido nº ${ped.numero} confirmado (${reais(Number(ped.total))}). Obrigado pela compra! A equipe já foi avisada para seguir com o pedido.`;
-  if (ped.conversation_id) {
-    await db.from('conversation_messages').insert({ conversation_id: ped.conversation_id, role: 'system', author_name: 'evento:pago', content: texto });
-    const { data: conv } = await db.from('conversations').select('canal_id, contato_externo').eq('id', ped.conversation_id).maybeSingle();
-    if (conv?.canal_id && conv.contato_externo) {
-      const { data: canal } = await db.from('canais').select('*').eq('id', conv.canal_id).maybeSingle();
-      if (canal) await enviarPeloCanal(db, canal as Canal, conv.contato_externo, `✅ ${texto}`).catch((e) => console.warn('[pedido] canal', e?.message));
-    }
-  }
-  await db.from('alertas').insert({
-    owner_id: ownerId, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',
-    assunto: `Pedido nº ${ped.numero} pago — ${reais(Number(ped.total))}`.slice(0, 160),
-    detalhe: ((ped.itens ?? []) as Item[]).map((i) => `${i.quantidade}x ${i.produto}`).join(', ').slice(0, 1000),
-    chave: `pedido:${ped.id}`,
-  });
-
-  // o link já cumpriu o papel: tira do ar para ninguém pagar duas vezes
-  const conta = await contaDaLoja(db, ownerId);
-  await conta?.pedir(`/paymentLinks/${linkId}`, { method: 'DELETE' }).catch(() => {});
+  await avisarCliente(db, ped.conversation_id, 'pago',
+    `Pagamento do pedido nº ${ped.numero} confirmado (${reais(Number(ped.total))}). Obrigado pela compra! A equipe já foi avisada para seguir com o pedido.`);
+  await alerta(`Pedido nº ${ped.numero} pago — ${reais(Number(ped.total))}`, lista);
 }

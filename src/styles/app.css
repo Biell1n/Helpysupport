@@ -2662,3 +2662,4 @@
 .recebimento .canal-frase { max-width: 680px; }
 .recebimento form, .recebimento .stack-sm { display: grid; gap: 14px; }
 .recebimento form > .btn { justify-self: start; }
+.cal-ev[data-status='aguardando_pagamento'] { background: repeating-linear-gradient(135deg, #fff4d6 0 6px, var(--branco) 6px 12px); border: 1px dashed #b7791f; }
