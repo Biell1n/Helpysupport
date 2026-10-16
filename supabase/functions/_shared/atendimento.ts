@@ -190,9 +190,11 @@ ${materiais.map((m) => `<material nome="${m.nome}">\n${m.texto}\n</material>`).j
 
   const blocoChamados = chamados.ativos
     ? `CHAMADOS
-- Pedido de uma pessoa, reclamação, negociação, ou informação importante que você não tem: chame chamar_atendente. A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui.
+- A pessoa pediu para falar com alguém da equipe: chame chamar_atendente na hora.
+- Faltou uma informação importante, reclamação ou negociação: NÃO abra sozinho. Diga em uma frase que não tem a resposta (ou que isso é com a equipe) e pergunte se ela quer que você abra um chamado para a equipe responder. Só chame chamar_atendente depois que ela aceitar ("sim", "pode", "quero"). Se ela não quiser, siga ajudando no que der.
+- A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui.
 - Só abre chamado quem está com a conta conectada. Se a ferramenta avisar que falta entrar, explique em uma frase que é só tocar em "Entrar para falar com a equipe", logo abaixo do chat, e pedir de novo. O chamado ainda não existe nesse caso: nunca diga que já foi aberto.
-${chamados.quando ? `- O dono quer chamado nestes casos: ${chamados.quando}\n` : ''}${chamados.nunca ? `- NÃO abra chamado nestes casos (resolva você ou explique com educação): ${chamados.nunca}\n` : ''}${chamados.codigo ? '- Para abrir chamado a pessoa precisa informar a senha de atendimento. Peça a senha antes; nunca diga qual é, nem dê dicas. Sem a senha certa, não há chamado: ajude no que puder.\n' : ''}`
+${chamados.quando ? `- O dono quer chamado nestes casos (aqui pode abrir direto, sem perguntar): ${chamados.quando}\n` : ''}${chamados.nunca ? `- NÃO abra chamado nestes casos (resolva você ou explique com educação): ${chamados.nunca}\n` : ''}${chamados.codigo ? '- Para abrir chamado a pessoa precisa informar a senha de atendimento. Peça a senha antes; nunca diga qual é, nem dê dicas. Sem a senha certa, não há chamado: ajude no que puder.\n' : ''}`
     : `SEM EQUIPE NESTE ATENDIMENTO
 Não existe ninguém para assumir a conversa: você resolve sozinho. Nunca prometa que alguém vai responder, não anote recado e não diga que vai repassar nada.${contatos ? ` Se a pessoa precisar mesmo falar com alguém, passe os contatos: ${contatos}.` : ' Se pedirem para falar com uma pessoa, diga com gentileza que por aqui não dá e que é preciso procurar diretamente (por exemplo, na aula ou no local).'}`;
 
@@ -221,8 +223,8 @@ ${regras ? `Limites definidos pelo dono — cumpra à risca:\n${regras}\n` : ''}
 Ferramentas: use, não improvise.
 - Antes de afirmar preço ou detalhe de item, consulte (buscar_catalogo ou a tabela).
 ${model === 'educacional' ? '' : '- Interesse real: peça nome e um contato e chame registrar_contato. Nunca invente o dado.'}
-- Não sabe a resposta: chame registrar_lacuna e só então diga que não tem essa informação${chamados.ativos ? ', oferecendo a equipe' : ''}.
-- Item marcado como "o dono preferiu não informar": diga que essa informação não está disponível por aqui${chamados.ativos ? ' e ofereça a equipe' : ''}; nunca estime.
+- Não sabe a resposta: chame registrar_lacuna e só então diga que não tem essa informação${chamados.ativos ? ' e pergunte se a pessoa quer que você abra um chamado para a equipe responder (só abra se ela aceitar)' : ''}.
+- Item marcado como "o dono preferiu não informar": diga que essa informação não está disponível por aqui${chamados.ativos ? ' e pergunte se a pessoa quer que a equipe responda (chamado só se ela aceitar)' : ''}; nunca estime.
 
 ${blocoChamados}
 
@@ -333,7 +335,7 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
   if (chamados.ativos) {
     tools.push({
       name: 'chamar_atendente',
-      description: 'Abre um chamado para a equipe assumir esta conversa. Use nos casos que o dono definiu, quando a pessoa pedir, reclamar, negociar, ou quando faltar informação importante para a decisão dela.',
+      description: 'Abre um chamado para a equipe assumir esta conversa. Direto: quando a pessoa pedir alguém da equipe ou nos casos que o dono definiu. Faltou informação, reclamação ou negociação: só depois de perguntar se ela quer o chamado e ela aceitar.',
       input_schema: {
         type: 'object',
         properties: {
@@ -600,7 +602,12 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     const { data: ex } = await db.from('assistant_gaps').select('id, vezes').eq('assistant_id', assistant.id).eq('assunto', assunto).maybeSingle();
     if (ex) await db.from('assistant_gaps').update({ vezes: ex.vezes + 1, ultima_em: new Date().toISOString(), resolvida: false }).eq('id', ex.id);
     else await db.from('assistant_gaps').insert({ assistant_id: assistant.id, owner_id: assistant.owner_id, assunto, pergunta: String(args.pergunta ?? '').slice(0, 400) });
-    return { ok: true, mensagem: 'Anotado para o dono. Diga que não tem essa informação e ofereça a equipe.' };
+    return {
+      ok: true,
+      mensagem: regrasDeChamado(cfg).ativos
+        ? 'Anotado para o dono. Diga que não tem essa informação e pergunte se a pessoa quer que você abra um chamado para a equipe responder. Não abra antes de ela aceitar.'
+        : 'Anotado para o dono. Diga que não tem essa informação.',
+    };
   }
 
   if (nome === 'chamar_atendente') {
