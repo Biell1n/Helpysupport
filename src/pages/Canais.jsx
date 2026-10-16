@@ -9,6 +9,7 @@ import { planOf } from '@/lib/plans';
 import { quando } from '@/lib/format';
 import { IconeDoCanal as Icone } from '@/components/IconesCanais';
 import TutorialCanal from '@/components/TutorialCanal';
+import Recebimento from '@/components/Recebimento';
 
 // os avisos da Meta e do Discord chegam pelo mesmo endereço do chat público
 const BASE = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/public-chat`;
@@ -488,6 +489,9 @@ export default function Canais() {
         Quando alguém da equipe responde por lá, a resposta sai pelo canal de onde o cliente escreveu.
         {plano.canaisMeta > 0 && ` Seu plano conecta até ${plano.canaisMeta} contas de WhatsApp e Instagram (${contasMeta} em uso).`}
       </p>
+
+      <h2 style={{ margin: '32px 0 12px', fontSize: 18 }}>Vendas</h2>
+      <Recebimento />
 
       {conectando?.tipo === 'discord' && <ConectarDiscord assistentes={assistentes} onFechar={() => setConectando(null)} />}
       {conectando && conectando.tipo !== 'discord' && (

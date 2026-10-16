@@ -12,6 +12,7 @@
 import type Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { buscar, categorias } from './busca.ts';
+import { fecharPedido, vendeOnline } from './pedidos.ts';
 import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
 import {
   type AgendaConfig, agendamentosDaConversa, alterarAgendamento, carregarAgenda, descreverAgendamento, hojeNoFuso, horariosLivres, marcar,
@@ -142,7 +143,7 @@ function contatosDiretos(cfg: Config) {
     .join(' | ');
 }
 
-export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null): string {
+export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false): string {
   const cfg = a.config;
   const model = a.business_model || a.schema?.business_model || 'produto';
   const nome = valueOf(cfg, 'nome_assistente') || a.name;
@@ -223,6 +224,9 @@ ${vende ? '\nCOMO RECOMENDAR: no máximo três opções, com o nome exato e o pr
 ${blocoTabelas}
 
 ${blocoAgenda}
+${loja ? `
+VENDA PELO CHAT
+Você fecha a compra aqui mesmo. Quando a pessoa decidir comprar: confirme os produtos, as quantidades e o total (e entrega/frete conforme a ficha). Com o "pode fechar", chame fechar_pedido com o nome exato de cada produto e mande o link exatamente como veio, dizendo que dá para pagar com Pix, cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
 
 FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para os itens das tabelas, consulte as tabelas' : ' — sua fonte de verdade'}
 ${describeConfig(a.schema, cfg) || '(vazia)'}
@@ -300,7 +304,7 @@ export async function carregarTabelas(db: SupabaseClient, assistantId: string): 
   return lista;
 }
 
-function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null): Anthropic.Tool[] {
+function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false): Anthropic.Tool[] {
   const tools: Anthropic.Tool[] = [];
   const model = a.business_model || a.schema?.business_model || 'produto';
 
@@ -328,6 +332,28 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
       input_schema: {
         type: 'object',
         properties: { termo: { type: 'string', description: 'O que procurar, do jeito que a pessoa falou. Sinônimos separados por "|". Vazio lista tudo.' } },
+      },
+    });
+  }
+
+  if (loja) {
+    tools.push({
+      name: 'fechar_pedido',
+      description: 'Fecha a compra e gera o link de pagamento (Pix, cartão ou boleto) na conta da empresa. Só chame depois que a pessoa confirmar produtos, quantidades e total. Use o nome exato de cada produto do catálogo: o preço e o estoque vêm de lá.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          itens: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: { produto: { type: 'string', description: 'Nome exato do produto no catálogo' }, quantidade: { type: 'integer', minimum: 1 } },
+              required: ['produto', 'quantidade'],
+            },
+          },
+          cliente_nome: { type: 'string', description: 'Nome da pessoa, se ela disse' },
+        },
+        required: ['itens'],
       },
     });
   }
@@ -540,6 +566,16 @@ async function consultarSistema(r: Rodada, t: Tabela, busca: string) {
 async function executar(r: Rodada, nome: string, args: Record<string, unknown>, tabelas: Tabela[], agenda: AgendaConfig | null) {
   const { db, assistant, conversationId } = r;
   const cfg = assistant.config;
+
+  if (nome === 'fechar_pedido') {
+    const catalogo = catalogos(assistant.schema, cfg).flatMap((c) =>
+      (cfg.collections[c.key] ?? []).map((it) => Object.fromEntries(c.item_fields.map((f) => [f.key, String(it?.[f.key] ?? '')])))
+    );
+    return await fecharPedido(db, {
+      ownerId: assistant.owner_id, assistantId: assistant.id, conversationId,
+      negocio: valueOf(cfg, 'nome_negocio'), teste: r.teste,
+    }, args as { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string }, tabelas, catalogo);
+  }
 
   if (nome.startsWith('consultar_')) {
     const t = tabelas.find((x) => x.ferramenta === nome);
@@ -770,9 +806,11 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const a = { ...r.assistant, config: normalizeConfig(r.assistant.config) };
   const rr = { ...r, assistant: a };
   const usarAgenda = /^sim/i.test(valueOf(a.config, 'usar_agenda'));
-  const [tabelas, agenda] = await Promise.all([
+  const vende = VENDE.includes((a.business_model || a.schema?.business_model || 'produto') as never);
+  const [tabelas, agenda, loja] = await Promise.all([
     carregarTabelas(r.db, a.id),
     usarAgenda ? carregarAgenda(r.db, a.owner_id) : Promise.resolve(null),
+    vende ? vendeOnline(r.db, a.owner_id) : Promise.resolve(false),
   ]);
 
   const fuso = agenda?.fuso ?? 'America/Sao_Paulo';
@@ -780,7 +818,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   // o que esta conversa já marcou: as ferramentas de rodadas anteriores não ficam no histórico
   const marcados = agenda ? await agendamentosDaConversa(r.db, r.conversationId) : [];
   const system: Anthropic.TextBlockParam[] = [
-    { type: 'text', text: systemPrompt(a, tabelas, agenda), cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: systemPrompt(a, tabelas, agenda, loja), cache_control: { type: 'ephemeral' } },
     {
       type: 'text',
       text: `Agora: ${agora} (hoje é ${hojeNoFuso(fuso)}).\nVisitante: ${
@@ -796,7 +834,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
       }`,
     },
   ];
-  const tools = ferramentas(a, tabelas, agenda);
+  const tools = ferramentas(a, tabelas, agenda, loja);
 
   // a API quer papéis alternados, começando pelo usuário
   const msgs: Anthropic.MessageParam[] = [];

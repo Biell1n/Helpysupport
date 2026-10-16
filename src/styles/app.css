@@ -2624,3 +2624,41 @@
 .historico-chamado li[data-tipo='assumido'] .historico-ponto { border-color: var(--senha); }
 .historico-chamado li[data-tipo='encerrado'] .historico-ponto { border-color: #1baf7a; background: #1baf7a; }
 .historico-chamado time { white-space: nowrap; font-size: 12px; }
+
+
+/* faturas (página Plano) */
+.faturas { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.faturas li {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 13.5px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--papel);
+}
+.faturas li > span.faint { font-size: 12.5px; }
+@media (max-width: 640px) {
+  .faturas li { grid-template-columns: auto 1fr auto; }
+  .faturas li > span.faint, .faturas li > .link-btn { grid-column: 2 / -1; }
+}
+
+.canal-pagamento { --cor-canal: #0f7a8a; }
+.recebimento .passos { padding-left: 20px; }
+
+.pedidos-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.pedidos-resumo .card { display: flex; flex-direction: column; gap: 2px; padding: 16px 18px; }
+.pedidos-resumo b { font-size: 24px; color: var(--tinta); }
+.pedidos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pedido { padding: 16px 18px; display: grid; gap: 10px; }
+.pedido-topo, .pedido-pe { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.pedido-itens { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.pedido-itens li { display: flex; justify-content: space-between; gap: 12px; }
+.recebimento .canal-frase { max-width: 680px; }
+.recebimento form, .recebimento .stack-sm { display: grid; gap: 14px; }
+.recebimento form > .btn { justify-self: start; }

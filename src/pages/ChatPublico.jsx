@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowUp, CalendarCheck, CalendarClock, CalendarX, LogIn, Star, UserCheck } from 'lucide-react';
+import { ArrowUp, CalendarCheck, CalendarClock, CalendarX, CircleCheckBig, LogIn, Star, UserCheck } from 'lucide-react';
 import { useToast } from '@/components/Toasts';
 import LatticeLoader from '@/components/LatticeLoader';
 import { chamar } from '@/lib/supabase';
@@ -402,6 +402,7 @@ const EVENTOS = {
   remarcado: { titulo: 'Horário remarcado', Icone: CalendarCheck },
   cancelado: { titulo: 'Horário cancelado', Icone: CalendarX },
   assumido: { titulo: 'Atendimento assumido', Icone: UserCheck },
+  pago: { titulo: 'Pagamento confirmado', Icone: CircleCheckBig },
 };
 const tipoDoEvento = (m) => (m.role === 'system' && String(m.author_name ?? '').startsWith('evento:') ? m.author_name.slice(7) : null);
 

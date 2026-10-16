@@ -1,7 +1,10 @@
+import { useCallback, useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Check, MessageCircle } from 'lucide-react';
+import { Check, CreditCard, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { chamar } from '@/lib/supabase';
 import UsoExtra from '@/components/UsoExtra';
+import { AssinarModal, MinhaAssinatura } from '@/components/Assinatura';
 import { diasDeTeste, PLANS, planOf, reais, recursosDoPlano, PRECO_FUNCIONARIO_EXTRA } from '@/lib/plans';
 
 const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
@@ -21,9 +24,33 @@ function Uso({ rotulo, usado, limite }) {
 
 export default function Plano() {
   const { uso } = useOutletContext();
-  const { profile } = useAuth();
+  const { profile, reloadProfile } = useAuth();
   const atual = planOf(profile);
   const dias = diasDeTeste(profile);
+  const [pagamentos, setPagamentos] = useState(null);
+  const [assinar, setAssinar] = useState(null);
+
+  const carregar = useCallback(async () => {
+    try {
+      setPagamentos(await chamar('pagamentos', { action: 'status' }));
+    } catch {
+      setPagamentos({ cobranca: false });
+    }
+  }, []);
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  // voltou do pagamento: confere até o aviso do Asaas chegar e o plano mudar
+  const esperando = pagamentos?.assinatura?.status === 'pendente';
+  useEffect(() => {
+    if (!esperando) return undefined;
+    const t = setInterval(async () => {
+      await carregar();
+      reloadProfile?.();
+    }, 8000);
+    return () => clearInterval(t);
+  }, [esperando, carregar, reloadProfile]);
 
   return (
     <div className="page">
@@ -54,6 +81,8 @@ export default function Plano() {
         </p>
       </section>
 
+      <MinhaAssinatura dados={pagamentos} onMudou={carregar} />
+
       <UsoExtra plano={atual} />
 
       <div className="lp-planos">
@@ -73,6 +102,10 @@ export default function Plano() {
               </ul>
               {ehAtual ? (
                 <button type="button" className="btn btn-ghost btn-block" disabled>Plano atual</button>
+              ) : pagamentos?.cobranca ? (
+                <button type="button" className={`btn btn-block ${p.destaque ? 'btn-senha' : 'btn-ghost'}`} onClick={() => setAssinar(p.id)}>
+                  <CreditCard /> Assinar {p.nome}
+                </button>
               ) : VENDAS ? (
                 <a className={`btn btn-block ${p.destaque ? 'btn-senha' : 'btn-ghost'}`} href={`${VENDAS}${VENDAS.includes('wa.me') ? `?text=${encodeURIComponent(`Quero assinar o plano ${p.nome} do Helpy`)}` : ''}`} target="_blank" rel="noreferrer">
                   <MessageCircle /> Assinar {p.nome}
@@ -98,6 +131,7 @@ export default function Plano() {
       <p className="faint" style={{ fontSize: 13, marginTop: 16 }}>
         Funcionário além do plano: {reais(PRECO_FUNCIONARIO_EXTRA)}/mês por pessoa.
       </p>
+      {assinar && <AssinarModal plano={assinar} profile={profile} ambiente={pagamentos?.ambiente} onFechar={() => setAssinar(null)} />}
     </div>
   );
 }
