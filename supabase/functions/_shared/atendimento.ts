@@ -11,6 +11,7 @@
 
 import type Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import { buscar, categorias } from './busca.ts';
 import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
 import {
   type AgendaConfig, agendamentosDaConversa, alterarAgendamento, carregarAgenda, descreverAgendamento, hojeNoFuso, horariosLivres, marcar,
@@ -312,7 +313,7 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
         properties: {
           busca: {
             type: 'string',
-            description: 'Nome do item, categoria, marca ou característica (ex.: "memória ddr4", "fonte"). Vazio devolve a tabela inteira quando ela é pequena: use para montar combinações, comparar ou achar o mais barato de cada tipo.',
+            description: 'O que a pessoa procura, do jeito que ela falou (ex.: "memória ram 16", "fonte 650"). Pode mandar sinônimos separados por "|" (ex.: "placa de vídeo | gpu"). Erro de digitação passa. Vazio devolve a tabela inteira quando ela é pequena: use para montar combinações, comparar ou achar o mais barato de cada tipo.',
           },
         },
       },
@@ -324,7 +325,10 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
     tools.push({
       name: 'buscar_catalogo',
       description: `Procura itens em ${cats.map((c) => c.label).join(', ')}. Use sempre que precisar confirmar preço ou detalhe antes de afirmar.`,
-      input_schema: { type: 'object', properties: { termo: { type: 'string' } } },
+      input_schema: {
+        type: 'object',
+        properties: { termo: { type: 'string', description: 'O que procurar, do jeito que a pessoa falou. Sinônimos separados por "|". Vazio lista tudo.' } },
+      },
     });
   }
 
@@ -579,47 +583,55 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     if (!termo && todas.length <= 80) {
       return { tabela: t.nome, encontrados: todas.length, completa: true, itens: todas.map((l) => linha(l, true)) };
     }
-    // busca tolerante: "16gb" acha "16 GB", plural acha singular, e vale a linha que bate mais palavras
-    const junto = (x: string) => x.replace(/(\d)\s+(?=[a-z])/g, '$1');
-    const texto = (l: { dados: Record<string, unknown> }) => junto(semAcento(Object.values(l.dados ?? {}).join(' ')));
-    const palavras = [...new Set(junto(termo).split(/[^a-z0-9.,]+/).filter((w) => w.length >= 2))]
-      .map((w) => (w.length > 4 ? w.replace(/(es|s)$/, '') : w));
-    const pontuadas = todas
-      .map((l) => {
-        const tx = texto(l);
-        return { l, pontos: tx.includes(junto(termo)) ? 100 : palavras.filter((w) => tx.includes(w)).length };
-      })
-      .filter((x) => x.pontos > 0)
-      .sort((a, b) => b.pontos - a.pontos);
-    if (!pontuadas.length) {
+    // busca inteligente (_shared/busca.ts): palavras soltas, erro de digitação, sinônimos com "|"
+    const principais = t.colunas.filter((c, i) => i === 0 || /nome|produto|servi|item|titulo|categoria|tipo|modelo|marca|linha/i.test(`${c.chave} ${c.rotulo}`));
+    const achados = buscar(todas, String(args.busca ?? ''), (l) => ({
+      forte: principais.map((c) => String(l.dados?.[c.chave] ?? '')).join(' '),
+      resto: Object.values(l.dados ?? {}).join(' '),
+    }));
+    if (!achados.length) {
+      // ninguém bateu: tabela pequena vai inteira; grande, mostra o que existe para tentar de novo
+      if (todas.length <= 80) {
+        return {
+          tabela: t.nome, encontrados: 0, completa: true,
+          aviso: `Nada bateu com "${args.busca}". Aqui está a tabela inteira: procure você o que serve.`,
+          itens: todas.map((l) => linha(l, true)),
+        };
+      }
+      const cats = categorias(todas.map((l) => l.dados ?? {}), t.colunas);
       return {
         encontrados: 0,
-        aviso: `Nada em "${t.nome}" corresponde a "${args.busca}". Tente outra palavra (categoria, marca) ou busca vazia para ver tudo. Não invente.`,
+        aviso: `Nada em "${t.nome}" corresponde a "${args.busca}". ${cats ? `O que existe: ${cats.join(', ')}. ` : ''}Tente de novo com outras palavras ou sinônimos (separe com |). Não invente.`,
       };
     }
-    const melhor = pontuadas[0].pontos;
-    const boas = pontuadas.filter((x) => x.pontos >= Math.min(melhor, Math.ceil(palavras.length / 2)));
     return {
       tabela: t.nome,
-      encontrados: boas.length,
-      itens: boas.slice(0, 25).map((x) => linha(x.l)),
-      ...(boas.length > 25 ? { aviso: `Mostrando 25 de ${boas.length}. Refine a busca se precisar.` } : {}),
+      encontrados: achados.length,
+      itens: achados.slice(0, 25).map((x) => linha(x.item)),
+      ...(achados.length > 25 ? { aviso: `Mostrando 25 de ${achados.length}. Refine a busca se precisar.` } : {}),
     };
   }
 
   if (nome === 'buscar_catalogo') {
-    const termo = semAcento(String(args.termo ?? ''));
-    const achados: Record<string, string>[] = [];
-    for (const c of catalogos(assistant.schema, cfg)) {
-      for (const it of cfg.collections[c.key] ?? []) {
-        if (termo && !semAcento(Object.values(it ?? {}).join(' ')).includes(termo)) continue;
+    const termo = String(args.termo ?? '').trim();
+    const todos = catalogos(assistant.schema, cfg).flatMap((c) =>
+      (cfg.collections[c.key] ?? []).map((it) => {
         const linha: Record<string, string> = { lista: c.label };
         for (const f of c.item_fields) if (String(it?.[f.key] ?? '').trim()) linha[f.label] = String(it[f.key]);
-        achados.push(linha);
-        if (achados.length >= 10) break;
-      }
+        return { linha, forte: `${c.label} ${String(it?.[c.item_fields[0]?.key] ?? '')}`, resto: Object.values(it ?? {}).join(' ') };
+      })
+    );
+    if (!termo || todos.length <= 30) {
+      const lista = termo ? buscar(todos, termo, (x) => x) : [];
+      if (lista.length) return { encontrados: lista.length, itens: lista.slice(0, 25).map((x) => x.item.linha) };
+      return todos.length
+        ? { encontrados: termo ? 0 : todos.length, ...(termo ? { aviso: `Nada bateu com "${termo}". Aqui está tudo: procure você o que serve.` } : {}), itens: todos.slice(0, 60).map((x) => x.linha) }
+        : { encontrados: 0, aviso: 'O catálogo está vazio. Não invente.' };
     }
-    return achados.length ? { encontrados: achados.length, itens: achados } : { encontrados: 0, aviso: 'Nada corresponde. Não invente: diga que não encontrou.' };
+    const achados = buscar(todos, termo, (x) => x);
+    return achados.length
+      ? { encontrados: achados.length, itens: achados.slice(0, 25).map((x) => x.item.linha) }
+      : { encontrados: 0, aviso: `Nada corresponde a "${termo}". Tente sinônimos (separe com |) ou busca vazia para ver tudo. Não invente.` };
   }
 
   if (nome === 'registrar_contato') {
