@@ -22,6 +22,10 @@ verify_jwt = true
 [functions.canais]
 verify_jwt = true
 
+[functions.pagamentos]
+# avisos do Asaas chegam sem login (conferidos pelo token)
+verify_jwt = false
+
 # E-mails do login com a cara do Helpy (gerados por supabase/templates/gerar.mjs).
 # No painel: Authentication → Emails → Templates, um por um.
 [auth.email.template.confirmation]
