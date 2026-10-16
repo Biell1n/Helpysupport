@@ -2,7 +2,11 @@
 // Tickets do Discord (bot do próprio Helpy).
 //
 //   /helpy-config     → menu só para quem administra o servidor: canal do
-//                       botão, cargo da equipe e o que falta para funcionar
+//                       botão, cargo da equipe, canal de avisos da equipe e
+//                       o que falta para funcionar. Dá para escolher tudo
+//                       à mão, ler o passo a passo ou pedir "Montar tudo
+//                       pra mim" (o bot cria a categoria, os canais e o
+//                       cargo já com as permissões certas)
 //   Abrir atendimento → botão fixado no canal (ou /atendimento): cria um
 //                       tópico privado só do cliente, da equipe e do bot
 //   no tópico         → o cliente conversa com o assistente; quem é da
@@ -26,10 +30,12 @@ import {
   jaVista,
   pedacos,
   PERM,
+  PERMISSOES_BOT,
   postarNoTopico,
   type Segredo,
   segredoDo,
   urlPermissoesBot,
+  urlPermissoesMontagem,
 } from './canais.ts';
 import { atenderNoCanal } from './canal-atender.ts';
 
@@ -166,6 +172,18 @@ async function conferencia(canal: Canal): Promise<{ ok: boolean; linhas: string[
     }
   }
 
+  if (painel) {
+    try {
+      const p = await permissoesNoCanal(servidor, painel, { cargos: [] });
+      if (!tem(p, PERM.VER_CANAL)) {
+        linhas.push(`⚠️ O @everyone não vê <#${painel}>. Se só um cargo deve abrir atendimento, tudo bem; se não, libere **Ver canal**.`);
+      } else if (!tem(p, PERM.ENVIAR_EM_TOPICOS)) {
+        ok = false;
+        linhas.push(`❌ Os clientes não conseguem escrever no ticket: em <#${painel}>, libere **Enviar mensagens em tópicos** para o @everyone.`);
+      } else linhas.push('✅ Os clientes veem o botão e conseguem escrever no ticket.');
+    } catch { /* já avisado acima */ }
+  }
+
   if (!cargo) {
     linhas.push('➖ Escolha o **cargo da equipe**: ele é chamado quando o cliente pede uma pessoa. Sem cargo, só quem administra o servidor vê os tickets.');
   } else if (painel) {
@@ -176,6 +194,21 @@ async function conferencia(canal: Canal): Promise<{ ok: boolean; linhas: string[
       } else linhas.push(`✅ O cargo <@&${cargo}> vê e responde os tickets.`);
     } catch {
       linhas.push(`⚠️ Não consegui conferir o cargo <@&${cargo}>.`);
+    }
+  }
+
+  const equipe = canal.config.canal_equipe;
+  if (!equipe) {
+    linhas.push('➖ Opcional: um **canal de avisos da equipe** recebe "novo atendimento" e "o cliente pediu uma pessoa", com o link do ticket.');
+  } else {
+    try {
+      const membro = await botHelpy(`/guilds/${servidor}/members/${DISCORD_HELPY.appId}`) as { roles: string[] };
+      const p = await permissoesNoCanal(servidor, equipe, { usuario: DISCORD_HELPY.appId, cargos: membro.roles ?? [] });
+      linhas.push(tem(p, PERM.ENVIAR)
+        ? `✅ Os avisos da equipe chegam em <#${equipe}>.`
+        : `❌ O bot não consegue escrever em <#${equipe}>: libere **Ver canal** e **Enviar mensagens** para ele.`);
+    } catch {
+      linhas.push(`❌ Não consegui conferir <#${equipe}>. Escolha outro.`);
     }
   }
 
@@ -195,6 +228,7 @@ async function menuConfig(canal: Canal, aviso?: string) {
   const { linhas } = await conferencia(canal);
   const painel = canal.config.painel_canal;
   const cargo = canal.config.cargo_equipe;
+  const equipe = canal.config.canal_equipe;
   return {
     content: aviso ?? '',
     allowed_mentions: { parse: [] },
@@ -204,28 +238,222 @@ async function menuConfig(canal: Canal, aviso?: string) {
       description: [
         `Quem atende: **${nome}** (troque em Canais, no painel do Helpy).`,
         '',
-        'Como funciona: o cliente clica em **Abrir atendimento**, o bot cria um tópico privado e o assistente conversa com ele. Quando precisa de uma pessoa, o cargo da equipe é chamado. Tudo aparece em Atendimentos no painel, e quem responde por lá aparece aqui com o próprio nome.',
+        'Como funciona: o cliente clica em **Abrir atendimento**, o bot cria um tópico privado e o assistente conversa com ele. Quando precisa de uma pessoa, a equipe é chamada. Tudo aparece em Atendimentos no painel, e quem responde por lá aparece aqui com o próprio nome.',
+        '',
+        'Escolha os canais e o cargo do seu jeito nos menus abaixo, veja o **passo a passo**, ou clique em **⚡ Montar tudo pra mim** que eu crio tudo pronto.',
         '',
         ...linhas,
       ].join('\n'),
     }],
     components: [
       { type: 1, components: [{
-        type: 8, custom_id: 'cfg:canal', placeholder: 'Canal do atendimento', channel_types: [0],
+        type: 8, custom_id: 'cfg:canal', placeholder: 'Canal do atendimento (onde fica o botão)', channel_types: [0],
         min_values: 1, max_values: 1, ...(painel ? { default_values: [{ id: painel, type: 'channel' }] } : {}),
       }] },
       { type: 1, components: [{
-        type: 6, custom_id: 'cfg:cargo', placeholder: 'Cargo da equipe', min_values: 0, max_values: 1,
+        type: 6, custom_id: 'cfg:cargo', placeholder: 'Cargo da equipe (quem atende)', min_values: 0, max_values: 1,
         ...(cargo ? { default_values: [{ id: cargo, type: 'role' }] } : {}),
       }] },
+      { type: 1, components: [{
+        type: 8, custom_id: 'cfg:equipe', placeholder: 'Canal de avisos da equipe (opcional)', channel_types: [0],
+        min_values: 0, max_values: 1, ...(equipe ? { default_values: [{ id: equipe, type: 'channel' }] } : {}),
+      }] },
       { type: 1, components: [
+        { type: 2, style: 3, custom_id: 'cfg:montar', label: 'Montar tudo pra mim', emoji: { name: '⚡' } },
+        { type: 2, style: 2, custom_id: 'cfg:guia', label: 'Passo a passo', emoji: { name: '📋' } },
         { type: 2, style: 1, custom_id: 'cfg:publicar', label: canal.config.painel_msg ? 'Publicar o botão de novo' : 'Publicar o botão', disabled: !painel },
         { type: 2, style: 2, custom_id: 'cfg:checar', label: 'Conferir de novo' },
+      ] },
+      { type: 1, components: [
         { type: 2, style: 5, url: urlPermissoesBot(canal.externo_id), label: 'Dar permissões ao bot' },
         { type: 2, style: 5, url: `${SITE}/painel/atendimentos`, label: 'Abrir o painel' },
       ] },
     ],
   };
+}
+
+const VOLTAR = { type: 1, components: [{ type: 2, style: 2, custom_id: 'cfg:checar', label: 'Voltar ao menu' }] };
+
+/** O passo a passo para montar à mão (para quem quer do próprio jeito). */
+function passoAPasso() {
+  return {
+    content: '',
+    allowed_mentions: { parse: [] },
+    embeds: [{
+      color: AZUL,
+      title: '📋 Passo a passo para montar à mão',
+      description: [
+        '**1. Cargo da equipe**',
+        'Configurações do servidor → Cargos → **Criar cargo**. Nome sugerido: `Equipe de atendimento`. Dê esse cargo para quem atende.',
+        '',
+        '**2. Categoria (opcional)**',
+        'Clique com o botão direito na lista de canais → **Criar categoria**: `Atendimento`.',
+        '',
+        '**3. Canal do atendimento** — ex.: `#abrir-atendimento`',
+        'Editar canal → Permissões:',
+        '• **@everyone**: Ver canal ✅ · Ver histórico ✅ · Enviar mensagens em tópicos ✅ · Enviar mensagens ❌',
+        '• **Equipe de atendimento**: Ver canal ✅ · Gerenciar tópicos ✅ · Enviar mensagens em tópicos ✅',
+        '• **o bot**: Ver canal · Enviar mensagens · Enviar mensagens em tópicos · Criar tópicos privados · Gerenciar tópicos · Inserir links · Gerenciar webhooks ✅',
+        '',
+        '**4. Canal de avisos da equipe (opcional)** — ex.: `#equipe-atendimento`',
+        '• **@everyone**: Ver canal ❌',
+        '• **Equipe de atendimento** e **o bot**: Ver canal ✅ · Enviar mensagens ✅',
+        'Ali chegam "novo atendimento" e "o cliente pediu uma pessoa", com o link do ticket.',
+        '',
+        '**5. Volte aqui**',
+        'Escolha o canal do atendimento, o cargo e o canal de avisos nos menus e clique em **Publicar o botão**. O menu mostra com ✅ e ❌ se ficou faltando alguma coisa.',
+      ].join('\n'),
+    }],
+    components: [VOLTAR],
+  };
+}
+
+// ------------------------------------------------------------
+// Montar tudo pra mim: categoria, canais e cargo com as permissões certas
+// ------------------------------------------------------------
+async function permissoesDoBotNoServidor(servidor: string) {
+  const [cargos, membro] = await Promise.all([
+    botHelpy(`/guilds/${servidor}/roles`) as Promise<Cargo[]>,
+    botHelpy(`/guilds/${servidor}/members/${DISCORD_HELPY.appId}`) as Promise<{ roles: string[] }>,
+  ]);
+  let p = BigInt(cargos.find((c) => c.id === servidor)?.permissions ?? '0');
+  for (const id of membro.roles ?? []) p |= BigInt(cargos.find((c) => c.id === id)?.permissions ?? '0');
+  return { p: p & PERM.ADMINISTRADOR ? -1n : p, cargos };
+}
+
+/** O que a montagem vai criar (o que já existe e está configurado é aproveitado). */
+async function oQueMontar(canal: Canal) {
+  const servidor = canal.externo_id;
+  const { p, cargos } = await permissoesDoBotNoServidor(servidor);
+  const existe = async (id?: string) => !!id && await botHelpy(`/channels/${id}`).then(() => true).catch(() => false);
+  const cargo = canal.config.cargo_equipe && cargos.some((c) => c.id === canal.config.cargo_equipe) ? canal.config.cargo_equipe : null;
+  const plano = {
+    cargo,
+    painel: (await existe(canal.config.painel_canal)) ? canal.config.painel_canal : null,
+    equipe: (await existe(canal.config.canal_equipe)) ? canal.config.canal_equipe : null,
+  };
+  const faltaCanais = !tem(p, PERM.GERENCIAR_CANAIS) && (!plano.painel || !plano.equipe);
+  const faltaCargos = !tem(p, PERM.GERENCIAR_CARGOS) && !plano.cargo;
+  // as permissões que o bot dá a si mesmo no canal novo ele precisa ter no servidor
+  const base = BigInt(PERMISSOES_BOT);
+  const faltaBase = p !== -1n && (p & base) !== base && (!plano.painel || !plano.equipe);
+  return {
+    ...plano,
+    faltam: [faltaCanais && 'Gerenciar canais', faltaCargos && 'Gerenciar cargos', faltaBase && 'as permissões do atendimento'].filter(Boolean) as string[],
+  };
+}
+
+async function previaDaMontagem(canal: Canal) {
+  const m = await oQueMontar(canal);
+  const itens = [
+    '📁 a categoria **Atendimento**',
+    m.painel ? `💬 vou usar <#${m.painel}> para o botão (já está escolhido)` : '💬 o canal **#abrir-atendimento**: todo mundo vê e abre atendimento por ali, mas não escreve no canal (só dentro do próprio ticket)',
+    m.equipe ? `🔔 vou usar <#${m.equipe}> para os avisos (já está escolhido)` : '🔔 o canal **#equipe-atendimento**: só a equipe vê; chegam os avisos de novo atendimento e quando o cliente pede uma pessoa',
+    m.cargo ? `👥 vou usar o cargo <@&${m.cargo}> (já está escolhido)` : '👥 o cargo **@Equipe de atendimento**: quem tiver esse cargo vê e responde todos os tickets',
+    '📌 e publico o botão **Abrir atendimento**',
+  ];
+  const linhas = [...itens];
+  const botoes: unknown[] = [];
+  if (m.faltam.length) {
+    linhas.push('', `⚠️ Para criar sozinho eu preciso, só agora, de **${m.faltam.join('** e **')}**. Clique em **Dar permissões para montar**, autorize e depois em **Criar agora**. Depois de pronto, se quiser, pode tirar essas permissões do bot.`);
+    botoes.push({ type: 2, style: 5, url: urlPermissoesMontagem(canal.externo_id), label: 'Dar permissões para montar' });
+  }
+  botoes.push({ type: 2, style: 3, custom_id: 'cfg:montar_ok', label: 'Criar agora', emoji: { name: '⚡' } });
+  botoes.push({ type: 2, style: 2, custom_id: 'cfg:checar', label: 'Voltar' });
+  return {
+    content: '',
+    allowed_mentions: { parse: [] },
+    embeds: [{ color: AZUL, title: '⚡ Montar tudo pra mim', description: ['Vou criar:', '', ...linhas].join('\n') }],
+    components: [{ type: 1, components: botoes }],
+  };
+}
+
+const sobre = (id: string, type: 0 | 1, allow: bigint, deny = 0n) => ({ id, type, allow: String(allow), deny: String(deny) });
+
+/** Cria o que falta e deixa tudo configurado. Devolve o aviso para o menu. */
+async function montarTudo(canal: Canal): Promise<string> {
+  const servidor = canal.externo_id;
+  const m = await oQueMontar(canal);
+  if (m.faltam.length) {
+    return `Ainda falta dar ao bot: **${m.faltam.join('** e **')}**. Clique em ⚡ Montar tudo pra mim → Dar permissões para montar, e tente de novo.`;
+  }
+  const bot = DISCORD_HELPY.appId;
+  const motivo = 'Atendimento do Helpy (montado pelo /helpy-config)';
+  const criados: string[] = [];
+
+  let cargo = m.cargo;
+  if (!cargo) {
+    const r = await botHelpy(`/guilds/${servidor}/roles`, {
+      method: 'POST', motivo, body: { name: 'Equipe de atendimento', color: AZUL, mentionable: true, permissions: '0' },
+    }) as { id: string };
+    cargo = r.id;
+    criados.push(`o cargo <@&${cargo}>`);
+  }
+
+  let categoria: string | undefined;
+  if (!m.painel || !m.equipe) {
+    const r = await botHelpy(`/guilds/${servidor}/channels`, { method: 'POST', motivo, body: { name: 'Atendimento', type: 4 } }) as { id: string };
+    categoria = r.id;
+  }
+
+  let painel = m.painel;
+  if (!painel) {
+    const r = await botHelpy(`/guilds/${servidor}/channels`, {
+      method: 'POST', motivo,
+      body: {
+        name: 'abrir-atendimento', type: 0, parent_id: categoria,
+        topic: 'Clique em "Abrir atendimento" para falar com a gente. A conversa é privada.',
+        permission_overwrites: [
+          sobre(servidor, 0, PERM.VER_CANAL | PERM.HISTORICO | PERM.ENVIAR_EM_TOPICOS | PERM.ANEXOS, PERM.ENVIAR),
+          sobre(cargo, 0, PERM.VER_CANAL | PERM.HISTORICO | PERM.ENVIAR_EM_TOPICOS | PERM.GERENCIAR_TOPICOS | PERM.ANEXOS),
+          sobre(bot, 1, PERM.VER_CANAL | PERM.ENVIAR | PERM.ENVIAR_EM_TOPICOS | PERM.TOPICOS_PRIVADOS | PERM.GERENCIAR_TOPICOS |
+            PERM.LINKS | PERM.ANEXOS | PERM.HISTORICO | PERM.WEBHOOKS),
+        ],
+      },
+    }) as { id: string };
+    painel = r.id;
+    criados.push(`<#${painel}>`);
+  }
+
+  let equipe = m.equipe;
+  if (!equipe) {
+    const r = await botHelpy(`/guilds/${servidor}/channels`, {
+      method: 'POST', motivo,
+      body: {
+        name: 'equipe-atendimento', type: 0, parent_id: categoria,
+        topic: 'Avisos do Helpy: novos atendimentos e clientes pedindo uma pessoa.',
+        permission_overwrites: [
+          sobre(servidor, 0, 0n, PERM.VER_CANAL),
+          sobre(cargo, 0, PERM.VER_CANAL | PERM.ENVIAR | PERM.HISTORICO),
+          sobre(bot, 1, PERM.VER_CANAL | PERM.ENVIAR | PERM.LINKS | PERM.HISTORICO),
+        ],
+      },
+    }) as { id: string };
+    equipe = r.id;
+    criados.push(`<#${equipe}>`);
+    await fala(equipe, [
+      `👋 Aqui chegam os avisos do atendimento: cada novo ticket e quando um cliente pede uma pessoa, sempre com o link.`,
+      `Quem tiver o cargo <@&${cargo}> vê e responde todos os tickets. Para dar o cargo: clique no nome da pessoa → **Cargos** → **Equipe de atendimento**.`,
+    ].join('\n'));
+  }
+
+  await salvarConfig(canal, { painel_canal: painel, cargo_equipe: cargo, canal_equipe: equipe, ...(categoria ? { categoria } : {}) });
+  const publicado = await publicarPainel(canal);
+  return [
+    criados.length ? `✅ Pronto! Criei ${criados.join(', ')}${categoria ? ' (na categoria **Atendimento**)' : ''}.` : '✅ Pronto!',
+    publicado.replace(/^Pronto! /, ''),
+    `👉 Agora é só dar o cargo <@&${cargo}> para quem atende.`,
+  ].join('\n');
+}
+
+/** Aviso no canal da equipe (se tiver um). Devolve se mandou. */
+async function avisarEquipe(config: Record<string, string>, texto: string, chamarCargo = false) {
+  const equipe = config.canal_equipe;
+  if (!equipe) return false;
+  const cargo = config.cargo_equipe;
+  const comCargo = chamarCargo && cargo;
+  await fala(equipe, comCargo ? `<@&${cargo}> ${texto}` : texto, comCargo ? { allowed_mentions: { roles: [cargo] } } : {});
+  return true;
 }
 
 /** Publica (ou republica) a mensagem com o botão "Abrir atendimento" e prepara o webhook da equipe. */
@@ -321,6 +549,7 @@ async function abrirTicket(canal: Canal, pessoa: Pessoa, membro: Membro | undefi
       { type: 2, style: 4, custom_id: 't:encerrar', label: 'Encerrar', emoji: { name: '✅' } },
     ] }],
   });
+  await avisarEquipe(canal.config, `🆕 Novo atendimento de **${nome}**: <#${topico.id}>`).catch((e) => console.warn('[ticket] aviso equipe', e?.message));
   return `Pronto! Seu atendimento: <#${topico.id}>`;
 }
 
@@ -357,8 +586,11 @@ export async function chamarEquipeSePreciso(t: Ticket, canal: Canal) {
   const c = await conversaDo(t);
   if (c?.status !== 'waiting' || t.status_avisado === 'waiting') return;
   await admin.from('discord_tickets').update({ status_avisado: 'waiting' }).eq('thread_id', t.thread_id);
+  // com canal de avisos: chama lá, com o link; sem ele, chama dentro do ticket
+  const avisou = await avisarEquipe(canal.config, `🙋 **${t.cliente_nome ?? 'Um cliente'}** precisa de alguém da equipe: <#${t.thread_id}>`, true)
+    .catch(() => false);
   const cargo = canal.config.cargo_equipe;
-  if (cargo) await fala(t.thread_id, `<@&${cargo}>, este atendimento precisa de alguém da equipe.`, { allowed_mentions: { roles: [cargo] } });
+  if (!avisou && cargo) await fala(t.thread_id, `<@&${cargo}>, este atendimento precisa de alguém da equipe.`, { allowed_mentions: { roles: [cargo] } });
 }
 
 /**
@@ -376,12 +608,17 @@ export async function avisarStatus(t: Ticket, c: { status: string; assumido_nome
     await botHelpy(`/channels/${t.thread_id}`, { method: 'PATCH', body: { archived: false, locked: false } }).catch(() => {});
     await fala(t.thread_id, 'Atendimento reaberto.');
   }
+  const { data: dono } = await admin.from('canais').select('config').eq('id', t.canal_id).maybeSingle();
+  const config = (dono?.config ?? {}) as Record<string, string>;
+  const cliente = t.cliente_nome ?? 'cliente';
   if (c.status === 'human') {
     await fala(t.thread_id, `**${c.assumido_nome ?? 'Alguém da equipe'}** entrou no atendimento.`);
+    await avisarEquipe(config, `✋ **${c.assumido_nome ?? 'Alguém da equipe'}** assumiu o atendimento de **${cliente}**: <#${t.thread_id}>`).catch(() => {});
   } else if (c.status === 'bot' && antes && antes !== 'bot' && antes !== 'closed') {
     await fala(t.thread_id, 'O atendimento voltou para o assistente. Pode continuar escrevendo por aqui.');
   } else if (c.status === 'closed') {
     await fala(t.thread_id, 'Atendimento encerrado. Obrigado pelo contato! Se precisar de novo, é só abrir outro atendimento.');
+    await avisarEquipe(config, `✅ Atendimento de **${cliente}** encerrado: <#${t.thread_id}>`).catch(() => {});
     await botHelpy(`/channels/${t.thread_id}`, { method: 'PATCH', body: { archived: true, locked: true }, motivo: 'Atendimento encerrado' }).catch(() => {});
   }
 }
@@ -455,10 +692,23 @@ export function interacaoDoTicket(i: Interacao, canal: Canal): { resposta: unkno
     return {
       resposta: { type: 6 },
       depois: async () => {
+        if (id === 'cfg:guia') return await editarOriginal(i, passoAPasso());
+        if (id === 'cfg:montar') return await editarOriginal(i, await previaDaMontagem(canal));
         let aviso: string | undefined;
         if (id === 'cfg:canal') await salvarConfig(canal, { painel_canal: i.data?.values?.[0] ?? null });
         else if (id === 'cfg:cargo') await salvarConfig(canal, { cargo_equipe: i.data?.values?.[0] ?? null });
+        else if (id === 'cfg:equipe') await salvarConfig(canal, { canal_equipe: i.data?.values?.[0] ?? null });
         else if (id === 'cfg:publicar') aviso = await publicarPainel(canal);
+        else if (id === 'cfg:montar_ok') {
+          try {
+            aviso = await montarTudo(canal);
+          } catch (e) {
+            console.error('[discord] montar', e);
+            aviso = e instanceof ErroDoCanal && e.status === 403
+              ? '❌ O Discord não deixou criar (falta permissão). Clique em ⚡ Montar tudo pra mim → Dar permissões para montar, e tente de novo.'
+              : '❌ Não consegui terminar de montar agora. O que já foi criado ficou; tente de novo em instantes.';
+          }
+        }
         await editarOriginal(i, await menuConfig(canal, aviso));
       },
     };

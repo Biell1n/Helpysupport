@@ -132,9 +132,9 @@ export const GUIAS = {
         titulo: 'Configure os tickets no Discord',
         itens: [
           <>No servidor, digite <b>/helpy-config</b> (só quem administra vê esse comando).</>,
-          <>Escolha o <b>canal do atendimento</b> (onde fica o botão e onde os tickets são criados) e o <b>cargo da equipe</b>.</>,
-          <>O menu mostra com ✅ e ❌ o que está faltando. Se faltar permissão, clique em <b>Dar permissões ao bot</b>.</>,
-          <>Clique em <b>Publicar o botão</b>. Pronto: o cliente clica em <b>Abrir atendimento</b> e conversa com o assistente num tópico privado.</>,
+          <>Jeito mais rápido: clique em <b>⚡ Montar tudo pra mim</b>. O bot cria a categoria <b>Atendimento</b>, o canal <b>#abrir-atendimento</b> (com o botão), o canal <b>#equipe-atendimento</b> (só a equipe vê os avisos) e o cargo <b>Equipe de atendimento</b>, tudo com as permissões certas. Depois é só dar o cargo para quem atende.</>,
+          <>Prefere do seu jeito? Escolha nos menus o canal do atendimento, o cargo da equipe e o canal de avisos, ou abra o <b>📋 Passo a passo</b>, que explica o que criar e quais permissões marcar.</>,
+          <>O menu mostra com ✅ e ❌ o que está faltando. Quando estiver tudo certo, clique em <b>Publicar o botão</b>: o cliente clica em <b>Abrir atendimento</b> e conversa com o assistente num tópico privado.</>,
         ],
       },
     ],
