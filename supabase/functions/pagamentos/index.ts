@@ -7,7 +7,10 @@
 //                       devolve o link da primeira fatura (Pix/cartão/boleto)
 //   cancelar          → cancela a assinatura (vale até o fim do período pago)
 //   loja_conectar     → { chave, ambiente } liga a conta Asaas da empresa
-//   loja_desconectar  → desliga
+//   loja_desconectar  → desliga (a carteira só pausa: a conta continua da empresa)
+//   carteira_ativar   → abre a Carteira Helpy (subconta Asaas no nome da empresa)
+//   carteira          → saldo, a receber, extrato, saques e situação da conta
+//   carteira_sacar    → { valor } saque por Pix para a chave CPF/CNPJ da própria empresa
 //   pedido_cancelar   → { id } cancela um pedido que ainda não foi pago (e o horário que ele guardava)
 //   estornar          → { id } devolve ao cliente um pedido pago (só o dono); cancela o horário ligado
 //
@@ -155,7 +158,7 @@ Deno.serve(async (req) => {
       const [{ data: assinatura }, { data: faturas }, { data: rec }] = await Promise.all([
         admin.from('assinaturas').select('plano, status, valor, proximo_vencimento, atualizada_em').eq('owner_id', conta).maybeSingle(),
         admin.from('faturas').select('id, valor, status, vencimento, pago_em, link, forma, descricao').eq('owner_id', conta).order('criada_em', { ascending: false }).limit(12),
-        admin.from('recebimentos').select('ambiente, conta_nome, ativo').eq('owner_id', conta).maybeSingle(),
+        admin.from('recebimentos').select('ambiente, conta_nome, ativo, modo, situacao').eq('owner_id', conta).maybeSingle(),
       ]);
       return json({
         cobranca: !!Deno.env.get('ASAAS_API_KEY'),
@@ -232,6 +235,8 @@ Deno.serve(async (req) => {
       const chave = String(body.chave ?? '').trim();
       const ambiente = (body.ambiente === 'producao' ? 'producao' : 'sandbox') as Ambiente;
       if (chave.length < 30) throw new UserError('Cole a chave de API completa do Asaas (começa com $aact_).');
+      const { data: ja } = await admin.from('recebimentos').select('modo').eq('owner_id', conta).maybeSingle();
+      if (ja?.modo === 'carteira') throw new UserError('Esta empresa já recebe pela Carteira Helpy.');
       const c = asaas(chave, ambiente);
       const nome = await conferirConta(c);
       const { data: rec, error } = await admin.from('recebimentos')
@@ -250,9 +255,120 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'loja_desconectar') {
+      const { data: rec } = await admin.from('recebimentos').select('modo').eq('owner_id', conta).maybeSingle();
+      if (rec?.modo === 'carteira') {
+        // a conta e o dinheiro são da empresa: só para de gerar links
+        await admin.from('recebimentos').update({ ativo: false }).eq('owner_id', conta);
+        return json({ ok: true });
+      }
       const { error } = await admin.from('recebimentos').delete().eq('owner_id', conta);
       if (error) throw error;
       return json({ ok: true });
+    }
+
+    if (action === 'carteira_religar') {
+      await admin.from('recebimentos').update({ ativo: true }).eq('owner_id', conta).eq('modo', 'carteira');
+      return json({ ok: true });
+    }
+
+    if (action === 'carteira_ativar') {
+      const c = contaHelpy();
+      const { data: ja } = await admin.from('recebimentos').select('modo').eq('owner_id', conta).maybeSingle();
+      if (ja) throw new UserError(ja.modo === 'carteira' ? 'A carteira já está ativa.' : 'Esta empresa já recebe por uma conta Asaas própria. Desligue em Carteira para trocar.');
+      const t = (k: string, max = 120) => String(body[k] ?? '').trim().slice(0, max);
+      const documento = t('documento').replace(/\D/g, '');
+      if (!documentoValido(documento)) throw new UserError('Confira o CPF ou CNPJ: o número não é válido.');
+      const pj = documento.length === 14;
+      const cep = t('cep').replace(/\D/g, '');
+      const celular = t('celular').replace(/\D/g, '');
+      const renda = Number(String(body.renda ?? '').replace(/\./g, '').replace(',', '.'));
+      const faltando = [
+        !t('nome') && 'nome', !/^\S+@\S+\.\S+$/.test(t('email')) && 'e-mail', celular.length < 10 && 'celular',
+        cep.length !== 8 && 'CEP', !t('endereco') && 'endereço', !t('numero', 10) && 'número', !t('bairro') && 'bairro',
+        !(renda > 0) && 'faturamento mensal', !pj && !/^\d{4}-\d{2}-\d{2}$/.test(t('nascimento', 10)) && 'data de nascimento',
+      ].filter(Boolean);
+      if (faltando.length) throw new UserError(`Preencha: ${faltando.join(', ')}.`);
+      const TIPOS = ['MEI', 'LIMITED', 'INDIVIDUAL', 'ASSOCIATION'];
+      const nova = await c.pedir<{ id: string; walletId: string; apiKey: string; name?: string }>('/accounts', {
+        method: 'POST',
+        body: {
+          name: t('nome', 100), email: t('email'), cpfCnpj: documento, mobilePhone: celular,
+          ...(pj ? { companyType: TIPOS.includes(t('tipo_empresa')) ? t('tipo_empresa') : 'MEI' } : { birthDate: t('nascimento', 10) }),
+          address: t('endereco'), addressNumber: t('numero', 10), complement: t('complemento') || undefined,
+          province: t('bairro'), postalCode: cep, incomeValue: renda,
+        },
+      });
+      if (!nova.apiKey) throw new UserError('O Asaas não devolveu a chave da carteira. Tente de novo em instantes.', 502);
+      const token = novoToken();
+      const { error } = await admin.from('recebimentos').insert({
+        owner_id: conta, provedor: 'asaas', ambiente: AMBIENTE, conta_nome: (nova.name || t('nome', 100)).slice(0, 120),
+        modo: 'carteira', asaas_conta_id: nova.id, wallet_id: nova.walletId, documento, situacao: 'documentos',
+        webhook_token: token, ativo: true,
+      });
+      if (error) throw error;
+      const { error: eSeg } = await admin.rpc('helpy_recebimento_guardar_segredo', { p_conta: conta, p_valor: nova.apiKey });
+      if (eSeg) throw eSeg;
+      await garantirWebhook(asaas(nova.apiKey, AMBIENTE), `${FUNCAO()}?asaas=loja&conta=${conta}`, token, user.email ?? t('email'))
+        .catch((e) => console.error('[carteira] aviso', e));
+      return json({ ok: true });
+    }
+
+    if (action === 'carteira') {
+      const { data: rec } = await admin.from('recebimentos').select('modo, ambiente, conta_nome, ativo, situacao, documento').eq('owner_id', conta).maybeSingle();
+      if (!rec) return json({ recebimento: null });
+      const { data: chave } = await admin.rpc('helpy_recebimento_segredo', { p_conta: conta });
+      if (!chave) return json({ recebimento: { ...rec, documento: undefined }, erro: 'A conta perdeu a ligação. Fale com o suporte.' });
+      const c = asaas(String(chave), rec.ambiente as Ambiente);
+      const carteira = rec.modo === 'carteira';
+      const [saldo, extrato, confirmados, status, docs, { data: saques }] = await Promise.all([
+        c.pedir<{ balance?: number }>('/finance/balance').catch(() => null),
+        c.pedir<{ data?: Record<string, unknown>[] }>('/financialTransactions?limit=30&order=desc').catch(() => null),
+        c.pedir<{ data?: { netValue?: number; value?: number }[] }>('/payments?status=CONFIRMED&limit=100').catch(() => null),
+        carteira ? c.pedir<{ general?: string; documentation?: string }>('/myAccount/status').catch(() => null) : Promise.resolve(null),
+        carteira ? c.pedir<{ data?: { status?: string; title?: string; onboardingUrl?: string }[] }>('/myAccount/documents').catch(() => null) : Promise.resolve(null),
+        dono ? admin.from('saques').select('id, valor, destino, status, criado_em').eq('owner_id', conta).order('criado_em', { ascending: false }).limit(20) : Promise.resolve({ data: [] }),
+      ]);
+      let situacao = rec.situacao;
+      if (status?.general) {
+        situacao = status.general === 'APPROVED' ? 'aprovada' : status.general === 'REJECTED' ? 'recusada' : (docs?.data ?? []).some((d) => d.status !== 'APPROVED' && d.onboardingUrl) ? 'documentos' : 'analise';
+        if (situacao !== rec.situacao) await admin.from('recebimentos').update({ situacao }).eq('owner_id', conta);
+      }
+      const pendentes = (docs?.data ?? []).filter((d) => d.status !== 'APPROVED');
+      return json({
+        recebimento: { modo: rec.modo, ambiente: rec.ambiente, conta_nome: rec.conta_nome, ativo: rec.ativo, situacao },
+        saldo: saldo?.balance ?? null,
+        a_receber: (confirmados?.data ?? []).reduce((s, p) => s + Number(p.netValue ?? p.value ?? 0), 0),
+        extrato: (extrato?.data ?? []).map((x) => ({ id: x.id, valor: x.value, saldo: x.balance, tipo: x.type, data: x.date, descricao: x.description })),
+        documentos: pendentes.map((d) => ({ titulo: d.title, status: d.status, link: d.onboardingUrl ?? null })),
+        destino_saque: carteira && rec.documento ? `${rec.documento.length === 14 ? 'CNPJ' : 'CPF'} ${rec.documento.replace(/^(\d{3})\d+(\d{2})$/, '$1•••••$2')}` : null,
+        saques: saques ?? [],
+      });
+    }
+
+    if (action === 'carteira_sacar') {
+      const { data: rec } = await admin.from('recebimentos').select('modo, ambiente, documento, situacao').eq('owner_id', conta).maybeSingle();
+      if (rec?.modo !== 'carteira' || !rec.documento) throw new UserError('O saque pelo Helpy é da Carteira Helpy. Na sua conta Asaas, saque pelo site do Asaas.');
+      if (rec.ambiente === 'producao' && !(user.factors ?? []).some((f) => f.status === 'verified')) {
+        throw new UserError('Para sacar, ative a verificação em duas etapas em Conta. É o que protege o seu dinheiro.', 403);
+      }
+      const valor = Math.round(Number(body.valor) * 100) / 100;
+      if (!(valor >= 1)) throw new UserError('Digite um valor a partir de R$ 1,00.');
+      const c = await contaDaLoja(admin, conta) ?? asaas(String((await admin.rpc('helpy_recebimento_segredo', { p_conta: conta })).data ?? ''), rec.ambiente as Ambiente);
+      const saldo = await c.pedir<{ balance?: number }>('/finance/balance');
+      if (valor > Number(saldo.balance ?? 0)) throw new UserError('O valor é maior que o saldo disponível.');
+      const destino = `${rec.documento.length === 14 ? 'CNPJ' : 'CPF'} ${rec.documento.replace(/^(\d{3})\d+(\d{2})$/, '$1•••••$2')}`;
+      // sempre para a chave Pix do próprio CPF/CNPJ da carteira: o dinheiro só sai para o dono
+      const tr = await c.pedir<{ id: string; status?: string }>('/transfers', {
+        method: 'POST',
+        body: { value: valor, operationType: 'PIX', pixAddressKey: rec.documento, pixAddressKeyType: rec.documento.length === 14 ? 'CNPJ' : 'CPF', description: 'Saque da Carteira Helpy' },
+      });
+      await admin.from('saques').insert({ owner_id: conta, valor, destino, status: String(tr.status ?? 'pedido').toLowerCase(), asaas_id: tr.id, pedido_por: user.id });
+      await admin.from('alertas').insert({
+        owner_id: conta, origem: 'sistema', chave: `saque:${tr.id}`,
+        assunto: `Saque de ${valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} pedido`,
+        detalhe: `Para a chave Pix ${destino}. Se não foi você, troque a senha e fale com o suporte.`,
+      });
+      return json({ ok: true, destino });
     }
 
     if (action === 'estornar') {
