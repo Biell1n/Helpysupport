@@ -6,7 +6,7 @@ import Documento, { EscolherModelo } from './Documento';
 import { Marca } from '@/components/Logo';
 import { Confirmar } from '@/components/Modal';
 import { useToast } from '@/components/Toasts';
-import LatticeLoader from '@/components/LatticeLoader';
+import BolinhasPensando from '@/components/BolinhasPensando';
 import { labelOf } from '@/lib/documento';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -113,7 +113,7 @@ function Conversa() {
         {b.sending && (
           <div className="msg msg-bot">
             <span className="msg-who">Helpy</span>
-            <div className="msg-body pensando"><LatticeLoader label="Pensando" color="var(--senha)" fontSize={13} /></div>
+            <div className="msg-body pensando"><BolinhasPensando /></div>
           </div>
         )}
         <div ref={fim} />

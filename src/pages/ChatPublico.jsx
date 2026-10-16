@@ -4,7 +4,7 @@ import { ArrowUp, CalendarCheck, CalendarClock, CalendarX, CircleCheckBig, LogIn
 import PeekRating from '@/components/PeekRating';
 import Sugestoes from '@/components/Sugestoes';
 import { useToast } from '@/components/Toasts';
-import LatticeLoader from '@/components/LatticeLoader';
+import BolinhasPensando from '@/components/BolinhasPensando';
 import { chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolverDesafio } from '@/lib/prova';
@@ -298,7 +298,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         {pensando && !humano && (
           <div className="msg msg-bot">
             <span className="msg-who">{nome}</span>
-            <div className="msg-body pensando"><LatticeLoader label="Pensando" color="var(--senha)" fontSize={13} /></div>
+            <div className="msg-body pensando"><BolinhasPensando /></div>
           </div>
         )}
 
