@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, Users } from 'lucide-react';
+import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, Users, Wallet } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { VerificarCodigo } from '@/components/DuasEtapas';
@@ -17,6 +17,7 @@ const NAV = [
   { to: '/painel/atendimentos', label: 'Atendimentos', icon: Ticket, contador: 'tickets_abertos', tipos: ['empresa', 'funcionario'] },
   { to: '/painel/canais', label: 'Canais', icon: Radio, tipos: ['empresa'] },
   { to: '/painel/pedidos', label: 'Pedidos', icon: ShoppingBag, tipos: ['empresa', 'funcionario'] },
+  { to: '/painel/carteira', label: 'Carteira', icon: Wallet, tipos: ['empresa'] },
   { to: '/painel/dados', label: 'Dados', icon: Table2, tipos: ['empresa'] },
   { to: '/painel/agenda', label: 'Agenda', icon: CalendarDays, tipos: ['empresa', 'funcionario'] },
   { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart3, tipos: ['empresa'] },
