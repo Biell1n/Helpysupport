@@ -1122,7 +1122,13 @@ const ehPlanilha = (a: Anexo) => a.tipo === 'text/csv' || /\.(xlsx|csv|tsv)$/i.t
  * assistente. O construtor recebe só o resumo e uma amostra, não as linhas.
  */
 async function planilhaParaTabela(ctx: Ctx, a: Anexo): Promise<string | null> {
-  const abas = lerAbas(textoDoAnexo(a));
+  const todasAbas = lerAbas(textoDoAnexo(a));
+  if (!todasAbas.length) return null;
+  // aba de instruções, testes ou exemplos não é dado para o atendimento: vira só contexto
+  const ehNota = (nome: string | null) => !!nome && /leia|readme|instru|teste|exemplo|sobre|ajuda|como usar|legenda/i.test(nome);
+  const notas = todasAbas.filter((x) => ehNota(x.nome));
+  const abas = todasAbas.filter((x) => !ehNota(x.nome));
+  const contexto = notas.map((x) => `Aba "${x.nome}" (não virou tabela; é instrução/teste da planilha):\n${[x.cabecalho, ...x.linhas.slice(0, 30)].map((l) => l.join(' | ')).join('\n')}`).join('\n\n');
   if (!abas.length) return null;
   const { count } = await admin.from('tabelas').select('id', { count: 'exact', head: true }).eq('owner_id', ctx.userId);
   const cabem = Math.max(0, ctx.maxTabelas - (count ?? 0));
@@ -1158,6 +1164,7 @@ async function planilhaParaTabela(ctx: Ctx, a: Anexo): Promise<string | null> {
     `A planilha "${a.nome}" já virou ${partes.length === 1 ? 'uma tabela' : `${partes.length} tabelas`} em Dados, ligada${partes.length === 1 ? '' : 's'} a este assistente. Ele consulta sozinho ao atender: não copie as linhas para o documento.`,
     ...partes,
     sobrou ? `(${sobrou} aba(s) ficaram de fora: o plano não comporta mais tabelas. Avise a pessoa.)` : '',
+    contexto,
   ].filter(Boolean).join('\n\n');
 }
 

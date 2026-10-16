@@ -104,6 +104,7 @@ function missao(model: string, negocio: string, foraDaLoja = false) {
 - Sempre propõe o próximo passo concreto.
 - Não pressiona, não inventa urgência, não promete o que a ficha não garante, não empurra o mais caro: empurra o certo.
 - Entende do que vende: use o que você sabe do assunto (compatibilidade, especificação, para que serve cada coisa, o que combina com o quê) para recomendar com segurança.
+- Orçamento é para respeitar. Antes de dizer que não cabe, veja TODAS as opções (consulte a tabela inteira, procure o mais barato de cada tipo e alternativas que resolvem do mesmo jeito). Entregue primeiro a melhor opção dentro do orçamento, ou a mais próxima dizendo quanto passa, e diga com franqueza o que ela faz bem e o que não faz. Depois, se valer a pena, uma opção acima, mostrando o ganho.
 - Faltou o que a pessoa pediu? Nunca pare no "não temos" e nunca peça desculpas pelo catálogo. Com entusiasmo, monte a melhor opção com o que a loja TEM, diga por que é uma boa escolha e explique o que completa, com a especificação certa (ex.: "para fechar, o ideal é 16 GB DDR4 3200 e uma fonte de 550 W"). ${foraDaLoja
     ? 'Pode dizer o que procurar fora da loja para completar, sem citar preço de fora, que você não tem.'
     : 'Para o que falta, pergunte se a pessoa quer que a equipe veja como conseguir (ou deixe o contato). Não mande a pessoa comprar em outra loja.'}`;
@@ -308,7 +309,12 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
       description: `Consulta a tabela "${t.nome}"${t.proposito ? ` — ${t.proposito}` : ''}. Colunas: ${t.colunas.map((c) => c.rotulo).join(', ')}. Use sempre antes de afirmar preço, disponibilidade ou detalhe desta lista: o dado aqui é o atual.`,
       input_schema: {
         type: 'object',
-        properties: { busca: { type: 'string', description: 'Nome do item, categoria ou parte do nome. Vazio devolve os primeiros.' } },
+        properties: {
+          busca: {
+            type: 'string',
+            description: 'Nome do item, categoria, marca ou característica (ex.: "memória ddr4", "fonte"). Vazio devolve a tabela inteira quando ela é pequena: use para montar combinações, comparar ou achar o mais barato de cada tipo.',
+          },
+        },
       },
     });
   }
@@ -558,28 +564,46 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       t.sincronizada_em = new Date().toISOString();
     }
     const termo = semAcento(String(args.busca ?? '').trim());
-    const { data } = await db.from('tabela_linhas').select('dados').eq('tabela_id', t.id).limit(termo ? 500 : 12);
+    const { data } = await db.from('tabela_linhas').select('dados').eq('tabela_id', t.id).order('criada_em').limit(2000);
     const todas = data ?? [];
-    const texto = (l: { dados: Record<string, unknown> }) => semAcento(Object.values(l.dados ?? {}).join(' '));
-    let achou = termo ? todas.filter((l) => texto(l).includes(termo)) : todas;
-    if (termo && !achou.length) {
-      const palavras = termo.split(/\s+/).filter((w) => w.length >= 3);
-      achou = palavras.length ? todas.filter((l) => palavras.every((w) => texto(l).includes(w))) : [];
+    if (!todas.length) return { encontrados: 0, aviso: `A tabela "${t.nome}" está vazia.` };
+    const linha = (l: { dados: Record<string, unknown> }, curto = false) => {
+      const o: Record<string, string> = {};
+      for (const c of t.colunas) {
+        const v = String(l.dados?.[c.chave] ?? '').trim();
+        if (v) o[c.rotulo] = curto ? v.slice(0, 90) : v;
+      }
+      return o;
+    };
+    // tabela pequena e pedido amplo: devolve tudo, para montar combinações e comparar
+    if (!termo && todas.length <= 80) {
+      return { tabela: t.nome, encontrados: todas.length, completa: true, itens: todas.map((l) => linha(l, true)) };
     }
-    if (!achou.length) {
-      return { encontrados: 0, aviso: termo ? `Nada em "${t.nome}" corresponde a "${args.busca}". Não invente.` : `A tabela "${t.nome}" está vazia.` };
+    // busca tolerante: "16gb" acha "16 GB", plural acha singular, e vale a linha que bate mais palavras
+    const junto = (x: string) => x.replace(/(\d)\s+(?=[a-z])/g, '$1');
+    const texto = (l: { dados: Record<string, unknown> }) => junto(semAcento(Object.values(l.dados ?? {}).join(' ')));
+    const palavras = [...new Set(junto(termo).split(/[^a-z0-9.,]+/).filter((w) => w.length >= 2))]
+      .map((w) => (w.length > 4 ? w.replace(/(es|s)$/, '') : w));
+    const pontuadas = todas
+      .map((l) => {
+        const tx = texto(l);
+        return { l, pontos: tx.includes(junto(termo)) ? 100 : palavras.filter((w) => tx.includes(w)).length };
+      })
+      .filter((x) => x.pontos > 0)
+      .sort((a, b) => b.pontos - a.pontos);
+    if (!pontuadas.length) {
+      return {
+        encontrados: 0,
+        aviso: `Nada em "${t.nome}" corresponde a "${args.busca}". Tente outra palavra (categoria, marca) ou busca vazia para ver tudo. Não invente.`,
+      };
     }
+    const melhor = pontuadas[0].pontos;
+    const boas = pontuadas.filter((x) => x.pontos >= Math.min(melhor, Math.ceil(palavras.length / 2)));
     return {
       tabela: t.nome,
-      encontrados: achou.length,
-      itens: achou.slice(0, 12).map((l) => {
-        const o: Record<string, string> = {};
-        for (const c of t.colunas) {
-          const v = String(l.dados?.[c.chave] ?? '').trim();
-          if (v) o[c.rotulo] = v;
-        }
-        return o;
-      }),
+      encontrados: boas.length,
+      itens: boas.slice(0, 25).map((x) => linha(x.l)),
+      ...(boas.length > 25 ? { aviso: `Mostrando 25 de ${boas.length}. Refine a busca se precisar.` } : {}),
     };
   }
 
