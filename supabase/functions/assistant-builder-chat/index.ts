@@ -28,6 +28,7 @@ import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, profileOf, requireUser } from '../_shared/db.ts';
 import { addUsage, anthropic, emptyUsage, logUsage, MODELS, textOf } from '../_shared/ai.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
+import { colunasDe, lerAbas, registrosDe } from '../_shared/planilha.ts';
 import {
   allCollections, allFields, buildSchema, type CollectionDef, computeState, type Config,
   EMPTY_CONFIG, type FieldDef, hardenCollection, limpo, type Material, type MensagemBuilder, type Meta, missingCritical,
@@ -486,6 +487,11 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'lista_em_tabela',
+    description: 'Uma planilha anexada já virou tabela em Dados e corresponde a uma lista do documento (ex.: produtos). Marca que essa lista mora na tabela, para não pedir os itens de novo.',
+    input_schema: { type: 'object', properties: { lista: { type: 'string' }, tabela: { type: 'string' } }, required: ['lista'] },
+  },
+  {
     name: 'configurar_agenda',
     description:
       'Grava a agenda do negócio: dias e horários de atendimento, duração padrão, antecedência mínima e os serviços que dá para marcar (com duração e valor). Use quando a pessoa disser os horários ou os serviços. Mande só o que ela disse; o resto fica como está. Também liga a agenda.',
@@ -784,6 +790,15 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
       return { ok: true, tabela: tab.nome, itens_levados: itens.length, mensagem: 'Diga que a tabela está em Dados e que ela pode atualizar lá quando quiser.' };
     }
 
+    case 'lista_em_tabela': {
+      const c = cols.get(String(input.lista));
+      if (!c) return { erro: 'lista inexistente' };
+      if (!cfg.declined.collections.includes(c.key)) cfg.declined.collections.push(c.key);
+      s.meta.tabela_oferecida = true;
+      touched.add(c.key);
+      return { ok: true, mensagem: `A lista "${c.label}" fica na tabela${input.tabela ? ` "${String(input.tabela).slice(0, 80)}"` : ''}, em Dados.` };
+    }
+
     case 'recusar_tabela':
       s.meta.tabela_recusada = true;
       return { ok: true };
@@ -883,7 +898,7 @@ DESFAZER
 "Volta como estava", "desfaz", "apaguei sem querer", "não era isso" → ferramenta desfazer. Depois diga em uma frase o que voltou. Se ela quiser um dado específico de volta e você lembrar dele pela conversa, também pode simplesmente gravar de novo.
 
 ARQUIVOS ANEXADOS
-Quando vier um PDF, imagem ou planilha, leia tudo e grave o que servir para o documento: campos, itens das listas, perguntas frequentes, regras. Catálogo em planilha: grave os itens em lotes de até 20 por chamada, até acabar; se passar de uns 40 itens, grave e depois ofereça levar a lista para uma tabela (mover_para_tabela). O texto completo do arquivo fica guardado sozinho como material de apoio, e o assistente consulta ao atender — não copie o arquivo inteiro para os campos.
+Quando vier um PDF, imagem ou planilha, leia tudo e grave o que servir para o documento: campos, itens das listas, perguntas frequentes, regras. PDF e imagem chegam já transcritos em texto. Planilha anexada vira sozinha uma tabela em Dados (o aviso diz qual): não copie as linhas para o documento; use a amostra para entender o negócio e, se ela for uma lista do documento (produtos, serviços…), chame lista_em_tabela. Diga em uma frase que a tabela foi criada e que ela atualiza em Dados quando quiser. O texto completo do arquivo fica guardado sozinho como material de apoio, e o assistente consulta ao atender — não copie o arquivo inteiro para os campos.
 Diga em uma frase o que encontrou ("li a prova: 10 questões de adição e subtração para o 2º ano") e siga com o que ainda falta.
 Se for prova, lista de exercícios ou atividade de aluno: o modelo é educacional, grave em regras que ele nunca entrega a resposta das questões (ele guia com perguntas e exemplos parecidos), e grave a série e o conteúdo.
 
@@ -1002,15 +1017,20 @@ function textoDoAnexo(a: Anexo) {
   return new TextDecoder().decode(Uint8Array.from(atob(a.dados), (c) => c.charCodeAt(0)));
 }
 
-/** Transcreve o arquivo em texto para o assistente consultar depois. */
-async function virarMaterial(a: Anexo, usage: ReturnType<typeof emptyUsage>): Promise<Material> {
+/**
+ * Transcreve o arquivo em texto: vira material de consulta do assistente e é
+ * o que o construtor lê (texto custa bem menos que o PDF/imagem em cada
+ * rodada). `completo` é falso se a transcrição foi cortada pelo tamanho.
+ */
+async function virarMaterial(a: Anexo, usage: ReturnType<typeof emptyUsage>): Promise<Material & { completo: boolean }> {
   let texto = '';
+  let completo = true;
   if (a.tipo.startsWith('text/')) {
     texto = textoDoAnexo(a);
   } else {
     const res = await anthropic.messages.create({
       model: MODELS.atendimento,
-      max_tokens: 8000,
+      max_tokens: 16000,
       output_config: { effort: 'low' }, // transcrever não pede raciocínio
       messages: [{
         role: 'user',
@@ -1029,14 +1049,62 @@ async function virarMaterial(a: Anexo, usage: ReturnType<typeof emptyUsage>): Pr
     });
     addUsage(usage, res.usage);
     texto = textOf(res.content as Array<{ type: string; text?: string }>);
+    completo = res.stop_reason !== 'max_tokens';
   }
   return {
+    completo,
     id: crypto.randomUUID().slice(0, 8),
     nome: a.nome.slice(0, 120),
     tipo: a.tipo,
     texto: texto.trim().slice(0, MAX_MATERIAL),
     em: new Date().toISOString(),
   };
+}
+
+const ehPlanilha = (a: Anexo) => a.tipo === 'text/csv' || /\.(xlsx|csv|tsv)$/i.test(a.nome);
+
+/**
+ * Planilha anexada vira tabela em Dados (uma por aba com dados), ligada ao
+ * assistente. O construtor recebe só o resumo e uma amostra, não as linhas.
+ */
+async function planilhaParaTabela(ctx: Ctx, a: Anexo): Promise<string | null> {
+  const abas = lerAbas(textoDoAnexo(a));
+  if (!abas.length) return null;
+  const { count } = await admin.from('tabelas').select('id', { count: 'exact', head: true }).eq('owner_id', ctx.userId);
+  const cabem = Math.max(0, ctx.maxTabelas - (count ?? 0));
+  if (!cabem) return null;
+  const base = a.nome.replace(/\.(xlsx|csv|tsv|txt)$/i, '').replace(/[_]+/g, ' ').trim().slice(0, 60) || 'Planilha';
+  const partes: string[] = [];
+  for (const aba of abas.slice(0, cabem)) {
+    const nome = (abas.length > 1 && aba.nome ? `${base} – ${aba.nome}` : base).slice(0, 80);
+    const { data: tab, error } = await admin.from('tabelas')
+      .insert({ owner_id: ctx.userId, nome, proposito: `Dados de "${a.nome}", consultados pelo assistente ao responder` })
+      .select('id, nome').single();
+    if (error || !tab) continue;
+    const colunas = colunasDe(aba.cabecalho, aba.linhas);
+    const { error: eCol } = await admin.from('tabela_colunas').insert(colunas.map((c, i) => ({ ...c, tabela_id: tab.id, identifica: i === 0 })));
+    if (eCol) {
+      await admin.from('tabelas').delete().eq('id', tab.id);
+      continue;
+    }
+    const registros = registrosDe(colunas, aba.linhas);
+    for (let i = 0; i < registros.length; i += 500) {
+      await admin.from('tabela_linhas').insert(registros.slice(i, i + 500).map((dados) => ({ tabela_id: tab.id, dados })));
+    }
+    ctx.s.meta.tabelas_criadas = [...(ctx.s.meta.tabelas_criadas ?? []), tab.id];
+    if (ctx.s.assistant_id) await admin.from('assistente_tabelas').upsert({ assistant_id: ctx.s.assistant_id, tabela_id: tab.id });
+    const amostra = registros.slice(0, 12)
+      .map((r) => colunas.filter((c) => r[c.chave]).map((c) => `${c.rotulo}: ${r[c.chave].slice(0, 80)}`).join(' | '))
+      .join('\n');
+    partes.push(`Tabela "${tab.nome}" (${registros.length} linhas). Colunas: ${colunas.map((c) => `${c.rotulo} (${c.tipo})`).join(', ')}.\nPrimeiras linhas:\n${amostra}`);
+  }
+  if (!partes.length) return null;
+  const sobrou = abas.length - Math.min(abas.length, cabem);
+  return [
+    `A planilha "${a.nome}" já virou ${partes.length === 1 ? 'uma tabela' : `${partes.length} tabelas`} em Dados, ligada${partes.length === 1 ? '' : 's'} a este assistente. Ele consulta sozinho ao atender: não copie as linhas para o documento.`,
+    ...partes,
+    sobrou ? `(${sobrou} aba(s) ficaram de fora: o plano não comporta mais tabelas. Avise a pessoa.)` : '',
+  ].filter(Boolean).join('\n\n');
 }
 
 function validarAnexos(bruto: unknown): Anexo[] {
@@ -1062,11 +1130,29 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
   s.meta.turno += 1;
   let goal = nextGoal(s);
 
-  // a transcrição dos arquivos roda junto com a conversa
-  const materiaisPromessa = Promise.all(anexos.map((a) => virarMaterial(a, usageMateriais).catch((e) => {
-    console.error('[material]', a.nome, e?.message ?? e);
-    return null;
-  })));
+  // Antes da conversa, cada arquivo vira o que o construtor lê:
+  //  - planilha → tabela em Dados (ele recebe só o resumo e uma amostra)
+  //  - PDF e imagem → texto transcrito pelo modelo barato (o mesmo texto
+  //    fica como material de consulta); se a transcrição sair cortada, vai
+  //    o arquivo original, para não perder nada
+  //  - texto → como está
+  const preparados = await Promise.all(anexos.map(async (a) => {
+    try {
+      if (ehPlanilha(a)) {
+        const resumo = await planilhaParaTabela(ctx, a);
+        if (resumo) return { bloco: { type: 'text', text: resumo } as Anthropic.Beta.BetaContentBlockParam, material: null };
+      }
+      const m = await virarMaterial(a, usageMateriais);
+      const { completo, ...material } = m;
+      const bloco: Anthropic.Beta.BetaContentBlockParam = !a.tipo.startsWith('text/') && completo && m.texto.trim()
+        ? { type: 'text', text: `Conteúdo do arquivo "${a.nome}" (transcrito):\n${m.texto}` }
+        : blocoDoAnexo(a);
+      return { bloco, material: material as Material };
+    } catch (e) {
+      console.error('[anexo]', a.nome, (e as Error)?.message ?? e);
+      return { bloco: blocoDoAnexo(a), material: null };
+    }
+  }));
 
   const history: Anthropic.Beta.BetaMessageParam[] = s.messages.slice(-30).map((m) => ({
     role: m.role,
@@ -1075,9 +1161,10 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
   history.push({
     role: 'user',
     content: [
-      ...anexos.map(blocoDoAnexo),
+      ...preparados.map((p) => p.bloco),
       { type: 'text', text: userText },
-      { type: 'text', text: goalNote(s, goal) },
+      // ponto de cache: nas rodadas seguintes desta resposta, tudo até aqui sai por 10%
+      { type: 'text', text: goalNote(s, goal), cache_control: { type: 'ephemeral' } },
     ],
   });
 
@@ -1171,7 +1258,7 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
   marcarPergunta(s, goal);
   if (!reply) reply = 'Recebi e já gravei o que deu no documento. Quer que eu continue de onde parei?';
 
-  const novos = (await materiaisPromessa).filter((m): m is Material => !!m && !!m.texto);
+  const novos = preparados.map((p) => p.material).filter((m): m is Material => !!m && !!m.texto);
   if (novos.length) s.meta.materiais = [...(s.meta.materiais ?? []), ...novos].slice(-MAX_MATERIAIS);
 
   s.messages = [
