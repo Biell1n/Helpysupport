@@ -18,7 +18,7 @@
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, requireUser } from '../_shared/db.ts';
 import { PLANS, type PlanId } from '../_shared/plans.ts';
-import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, FORMA, garantirWebhook, hojeBr, pago } from '../_shared/asaas.ts';
+import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, FORMA, garantirWebhook, hojeBr, novoToken, pago, tokenAceito } from '../_shared/asaas.ts';
 import { contaDaLoja, pagamentoDaLoja } from '../_shared/pedidos.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
@@ -177,6 +177,7 @@ Deno.serve(async (req) => {
 
       const webhookOk = await admin.from('helpy_servicos').select('nome').eq('nome', `asaas-webhook-${AMBIENTE}`).maybeSingle();
       if (!webhookOk.data) {
+        if (!tokenAceito(Deno.env.get('ASAAS_WEBHOOK_TOKEN') ?? '')) throw new UserError('A cobrança dos planos está sendo configurada. Tente de novo em instantes.', 503);
         await garantirWebhook(c, `${FUNCAO()}?asaas=helpy`, Deno.env.get('ASAAS_WEBHOOK_TOKEN') ?? '', user.email ?? 'contato@helpysupport.com');
         await admin.from('helpy_servicos').upsert({ nome: `asaas-webhook-${AMBIENTE}`, visto_em: new Date().toISOString() });
       }
@@ -236,9 +237,14 @@ Deno.serve(async (req) => {
         .upsert({ owner_id: conta, provedor: 'asaas', ambiente, conta_nome: nome, ativo: true })
         .select('webhook_token').single();
       if (error) throw error;
+      let token = rec.webhook_token as string;
+      if (!tokenAceito(token)) {
+        token = novoToken();
+        await admin.from('recebimentos').update({ webhook_token: token }).eq('owner_id', conta);
+      }
       const { error: eSeg } = await admin.rpc('helpy_recebimento_guardar_segredo', { p_conta: conta, p_valor: chave });
       if (eSeg) throw eSeg;
-      await garantirWebhook(c, `${FUNCAO()}?asaas=loja&conta=${conta}`, rec.webhook_token, user.email ?? 'contato@helpysupport.com');
+      await garantirWebhook(c, `${FUNCAO()}?asaas=loja&conta=${conta}`, token, user.email ?? 'contato@helpysupport.com');
       return json({ ok: true, recebimento: { ambiente, conta_nome: nome, ativo: true } });
     }
 

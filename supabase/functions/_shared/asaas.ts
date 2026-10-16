@@ -56,6 +56,16 @@ export async function conferirConta(c: ClienteAsaas): Promise<string> {
   return String(info?.tradingName || info?.companyName || info?.name || 'Conta Asaas').slice(0, 120);
 }
 
+/** O Asaas recusa token de aviso com 5 caracteres iguais seguidos. */
+export const tokenAceito = (t: string) => t.length >= 32 && !/(.)\1{4}/.test(t);
+
+export function novoToken(): string {
+  for (;;) {
+    const t = Array.from(crypto.getRandomValues(new Uint8Array(24)), (b) => b.toString(16).padStart(2, '0')).join('');
+    if (tokenAceito(t)) return t;
+  }
+}
+
 const EVENTOS = ['PAYMENT_CREATED', 'PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED', 'PAYMENT_OVERDUE', 'PAYMENT_DELETED', 'PAYMENT_REFUNDED'];
 
 /**
