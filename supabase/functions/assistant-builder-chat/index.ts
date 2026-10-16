@@ -201,7 +201,15 @@ async function planInfo(ownerId: string) {
 // volta. Só desiste depois de TENTATIVAS_MAX.
 // ------------------------------------------------------------
 
-type Goal = { key: string | null; text: string };
+type Goal = { key: string | null; text: string; extras?: { key: string; text: string }[] };
+
+/** Até quantos assuntos curtos vão juntos numa resposta. */
+const MAX_POR_VEZ = 3;
+/** Assuntos que pedem resposta pensada: vão sempre sozinhos. */
+const PENSADOS = new Set([
+  'descricao_negocio', 'tom_de_voz', 'regras', 'quando_chamar_humano', 'nunca_chamar_humano',
+  'saudacao', 'metodo_ensino', 'assuntos_cobertos', 'codigo_chamado',
+]);
 
 function nextGoal(s: Session): Goal {
   const { meta, schema, config } = s;
@@ -238,8 +246,29 @@ function nextGoal(s: Session): Goal {
     return { key: 'negocio', text: 'Descobrir o que o negócio faz e o que oferece, para escolher o modelo de negócio com definir_negocio.' };
   }
 
+  // Assunto curto (campo de resposta rápida, não lista nem texto longo) pode
+  // ir junto com outros curtos, de preferência da mesma seção. Se a pessoa
+  // vem respondendo só um dos agrupados, volta a ser uma pergunta por vez.
+  const curto = (k: string) => {
+    const f = F(k);
+    if (!f || C(k) || PENSADOS.has(k)) return false;
+    // depende de outra resposta que ainda não veio (ex.: horário da equipe só se houver chamados)
+    return !f.depende || !!valueOf(config, f.depende.campo);
+  };
+  const secaoDe = (k: string) => schema.sections.find((sec) => sec.fields.some((f) => f.key === k))?.key;
+  const agrupar = (k: string, base: Goal): Goal => {
+    if (!curto(k) || (meta.grupos_ignorados ?? 0) >= 2) return base;
+    const candidatos = [...state.missing.critical, ...state.missing.important, ...state.missing.optional]
+      .filter((x, i, arr) => x !== k && arr.indexOf(x) === i && curto(x))
+      .filter((x) => (asks[x] ?? 0) < TENTATIVAS_MAX && meta.turno - (turnos[x] ?? -99) >= DESCANSO_TURNOS);
+    const sec = secaoDe(k);
+    candidatos.sort((a, b) => Number(secaoDe(b) === sec) - Number(secaoDe(a) === sec));
+    const extras = candidatos.slice(0, MAX_POR_VEZ - 1).map((x) => ({ key: x, text: desc(x) }));
+    return extras.length ? { ...base, extras } : base;
+  };
+
   const kCrit = escolher(state.missing.critical, true);
-  if (kCrit) return { key: kCrit, text: `${desc(kCrit)}. É obrigatório.${insist(kCrit)}` };
+  if (kCrit) return agrupar(kCrit, { key: kCrit, text: `${desc(kCrit)}. É obrigatório.${insist(kCrit)}` });
 
   // itens com dado faltando — em lote quando são muitos iguais
   const porLista = new Map<string, typeof state.incomplete>();
@@ -282,10 +311,10 @@ function nextGoal(s: Session): Goal {
   }
 
   const kImp = escolher(state.missing.important);
-  if (kImp) return { key: kImp, text: `${desc(kImp)}.${insist(kImp)}` };
+  if (kImp) return agrupar(kImp, { key: kImp, text: `${desc(kImp)}.${insist(kImp)}` });
 
   const kOpt = escolher(state.missing.optional);
-  if (kOpt) return { key: kOpt, text: `${desc(kOpt)}. É opcional: se a pessoa não quiser, tudo bem, mas puxe o assunto.` };
+  if (kOpt) return agrupar(kOpt, { key: kOpt, text: `${desc(kOpt)}. É opcional: se a pessoa não quiser, tudo bem, mas puxe o assunto.` });
 
   const kRet = escolher([...state.missing.important, ...state.missing.optional], true);
   if (kRet) {
@@ -306,9 +335,25 @@ function nextGoal(s: Session): Goal {
 function marcarPergunta(s: Session, goal: Goal) {
   if (!goal.key) return;
   if (goal.key === 'revisao') s.meta.review_done = true;
-  s.meta.ask_counts[goal.key] = (s.meta.ask_counts[goal.key] ?? 0) + 1;
-  s.meta.ask_turnos[goal.key] = s.meta.turno;
+  for (const k of [goal.key, ...(goal.extras ?? []).map((e) => e.key)]) {
+    s.meta.ask_counts[k] = (s.meta.ask_counts[k] ?? 0) + 1;
+    s.meta.ask_turnos[k] = s.meta.turno;
+  }
   s.meta.last_goal = goal.key;
+  s.meta.ultimo_grupo = goal.extras?.length ? [goal.key, ...goal.extras.map((e) => e.key)] : [];
+}
+
+/**
+ * Antes de escolher o próximo assunto: a pessoa respondeu os assuntos que
+ * foram juntos na última pergunta? Se duas vezes seguidas ela só respondeu
+ * um (ou nenhum), o construtor volta a perguntar uma coisa por vez.
+ */
+function conferirGrupo(s: Session) {
+  const grupo = s.meta.ultimo_grupo ?? [];
+  if (grupo.length < 2) return;
+  const respondidos = grupo.filter((k) => valueOf(s.config, k) || s.config.fields[k]?.status === 'ignorado').length;
+  s.meta.grupos_ignorados = respondidos >= 2 ? 0 : (s.meta.grupos_ignorados ?? 0) + 1;
+  s.meta.ultimo_grupo = [];
 }
 
 // ------------------------------------------------------------
@@ -931,7 +976,7 @@ A pessoa pode pedir um comportamento que não existe como campo ("não deixa mar
 Depois de mudar, diga em poucas palavras o que ficou ("pronto, chamados desligados — ele resolve tudo sozinho").
 
 VOCÊ É UMA PESSOA, NÃO UM FORMULÁRIO
-Consultor experiente, português do Brasil, informal. Varia o tamanho da resposta. Faz UMA pergunta por vez, concreta — nunca "mais alguma coisa?".
+Consultor experiente, português do Brasil, informal. Varia o tamanho da resposta. Pergunta concreta — nunca "mais alguma coisa?". Em geral uma pergunta por vez; quando a nota interna trouxer assuntos curtos agrupados, junte-os (no máximo 3) numa mensagem só, numerados e curtos, para a pessoa responder tudo de uma vez.
 
 REAJA ANTES DE PERGUNTAR. Toda resposta começa reconhecendo o que a pessoa acabou de dizer, mostrando que você leu:
 - ela mandou uma lista longa → "boa, são 38 produtos"
@@ -950,6 +995,7 @@ ENTENDA A INTENÇÃO
 - Recusou, de qualquer jeito ("não", "negativo", "deixa pra lá", "não se aplica", "n") → dispensar, na hora, e nunca mais toque no assunto.
 - Não entendeu e devolveu pergunta → explique com um exemplo concreto e pergunte de novo.
 - Mudou de assunto → siga com ela; o assunto anterior volta depois.
+- Respondeu só parte das perguntas agrupadas → grave o que veio; o que faltou volta depois, sem repetir o que ela já respondeu.
 
 CAMPOS QUE SE CONFUNDEM
 - tom_de_voz = o jeito de falar, inclusive listas de comportamento ("simpático, nunca pressionar").
@@ -957,7 +1003,7 @@ CAMPOS QUE SE CONFUNDEM
 - assuntos_cobertos = lista de temas. Não é FAQ.
 - faq = pares pergunta/resposta concretos. Se ela citou a pergunta sem a resposta, salve só a pergunta e peça a resposta.
 - horario = quando existe gente para assumir um chamado. O assistente funciona 24h.
-- contatos = os contatos da pessoa para encaminhar casos. Não são canais do assistente.
+- contatos = contatos que o assistente PASSA AO CLIENTE quando ele precisa falar direto com a empresa fora do chat. Não é para onde o Helpy avisa a equipe (chamados chegam em Atendimentos, no painel) nem canal do assistente. Pergunte assim: "se um cliente precisar falar direto com vocês, qual contato o assistente pode passar?"
 - Pagamento, entrega, garantia, endereço ficam em "Como funciona". Se não houver campo, crie.
 
 NUNCA PREENCHA COM ENFEITE
@@ -996,8 +1042,16 @@ function docState(s: Session): string {
 
 function goalNote(s: Session, goal: Goal) {
   const faltam = missingCritical(s.schema, s.config);
-  return `[nota interna — a pessoa não vê]
-${faltam.length ? `Ainda falta (obrigatório): ${faltam.join(', ')}.` : 'Nada obrigatório faltando: já dá para publicar.'}
+  const topo = `[nota interna — a pessoa não vê]
+${faltam.length ? `Ainda falta (obrigatório): ${faltam.join(', ')}.` : 'Nada obrigatório faltando: já dá para publicar.'}`;
+  if (goal.extras?.length) {
+    const todos = [goal.text, ...goal.extras.map((e) => e.text)];
+    return `${topo}
+PRÓXIMOS ASSUNTOS (curtos, vão juntos):
+${todos.map((t, i) => `${i + 1}) ${t}`).join('\n')}
+Primeiro grave o que a mensagem trouxer. Depois pergunte esses ${todos.length} assuntos numa mensagem só, com as SUAS palavras: perguntas curtas e numeradas, e diga que dá para responder tudo junto, do jeito da pessoa. Se algum já ficou respondido pelo que ela acabou de dizer, pule.`;
+  }
+  return `${topo}
 PRÓXIMO ASSUNTO: ${goal.text}
 Primeiro grave o que a mensagem trouxer. Depois puxe o próximo assunto com as SUAS palavras, uma pergunta só.`;
 }
@@ -1255,6 +1309,7 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
     }
   }
 
+  conferirGrupo(s); // com o que esta mensagem gravou: ela respondeu o grupo anterior?
   marcarPergunta(s, goal);
   if (!reply) reply = 'Recebi e já gravei o que deu no documento. Quer que eu continue de onde parei?';
 

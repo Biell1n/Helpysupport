@@ -18,7 +18,7 @@ export function ToastProvider({ children }) {
         {itens.map((t) => (
           <div key={t.id} className={`toast${t.erro ? ' toast-erro' : ''}`}>
             <b>{t.titulo}</b>
-            {t.texto}
+            {t.texto && <span>{t.texto}</span>}
           </div>
         ))}
       </div>

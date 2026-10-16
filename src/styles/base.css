@@ -654,9 +654,9 @@ button, input, select, textarea {
 }
 
 .toast {
-  background: #232836;
-  color: var(--tinta);
-  border: 1px solid var(--linha-forte);
+  background: var(--tinta);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 12px 16px;
   border-radius: var(--r);
   box-shadow: var(--sombra-alta);
@@ -672,6 +672,15 @@ button, input, select, textarea {
 .toast b {
   display: block;
   margin-bottom: 2px;
+}
+
+/* o texto de apoio, um pouco mais apagado que o título */
+.toast span {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.toast-erro span {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 @keyframes subir {

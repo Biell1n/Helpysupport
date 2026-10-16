@@ -112,6 +112,10 @@ export interface Meta {
   briefing?: string;
   /** a conversa de montagem, para retomar ao editar */
   conversa?: MensagemBuilder[];
+  /** assuntos curtos perguntados juntos na última resposta */
+  ultimo_grupo?: string[];
+  /** quantas vezes seguidas a pessoa respondeu só um (ou nenhum) dos assuntos agrupados */
+  grupos_ignorados?: number;
 }
 
 export const EMPTY_CONFIG: Config = {
@@ -223,10 +227,10 @@ const CORE_TAIL: Section[] = [
     collections: [
       {
         key: 'contatos',
-        label: 'Para onde encaminhar',
+        label: 'Contatos para passar ao cliente',
         importance: 'important',
         min: 1,
-        note: 'Seus contatos, para ele repassar quando precisar de uma pessoa. Se preferir que tudo vire chamado aqui no Helpy, pode dispensar.',
+        note: 'Se um cliente precisar falar direto com vocês fora do chat, o assistente passa estes contatos. Os avisos de chamado não vão para cá: eles chegam em Atendimentos, no painel. Se preferir que tudo fique no Helpy, pode dispensar.',
         item_fields: [
           { key: 'tipo', label: 'Canal', type: 'select', options: ['WhatsApp', 'Telefone', 'E-mail', 'Instagram', 'Site', 'Outro'], required: true },
           { key: 'valor', label: 'Número, endereço ou perfil', type: 'text', required: true },
