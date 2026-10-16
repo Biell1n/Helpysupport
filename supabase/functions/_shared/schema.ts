@@ -303,6 +303,11 @@ const OPERACAO: Record<string, FieldDef[]> = {
     { key: 'formas_pagamento', label: 'Formas de pagamento', type: 'textarea', importance: 'important', hint: 'Pix, cartão, parcelamento, boleto, dinheiro' },
     { key: 'garantia_trocas', label: 'Garantia e trocas', type: 'textarea', importance: 'important', hint: 'Prazo de garantia, política de troca e devolução' },
     { key: 'promocoes', label: 'Promoções e condições', type: 'textarea', importance: 'optional', hint: 'Desconto na primeira compra, cupom, frete grátis acima de tanto' },
+    {
+      key: 'fora_do_catalogo', label: 'Quando pedirem algo que vocês não têm', type: 'select', importance: 'optional',
+      options: ['Oferecer o que temos e chamar a equipe para o resto', 'Também dizer o que procurar fora da loja'],
+      hint: 'O assistente sempre monta a melhor opção com o que vocês têm. Aqui você decide se ele pode indicar o que procurar em outro lugar.',
+    },
   ],
   produto: [
     { key: 'entrega', label: 'Entrega e frete', type: 'textarea', importance: 'important', hint: 'Prazo, valor do frete, retirada no local, para onde entrega' },
