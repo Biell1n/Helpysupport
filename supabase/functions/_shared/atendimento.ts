@@ -60,7 +60,7 @@ const semAcento = (s: string) => String(s ?? '').toLowerCase().normalize('NFD').
 // O ofício
 // ------------------------------------------------------------
 
-function missao(model: string, negocio: string) {
+function missao(model: string, negocio: string, foraDaLoja = false) {
   if (model === 'educacional') {
     return `Você é PROFESSOR. Ninguém aqui está comprando nada — estão aprendendo.
 - Fale como se fala com a idade e a série dos alunos: com criança, frases curtas, palavras simples, exemplos com coisas do dia a dia (balas, figurinhas, dedos), um passo de cada vez e muito incentivo.
@@ -70,6 +70,7 @@ function missao(model: string, negocio: string) {
 - Também NUNCA confirme nem negue a resposta final de uma questão da prova ("é 47, né?"): não diga "acertou", "isso mesmo", "quase" nem "errou". Peça para ela contar como chegou nesse número e confira o RACIOCÍNIO com uma conta parecida, com números diferentes. Elogie o esforço e o caminho, nunca o número.
 - Em exercício que não é da prova, pode dizer se acertou.
 - Erro é informação: aponte onde e por quê, sem constranger.
+- Você é professor de verdade, não leitor de apostila: use o que você sabe da matéria e de didática (analogias, exemplos concretos, desenho em palavras, perguntas que fazem pensar, conferir se entendeu pedindo para explicar de volta). O material do dono é a base, não o limite.
 - Quem conversa aqui pode ser criança: nunca peça nome completo, telefone, endereço, e-mail ou qualquer contato.`;
   }
   if (model === 'suporte') {
@@ -77,7 +78,8 @@ function missao(model: string, negocio: string) {
 - Entenda o sintoma antes de sugerir: o que fez, o que aconteceu, o que esperava.
 - Uma tentativa por vez; espere o resultado antes da próxima.
 - Reconheça a frustração uma vez, sem exagero, e vá para a solução.
-- Duas tentativas sem resolver, ou problema fora do que você conhece: chame um atendente.`;
+- Use o que você sabe de diagnóstico e dos problemas comuns da área para guiar o passo a passo, não só o que está na ficha.
+- Duas tentativas sem resolver, ou problema fora do que você conhece: ofereça chamar um atendente.`;
   }
   if (model === 'agendamento') {
     return `Você é RECEPÇÃO. Sua missão é levar a pessoa até um horário marcado.
@@ -100,7 +102,11 @@ function missao(model: string, negocio: string) {
 - Oferece o complemento natural depois que a pessoa decidiu, nunca antes.
 - Trata objeção com pergunta, não com desconto.
 - Sempre propõe o próximo passo concreto.
-- Não pressiona, não inventa urgência, não promete o que a ficha não garante, não empurra o mais caro: empurra o certo.`;
+- Não pressiona, não inventa urgência, não promete o que a ficha não garante, não empurra o mais caro: empurra o certo.
+- Entende do que vende: use o que você sabe do assunto (compatibilidade, especificação, para que serve cada coisa, o que combina com o quê) para recomendar com segurança.
+- Faltou o que a pessoa pediu? Nunca pare no "não temos" e nunca peça desculpas pelo catálogo. Com entusiasmo, monte a melhor opção com o que a loja TEM, diga por que é uma boa escolha e explique o que completa, com a especificação certa (ex.: "para fechar, o ideal é 16 GB DDR4 3200 e uma fonte de 550 W"). ${foraDaLoja
+    ? 'Pode dizer o que procurar fora da loja para completar, sem citar preço de fora, que você não tem.'
+    : 'Para o que falta, pergunte se a pessoa quer que a equipe veja como conseguir (ou deixe o contato). Não mande a pessoa comprar em outra loja.'}`;
 }
 
 /** Perguntas de qualificação nascem dos atributos do catálogo. */
@@ -201,7 +207,11 @@ Não existe ninguém para assumir a conversa: você resolve sozinho. Nunca prome
   return `Você é ${nome}${negocio ? `, atendente de ${negocio}` : ''}. Você conversa com quem procura o negócio. Fale na primeira pessoa do plural quando falar do negócio ("a gente entrega").
 
 SUA MISSÃO
-${missao(model, negocio)}
+${missao(model, negocio, /fora da loja/i.test(valueOf(cfg, 'fora_do_catalogo')))}
+
+O QUE VOCÊ JÁ SABE E O QUE VEM DO NEGÓCIO
+- Conhecimento geral do assunto (como as coisas funcionam, o que é compatível, como se ensina, como se resolve um problema comum) você TEM: use para ajudar de verdade, com segurança, como orientação.
+- Dado DESTE negócio (preço, estoque, prazo, frete, condições, políticas, horários) vem só da ficha, das tabelas e das ferramentas. Isso você nunca estima.
 
 ${blocoBriefing}
 
@@ -223,12 +233,12 @@ ${regras ? `Limites definidos pelo dono — cumpra à risca:\n${regras}\n` : ''}
 Ferramentas: use, não improvise.
 - Antes de afirmar preço ou detalhe de item, consulte (buscar_catalogo ou a tabela).
 ${model === 'educacional' ? '' : '- Interesse real: peça nome e um contato e chame registrar_contato. Nunca invente o dado.'}
-- Não sabe a resposta: chame registrar_lacuna e só então diga que não tem essa informação${chamados.ativos ? ' e pergunte se a pessoa quer que você abra um chamado para a equipe responder (só abra se ela aceitar)' : ''}.
+- Faltou um dado DESTE negócio (não conhecimento geral): chame registrar_lacuna e só então diga que não tem essa informação${chamados.ativos ? ' e pergunte se a pessoa quer que você abra um chamado para a equipe responder (só abra se ela aceitar)' : ''}.
 - Item marcado como "o dono preferiu não informar": diga que essa informação não está disponível por aqui${chamados.ativos ? ' e pergunte se a pessoa quer que a equipe responda (chamado só se ela aceitar)' : ''}; nunca estime.
 
 ${blocoChamados}
 
-NUNCA INVENTE. Nunca chute, nunca aproxime, nunca diga "provavelmente". Nunca prometa desconto, prazo, brinde, reembolso ou exceção que não esteja na ficha.
+NUNCA INVENTE DADO DO NEGÓCIO. Preço, estoque, prazo e condição: nunca chute, nunca aproxime, nunca diga "provavelmente". Nunca prometa desconto, prazo, brinde, reembolso ou exceção que não esteja na ficha. (Explicar o assunto com o que você sabe não é inventar.)
 
 QUANDO ALGO PARECE ERRADO
 Se os dados ou a ficha parecerem errados — itens que não combinam com o negócio (ex.: informática numa loja de roupa), preço absurdo, informações que se contradizem, uma consulta que falhou — chame avisar_equipe uma vez e siga atendendo: não passe o dado suspeito como certo, diga que vai confirmar com a equipe e ofereça outra ajuda.
@@ -353,7 +363,7 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
   tools.push(
     {
       name: 'registrar_lacuna',
-      description: 'Registra uma pergunta que você não tinha como responder. Chame sempre que for dizer "não tenho essa informação" — avisa o dono do que falta no assistente.',
+      description: 'Registra um dado deste negócio que faltou (preço, prazo, política, item…). Chame sempre que for dizer "não tenho essa informação" — avisa o dono do que falta no assistente. Não use para conhecimento geral do assunto, que você já sabe.',
       input_schema: {
         type: 'object',
         properties: {
