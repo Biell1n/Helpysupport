@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Settings2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
-import { Drawer, Modal } from '@/components/Modal';
+import { Confirmar, Drawer, Modal } from '@/components/Modal';
 
 const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const CURTO = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -151,6 +151,16 @@ function NovoAgendamento({ inicial, duracao, onSalvar, onFechar }) {
   );
 }
 
+const SITUACAO = {
+  aguardando_pagamento: 'Guardado — esperando o pagamento',
+  pendente: 'Pendente — aguardando sua confirmação',
+  confirmado: 'Confirmado',
+  cancelado: 'Cancelado',
+  concluido: 'Concluído',
+  faltou: 'Faltou',
+};
+const reaisBr = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 export default function Agenda() {
   const { user, contaId, tipo } = useAuth();
   const avisar = useToast();
@@ -168,13 +178,14 @@ export default function Agenda() {
       supabase.from('agenda_config').select('*').maybeSingle(),
       supabase
         .from('agendamentos')
-        .select('*')
+        .select('*, pedido:pedidos!agendamentos_pedido_id_fkey(id, status, total, forma)')
         .gte('inicio', semana.toISOString())
         .lt('inicio', somaDias(semana, 7).toISOString())
         .order('inicio'),
     ]);
     setCfg(c ?? { ...PADRAO, owner_id: contaId });
-    setEventos(ev ?? []);
+    // reserva que venceu sem pagamento: o horário já está livre de novo
+    setEventos((ev ?? []).filter((e) => e.status !== 'aguardando_pagamento' || new Date(e.reserva_ate) > new Date()));
   }, [semana, contaId]);
 
   useEffect(() => {
@@ -225,10 +236,39 @@ export default function Agenda() {
   };
 
   const mudarStatus = async (status) => {
-    const { error } = await supabase.from('agendamentos').update({ status }).eq('id', aberto.id);
-    if (error) return avisar('Não deu para atualizar', { erro: true, texto: error.message });
+    const ped = aberto.pedido;
+    // cancelar horário pago: pergunta se devolve o dinheiro
+    if (status === 'cancelado' && ped?.status === 'pago') return setDevolver(aberto);
+    if (status === 'cancelado' && ped?.status === 'aguardando') {
+      try {
+        await chamar('pagamentos', { action: 'pedido_cancelar', id: ped.id });
+      } catch (e) {
+        return avisar('Não deu para cancelar', { erro: true, texto: e.message });
+      }
+    } else {
+      const { error } = await supabase.from('agendamentos').update({ status }).eq('id', aberto.id);
+      if (error) return avisar('Não deu para atualizar', { erro: true, texto: error.message });
+    }
     setAberto(null);
     carregar();
+  };
+
+  const [devolver, setDevolver] = useState(null);
+  const cancelarPago = async (comDevolucao) => {
+    const ev = devolver;
+    setDevolver(null);
+    try {
+      if (comDevolucao) await chamar('pagamentos', { action: 'estornar', id: ev.pedido.id });
+      else {
+        const { error } = await supabase.from('agendamentos').update({ status: 'cancelado' }).eq('id', ev.id);
+        if (error) throw error;
+      }
+      avisar(comDevolucao ? 'Horário cancelado e valor devolvido' : 'Horário cancelado');
+      setAberto(null);
+      carregar();
+    } catch (e) {
+      avisar('Não deu para cancelar', { erro: true, texto: e.message });
+    }
   };
 
   const fechado = (d, h) => {
@@ -308,7 +348,7 @@ export default function Agenda() {
                     style={{ top, height: altura }}
                     onClick={() => setAberto(e)}
                   >
-                    <b>{e.status === 'pendente' ? '⏳ ' : ''}{e.cliente_nome}</b>
+                    <b>{e.status === 'pendente' ? '⏳ ' : e.status === 'aguardando_pagamento' ? '💳 ' : ''}{e.cliente_nome}</b>
                     <span className="cal-ev-sub">
                       {ini.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       {e.servico ? ` · ${e.servico}` : ''}
@@ -331,7 +371,9 @@ export default function Agenda() {
           titulo={aberto.cliente_nome}
           sub={new Date(aberto.inicio).toLocaleString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
           rodape={
-            aberto.status === 'pendente' ? (
+            aberto.status === 'aguardando_pagamento' ? (
+              <button type="button" className="btn btn-danger" style={{ marginRight: 'auto' }} onClick={() => mudarStatus('cancelado')}>Liberar o horário</button>
+            ) : aberto.status === 'pendente' ? (
               <>
                 <button type="button" className="btn btn-danger" style={{ marginRight: 'auto' }} onClick={() => mudarStatus('cancelado')}>Recusar</button>
                 <button type="button" className="btn btn-primary" onClick={() => mudarStatus('confirmado')}>Confirmar horário</button>
@@ -348,13 +390,37 @@ export default function Agenda() {
           <dl className="stack stack-sm" style={{ margin: 0 }}>
             <div><dt className="eyebrow">Serviço</dt><dd style={{ margin: 0 }}>{aberto.servico || '—'}</dd></div>
             <div><dt className="eyebrow">Contato</dt><dd style={{ margin: 0 }}>{aberto.cliente_contato || '—'}</dd></div>
-            <div><dt className="eyebrow">Situação</dt><dd style={{ margin: 0 }}>{aberto.status === 'pendente' ? 'Pendente — aguardando sua confirmação' : aberto.status}</dd></div>
+            <div><dt className="eyebrow">Situação</dt><dd style={{ margin: 0 }}>{SITUACAO[aberto.status] ?? aberto.status}</dd></div>
+            {aberto.pedido && (
+              <div>
+                <dt className="eyebrow">Pagamento</dt>
+                <dd style={{ margin: 0 }}>
+                  {aberto.pedido.status === 'pago'
+                    ? `Pago · ${reaisBr(aberto.pedido.total)}${aberto.pedido.forma ? ` · ${aberto.pedido.forma}` : ''}`
+                    : aberto.pedido.status === 'aguardando'
+                      ? `Aguardando ${reaisBr(aberto.pedido.total)} · guardado até ${new Date(aberto.reserva_ate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                      : aberto.pedido.status === 'estornado' ? `Devolvido · ${reaisBr(aberto.pedido.total)}` : 'Cancelado'}
+                </dd>
+              </div>
+            )}
             {aberto.valor != null && <div><dt className="eyebrow">Valor</dt><dd style={{ margin: 0 }}>{Number(aberto.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</dd></div>}
             <div><dt className="eyebrow">Marcado por</dt><dd style={{ margin: 0 }}>{aberto.origem === 'assistente' ? 'Atendente virtual' : 'Você'}</dd></div>
             {aberto.observacao && <div><dt className="eyebrow">Observação</dt><dd style={{ margin: 0 }}>{aberto.observacao}</dd></div>}
           </dl>
         </Drawer>
       )}
+
+      <Confirmar
+        aberto={!!devolver}
+        titulo="Este horário já foi pago"
+        texto={devolver ? `O cliente pagou ${reaisBr(devolver.pedido.total)}. Devolver o valor pelo Asaas ao cancelar? Se combinou outra coisa com ele, cancele sem devolver.` : ''}
+        acao="Cancelar e devolver"
+        perigo
+        onFechar={() => setDevolver(null)}
+        onConfirmar={() => cancelarPago(true)}
+        voltar="Voltar"
+        secundaria={{ rotulo: 'Cancelar sem devolver', onClick: () => cancelarPago(false) }}
+      />
     </div>
   );
 }

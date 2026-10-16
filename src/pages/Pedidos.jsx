@@ -12,6 +12,7 @@ const STATUS = {
   aguardando: ['Aguardando pagamento', 'badge-waiting'],
   pago: ['Pago', 'badge-closed'],
   cancelado: ['Cancelado', 'badge-bot'],
+  estornado: ['Devolvido', 'badge-bot'],
 };
 const FILTROS = [
   { id: 'todos', rotulo: 'Todos' },
@@ -27,11 +28,12 @@ export default function Pedidos() {
   const [pedidos, setPedidos] = useState(null);
   const [filtro, setFiltro] = useState('todos');
   const [cancelando, setCancelando] = useState(null);
+  const [devolvendo, setDevolvendo] = useState(null);
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
       .from('pedidos')
-      .select('id, numero, itens, total, status, cliente_nome, link_url, forma, pago_em, criado_em, conversation_id')
+      .select('id, numero, tipo, itens, total, status, cliente_nome, link_url, forma, pago_em, criado_em, conversation_id')
       .order('criado_em', { ascending: false })
       .limit(200);
     if (error) avisar('Não deu para carregar os pedidos', { erro: true, texto: error.message });
@@ -75,6 +77,18 @@ export default function Pedidos() {
       carregar();
     } catch (e) {
       avisar('Não deu para cancelar', { erro: true, texto: e.message });
+    }
+  };
+
+  const devolver = async () => {
+    const p = devolvendo;
+    setDevolvendo(null);
+    try {
+      await chamar('pagamentos', { action: 'estornar', id: p.id });
+      avisar(`Pedido #${p.numero} devolvido`, { texto: 'O valor volta para o cliente pela mesma forma de pagamento.' });
+      carregar();
+    } catch (e) {
+      avisar('Não deu para devolver', { erro: true, texto: e.message });
     }
   };
 
@@ -124,6 +138,7 @@ export default function Pedidos() {
                   <div className="pedido-topo">
                     <b>#{p.numero}</b>
                     <span>{p.cliente_nome || 'Cliente'}</span>
+                    {p.tipo === 'agendamento' && <span className="badge badge-plain">Horário</span>}
                     <span className="faint">{quando(p.criado_em)}</span>
                     <span className={`badge ${classe}`} style={{ marginLeft: 'auto' }}>{rotulo}</span>
                   </div>
@@ -148,6 +163,9 @@ export default function Pedidos() {
                       {p.status === 'aguardando' && tipo === 'empresa' && (
                         <button type="button" className="btn btn-quiet btn-sm" onClick={() => setCancelando(p)}>Cancelar</button>
                       )}
+                      {p.status === 'pago' && tipo === 'empresa' && (
+                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => setDevolvendo(p)}>Devolver</button>
+                      )}
                     </div>
                   </div>
                 </li>
@@ -160,11 +178,21 @@ export default function Pedidos() {
       <Confirmar
         aberto={!!cancelando}
         titulo={`Cancelar o pedido #${cancelando?.numero ?? ''}?`}
-        texto="O link de pagamento para de funcionar. O cliente não é avisado automaticamente."
+        texto="O link de pagamento para de funcionar (e o horário guardado, se for um, é liberado). O cliente não é avisado automaticamente."
         acao="Cancelar pedido"
         perigo
         onFechar={() => setCancelando(null)}
         onConfirmar={cancelar}
+      />
+      <Confirmar
+        aberto={!!devolvendo}
+        titulo={`Devolver o pedido #${devolvendo?.numero ?? ''}?`}
+        texto={devolvendo ? `${Number(devolvendo.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} voltam para o cliente pelo Asaas, na mesma forma de pagamento.${devolvendo.tipo === 'agendamento' ? ' O horário é cancelado.' : ' O estoque não volta sozinho: ajuste em Dados se precisar.'}` : ''}
+        acao="Devolver"
+        voltar="Voltar"
+        perigo
+        onFechar={() => setDevolvendo(null)}
+        onConfirmar={devolver}
       />
     </div>
   );

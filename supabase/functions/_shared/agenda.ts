@@ -55,12 +55,18 @@ export async function carregarAgenda(db: SupabaseClient, ownerId: string): Promi
   return data?.ativa ? (data as AgendaConfig) : null;
 }
 
+/** Minutos que um horário fica guardado esperando o pagamento. */
+export const RESERVA_MIN = 120;
+
+/** Filtro dos horários de pé: confirmados, pendentes e os guardados que ainda não venceram. */
+const DE_PE = () => `status.in.(confirmado,pendente),and(status.eq.aguardando_pagamento,reserva_ate.gt.${new Date().toISOString()})`;
+
 async function ocupados(db: SupabaseClient, ownerId: string, de: Date, ate: Date, ignorarId?: string) {
   const { data } = await db
     .from('agendamentos')
     .select('id, inicio, fim')
     .eq('owner_id', ownerId)
-    .in('status', ['confirmado', 'pendente'])
+    .or(DE_PE())
     .lt('inicio', ate.toISOString())
     .gt('fim', de.toISOString());
   return (data ?? [])
@@ -83,7 +89,7 @@ export async function agendamentosDaConversa(db: SupabaseClient, conversationId:
     .from('agendamentos')
     .select('id, inicio, fim, servico, observacao, status')
     .eq('conversation_id', conversationId)
-    .in('status', ['confirmado', 'pendente'])
+    .or(DE_PE())
     .gte('fim', new Date().toISOString())
     .order('inicio');
   return (data ?? []) as AgendamentoDaConversa[];
@@ -139,6 +145,8 @@ export async function marcar(
     dia: string; hora: string; nome: string; contato?: string; servico?: string; observacao?: string;
     duracao_min?: number; assistant_id: string; conversation_id: string | null;
     valor?: number; pendente?: boolean; registrar?: boolean; adicional?: boolean;
+    /** o horário só confirma quando o pagamento cair (fica guardado por RESERVA_MIN) */
+    aguardarPagamento?: boolean;
     /** quem marcou: o atendente virtual ou alguém da equipe pelo chamado */
     origem?: 'assistente' | 'manual';
   },
@@ -185,7 +193,8 @@ export async function marcar(
       inicio: inicio.toISOString(),
       fim: fim.toISOString(),
       origem: input.origem ?? 'assistente',
-      status: input.pendente ? 'pendente' : 'confirmado',
+      status: input.aguardarPagamento ? 'aguardando_pagamento' : input.pendente ? 'pendente' : 'confirmado',
+      reserva_ate: input.aguardarPagamento ? new Date(Date.now() + RESERVA_MIN * 60000).toISOString() : null,
       valor: Number.isFinite(input.valor) ? input.valor : null,
     })
     .select('id')
@@ -200,8 +209,12 @@ export async function marcar(
       contato: input.contato?.trim().slice(0, 120) ?? '',
       servico: input.servico?.trim().slice(0, 120) ?? '',
       valor: Number.isFinite(input.valor) ? String(input.valor) : '',
-      status: input.pendente ? 'Pendente' : 'Confirmado',
+      status: input.aguardarPagamento ? 'Aguardando pagamento' : input.pendente ? 'Pendente' : 'Confirmado',
     }).catch((e) => console.error('[agenda] registro nos dados', e));
+  }
+  if (input.aguardarPagamento) {
+    // o aviso na conversa sai quando o pagamento cair
+    return { ok: true, id: data.id, quando: utcToLocal(inicio, cfg.fuso), valor: input.valor, inicio: inicio.toISOString() };
   }
   await avisoNaConversa(db, input.conversation_id, input.pendente ? 'pendente' : 'agendado',
     `${utcToLocal(inicio, cfg.fuso)}${input.servico ? ` · ${input.servico.trim()}` : ''}${input.pendente ? ' · aguardando confirmação do negócio' : ''}`);
@@ -231,10 +244,10 @@ export async function alterarAgendamento(
 ) {
   const { data: a } = await db
     .from('agendamentos')
-    .select('id, inicio, fim, servico, observacao, status')
+    .select('id, inicio, fim, servico, observacao, status, pedido_id')
     .eq('id', input.id)
     .eq('conversation_id', conversationId) // só mexe no que foi marcado nesta conversa
-    .in('status', ['confirmado', 'pendente'])
+    .or(DE_PE())
     .maybeSingle();
   if (!a) return { erro: 'Não achei esse agendamento nesta conversa (ou ele já foi cancelado).' };
 
@@ -242,7 +255,13 @@ export async function alterarAgendamento(
     await db.from('agendamentos').update({ status: 'cancelado' }).eq('id', a.id);
     await avisoNaConversa(db, conversationId, 'cancelado', `${utcToLocal(new Date(a.inicio), cfg.fuso)}${a.servico ? ` · ${a.servico}` : ''}`);
     if (input.registrar) await atualizarNosDados(db, cfg, a.id, { status: 'Cancelado' });
-    return { ok: true, situacao: 'Cancelado. Avise a pessoa.' };
+    if (a.pedido_id && a.status !== 'aguardando_pagamento') {
+      return {
+        ok: true, pago: true, pedido_id: a.pedido_id,
+        situacao: 'Cancelado. Este horário já estava PAGO: diga que a equipe vai cuidar da devolução conforme a política do negócio (não prometa prazo nem valor). A equipe já foi avisada.',
+      };
+    }
+    return { ok: true, pedido_id: a.pedido_id ?? undefined, situacao: 'Cancelado. Avise a pessoa.' };
   }
 
   const patch: Record<string, unknown> = {};
@@ -278,6 +297,28 @@ export async function alterarAgendamento(
     agora: descreverAgendamento({ ...a, ...(patch as Partial<AgendamentoDaConversa>) } as AgendamentoDaConversa, cfg.fuso),
   };
 }
+
+/**
+ * O pagamento do horário caiu. Confirma (ou deixa pendente, se o dono
+ * aprova cada horário). Se a reserva venceu e alguém pegou o horário
+ * nesse meio-tempo, fica pendente para a equipe resolver.
+ */
+export async function horarioPago(db: SupabaseClient, agendamentoId: string, donoConfirma: boolean) {
+  const { data: a } = await db.from('agendamentos').select('*').eq('id', agendamentoId).maybeSingle();
+  if (!a) return { situacao: 'sumiu' as const };
+  if (a.status !== 'aguardando_pagamento') return { situacao: 'cancelado' as const, agendamento: a };
+  const { data: cfg } = await db.from('agenda_config').select('*').eq('owner_id', a.owner_id).maybeSingle();
+  const fuso = (cfg as AgendaConfig | null)?.fuso ?? 'America/Sao_Paulo';
+  const choque = (await ocupados(db, a.owner_id, new Date(a.inicio), new Date(a.fim), a.id)).length > 0;
+  const status = choque || donoConfirma ? 'pendente' : 'confirmado';
+  await db.from('agendamentos').update({ status, reserva_ate: null }).eq('id', a.id);
+  if (cfg) await atualizarNosDados(db, cfg as AgendaConfig, a.id, { status: status === 'pendente' ? 'Pago · pendente' : 'Pago · confirmado' });
+  return { situacao: choque ? ('choque' as const) : (status as 'pendente' | 'confirmado'), agendamento: a, quando: utcToLocal(new Date(a.inicio), fuso) };
+}
+
+/** O serviço cadastrado na agenda com esse nome (duração e valor valem mais que o palpite do modelo). */
+export const servicoDaAgenda = (cfg: AgendaConfig, nome?: string) =>
+  (cfg.servicos ?? []).find((x) => semAcento(x.nome) === semAcento(nome ?? ''));
 
 /** Mantém a linha da tabela "Agendamentos" igual ao horário (remarcado ou cancelado). */
 async function atualizarNosDados(db: SupabaseClient, cfg: AgendaConfig, agendamentoId: string, campos: Record<string, string>) {

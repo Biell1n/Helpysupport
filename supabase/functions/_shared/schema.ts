@@ -23,6 +23,12 @@ export const MODELOS = [
 export type Modelo = (typeof MODELOS)[number];
 export const VENDE: Modelo[] = ['produto', 'servico', 'curso', 'assinatura', 'agendamento'];
 
+export const VENDA_NAO = 'Não, a equipe fecha a venda';
+export const VENDA_SIM = 'Sim, manda o link de pagamento';
+export const COBRA_NAO = 'Não, paga no dia';
+export const COBRA_TOTAL = 'Sim, o valor do serviço';
+export const COBRA_SINAL = 'Sim, só um sinal';
+
 export interface FieldDef {
   key: string;
   label: string;
@@ -31,7 +37,8 @@ export interface FieldDef {
   hint?: string;
   options?: string[];
   accumulates?: boolean;
-  depende?: { campo: string; valores: string[] };
+  /** só aparece quando o campo `campo` tem um destes valores; `estrito`: some também enquanto ele está vazio */
+  depende?: { campo: string; valores: string[]; estrito?: boolean };
   custom?: boolean;
 }
 
@@ -255,6 +262,17 @@ const CORE_TAIL: Section[] = [
         depende: { campo: 'usar_agenda', valores: ['Sim, marca sozinho', 'Sim, mas eu confirmo'] },
       },
       {
+        key: 'agenda_pagamento', label: 'Cobrar para marcar?', type: 'select', importance: 'optional',
+        options: [COBRA_NAO, COBRA_TOTAL, COBRA_SINAL],
+        hint: 'Com cobrança, o assistente manda um link de pagamento e o horário fica guardado por 2 horas. Pagou, confirma sozinho. Precisa ligar "Receber pelo assistente" em Canais.',
+        depende: { campo: 'usar_agenda', valores: ['Sim, marca sozinho', 'Sim, mas eu confirmo'], estrito: true },
+      },
+      {
+        key: 'agenda_sinal', label: 'Valor do sinal', type: 'text', importance: 'optional',
+        hint: 'Porcentagem ou valor. Ex.: 30% ou R$ 20. O resto o cliente paga no dia.',
+        depende: { campo: 'agenda_pagamento', valores: [COBRA_SINAL], estrito: true },
+      },
+      {
         key: 'agenda_quem', label: 'Quem pode marcar?', type: 'select', importance: 'optional',
         options: ['Qualquer pessoa', 'Só quem entrou na conta'],
         hint: '"Só quem entrou na conta": o assistente pede para a pessoa entrar antes de marcar.',
@@ -307,6 +325,17 @@ const OPERACAO: Record<string, FieldDef[]> = {
       key: 'fora_do_catalogo', label: 'Quando pedirem algo que vocês não têm', type: 'select', importance: 'optional',
       options: ['Oferecer o que temos e chamar a equipe para o resto', 'Também dizer o que procurar fora da loja'],
       hint: 'O assistente sempre monta a melhor opção com o que vocês têm. Aqui você decide se ele pode indicar o que procurar em outro lugar.',
+    },
+    {
+      key: 'venda_no_chat', label: 'Fechar a venda no chat?', type: 'select', importance: 'optional',
+      options: [VENDA_NAO, VENDA_SIM],
+      hint: 'Com "Sim", quando o cliente decide comprar, o assistente confirma os itens e o total e manda um link de Pix, cartão ou boleto. Precisa ligar "Receber pelo assistente" em Canais.',
+    },
+    {
+      key: 'venda_estoque', label: 'Baixar o estoque quando o pagamento cair?', type: 'select', importance: 'optional',
+      options: ['Sim, baixa na tabela de Dados', 'Não mexer no estoque'],
+      hint: 'Usa a coluna de estoque da tabela de produtos. Antes de mandar o link, o assistente sempre confere se tem o suficiente.',
+      depende: { campo: 'venda_no_chat', valores: [VENDA_SIM], estrito: true },
     },
   ],
   produto: [
@@ -497,7 +526,7 @@ export function buildSchema(metaIn: Partial<Meta>, config?: Config): Schema {
   const aplica = (f: FieldDef) => {
     if (!f.depende) return true;
     const v = String(campos[f.depende.campo]?.value ?? '').trim();
-    return !v || f.depende.valores.includes(v);
+    return v ? f.depende.valores.includes(v) : !f.depende.estrito;
   };
 
   const vestir = <T extends { key: string; label: string; hint?: string }>(item: T): T => {

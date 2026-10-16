@@ -12,15 +12,16 @@
 import type Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { buscar, categorias } from './busca.ts';
-import { fecharPedido, vendeOnline } from './pedidos.ts';
+import { cancelarPedido, cobrarHorario, fecharPedido, MINIMO_COBRANCA, valorDaReserva, vendeOnline } from './pedidos.ts';
 import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
 import {
   type AgendaConfig, agendamentosDaConversa, alterarAgendamento, carregarAgenda, descreverAgendamento, hojeNoFuso, horariosLivres, marcar,
+  servicoDaAgenda,
 } from './agenda.ts';
 import { type ApiConfig, consultarApi, sincronizarUrl, VALIDADE_URL_MS } from './fontes.ts';
 import { configSql, consultarSql } from './sql.ts';
 import {
-  allCollections, type CollectionDef, type Config, describeConfig, normalizeConfig, type Schema, slug, valueOf, VENDE,
+  allCollections, COBRA_SINAL, type CollectionDef, type Config, describeConfig, normalizeConfig, type Schema, slug, valueOf, VENDE,
 } from './schema.ts';
 
 export interface Assistant {
@@ -143,7 +144,7 @@ function contatosDiretos(cfg: Config) {
     .join(' | ');
 }
 
-export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false): string {
+export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false, agendaPaga = false): string {
   const cfg = a.config;
   const model = a.business_model || a.schema?.business_model || 'produto';
   const nome = valueOf(cfg, 'nome_assistente') || a.name;
@@ -179,6 +180,10 @@ Você pode ver horários livres (ver_horarios), marcar (agendar) e mudar ou canc
 - valor é só o preço do serviço do horário. Preço de produto que a pessoa vai ver ou provar não é valor do agendamento. duracao_min só se a lista de serviços ou a ficha disser; não invente.${
         /confirmo/i.test(valueOf(cfg, 'usar_agenda'))
           ? ' O dono confirma cada horário: depois de agendar, diga que o pedido foi anotado e que ele ainda vai confirmar.'
+          : ''
+      }${
+        agendaPaga
+          ? `\n- Para marcar é preciso pagar ${valueOf(cfg, 'agenda_pagamento') === COBRA_SINAL ? `um sinal (${valueOf(cfg, 'agenda_sinal') || 'conforme a ficha'})` : 'o valor do serviço'} pelo link que agendar devolve. Avise isso antes de pegar os dados. O horário fica guardado e só confirma quando o pagamento cair; nunca diga que está confirmado antes. Mande o link exatamente como veio.`
           : ''
       }${
         agenda.servicos?.length
@@ -509,6 +514,8 @@ export interface Rodada {
   teste: boolean;
   /** recados da rodada para quem chamou (ex.: mostrar o botão de entrar) */
   sinais: { pedirLogin?: boolean; motivoLogin?: string };
+  /** venda no chat e horário pago: ligados no assistente e com o recebimento conectado (preenchido em responder) */
+  vendas?: { loja: boolean; agendaPaga: boolean };
 }
 
 /** Avisa a empresa (dono e equipe veem no painel). A mesma chave no mesmo dia não repete o aviso. */
@@ -567,13 +574,14 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   const { db, assistant, conversationId } = r;
   const cfg = assistant.config;
 
-  if (nome === 'fechar_pedido') {
+  if (nome === 'fechar_pedido' && r.vendas?.loja) {
     const catalogo = catalogos(assistant.schema, cfg).flatMap((c) =>
       (cfg.collections[c.key] ?? []).map((it) => Object.fromEntries(c.item_fields.map((f) => [f.key, String(it?.[f.key] ?? '')])))
     );
     return await fecharPedido(db, {
       ownerId: assistant.owner_id, assistantId: assistant.id, conversationId,
       negocio: valueOf(cfg, 'nome_negocio'), teste: r.teste,
+      baixarEstoque: !/^n[aã]o/i.test(valueOf(cfg, 'venda_estoque')),
     }, args as { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string }, tabelas, catalogo);
   }
 
@@ -768,24 +776,45 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       r.sinais.motivoLogin = 'para marcar seu horário';
       return { erro: 'Só quem entrou na conta pode marcar. O botão de entrar já apareceu para a pessoa: peça para ela entrar e voltar a esta conversa.' };
     }
-    return await marcar(db, agenda, {
+    const servico = args.servico ? String(args.servico) : undefined;
+    const valorServico = servicoDaAgenda(agenda, servico)?.valor ?? (args.valor != null && Number.isFinite(Number(args.valor)) ? Number(args.valor) : undefined);
+    const sinal = valueOf(cfg, 'agenda_pagamento') === COBRA_SINAL ? valueOf(cfg, 'agenda_sinal') : null;
+    const cobrar = r.vendas?.agendaPaga ? valorDaReserva(valorServico, sinal) : null;
+    if (r.vendas?.agendaPaga && (cobrar == null || cobrar < MINIMO_COBRANCA)) {
+      // sem valor para cobrar: marca como pendente e a equipe resolve o pagamento
+      await alertar(db, assistant.owner_id, {
+        assistant_id: assistant.id, conversation_id: conversationId, origem: 'sistema', chave: `agenda:sem-valor:${servico ?? ''}`,
+        assunto: 'Horário marcado sem cobrança',
+        detalhe: `O assistente cobra para marcar, mas "${servico ?? 'o serviço'}" não tem valor${cobrar != null ? ` acima de R$ ${MINIMO_COBRANCA}` : ''} na agenda${sinal ? ' (ou o sinal não está claro)' : ''}. O horário ficou pendente para você confirmar e combinar o pagamento.`,
+      });
+    }
+    const aguardar = cobrar != null && cobrar >= MINIMO_COBRANCA;
+    const marcado = await marcar(db, agenda, {
+      aguardarPagamento: aguardar,
       dia: String(args.data ?? ''),
       hora: String(args.hora ?? ''),
       nome: String(args.nome ?? ''),
       contato: String(args.contato ?? ''),
-      servico: args.servico ? String(args.servico) : undefined,
+      servico,
       observacao: args.observacao ? String(args.observacao) : undefined,
       duracao_min: Number(args.duracao_min) || undefined,
       valor: args.valor != null && Number.isFinite(Number(args.valor)) ? Number(args.valor) : undefined,
-      pendente: /confirmo/i.test(valueOf(cfg, 'usar_agenda')),
+      pendente: /confirmo/i.test(valueOf(cfg, 'usar_agenda')) || (!!r.vendas?.agendaPaga && !aguardar),
       registrar: /^sim/i.test(valueOf(cfg, 'agenda_registrar')),
       adicional: args.adicional === true,
       assistant_id: assistant.id,
       conversation_id: conversationId,
     });
+    if (!aguardar || !('ok' in marcado) || !marcado.ok || !('id' in marcado)) return marcado;
+    return await cobrarHorario(db, {
+      ownerId: assistant.owner_id, assistantId: assistant.id, conversationId, negocio: valueOf(cfg, 'nome_negocio'), teste: r.teste,
+    }, {
+      id: String(marcado.id), quando: String(marcado.quando), servico, valorServico, cobrar: cobrar!, sinal: sinal !== null,
+      cliente_nome: String(args.nome ?? ''),
+    });
   }
   if (agenda && nome === 'alterar_agendamento') {
-    return await alterarAgendamento(db, agenda, conversationId, {
+    const res = await alterarAgendamento(db, agenda, conversationId, {
       id: String(args.id ?? ''),
       dia: args.data ? String(args.data) : undefined,
       hora: args.hora ? String(args.hora) : undefined,
@@ -793,6 +822,18 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       cancelar: args.cancelar === true,
       registrar: /^sim/i.test(valueOf(cfg, 'agenda_registrar')),
     });
+    if ('pedido_id' in res && res.pedido_id) {
+      if ('pago' in res && res.pago) {
+        await alertar(db, assistant.owner_id, {
+          assistant_id: assistant.id, conversation_id: conversationId, origem: 'sistema', chave: `agenda:cancelou-pago:${res.pedido_id}`,
+          assunto: 'Cliente cancelou um horário já pago',
+          detalhe: 'Veja em Pedidos e combine a devolução conforme a sua política.',
+        });
+      } else {
+        await cancelarPedido(db, assistant.owner_id, String(res.pedido_id));
+      }
+    }
+    return res;
   }
 
   return { erro: 'ferramenta desconhecida' };
@@ -807,18 +848,23 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const rr = { ...r, assistant: a };
   const usarAgenda = /^sim/i.test(valueOf(a.config, 'usar_agenda'));
   const vende = VENDE.includes((a.business_model || a.schema?.business_model || 'produto') as never);
-  const [tabelas, agenda, loja] = await Promise.all([
+  // venda no chat e cobrança do horário: o dono liga no assistente, e só valem com o recebimento conectado
+  const querVenda = vende && /^sim/i.test(valueOf(a.config, 'venda_no_chat'));
+  const querCobrar = usarAgenda && /^sim/i.test(valueOf(a.config, 'agenda_pagamento'));
+  const [tabelas, agenda, recebe] = await Promise.all([
     carregarTabelas(r.db, a.id),
     usarAgenda ? carregarAgenda(r.db, a.owner_id) : Promise.resolve(null),
-    vende ? vendeOnline(r.db, a.owner_id) : Promise.resolve(false),
+    querVenda || querCobrar ? vendeOnline(r.db, a.owner_id) : Promise.resolve(false),
   ]);
+  const loja = querVenda && recebe;
+  rr.vendas = { loja, agendaPaga: querCobrar && recebe && !!agenda };
 
   const fuso = agenda?.fuso ?? 'America/Sao_Paulo';
   const agora = new Intl.DateTimeFormat('pt-BR', { timeZone: fuso, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
   // o que esta conversa já marcou: as ferramentas de rodadas anteriores não ficam no histórico
   const marcados = agenda ? await agendamentosDaConversa(r.db, r.conversationId) : [];
   const system: Anthropic.TextBlockParam[] = [
-    { type: 'text', text: systemPrompt(a, tabelas, agenda, loja), cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: systemPrompt(a, tabelas, agenda, loja, rr.vendas.agendaPaga), cache_control: { type: 'ephemeral' } },
     {
       type: 'text',
       text: `Agora: ${agora} (hoje é ${hojeNoFuso(fuso)}).\nVisitante: ${
