@@ -2587,3 +2587,40 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* histórico do chamado (painel de atendimentos) */
+.historico-chamado summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+.historico-chamado ol {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0 0 0 4px;
+  display: grid;
+  gap: 10px;
+  border-left: 2px solid var(--linha);
+}
+.historico-chamado li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: start;
+  font-size: 13px;
+  margin-left: -9px;
+}
+.historico-ponto {
+  width: 12px;
+  height: 12px;
+  margin-top: 3px;
+  border-radius: 50%;
+  background: var(--branco);
+  border: 2px solid var(--tinta-3);
+}
+.historico-chamado li[data-tipo='aberto'] .historico-ponto { border-color: #eb6834; }
+.historico-chamado li[data-tipo='assumido'] .historico-ponto { border-color: var(--senha); }
+.historico-chamado li[data-tipo='encerrado'] .historico-ponto { border-color: #1baf7a; background: #1baf7a; }
+.historico-chamado time { white-space: nowrap; font-size: 12px; }
