@@ -4,6 +4,7 @@ import { ArrowRight, Bot, Check, Plus, Sparkles } from 'lucide-react';
 import AlertasDaConta from '@/components/AlertasDaConta';
 import Faisca from '@/components/Faisca';
 import ListaViva from '@/components/ListaViva';
+import PrimeirosPassos from '@/components/PrimeirosPassos';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { diasDeTeste, planOf } from '@/lib/plans';
@@ -129,6 +130,8 @@ export default function Painel() {
           </span>
         </div>
       )}
+
+      {assistentes?.length > 0 && <PrimeirosPassos assistentes={assistentes} />}
 
       {assistentes && assistentes.length === 0 ? (
         <div className="empty" style={{ marginBottom: 24 }}>

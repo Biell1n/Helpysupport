@@ -23,7 +23,7 @@ import { admin, profileOf, requireUser, userFrom } from '../_shared/db.ts';
 import { logUsage } from '../_shared/ai.ts';
 import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
-import { normalizeConfig, valueOf } from '../_shared/schema.ts';
+import { normalizeConfig, sugestoesIniciais, valueOf } from '../_shared/schema.ts';
 import { usarExtra } from '../_shared/extra.ts';
 import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
 
@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
         saudacao: valueOf(cfg, 'saudacao'),
         foto: assistant.foto_url ?? null,
         business_model: assistant.business_model,
+        sugestoes: sugestoesIniciais(cfg, assistant.business_model ?? assistant.schema?.business_model ?? null),
         desafio: { agora: Date.now(), bits: BITS_DESAFIO },
       });
     }

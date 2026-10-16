@@ -571,6 +571,26 @@ export function buildSchema(metaIn: Partial<Meta>, config?: Config): Schema {
   };
 }
 
+/**
+ * Até 4 perguntas para o cliente tocar no começo da conversa: as perguntas
+ * frequentes da ficha e o que o assistente sabe fazer (marcar, vender, chamar a equipe).
+ */
+export function sugestoesIniciais(cfg: Config, modelo: string | null): string[] {
+  const model = MODELOS.includes(modelo as Modelo) ? (modelo as Modelo) : null;
+  const out: string[] = [];
+  const marca = /^sim/i.test(valueOf(cfg, 'usar_agenda'));
+  const vende = !!model && VENDE.includes(model);
+  if (marca) out.push('Quero marcar um horário');
+  if (vende && /^sim/i.test(valueOf(cfg, 'venda_no_chat'))) out.push('Quero fazer um pedido');
+  else if (model === 'produto') out.push('O que vocês têm?');
+  for (const it of cfg.collections.faq ?? []) {
+    const q = String(it?.pergunta ?? '').trim();
+    if (q && q.length <= 60) out.push(q);
+  }
+  if (valueOf(cfg, 'chamados_ativos') === 'Sim') out.push('Falar com uma pessoa');
+  return [...new Set(out)].slice(0, 4);
+}
+
 export const allFields = (s: Schema) => s.sections.flatMap((x) => x.fields);
 export const allCollections = (s: Schema) => s.sections.flatMap((x) => x.collections);
 

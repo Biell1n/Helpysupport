@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowUp, CalendarCheck, CalendarClock, CalendarX, CircleCheckBig, LogIn, Star, UserCheck } from 'lucide-react';
+import { ArrowUp, CalendarCheck, CalendarClock, CalendarX, CircleCheckBig, LogIn, UserCheck } from 'lucide-react';
+import PeekRating from '@/components/PeekRating';
+import Sugestoes from '@/components/Sugestoes';
 import { useToast } from '@/components/Toasts';
 import LatticeLoader from '@/components/LatticeLoader';
 import { chamar } from '@/lib/supabase';
@@ -158,10 +160,11 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   }, [texto]);
 
-  const enviar = useCallback(async () => {
-    const content = texto.trim();
+  // forcado: o texto de uma sugestão tocada (senão, o que está na caixa)
+  const enviar = useCallback(async (forcado) => {
+    const content = (typeof forcado === 'string' ? forcado : texto).trim();
     if (!content || pensando) return;
-    setTexto('');
+    if (typeof forcado !== 'string') setTexto('');
     setMensagens((p) => [...p, { role: 'user', content }]);
     setPensando(true);
     try {
@@ -275,6 +278,13 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
             <div className="msg-body">{info.saudacao || `Oi! Sou ${nome}${info.negocio ? `, do atendimento de ${info.negocio}` : ''}. Como posso ajudar?`}</div>
           </div>
         )}
+        {mensagens.length === 0 && !pensando && info?.sugestoes?.length > 0 && (
+          <Sugestoes
+            rotulo="Toque para perguntar"
+            sugestoes={info.sugestoes.map((r, i) => ({ id: `${i}-${r}`, rotulo: r }))}
+            onEscolher={(x) => enviar(x.rotulo)}
+          />
+        )}
 
         {mensagens.map((m, i) => (
           tipoDoEvento(m) ? <Evento key={i} m={m} /> :
@@ -310,13 +320,13 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         {fechado && !avaliou && (
           <div className="card stack ticket-aviso">
             <b>Atendimento encerrado. Como foi?</b>
-            <div className="estrelas" role="radiogroup" aria-label="Nota de 1 a 5">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} type="button" className="estrela" role="radio" aria-checked={nota === n} aria-label={`${n} de 5`} data-on={nota >= n} onClick={() => setNota(n)}>
-                  <Star fill={nota >= n ? 'currentColor' : 'none'} />
-                </button>
-              ))}
-            </div>
+            <PeekRating
+              value={nota}
+              onChange={setNota}
+              size={30}
+              ariaLabel="Nota de 1 a 5"
+              labels={['Ruim', 'Fraco', 'Ok', 'Bom', 'Ótimo']}
+            />
             <textarea className="textarea" rows={2} placeholder="Quer contar algo? (opcional)" value={comentario} onChange={(e) => setComentario(e.target.value)} />
             <div className="row row-wrap">
               <button type="button" className="btn btn-primary" disabled={!nota} onClick={avaliar}>Enviar avaliação</button>
