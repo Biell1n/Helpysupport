@@ -388,7 +388,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: 'salvar_itens',
     description:
-      'Adiciona ou atualiza itens de uma lista. O item é reconhecido pelo primeiro atributo (nome, tema, pergunta…): se já existir, os atributos informados são atualizados. Item sem o identificador é rejeitado. Inclua só o que a pessoa disse.',
+      'Adiciona ou atualiza itens de uma lista. O item é reconhecido pelo primeiro atributo (nome, tema, pergunta…): se já existir, os atributos informados são atualizados. Item sem o identificador é rejeitado. Inclua só o que a pessoa disse. Até 20 itens por chamada; para mais, chame de novo com o próximo lote.',
     input_schema: {
       type: 'object',
       properties: {
@@ -858,7 +858,7 @@ const STATIC_PROMPT = `Você é o Helpy. Ajuda o dono de um negócio a montar o 
 Pense assim: ele está contratando um funcionário e você escreve o treinamento. Tudo que você não perguntar é uma pergunta que o funcionário não vai saber responder.
 
 COMO VOCÊ TRABALHA
-Ao lado desta conversa há um documento com tudo que o assistente vai saber. Você o preenche com as ferramentas, e a pessoa vê cada campo mudando na hora. Toda informação que a pessoa der vai para o documento NA MESMA RESPOSTA — se ela colar uma lista de preços, salve todos os itens de uma vez.
+Ao lado desta conversa há um documento com tudo que o assistente vai saber. Você o preenche com as ferramentas, e a pessoa vê cada campo mudando na hora. Toda informação que a pessoa der vai para o documento NA MESMA RESPOSTA — se ela colar uma lista de preços, salve todos os itens nessa resposta. Lista grande vai em lotes de até 20 itens por chamada de salvar_itens (pode chamar várias vezes seguidas); uma chamada gigante é cortada e nada é gravado.
 Cada resultado de ferramenta traz o que foi gravado e o próximo assunto. Só diga que registrou o que as ferramentas confirmaram.
 Se uma ferramenta devolver erro, corrija e tente de novo ou pergunte à pessoa.
 
@@ -883,7 +883,7 @@ DESFAZER
 "Volta como estava", "desfaz", "apaguei sem querer", "não era isso" → ferramenta desfazer. Depois diga em uma frase o que voltou. Se ela quiser um dado específico de volta e você lembrar dele pela conversa, também pode simplesmente gravar de novo.
 
 ARQUIVOS ANEXADOS
-Quando vier um PDF, imagem ou planilha, leia tudo e grave de uma vez o que servir para o documento: campos, itens das listas, perguntas frequentes, regras. O texto completo do arquivo fica guardado sozinho como material de apoio, e o assistente consulta ao atender — não copie o arquivo inteiro para os campos.
+Quando vier um PDF, imagem ou planilha, leia tudo e grave o que servir para o documento: campos, itens das listas, perguntas frequentes, regras. Catálogo em planilha: grave os itens em lotes de até 20 por chamada, até acabar; se passar de uns 40 itens, grave e depois ofereça levar a lista para uma tabela (mover_para_tabela). O texto completo do arquivo fica guardado sozinho como material de apoio, e o assistente consulta ao atender — não copie o arquivo inteiro para os campos.
 Diga em uma frase o que encontrou ("li a prova: 10 questões de adição e subtração para o 2º ano") e siga com o que ainda falta.
 Se for prova, lista de exercícios ou atividade de aluno: o modelo é educacional, grave em regras que ele nunca entrega a resposta das questões (ele guia com perguntas e exemplos parecidos), e grave a série e o conteúdo.
 
@@ -1010,7 +1010,7 @@ async function virarMaterial(a: Anexo, usage: ReturnType<typeof emptyUsage>): Pr
   } else {
     const res = await anthropic.messages.create({
       model: MODELS.atendimento,
-      max_tokens: 16000,
+      max_tokens: 8000,
       output_config: { effort: 'low' }, // transcrever não pede raciocínio
       messages: [{
         role: 'user',
@@ -1088,11 +1088,19 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
   ];
   const usesFallback = /claude-(sonnet|opus)-5-5/.test(model);
 
+  // nota do sistema no fim do último turno da pessoa (a conversa precisa alternar papéis)
+  const anotar = (nota: string) => {
+    const ultimo = history[history.length - 1];
+    if (ultimo?.role === 'user' && Array.isArray(ultimo.content)) {
+      (ultimo.content as Anthropic.Beta.BetaContentBlockParam[]).push({ type: 'text', text: nota });
+    } else history.push({ role: 'user', content: nota });
+  };
+
   let reply = '';
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     const res = await anthropic.beta.messages.create({
       model,
-      max_tokens: 6000,
+      max_tokens: 8000,
       system,
       tools: TOOLS,
       messages: history,
@@ -1107,6 +1115,17 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
     }
     const text = textOf(res.content as Array<{ type: string; text?: string }>);
     if (text) reply = text;
+
+    // resposta cortada no meio (ex.: catálogo inteiro numa chamada só): a
+    // ferramenta incompleta não roda; pede para gravar em lotes menores
+    if (res.stop_reason === 'max_tokens') {
+      const usou = res.content.some((b) => b.type === 'tool_use');
+      if (!usou || i >= 8) break;
+      if (text) history.push({ role: 'assistant', content: text });
+      anotar('[sistema] Sua última resposta ficou grande demais e foi cortada: nada foi gravado. Grave de novo em lotes de no máximo 20 itens por chamada de salvar_itens, até terminar.');
+      reply = '';
+      continue;
+    }
 
     if (res.stop_reason === 'pause_turn') {
       history.push({ role: 'assistant', content: res.content as Anthropic.Beta.BetaContentBlockParam[] });
@@ -1134,8 +1153,23 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
     history.push({ role: 'user', content: results });
   }
 
+  // terminou sem texto (muitas rodadas de ferramentas): pede só a resposta para a pessoa
+  if (!reply) {
+    try {
+      anotar('[sistema] Agora responda à pessoa em poucas frases: o que você gravou no documento e o próximo assunto. Sem ferramentas.');
+      const fim = await anthropic.beta.messages.create({
+        model, max_tokens: 1500, system, tools: TOOLS, tool_choice: { type: 'none' }, messages: history,
+        ...(usesFallback ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
+      } as Anthropic.Beta.MessageCreateParamsNonStreaming);
+      addUsage(usage, fim.usage);
+      reply = textOf(fim.content as Array<{ type: string; text?: string }>);
+    } catch (e) {
+      console.error('[builder] resposta final', (e as Error).message);
+    }
+  }
+
   marcarPergunta(s, goal);
-  if (!reply) reply = 'Anotei no documento. Me conta mais sobre o negócio?';
+  if (!reply) reply = 'Recebi e já gravei o que deu no documento. Quer que eu continue de onde parei?';
 
   const novos = (await materiaisPromessa).filter((m): m is Material => !!m && !!m.texto);
   if (novos.length) s.meta.materiais = [...(s.meta.materiais ?? []), ...novos].slice(-MAX_MATERIAIS);
