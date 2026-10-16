@@ -415,6 +415,7 @@ export default function Agenda() {
         titulo="Este horário já foi pago"
         texto={devolver ? `O cliente pagou ${reaisBr(devolver.pedido.total)}. Devolver o valor pelo Asaas ao cancelar? Se combinou outra coisa com ele, cancele sem devolver.` : ''}
         acao="Cancelar e devolver"
+        segurar
         perigo
         onFechar={() => setDevolver(null)}
         onConfirmar={() => cancelarPago(true)}

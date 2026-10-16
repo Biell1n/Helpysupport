@@ -5,6 +5,8 @@ import { chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { Confirmar, Modal } from '@/components/Modal';
+import Counter from '@/components/Counter';
+import HoldButton from '@/components/HoldButton';
 import { reais } from '@/lib/plans';
 import { quando } from '@/lib/format';
 
@@ -20,6 +22,7 @@ const mascaraDoc = (v) => {
   if (d.length <= 11) return d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
   return d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
 };
+const BRL = { style: 'currency', currency: 'BRL' };
 const dataBr = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString('pt-BR') : '');
 
 /** Carteira: o dinheiro das vendas do assistente, dentro do Helpy. */
@@ -80,7 +83,7 @@ export default function Carteira() {
           <div className="carteira-saldos">
             <div className="card carteira-saldo">
               <span className="faint">Saldo disponível</span>
-              <b>{dados.saldo == null ? '—' : reais(Number(dados.saldo))}</b>
+              <b>{dados.saldo == null ? '—' : <Counter value={Number(dados.saldo)} format={BRL} />}</b>
               {carteira ? (
                 <button type="button" className="btn btn-primary btn-sm" disabled={!dados.saldo || rec.situacao !== 'aprovada'} onClick={() => setSacando(true)}
                   title={rec.situacao !== 'aprovada' ? 'O saque libera quando a carteira for aprovada' : undefined}>
@@ -94,7 +97,7 @@ export default function Carteira() {
             </div>
             <div className="card carteira-saldo">
               <span className="faint">A receber</span>
-              <b>{reais(Number(dados.a_receber ?? 0))}</b>
+              <b><Counter value={Number(dados.a_receber ?? 0)} format={BRL} /></b>
               <span className="faint" style={{ fontSize: 13 }}>Vendas no cartão: o valor libera nos próximos dias.</span>
             </div>
           </div>
@@ -207,7 +210,8 @@ function Sacar({ dados, onFechar, onPronto }) {
   const numero = Number(valor.replace(/\./g, '').replace(',', '.'));
 
   const ir = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
+    if (indo || !(numero >= 1)) return;
     setErro('');
     setIndo(true);
     try {
@@ -239,7 +243,9 @@ function Sacar({ dados, onFechar, onPronto }) {
         {erro && <div className="alert alert-erro"><span>{erro}</span></div>}
         <div className="modal-foot">
           <button type="button" className="btn btn-ghost" onClick={onFechar}>Voltar</button>
-          <button type="submit" className="btn btn-primary" disabled={indo || !(numero >= 1)}>{indo ? 'Pedindo…' : `Sacar ${numero >= 1 ? reais(numero) : ''}`}</button>
+          <HoldButton size="md" radius={999} fillColor="#138a5e" disabled={indo || !(numero >= 1)} doneLabel="Pedindo o saque…" resetAfter={0} onHold={ir}>
+            {numero >= 1 ? `Segure para sacar ${reais(numero)}` : 'Digite o valor'}
+          </HoldButton>
         </div>
       </form>
     </Modal>
