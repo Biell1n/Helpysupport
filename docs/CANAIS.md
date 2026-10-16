@@ -83,10 +83,18 @@ com tudo ligado. No servidor, o bot usa o nome (e a foto) do assistente.
 
 | Comando | Quem usa | O que faz |
 |---|---|---|
-| `/helpy-config` | quem tem "Gerenciar servidor" | menu: canal do atendimento, cargo da equipe, o que falta (✅/❌) e publicar o botão |
+| `/helpy-config` | quem tem "Gerenciar servidor" | menu: canal do atendimento, cargo da equipe, canal de avisos da equipe, o que falta (✅/❌), passo a passo, **⚡ Montar tudo pra mim** e publicar o botão |
 | botão **Abrir atendimento** ou `/atendimento` | clientes | cria um tópico privado só do cliente, da equipe e do bot |
 | `/helpy mensagem:…` | clientes | dúvida rápida (fora do ticket); dentro do ticket vale como mensagem |
 | botões **Assumir**, **Devolver ao assistente**, **Encerrar** | equipe (Encerrar: todos) | no topo de cada ticket |
+
+**Montar tudo pra mim** cria a categoria *Atendimento*, `#abrir-atendimento`
+(todos veem e abrem ticket, mas só escrevem dentro do próprio ticket),
+`#equipe-atendimento` (só a equipe; recebe "novo atendimento", "o cliente
+pediu uma pessoa", "fulano assumiu" e "encerrado", com o link) e o cargo
+*Equipe de atendimento*, aproveitando o que já estiver escolhido. Para isso
+o bot precisa, só nessa hora, de "Gerenciar canais" e "Gerenciar cargos"
+(o próprio menu dá o link); depois o dono pode tirar.
 
 **Permissões que o bot pede** (sem Administrador): ver canais, enviar
 mensagens (também em tópicos), criar tópicos privados, gerenciar tópicos,

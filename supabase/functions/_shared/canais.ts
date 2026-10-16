@@ -315,6 +315,7 @@ export const DISCORD_HELPY = {
 // O que o bot pede ao entrar no servidor (sem Administrador):
 export const PERM = {
   ADMINISTRADOR: 1n << 3n,
+  GERENCIAR_CANAIS: 1n << 4n,
   GERENCIAR_SERVIDOR: 1n << 5n,
   VER_CANAL: 1n << 10n,
   ENVIAR: 1n << 11n,
@@ -322,6 +323,7 @@ export const PERM = {
   ANEXOS: 1n << 15n,
   HISTORICO: 1n << 16n,
   APELIDO: 1n << 26n,
+  GERENCIAR_CARGOS: 1n << 28n,
   WEBHOOKS: 1n << 29n,
   GERENCIAR_TOPICOS: 1n << 34n,
   TOPICOS_PRIVADOS: 1n << 36n,
@@ -377,6 +379,19 @@ export function urlAdicionarBot(state: string, redirect: string) {
     redirect_uri: redirect,
     state,
     prompt: 'consent',
+  });
+  return `https://discord.com/oauth2/authorize?${q}`;
+}
+
+/**
+ * Link para o bot poder montar o atendimento sozinho (criar canais e o cargo
+ * da equipe). Depois de montar, o dono pode tirar essas duas permissões.
+ */
+export function urlPermissoesMontagem(servidor: string) {
+  const q = new URLSearchParams({
+    client_id: DISCORD_HELPY.appId, scope: 'bot applications.commands',
+    permissions: String(BigInt(PERMISSOES_BOT) | PERM.GERENCIAR_CANAIS | PERM.GERENCIAR_CARGOS),
+    guild_id: servidor, disable_guild_select: 'true',
   });
   return `https://discord.com/oauth2/authorize?${q}`;
 }
