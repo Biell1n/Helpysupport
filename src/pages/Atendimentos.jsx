@@ -52,6 +52,7 @@ export default function Atendimentos() {
   const [assistentes, setAssistentes] = useState({});
   const [aberta, setAberta] = useState(null);
   const [mensagens, setMensagens] = useState([]);
+  const [eventos, setEventos] = useState([]);
   const [resposta, setResposta] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [confirmar, setConfirmar] = useState(null);
@@ -94,12 +95,14 @@ export default function Atendimentos() {
 
   // ---- conversa aberta ----
   const carregarAberta = useCallback(async (id) => {
-    const [{ data: c }, { data: msgs }] = await Promise.all([
+    const [{ data: c }, { data: msgs }, { data: evs }] = await Promise.all([
       supabase.from('conversations').select('*').eq('id', id).maybeSingle(),
       supabase.from('conversation_messages').select('id, role, content, author_name, created_at').eq('conversation_id', id).order('created_at').limit(300),
+      supabase.from('conversa_eventos').select('id, tipo, quem, detalhe, criado_em').eq('conversation_id', id).order('criado_em').limit(100),
     ]);
     if (c) setAberta(c);
     setMensagens(msgs ?? []);
+    setEventos(evs ?? []);
     if (c && !c.lido_em) await supabase.from('conversations').update({ lido_em: new Date().toISOString() }).eq('id', id);
   }, []);
 
@@ -176,7 +179,9 @@ export default function Atendimentos() {
           onAcao: () => mudarDaLista(c, { status: 'human', assumido_por: user.id, assumido_nome: atendente, assumido_em: new Date().toISOString() }, 'Chamado assumido'),
         }
       : null,
-    direita: c.status === 'closed'
+    direita: c.status === 'bot'
+      ? null
+      : c.status === 'closed'
       ? {
           rotulo: 'Reabrir', icone: <RotateCcw />, cor: 'var(--tinta-2)',
           onAcao: () => mudarDaLista(c, { status: c.assumido_por ? 'human' : 'waiting', fechado_em: null, encerrado_por: null }, 'Chamado reaberto'),
@@ -342,9 +347,11 @@ export default function Atendimentos() {
                 {(aberta.status === 'waiting' || aberta.status === 'human') && (
                   <button type="button" className="btn btn-ghost" onClick={() => setConfirmar('devolver')}><Bot /> Devolver ao assistente</button>
                 )}
-                {aberta.status !== 'closed' ? (
+                {/* devolvida ao assistente, a conversa deixa de ser chamado: não há o que encerrar */}
+                {(aberta.status === 'waiting' || aberta.status === 'human') && (
                   <button type="button" className="btn btn-primary" onClick={() => setConfirmar('encerrar')}><CheckCircle2 /> Encerrar</button>
-                ) : (
+                )}
+                {aberta.status === 'closed' && (
                   <button type="button" className="btn btn-ghost" onClick={reabrir}><RotateCcw /> Reabrir</button>
                 )}
               </div>
@@ -363,6 +370,7 @@ export default function Atendimentos() {
                   <dd>{estrelas(aberta.nota)}{aberta.feedback_texto ? ` — “${aberta.feedback_texto}”` : ''}</dd>
                 </div>
               )}
+              {eventos.length > 0 && <HistoricoDoChamado eventos={eventos} />}
             </dl>
 
             <div className="chat-scroll" style={{ flex: 1 }}>
@@ -439,6 +447,38 @@ export default function Atendimentos() {
         }}
         onFechar={() => setConfirmar(null)}
       />
+    </div>
+  );
+}
+
+const ROTULO_EVENTO = {
+  aberto: 'Chamado aberto',
+  assumido: 'Assumido',
+  devolvido: 'Devolvido ao assistente',
+  encerrado: 'Encerrado',
+  reaberto: 'Reaberto',
+};
+
+/** O que aconteceu com o chamado, passo a passo (só a equipe vê). */
+function HistoricoDoChamado({ eventos }) {
+  return (
+    <div style={{ gridColumn: '1 / -1' }}>
+      <details className="historico-chamado">
+        <summary>Histórico do chamado <span className="faint">· {eventos.length} {eventos.length === 1 ? 'passo' : 'passos'}</span></summary>
+        <ol>
+          {eventos.map((e) => (
+            <li key={e.id} data-tipo={e.tipo}>
+              <span className="historico-ponto" aria-hidden="true" />
+              <div>
+                <b>{ROTULO_EVENTO[e.tipo] ?? e.tipo}</b>
+                {e.quem && <span> {e.tipo === 'aberto' ? 'pelo' : 'por'} {e.quem}</span>}
+                {e.detalhe && <div className="faint">{e.detalhe}</div>}
+              </div>
+              <time className="faint" dateTime={e.criado_em} title={new Date(e.criado_em).toLocaleString('pt-BR')}>{quando(e.criado_em)}</time>
+            </li>
+          ))}
+        </ol>
+      </details>
     </div>
   );
 }
