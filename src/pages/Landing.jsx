@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Lenis from 'lenis';
-import { ArrowRight, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap, QrCode } from 'lucide-react';
+import { ArrowRight, Check, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap, QrCode, X } from 'lucide-react';
 import { IconeDoCanal } from '@/components/IconesCanais';
 import Logo, { Marca } from '@/components/Logo';
 import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
@@ -13,6 +13,18 @@ import { useEfeitosDoMouse } from '@/lib/efeitosDoMouse';
 import VideoDemo, { reduzido } from '@/components/VideoDemo';
 import { useAuth } from '@/contexts/AuthContext';
 import { DIAS_DE_TESTE, PLANS, reais, recursosDoPlano } from '@/lib/plans';
+import Perto from '@/components/efeitos/Perto';
+import { MARCAS } from '@/components/efeitos/marcas';
+
+// efeitos pesados (WebGL e animações) só carregam quando chegam perto da tela
+const LightRays = lazy(() => import('@/components/efeitos/LightRays'));
+const DotGrid = lazy(() => import('@/components/efeitos/DotGrid'));
+const LineWaves = lazy(() => import('@/components/efeitos/LineWaves'));
+const Silk = lazy(() => import('@/components/efeitos/Silk'));
+const LogoLoop = lazy(() => import('@/components/efeitos/LogoLoop'));
+const RotatingText = lazy(() => import('@/components/efeitos/RotatingText'));
+const ScrollVelocity = lazy(() => import('@/components/efeitos/ScrollVelocity').then((m) => ({ default: m.ScrollVelocity ?? m.default })));
+const ParedeDeTelas = lazy(() => import('@/components/efeitos/ParedeDeTelas'));
 
 const VENDAS_LP = import.meta.env.VITE_CONTATO_VENDAS;
 
@@ -323,6 +335,59 @@ const ASSUNTOS = [
   ['Estacionamento', 19],
 ];
 
+const SEGMENTOS = ['barbearias', 'lojas', 'clínicas', 'escolas', 'restaurantes', 'oficinas', 'academias', 'pet shops'];
+
+const Marca_ = ({ d }) => <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d={d} /></svg>;
+const LOGOS = [
+  { ...MARCAS.whatsapp, cor: '#25D366' },
+  { ...MARCAS.instagram, cor: '#E4405F' },
+  { ...MARCAS.discord, cor: '#5865F2' },
+  { nome: 'Excel', icone: FileSpreadsheet, cor: '#217346' },
+  { ...MARCAS.googlesheets, cor: '#34A853' },
+  { nome: 'OneDrive e SharePoint', icone: Cloud, cor: '#0F6CBD' },
+  { ...MARCAS.postgresql, cor: '#4169E1' },
+  { ...MARCAS.mysql, cor: '#4479A1' },
+  { nome: 'SQL Server', icone: Database, cor: '#CC2927' },
+  { ...MARCAS.sap, cor: '#0FAAFF' },
+  { ...MARCAS.totvs, cor: '#00B2E2' },
+  { ...MARCAS.pix, cor: '#32BCAD' },
+].map((m) => ({
+  title: m.nome,
+  hoverColor: m.cor,
+  node: m.icone ? <m.icone width="1em" height="1em" aria-hidden="true" /> : <Marca_ d={m.d} />,
+}));
+
+const COM_HELPY = [
+  'Responde na hora, de madrugada e no fim de semana',
+  'Consulta preço e estoque de verdade antes de responder',
+  'Marca horário e fecha a venda com link de Pix',
+  'O mesmo atendente no site, WhatsApp, Instagram e Discord',
+  'Chama você só quando precisa, com o resumo pronto',
+  'Mostra o que os clientes mais perguntam',
+];
+const SEM_HELPY = [
+  'O cliente espera até alguém ver a mensagem',
+  'Preço e estoque respondidos de cabeça',
+  'Horário marcado no papel ou no "vou ver e te falo"',
+  'Cada canal com um celular e uma pessoa diferente',
+  'Toda conversa depende de alguém da equipe',
+  'Ninguém sabe o que os clientes mais perguntam',
+];
+
+const TELAS = [
+  ['painel', 'Painel com chamados na fila e o que os clientes perguntaram'],
+  ['atendimentos', 'Atendimentos: a conversa do cliente e o resumo do chamado'],
+  ['relatorios', 'Relatórios: conversas por dia, resolvidas sozinho e nota'],
+  ['quadro', 'Quadro de chamados por situação'],
+  ['builder', 'Montagem do assistente conversando'],
+  ['canais', 'Canais: link, WhatsApp, Instagram e Discord'],
+  ['dados', 'Dados: tabela de preços que o assistente consulta'],
+  ['agenda', 'Agenda da semana com os horários marcados'],
+  ['pedidos', 'Pedidos vendidos pelo chat'],
+  ['carteira', 'Carteira com saldo e extrato'],
+  ['plano', 'Plano e uso do mês'],
+].map(([f, alt]) => ({ src: `/img/telas/${f}.jpg`, alt }));
+
 const FAQ = [
   ['Preciso saber programar?', 'Não. Você conversa, revisa o documento e publica um link. Dá para colocar na bio, no site ou mandar pelo WhatsApp.'],
   ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu atendente, do começo ao fim. Cada plano tem uma cota de atendimentos e um total de mensagens de clientes no mês, que folga para conversas de todos os tamanhos.'],
@@ -347,7 +412,35 @@ export default function Landing() {
       <Hero user={user} deslizar={deslizar} />
       <Filme />
 
-      <section id="como" className="lp-sec">
+      <section className="lp-faixa" aria-label="Para quem é o Helpy e com o que ele funciona">
+        <p className="lp-faixa-frase">
+          Feito para{' '}
+          <span className="sr-only">{SEGMENTOS.join(', ')}</span>
+          <Perto as="span" className="lp-faixa-gira" reserva={<span className="lp-gira-palavra">{SEGMENTOS[0]}</span>}>
+            <RotatingText
+              texts={SEGMENTOS}
+              mainClassName="lp-gira-palavra"
+              splitBy="characters"
+              staggerDuration={0.02}
+              staggerFrom="last"
+              rotationInterval={2200}
+              transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '-120%', opacity: 0 }}
+            />
+          </Perto>
+        </p>
+        <p className="lp-faixa-sub">e conversa com o que você já usa</p>
+        <Perto className="lp-faixa-logos" decorativo={false} reserva={<div style={{ height: 40 }} />}>
+          <LogoLoop logos={LOGOS} speed={55} logoHeight={26} gap={48} labels="inline" pauseOnHover fadeOut fadeOutWidth={0.14} ariaLabel="Com o que o Helpy funciona" />
+        </Perto>
+      </section>
+
+      <section id="como" className="lp-sec lp-sec-pontos">
+        <Perto className="lp-fundo-efeito">
+          <DotGrid dotSize={4} gap={22} baseColor="#cfdaea" activeColor="#1f66f4" proximity={130} shockRadius={260} shockStrength={4} intro={false} fade={0.35} />
+        </Perto>
         <div className="lp-in">
           <Reveal className="lp-cab">
             <span className="lp-etiqueta">Como funciona</span>
@@ -386,6 +479,18 @@ export default function Landing() {
         </div>
       </section>
 
+      <div className="lp-velocidade" aria-hidden="true">
+        <Perto reserva={<div style={{ height: 120 }} />}>
+          <ScrollVelocity
+            texts={['Responde · Marca horário · Vende pelo chat · Consulta o estoque ·', 'Chama a equipe · Atende no WhatsApp · Ensina com o que não sabia ·']}
+            velocity={40}
+            numCopies={4}
+            parallaxClassName="lp-vel-linha"
+            scrollerClassName="lp-vel-texto"
+          />
+        </Perto>
+      </div>
+
       <section className="lp-sec">
         <div className="lp-in lp-chamado">
           <Reveal className="lp-chamado-texto">
@@ -415,7 +520,10 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="dados" className="lp-sec">
+      <section id="dados" className="lp-sec lp-sec-ondas">
+        <Perto className="lp-fundo-efeito lp-fundo-ondas">
+          <LineWaves color1="#1f66f4" color2="#7fb0ff" color3="#b9d0ff" lightMode intro={false} speed={0.22} lineCount={60} glow={0.4} brightness={0.85} rotation={-28} enableMouseInteraction mouseInfluence={1.4} edgeFade={0.25} />
+        </Perto>
         <div className="lp-in lp-duas">
           <Reveal>
             <span className="lp-etiqueta">Integrações</span>
@@ -505,6 +613,49 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="lp-sec lp-sec-telas">
+        <div className="lp-in">
+          <Reveal className="lp-cab lp-cab-centro">
+            <span className="lp-etiqueta">O painel</span>
+            <h2 className="lp-h2">Tudo num lugar só.</h2>
+            <p className="lp-lead">Chamados, agenda, pedidos, carteira e relatórios: as telas de verdade do Helpy, com dados de exemplo.</p>
+          </Reveal>
+        </div>
+        <Perto className="lp-telas" reserva={<div className="parede" />}>
+          <ParedeDeTelas telas={TELAS} />
+        </Perto>
+      </section>
+
+      <section className="lp-sec">
+        <div className="lp-in">
+          <Reveal className="lp-cab lp-cab-centro">
+            <span className="lp-etiqueta">Por que o Helpy</span>
+            <h2 className="lp-h2">O mesmo atendimento,<br />sem depender de alguém online.</h2>
+          </Reveal>
+          <div className="lp-compara">
+            <Reveal as="article" className="lp-compara-col lp-compara-sim" data-luz="">
+              <div className="lp-compara-cab">
+                <Marca size={26} />
+                <b>Com o Helpy</b>
+                <span className="lp-plano-tag">Recomendado</span>
+              </div>
+              <ul>
+                {COM_HELPY.map((t) => <li key={t}><span className="lp-compara-ico"><Check aria-hidden="true" /></span>{t}</li>)}
+              </ul>
+              <Link to={destino} className="lp-btn lp-btn-cheio lp-btn-bloco">Testar grátis por {DIAS_DE_TESTE} dias <ArrowRight /></Link>
+            </Reveal>
+            <Reveal as="article" atraso={120} className="lp-compara-col lp-compara-nao">
+              <div className="lp-compara-cab">
+                <b>Do jeito de sempre</b>
+              </div>
+              <ul>
+                {SEM_HELPY.map((t) => <li key={t}><span className="lp-compara-ico"><X aria-hidden="true" /></span>{t}</li>)}
+              </ul>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
       <section id="planos" className="lp-sec">
         <div className="lp-in">
           <Reveal className="lp-cab lp-cab-centro">
@@ -515,6 +666,11 @@ export default function Landing() {
           <div className="lp-planos">
             {pagos.map((p, i) => (
               <Reveal as="article" key={p.id} atraso={i * 100} className={`lp-plano${p.destaque ? ' lp-plano-destaque' : ''}`} data-luz="">
+                {p.destaque && (
+                  <Perto className="lp-plano-seda">
+                    <Silk color="#173a80" sheenColor="#9ec0ff" speed={3} scale={1.1} noiseIntensity={0.9} sheen={0.45} glow={0.25} intro={false} />
+                  </Perto>
+                )}
                 <div className="lp-plano-topo">
                   <h3>{p.nome}</h3>
                   {p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
@@ -559,6 +715,9 @@ export default function Landing() {
       <section className="lp-sec lp-sec-final">
         <div className="lp-in">
           <Reveal className="lp-final">
+            <Perto className="lp-final-raios">
+              <LightRays raysColor="#9ec0ff" raysOrigin="top-center" lightSpread={0.9} rayLength={2.4} raysSpeed={0.8} glow={0.7} haze={0.3} followMouse mouseInfluence={0.08} intro={false} />
+            </Perto>
             <h2>Teste grátis<br />por {DIAS_DE_TESTE} dias.</h2>
             <p>Em uma tarde o seu atendente está no ar. Sem cartão para testar.</p>
             <Link to={destino} className="lp-btn lp-btn-claro" data-ima="">
