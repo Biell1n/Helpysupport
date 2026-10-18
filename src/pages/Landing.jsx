@@ -1,4 +1,4 @@
-import { lazy, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Lenis from 'lenis';
 import { ArrowRight, Check, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap, QrCode, X } from 'lucide-react';
@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DIAS_DE_TESTE, PLANS, reais, recursosDoPlano } from '@/lib/plans';
 import Perto from '@/components/efeitos/Perto';
 import { MARCAS } from '@/components/efeitos/marcas';
+import Grifo from '@/components/efeitos/Grifo';
 
 // efeitos pesados (WebGL e animações) só carregam quando chegam perto da tela
 const LightRays = lazy(() => import('@/components/efeitos/LightRays'));
@@ -25,6 +26,12 @@ const LogoLoop = lazy(() => import('@/components/efeitos/LogoLoop'));
 const RotatingText = lazy(() => import('@/components/efeitos/RotatingText'));
 const ScrollVelocity = lazy(() => import('@/components/efeitos/ScrollVelocity').then((m) => ({ default: m.ScrollVelocity ?? m.default })));
 const ParedeDeTelas = lazy(() => import('@/components/efeitos/ParedeDeTelas'));
+const BarraDeLeitura = lazy(() => import('@/components/efeitos/BarraDeLeitura'));
+const TextoQueAcende = lazy(() => import('@/components/efeitos/TextoQueAcende'));
+const PainelFixo = lazy(() => import('@/components/efeitos/PainelFixo'));
+const GaleriaHorizontal = lazy(() => import('@/components/efeitos/GaleriaHorizontal'));
+const ScrollStack = lazy(() => import('@/components/efeitos/ScrollStack'));
+const ScrollStackItem = lazy(() => import('@/components/efeitos/ScrollStack').then((m) => ({ default: m.ScrollStackItem })));
 
 const VENDAS_LP = import.meta.env.VITE_CONTATO_VENDAS;
 
@@ -335,6 +342,20 @@ const ASSUNTOS = [
   ['Estacionamento', 19],
 ];
 
+const HISTORIA = 'São 23h. Um cliente quer saber o preço do corte, se tem horário no sábado e se aceita Pix. Sua equipe já foi para casa. O *Helpy *responde, *marca *o *horário e *manda *o *link. De manhã, está tudo no painel.';
+
+// conversas de exemplo de cada tipo de negócio (a galeria que anda para o lado)
+const NEGOCIOS = [
+  { tipo: 'Barbearia', faz: 'Marca horário', cliente: 'Tem horário sábado de manhã?', helpy: 'Tenho 9h40 com o Zé. Marco para você?', cor: '#1f66f4' },
+  { tipo: 'Loja de informática', faz: 'Vende pelo chat', cliente: 'Quero um PC até R$ 3.500 para jogar.', helpy: 'Montei um com Ryzen 5 8600G e 16 GB: R$ 3.549. Fecho o pedido?', cor: '#7c4dff' },
+  { tipo: 'Clínica', faz: 'Recepção', cliente: 'Vocês atendem convênio?', helpy: 'Atendemos Unimed e Amil. Quer ver os horários da Dra. Ana?', cor: '#0e9f8f' },
+  { tipo: 'Professor', faz: 'Ensina', cliente: 'Não entendi fração.', helpy: 'Bora de pizza: cortou em 4 e comeu 1, comeu 1/4. E se comer 2?', cor: '#f08c00' },
+  { tipo: 'Restaurante', faz: 'Cardápio e entrega', cliente: 'Qual o prato do dia?', helpy: 'Feijoada, R$ 39,90. Entrega até 13h30 no centro.', cor: '#e8590c' },
+  { tipo: 'Academia', faz: 'Matrícula', cliente: 'Quanto é o mensal?', helpy: 'R$ 119,90 com spinning. Quer marcar uma aula grátis?', cor: '#d6336c' },
+  { tipo: 'Pet shop', faz: 'Agenda banho', cliente: 'Banho em golden, quanto fica?', helpy: 'Porte grande: R$ 85. Tenho quinta às 14h. Pode ser?', cor: '#2b8a3e' },
+  { tipo: 'Oficina', faz: 'Consulta estoque', cliente: 'Tem óleo 5W30?', helpy: 'Tenho 12 em estoque. Troca com filtro sai R$ 189.', cor: '#495057' },
+];
+
 const SEGMENTOS = ['barbearias', 'lojas', 'clínicas', 'escolas', 'restaurantes', 'oficinas', 'academias', 'pet shops'];
 
 const Marca_ = ({ d }) => <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d={d} /></svg>;
@@ -408,6 +429,11 @@ export default function Landing() {
   return (
     <div className="lp" data-abertura={esperando ? 'on' : 'off'} data-logo-voando={abertura ? 'sim' : 'nao'}>
       {abertura && <IntroLogo onSaindo={() => setEsperando(false)} onFim={() => setAbertura(false)} />}
+      {!reduzido() && (
+        <Suspense fallback={null}>
+          <BarraDeLeitura />
+        </Suspense>
+      )}
       <Topo user={user} deslizar={deslizar} />
       <Hero user={user} deslizar={deslizar} />
       <Filme />
@@ -437,6 +463,14 @@ export default function Landing() {
         </Perto>
       </section>
 
+      {reduzido() ? (
+        <p className="acende-estatico lp-in">{HISTORIA.replace(/\*/g, '')}</p>
+      ) : (
+        <Suspense fallback={<p className="acende-estatico lp-in">{HISTORIA.replace(/\*/g, '')}</p>}>
+          <TextoQueAcende texto={HISTORIA} />
+        </Suspense>
+      )}
+
       <section id="como" className="lp-sec lp-sec-pontos">
         <Perto className="lp-fundo-efeito">
           <DotGrid dotSize={4} gap={22} baseColor="#cfdaea" activeColor="#1f66f4" proximity={130} shockRadius={260} shockStrength={4} intro={false} fade={0.35} />
@@ -446,16 +480,22 @@ export default function Landing() {
             <span className="lp-etiqueta">Como funciona</span>
             <h2 className="lp-h2">Uma tarde para<br />ficar pronto.</h2>
           </Reveal>
-          <ol className="lp-passos">
-            {PASSOS.map((p, i) => (
-              <Reveal as="li" key={p.titulo} atraso={i * 120} className="lp-passo" data-luz="">
-                <div className="lp-passo-tela">{p.tela}</div>
-                <span className="lp-passo-n">{String(i + 1).padStart(2, '0')}</span>
-                <h3>{p.titulo}</h3>
-                <p>{p.texto}</p>
-              </Reveal>
-            ))}
-          </ol>
+          <Suspense
+            fallback={
+              <ol className="lp-passos">
+                {PASSOS.map((p, i) => (
+                  <li key={p.titulo} className="lp-passo">
+                    <div className="lp-passo-tela">{p.tela}</div>
+                    <span className="lp-passo-n">{String(i + 1).padStart(2, '0')}</span>
+                    <h3>{p.titulo}</h3>
+                    <p>{p.texto}</p>
+                  </li>
+                ))}
+              </ol>
+            }
+          >
+            <PainelFixo passos={PASSOS} renderTela={(p) => <div className="lp-passo-tela lp-passo-tela-grande">{p.tela}</div>} />
+          </Suspense>
         </div>
       </section>
 
@@ -466,16 +506,33 @@ export default function Landing() {
             <span className="lp-etiqueta">O que ele faz</span>
             <h2 className="lp-h2">Atende a noite toda.<br />Sem robô engessado.</h2>
           </Reveal>
+          {reduzido() ? (
           <ol className="lp-recursos">
-            {RECURSOS.map(({ titulo, texto, prova }, i) => (
-              <Reveal as="li" key={titulo} atraso={i * 70} className="lp-recurso">
-                <span className="lp-recurso-n">{String(i + 1).padStart(2, '0')}</span>
-                <h3>{titulo}</h3>
-                <p>{texto}</p>
-                <div className="lp-recurso-prova">{prova}</div>
-              </Reveal>
-            ))}
-          </ol>
+              {RECURSOS.map(({ titulo, texto, prova }, i) => (
+                <Reveal as="li" key={titulo} atraso={i * 70} className="lp-recurso">
+                  <span className="lp-recurso-n">{String(i + 1).padStart(2, '0')}</span>
+                  <h3>{titulo}</h3>
+                  <p>{texto}</p>
+                  <div className="lp-recurso-prova">{prova}</div>
+                </Reveal>
+              ))}
+            </ol>
+          ) : (
+            <Suspense fallback={<div style={{ minHeight: '60vh' }} />}>
+              <ScrollStack useWindowScroll smoothScroll={false} itemDistance={60} itemStackDistance={22} stackPosition="18%" baseScale={0.88} itemScale={0.025} dimAmount={0.12} className="lp-pilha">
+                {RECURSOS.map(({ titulo, texto, prova }, i) => (
+                  <ScrollStackItem key={titulo} itemClassName="lp-pilha-cartao">
+                    <div className="lp-pilha-texto">
+                      <span className="lp-recurso-n">{String(i + 1).padStart(2, '0')}</span>
+                      <h3>{titulo}</h3>
+                      <p>{texto}</p>
+                    </div>
+                    <div className="lp-pilha-prova">{prova}</div>
+                  </ScrollStackItem>
+                ))}
+              </ScrollStack>
+            </Suspense>
+          )}
         </div>
       </section>
 
@@ -491,11 +548,50 @@ export default function Landing() {
         </Perto>
       </div>
 
+      {reduzido() ? (
+        <section className="ghoriz-estatico">
+          <div className="lp-in ghoriz-cab">
+              <span className="lp-etiqueta">Exemplos</span>
+              <h2 className="lp-h2">Um jeito para cada negócio.</h2>
+            </div>
+          <div className="ghoriz-trilho">{NEGOCIOS.map((n) => (
+              <article key={n.tipo} className="ghoriz-cartao" style={{ '--cor': n.cor }}>
+                <header><b>{n.tipo}</b><span>{n.faz}</span></header>
+                <div className="ghoriz-chat">
+                  <span className="eu">{n.cliente}</span>
+                  <span className="ele">{n.helpy}</span>
+                </div>
+              </article>
+            ))}</div>
+        </section>
+      ) : (
+        <Suspense fallback={<section className="ghoriz-estatico" />}>
+          <GaleriaHorizontal
+            cabecalho={
+              <div className="lp-in ghoriz-cab">
+              <span className="lp-etiqueta">Exemplos</span>
+              <h2 className="lp-h2">Um jeito para cada negócio.</h2>
+            </div>
+            }
+          >
+            {NEGOCIOS.map((n) => (
+              <article key={n.tipo} className="ghoriz-cartao" style={{ '--cor': n.cor }}>
+                <header><b>{n.tipo}</b><span>{n.faz}</span></header>
+                <div className="ghoriz-chat">
+                  <span className="eu">{n.cliente}</span>
+                  <span className="ele">{n.helpy}</span>
+                </div>
+              </article>
+            ))}
+          </GaleriaHorizontal>
+        </Suspense>
+      )}
+
       <section className="lp-sec">
         <div className="lp-in lp-chamado">
           <Reveal className="lp-chamado-texto">
             <span className="lp-etiqueta">Chamados</span>
-            <h2 className="lp-h2">Quando precisa de gente, chama você.</h2>
+            <h2 className="lp-h2">Quando precisa de gente, <Grifo>chama você.</Grifo></h2>
             <p className="lp-lead">
               Reclamação, negociação ou um pedido fora do comum vira um chamado com número e resumo do que aconteceu. Você
               assume e responde na mesma conversa.
@@ -527,7 +623,7 @@ export default function Landing() {
         <div className="lp-in lp-duas">
           <Reveal>
             <span className="lp-etiqueta">Integrações</span>
-            <h2 className="lp-h2">Lê o que você já usa.</h2>
+            <h2 className="lp-h2">Lê o que você <Grifo>já usa.</Grifo></h2>
             <p className="lp-lead">
               O atendente responde com o dado de agora. Suba uma planilha, ligue uma planilha online ou conecte o seu sistema: ele
               consulta na hora de responder.
@@ -572,7 +668,7 @@ export default function Landing() {
           </Reveal>
           <Reveal>
             <span className="lp-etiqueta">Canais</span>
-            <h2 className="lp-h2">Um assistente, todos os canais.</h2>
+            <h2 className="lp-h2">Um assistente, <Grifo>todos os canais.</Grifo></h2>
             <p className="lp-lead">
               O mesmo atendente responde no link do chat, no WhatsApp, no Instagram e no Discord. Preços, regras e agenda são os
               mesmos em todo lugar, e as conversas caem todas no mesmo painel.
@@ -660,7 +756,7 @@ export default function Landing() {
         <div className="lp-in">
           <Reveal className="lp-cab lp-cab-centro">
             <span className="lp-etiqueta">Planos</span>
-            <h2 className="lp-h2">Um preço fixo por mês,<br />sem surpresa na fatura.</h2>
+            <h2 className="lp-h2">Um preço fixo por mês,<br /><Grifo>sem surpresa</Grifo> na fatura.</h2>
             <p className="lp-lead">Todos começam com {DIAS_DE_TESTE} dias grátis, sem cartão. Preço de lançamento: quem assina agora mantém.</p>
           </Reveal>
           <div className="lp-planos">
@@ -728,6 +824,7 @@ export default function Landing() {
       </section>
 
       <footer className="lp-foot">
+        <div className="lp-foot-marca" aria-hidden="true">helpy</div>
         <div className="lp-in lp-foot-in">
           <Logo size={22} />
           <nav aria-label="Rodapé">

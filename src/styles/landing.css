@@ -2109,3 +2109,237 @@
   .lp-compara-nao { margin-top: 0; }
   .lp-faixa, .lp-velocidade { padding-top: 90px; }
 }
+
+/* ============================================================
+   Rolagem: barra de leitura, texto que acende, painel fixo,
+   pilha de recursos, galeria horizontal, grifo e marca do rodapé
+   ============================================================ */
+
+/* o vídeo chega inclinado e deita na tela (Container Scroll, Aceternity) */
+.lp-filme-preso { perspective: 1400px; }
+.lp-filme-midia {
+  rotate: x calc(max(0, 1 - var(--p, 0) * 2.6) * 20deg);
+  transform-origin: 50% 100%;
+}
+
+.barra-leitura {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 60;
+  height: 3px;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, #7fb0ff, var(--senha) 45%, #0b1a2c);
+  pointer-events: none;
+}
+
+/* texto que acende palavra por palavra (Text Reveal, Magic UI) */
+.acende { position: relative; height: 230vh; }
+.acende-preso {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 0 24px;
+}
+.acende-texto,
+.acende-estatico {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.26em;
+  font-family: var(--f-display);
+  font-stretch: 112%;
+  font-weight: 500;
+  font-size: clamp(30px, 4.4vw, 62px);
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+  color: var(--tinta);
+}
+.acende-estatico { display: block; padding: 120px 24px 0; }
+.acende-palavra { position: relative; display: inline-block; }
+.acende-sombra { color: color-mix(in srgb, var(--tinta) 13%, transparent); }
+.acende-luz,
+.acende-destaque { position: absolute; inset: 0; }
+.acende-luz { color: var(--tinta); }
+.acende-destaque { color: var(--senha); }
+
+/* como funciona: texto rola, painel fica preso (Sticky Scroll Reveal) */
+.pfixo {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 64px;
+  align-items: start;
+}
+.pfixo-passo {
+  min-height: 62vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0.32;
+  transition: opacity 0.45s ease;
+}
+.pfixo-passo[data-ativo] { opacity: 1; }
+.pfixo-n { font-family: var(--f-mono); font-size: 13px; color: var(--azul-forte, var(--senha)); }
+.pfixo-passo h3 {
+  margin: 10px 0 12px;
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 500;
+  font-size: clamp(28px, 3vw, 40px);
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+.pfixo-passo p { max-width: 440px; font-size: 17px; line-height: 1.6; color: var(--tinta-2); }
+.pfixo-tela-celular { display: none; }
+.pfixo-lado { position: sticky; top: 18vh; height: 64vh; display: grid; place-items: center; }
+.pfixo-painel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 30px;
+  padding: 20px;
+  background: var(--branco);
+  box-shadow: 0 0 0 1px rgba(11, 26, 44, 0.06), 0 50px 100px -50px rgba(11, 26, 44, 0.45);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 16px;
+  overflow: hidden;
+}
+.pfixo-barra { display: flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-size: 12px; color: var(--tinta-3); }
+.pfixo-barra i { width: 10px; height: 10px; border-radius: 50%; background: color-mix(in srgb, var(--tinta) 12%, transparent); }
+.pfixo-barra span { margin-left: 10px; }
+.pfixo-conteudo { display: grid; min-height: 0; }
+.lp-passo-tela-grande { height: 100%; margin: 0; border-radius: 22px; padding: 36px; }
+.lp-passo-tela-grande .lp-mini-chat span { font-size: 16px; padding: 13px 18px; }
+.lp-passo-tela-grande .lp-mini-doc { font-size: 16px; }
+.lp-passo-tela-grande .lp-mini-link { transform: scale(1.35); }
+.pfixo-pontos { display: flex; justify-content: center; gap: 8px; }
+.pfixo-pontos i { width: 8px; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--tinta) 14%, transparent); transition: width 0.35s ease, background 0.35s ease; }
+.pfixo-pontos i[data-ativo] { width: 26px; background: var(--senha); }
+
+/* o que ele faz: cartões que se empilham (ScrollStack, React Bits) */
+.lp-pilha .scroll-stack__inner { padding-inline: 0; }
+.lp-pilha .lp-pilha-cartao {
+  height: auto;
+  min-height: 15rem;
+  padding: 36px 40px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 32px;
+  align-items: center;
+  background: var(--branco);
+  color: var(--tinta);
+  box-shadow: 0 0 0 1px rgba(11, 26, 44, 0.06), 0 -12px 40px -18px rgba(11, 26, 44, 0.25), 0 30px 60px -30px rgba(11, 26, 44, 0.35);
+}
+.lp-pilha-cartao:nth-child(even) { background: linear-gradient(160deg, #ffffff, #eef4fb); }
+.lp-pilha-texto h3 {
+  margin: 8px 0 10px;
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 500;
+  font-size: clamp(24px, 2.6vw, 34px);
+  letter-spacing: -0.04em;
+}
+.lp-pilha-texto p { font-size: 16px; line-height: 1.6; color: var(--tinta-2); max-width: 460px; }
+.lp-pilha-prova {
+  justify-self: stretch;
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+  border-radius: 20px;
+  background: linear-gradient(160deg, #d3e3f2, #eef4fa);
+  font-family: var(--f-mono);
+  font-size: 15px;
+  color: var(--tinta);
+  padding: 22px;
+  text-align: center;
+}
+.lp-pilha-prova .lp-prova-barras { transform: scale(1.6); }
+
+/* um jeito para cada negócio: galeria que anda de lado */
+.ghoriz { position: relative; height: var(--altura, 300vh); margin-top: 120px; }
+.ghoriz-preso { position: sticky; top: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: 40px; }
+.ghoriz-cab .lp-h2 { margin: 0; }
+.ghoriz-trilho { display: flex; gap: 22px; padding: 0 max(24px, calc((100vw - 1180px) / 2)); width: max-content; }
+.ghoriz-cartao {
+  flex: none;
+  width: min(360px, 78vw);
+  min-height: 300px;
+  border-radius: 28px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  background: var(--branco);
+  box-shadow: 0 0 0 1px rgba(11, 26, 44, 0.06), 0 30px 60px -36px rgba(11, 26, 44, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+.ghoriz-cartao::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 5px;
+  background: var(--cor);
+}
+.ghoriz-cartao header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ghoriz-cartao header b { font-family: var(--f-display); font-stretch: 118%; font-weight: 500; font-size: 22px; letter-spacing: -0.03em; }
+.ghoriz-cartao header span {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  color: var(--cor);
+  background: color-mix(in srgb, var(--cor) 12%, transparent);
+  white-space: nowrap;
+}
+.ghoriz-chat { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+.ghoriz-chat span { max-width: 86%; padding: 11px 15px; border-radius: 18px; font-size: 14.5px; line-height: 1.4; }
+.ghoriz-chat .eu { align-self: flex-end; background: var(--tinta); color: var(--sobre-tinta); border-bottom-right-radius: 5px; }
+.ghoriz-chat .ele { align-self: flex-start; background: color-mix(in srgb, var(--cor) 9%, #f4f7fb); border-bottom-left-radius: 5px; }
+.ghoriz-estatico { padding-top: 120px; }
+.ghoriz-estatico .ghoriz-trilho { overflow-x: auto; width: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; margin-top: 32px; }
+.ghoriz-estatico .ghoriz-cartao { scroll-snap-align: start; }
+
+/* grifo que passa por trás das palavras (Text Highlight) */
+.grifo {
+  background: linear-gradient(transparent 58%, color-mix(in srgb, var(--senha) 26%, transparent) 58%, color-mix(in srgb, var(--senha) 26%, transparent) 92%, transparent 92%) no-repeat 0 0 / 0% 100%;
+  transition: background-size 1s cubic-bezier(0.65, 0, 0.35, 1) 0.2s;
+  padding: 0 0.04em;
+}
+.grifo[data-visto] { background-size: 100% 100%; }
+
+/* "helpy" gigante vazado no rodapé (Footer with Minimal Outline) */
+.lp-foot { position: relative; overflow: hidden; }
+.lp-foot-marca {
+  font-family: var(--f-display);
+  font-stretch: 125%;
+  font-weight: 600;
+  font-size: clamp(110px, 24vw, 380px);
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  text-align: center;
+  margin: 40px 0 -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--senha) 45%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--senha) 16%, transparent), transparent 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  user-select: none;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .pfixo { grid-template-columns: 1fr; gap: 0; }
+  .pfixo-lado { display: none; }
+  .pfixo-passo { min-height: 0; opacity: 1; padding: 22px 0; }
+  .pfixo-tela-celular { display: block; margin-top: 18px; }
+  .lp-pilha .lp-pilha-cartao { grid-template-columns: 1fr; padding: 26px; gap: 18px; }
+  .acende { height: 200vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-filme-midia { rotate: none; }
+  .grifo { transition: none; background-size: 100% 100%; }
+}
