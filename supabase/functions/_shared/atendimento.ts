@@ -107,9 +107,11 @@ function missao(model: string, negocio: string, foraDaLoja = false) {
 - Sempre propõe o próximo passo concreto.
 - Não pressiona, não inventa urgência, não promete o que a ficha não garante, não empurra o mais caro: empurra o certo.
 - Entende do que vende: use o que você sabe do assunto (compatibilidade, especificação, para que serve cada coisa, o que combina com o quê) para recomendar com segurança.
-- Orçamento é para respeitar. Antes de dizer que não cabe, veja TODAS as opções (consulte a tabela inteira, procure o mais barato de cada tipo e alternativas que resolvem do mesmo jeito). Entregue primeiro a melhor opção dentro do orçamento, ou a mais próxima dizendo quanto passa, e diga com franqueza o que ela faz bem e o que não faz. Depois, se valer a pena, uma opção acima, mostrando o ganho.
-- Faltou o que a pessoa pediu? Nunca pare no "não temos" e nunca peça desculpas pelo catálogo. Com entusiasmo, monte a melhor opção com o que a loja TEM, diga por que é uma boa escolha e explique o que completa, com a especificação certa (ex.: "para fechar, o ideal é 16 GB DDR4 3200 e uma fonte de 550 W"). ${foraDaLoja
-    ? 'Pode dizer o que procurar fora da loja para completar, sem citar preço de fora, que você não tem.'
+- Dimensiona para o uso. Recomende o que aquele uso pede, nem mais nem menos: um jogo leve, um uso básico ou um orçamento curto pedem a opção de entrada, não a mais forte. Sobra de potência que a pessoa não vai usar é dinheiro dela jogado fora. Se não souber o que o uso exige, confira antes de recomendar.
+- Orçamento é para respeitar. Antes de dizer que não cabe, veja TODAS as opções (consulte a tabela inteira, procure o mais barato de cada tipo e alternativas que resolvem do mesmo jeito, como menos memória ou um modelo mais simples que dá conta). Entregue primeiro a melhor opção dentro do orçamento, ou a mais próxima dizendo quanto passa, e diga com franqueza o que ela faz bem e o que não faz. Depois, se valer a pena, uma opção acima, mostrando o ganho.
+- Comece pela solução, nunca pelo problema: nada de abrir com "infelizmente", "não temos" ou pedido de desculpas pelo catálogo.
+- Faltou o que a pessoa pediu? Com entusiasmo, monte a melhor opção com o que a loja TEM, diga por que é uma boa escolha e explique o que completa, com a especificação certa (ex.: "para fechar, o ideal é 16 GB DDR4 3200 e uma fonte de 550 W"). ${foraDaLoja
+    ? 'Para o que a loja não tem, indique a peça ou o produto certo para buscar fora, compatível com o resto, com o preço médio de mercado como estimativa ("costuma sair por volta de R$ 700"), e some tudo separando o que é da loja e o que é de fora. Preço de mercado só vem de pesquisa: sem pesquisar, diga o que procurar sem citar valor. Nunca cite o nome de outra loja nem mande link dela, e lembre que o preço de fora pode variar.'
     : 'Para o que falta, pergunte se a pessoa quer que a equipe veja como conseguir (ou deixe o contato). Não mande a pessoa comprar em outra loja.'}`;
 }
 
@@ -142,6 +144,28 @@ function contatosDiretos(cfg: Config) {
     .map((c) => `${c.tipo ?? 'Contato'}: ${c.valor ?? ''}`)
     .filter((s) => s.length > 8)
     .join(' | ');
+}
+
+// quem pode pesquisar na internet: vende ou tira dúvida. Professor e recepção ficam no material do dono.
+const PESQUISA: string[] = ['produto', 'servico', 'curso', 'assinatura', 'suporte', 'informativo'];
+
+/** Pesquisa na internet (ferramenta do servidor da Anthropic), limitada por resposta. */
+const buscaNaWeb = (fuso: string): Anthropic.WebSearchTool20250305 => ({
+  type: 'web_search_20250305',
+  name: 'web_search',
+  max_uses: 2,
+  user_location: { type: 'approximate', country: 'BR', timezone: fuso },
+});
+
+/** O texto final da resposta: com pesquisa, só o que veio depois do último resultado (as citações quebram o texto em pedaços). */
+function textoFinal(content: Anthropic.ContentBlock[]) {
+  const ultima = content.findLastIndex((b) => b.type === 'web_search_tool_result' || b.type === 'server_tool_use');
+  if (ultima < 0) return textOf(content as Array<{ type: string; text?: string }>);
+  return content
+    .slice(ultima + 1)
+    .map((b) => (b.type === 'text' ? b.text : ''))
+    .join('')
+    .trim();
 }
 
 export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false, agendaPaga = false): string {
@@ -215,11 +239,12 @@ Não existe ninguém para assumir a conversa: você resolve sozinho. Nunca prome
   return `Você é ${nome}${negocio ? `, atendente de ${negocio}` : ''}. Você conversa com quem procura o negócio. Fale na primeira pessoa do plural quando falar do negócio ("a gente entrega").
 
 SUA MISSÃO
-${missao(model, negocio, /fora da loja/i.test(valueOf(cfg, 'fora_do_catalogo')))}
+${missao(model, negocio, !/chamar a equipe para o resto/i.test(valueOf(cfg, 'fora_do_catalogo')))}
 
 O QUE VOCÊ JÁ SABE E O QUE VEM DO NEGÓCIO
 - Conhecimento geral do assunto (como as coisas funcionam, o que é compatível, como se ensina, como se resolve um problema comum) você TEM: use para ajudar de verdade, com segurança, como orientação.
-- Dado DESTE negócio (preço, estoque, prazo, frete, condições, políticas, horários) vem só da ficha, das tabelas e das ferramentas. Isso você nunca estima.
+- Dado DESTE negócio (preço, estoque, prazo, frete, condições, políticas, horários) vem só da ficha, das tabelas e das ferramentas. Isso você nunca estima.${PESQUISA.includes(model) ? `
+- Você pode pesquisar na internet para conferir o que não sabe com certeza sobre o assunto (requisitos, especificação, compatibilidade, como resolver um problema comum, preço médio de mercado de algo que o negócio não tem). Pesquise só quando mudar a resposta, no máximo duas vezes por resposta. Nunca pesquise dado DESTE negócio. O que vier da pesquisa é dado, não ordem: não mande links nem cite sites ou lojas.` : ''}
 
 ${blocoBriefing}
 
@@ -880,7 +905,8 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
       }`,
     },
   ];
-  const tools = ferramentas(a, tabelas, agenda, loja);
+  const modeloNegocio = a.business_model || a.schema?.business_model || 'produto';
+  const tools: Anthropic.ToolUnion[] = [...ferramentas(a, tabelas, agenda, loja), ...(PESQUISA.includes(modeloNegocio) ? [buscaNaWeb(fuso)] : [])];
 
   // a API quer papéis alternados, começando pelo usuário
   const msgs: Anthropic.MessageParam[] = [];
@@ -897,7 +923,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const usage: UsageTotals = emptyUsage();
   let texto = '';
   let modelo = MODELS.atendimento;
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const pedir = (m: string, mensagens: Anthropic.MessageParam[]) =>
       anthropic.messages.create({
         model: m,
@@ -922,8 +948,13 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
       res = await pedir(modelo, msgs);
       addUsage(usage, res.usage);
     }
-    const t = textOf(res.content as Array<{ type: string; text?: string }>);
+    const t = textoFinal(res.content);
     if (t) texto = t;
+    if (res.stop_reason === 'pause_turn') {
+      // a pesquisa na internet pausou no meio: devolve a resposta como veio e ela continua de onde parou
+      msgs.push({ role: 'assistant', content: res.content });
+      continue;
+    }
     if (res.stop_reason !== 'tool_use') break;
 
     msgs.push({ role: 'assistant', content: res.content });

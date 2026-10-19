@@ -32,8 +32,6 @@ const TextoQueAcende = lazy(() => import('@/components/efeitos/TextoQueAcende'))
 const PainelFixo = lazy(() => import('@/components/efeitos/PainelFixo'));
 const GaleriaHorizontal = lazy(() => import('@/components/efeitos/GaleriaHorizontal'));
 const ListaAoVivo = lazy(() => import('@/components/efeitos/ListaAoVivo'));
-const ScrollStack = lazy(() => import('@/components/efeitos/ScrollStack'));
-const ScrollStackItem = lazy(() => import('@/components/efeitos/ScrollStack').then((m) => ({ default: m.ScrollStackItem })));
 
 const VENDAS_LP = import.meta.env.VITE_CONTATO_VENDAS;
 
@@ -569,33 +567,16 @@ export default function Landing() {
             <span className="lp-etiqueta">O que ele faz</span>
             <h2 className="lp-h2">Atende a noite toda.<br />Sem robô engessado.</h2>
           </Reveal>
-          {reduzido() ? (
-          <ol className="lp-recursos">
-              {RECURSOS.map(({ titulo, texto, prova }, i) => (
-                <Reveal as="li" key={titulo} atraso={i * 70} className="lp-recurso">
-                  <span className="lp-recurso-n">{String(i + 1).padStart(2, '0')}</span>
-                  <h3>{titulo}</h3>
-                  <p>{texto}</p>
-                  <div className="lp-recurso-prova">{prova}</div>
-                </Reveal>
-              ))}
-            </ol>
-          ) : (
-            <Suspense fallback={<div style={{ minHeight: '60vh' }} />}>
-              <ScrollStack useWindowScroll smoothScroll={false} itemDistance={60} itemStackDistance={22} stackPosition="18%" baseScale={0.88} itemScale={0.025} dimAmount={0.12} className="lp-pilha">
-                {RECURSOS.map(({ titulo, texto, prova }, i) => (
-                  <ScrollStackItem key={titulo} itemClassName="lp-pilha-cartao">
-                    <div className="lp-pilha-texto">
-                      <span className="lp-recurso-n">{String(i + 1).padStart(2, '0')}</span>
-                      <h3>{titulo}</h3>
-                      <p>{texto}</p>
-                    </div>
-                    <div className="lp-pilha-prova">{prova}</div>
-                  </ScrollStackItem>
-                ))}
-              </ScrollStack>
-            </Suspense>
-          )}
+          <ol className="lp-bento">
+            {RECURSOS.map(({ titulo, texto, prova }, i) => (
+              <Reveal as="li" key={titulo} atraso={(i % 3) * 90} className="lp-bento-cartao" data-luz="">
+                <div className="lp-bento-prova">{prova}</div>
+                <span className="lp-recurso-n">{String(i + 1).padStart(2, '0')}</span>
+                <h3>{titulo}</h3>
+                <p>{texto}</p>
+              </Reveal>
+            ))}
+          </ol>
         </div>
       </section>
 

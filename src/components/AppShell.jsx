@@ -128,7 +128,7 @@ export default function AppShell() {
               <b>{plano.nome}</b>
               {dias != null && <span className="mono">{dias > 0 ? `${dias} dias` : 'terminou'}</span>}
             </div>
-            <div className="meter" data-nivel={pct >= 85 ? 'alto' : undefined}>
+            <div className="meter" data-nivel={pct >= 100 ? 'cheio' : pct >= 85 ? 'alto' : undefined}>
               <span style={{ width: `${pct}%` }} />
             </div>
             <span className="num">

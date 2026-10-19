@@ -28,14 +28,18 @@ const PRICES: Record<string, [number, number, number, number]> = {
 
 export const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') });
 
+// pesquisa na internet do atendente: US$ 10 por mil buscas
+const PRECO_BUSCA = 0.01;
+
 export interface UsageTotals {
   input: number;
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  buscas: number;
 }
 
-export const emptyUsage = (): UsageTotals => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+export const emptyUsage = (): UsageTotals => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, buscas: 0 });
 
 export function addUsage(t: UsageTotals, u: Anthropic.Usage | Anthropic.Beta.BetaUsage | undefined) {
   if (!u) return;
@@ -43,11 +47,12 @@ export function addUsage(t: UsageTotals, u: Anthropic.Usage | Anthropic.Beta.Bet
   t.output += u.output_tokens ?? 0;
   t.cacheRead += u.cache_read_input_tokens ?? 0;
   t.cacheWrite += u.cache_creation_input_tokens ?? 0;
+  t.buscas += u.server_tool_use?.web_search_requests ?? 0;
 }
 
 export function costUsd(model: string, t: UsageTotals): number {
   const p = PRICES[model] ?? PRICES['claude-sonnet-5-5'];
-  return (t.input * p[0] + t.output * p[1] + t.cacheRead * p[2] + t.cacheWrite * p[3]) / 1_000_000;
+  return (t.input * p[0] + t.output * p[1] + t.cacheRead * p[2] + t.cacheWrite * p[3]) / 1_000_000 + (t.buscas ?? 0) * PRECO_BUSCA;
 }
 
 export async function logUsage(

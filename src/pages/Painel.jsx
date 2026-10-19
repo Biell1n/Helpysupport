@@ -151,7 +151,7 @@ export default function Painel() {
           <span className="kpi-valor">
             {uso?.atendimentos ?? '—'} <small>de {plano.atendimentos}</small>
           </span>
-          <div className="meter" data-nivel={(uso?.atendimentos ?? 0) / plano.atendimentos >= 0.85 ? 'alto' : undefined} style={{ marginTop: 8 }}>
+          <div className="meter" data-nivel={(uso?.atendimentos ?? 0) >= plano.atendimentos ? 'cheio' : (uso?.atendimentos ?? 0) / plano.atendimentos >= 0.85 ? 'alto' : undefined} style={{ marginTop: 8 }}>
             <span style={{ width: `${Math.min(100, ((uso?.atendimentos ?? 0) / plano.atendimentos) * 100)}%` }} />
           </div>
           {mesPassado > 0 && uso?.atendimentos != null && (() => {

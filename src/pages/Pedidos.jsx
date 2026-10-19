@@ -109,8 +109,8 @@ export default function Pedidos() {
         <div className="empty">
           <ShoppingBag size={32} />
           <h3>Nenhum pedido ainda</h3>
-          <p>Ligue o recebimento em Canais. Depois, quando um cliente decidir comprar, o assistente confirma os itens e manda o link de pagamento na conversa.</p>
-          {tipo === 'empresa' && <Link to="/painel/canais" className="btn btn-senha">Ligar o recebimento</Link>}
+          <p>Ative a Carteira e ligue a venda no assistente. Quando um cliente decidir comprar, ele confirma os itens e manda o link de pagamento na conversa.</p>
+          {tipo === 'empresa' && <Link to="/painel/carteira" className="btn btn-senha">Ativar a Carteira</Link>}
         </div>
       )}
 

@@ -1,12 +1,11 @@
 // Primeiros passos do Painel: o que falta para o assistente atender de
-// verdade, marcado sozinho conforme a conta avança, com o vídeo ao lado.
+// verdade, marcado sozinho conforme a conta avança.
 // Adaptado do Onboarding Checklist de Ravi Katiyar (via 21st.dev), com motion.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { ArrowRight, CheckCircle2, Circle, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import VideoDemo from '@/components/VideoDemo';
 
 const CHAVE = 'helpy_primeiros_passos_fechado';
 
@@ -81,10 +80,6 @@ export default function PrimeirosPassos({ assistentes }) {
           ))}
         </ul>
       </div>
-      <motion.div className="pp-video" variants={item}>
-        <VideoDemo rotulo="O Helpy atendendo, do começo ao fim" />
-        <span>Veja como fica, do primeiro “oi” ao pagamento.</span>
-      </motion.div>
     </motion.section>
   );
 }

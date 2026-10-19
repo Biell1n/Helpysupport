@@ -1,26 +1,55 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Check, CreditCard, MessageCircle } from 'lucide-react';
+import { CreditCard, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { chamar } from '@/lib/supabase';
 import UsoExtra from '@/components/UsoExtra';
 import { AssinarModal, MinhaAssinatura } from '@/components/Assinatura';
-import { diasDeTeste, PLANS, planOf, reais, recursosDoPlano, PRECO_FUNCIONARIO_EXTRA } from '@/lib/plans';
+import { diasDeTeste, PLANS, planOf, reais, PRECO_FUNCIONARIO_EXTRA } from '@/lib/plans';
 
 const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
 
-function Uso({ rotulo, usado, limite }) {
-  const pct = limite ? Math.min(100, Math.round((usado / limite) * 100)) : 0;
+const n = (x) => Number(x ?? 0).toLocaleString('pt-BR');
+const nivel = (usado, limite) => {
+  if (!limite) return undefined;
+  const r = (usado ?? 0) / limite;
+  return r >= 1 ? 'cheio' : r >= 0.85 ? 'alto' : undefined;
+};
+
+/** As duas cotas que mais importam: número grande e barra. */
+function UsoGrande({ rotulo, usado, limite }) {
+  const pct = limite ? Math.min(100, Math.round(((usado ?? 0) / limite) * 100)) : 0;
   return (
-    <div className="stack stack-sm">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span className="label">{rotulo}</span>
-        <span className="num faint">{usado ?? '—'} {limite ? `de ${limite.toLocaleString('pt-BR')}` : '· sem limite'}</span>
-      </div>
-      <div className="meter" data-nivel={pct >= 85 ? 'alto' : undefined}><span style={{ width: `${pct}%` }} /></div>
+    <div className="uso-grande">
+      <span className="label">{rotulo}</span>
+      <p><b className="num">{usado == null ? '—' : n(usado)}</b> <span className="faint">de {n(limite)}</span></p>
+      <div className="meter" data-nivel={nivel(usado, limite)}><span style={{ width: `${pct}%` }} /></div>
     </div>
   );
 }
+
+/** O resto das cotas, uma por linha. Só o que se gasta (cota) acende quando enche. */
+function UsoMenor({ rotulo, usado, limite, cota = false }) {
+  return (
+    <li data-nivel={cota ? nivel(usado, limite) : undefined}>
+      <span>{rotulo}</span>
+      <b className="num">{usado ?? '—'} <span className="faint">{limite ? `de ${n(limite)}` : '· sem limite'}</span></b>
+    </li>
+  );
+}
+
+// mesma ordem em todos os planos, para comparar lendo a linha
+const LINHAS = [
+  ['Atendimentos por mês', (p) => n(p.atendimentos)],
+  ['Mensagens por mês', (p) => n(p.mensagens)],
+  ['Assistentes', (p) => p.assistentes],
+  ['Pessoas na equipe', (p) => p.funcionarios],
+  ['WhatsApp e Instagram', (p) => (p.canaisMeta ? `até ${p.canaisMeta} contas` : null)],
+  ['API e banco SQL', (p) => (p.integracoes ? 'Sim' : null)],
+  ['Tabelas de dados', (p) => p.tabelas],
+  ['Chamados abertos', (p) => p.ticketsAbertos ?? 'Sem limite'],
+  ['Criador com IA', (p) => `${n(p.builderMsgs)} msgs`],
+];
 
 export default function Plano() {
   const { uso } = useOutletContext();
@@ -52,54 +81,91 @@ export default function Plano() {
     return () => clearInterval(t);
   }, [esperando, carregar, reloadProfile]);
 
+  const teste = atual.id === 'trial';
+  const acabou = (uso?.atendimentos ?? 0) >= atual.atendimentos ? 'atendimentos' : (uso?.mensagens ?? 0) >= atual.mensagens ? 'mensagens' : null;
+
   return (
     <div className="page">
       <header className="page-head">
         <div>
           <h1>Plano e uso</h1>
-          <p>
-            Você está no <b>{atual.nome}</b>
-            {dias != null && (dias > 0 ? `, que termina em ${dias} ${dias === 1 ? 'dia' : 'dias'}` : ', que já terminou')}.
-            As cotas renovam todo dia 1º.
-          </p>
+          <p>Quanto você já usou neste mês e o que cada plano inclui. As cotas renovam todo dia 1º.</p>
         </div>
       </header>
+
+      <section className="card plano-resumo">
+        <div>
+          <span className="eyebrow">Seu plano</span>
+          <h2>{atual.nome}</h2>
+          <p className="muted">
+            {teste
+              ? dias != null && (dias > 0 ? `Termina em ${dias} ${dias === 1 ? 'dia' : 'dias'}.` : 'Já terminou.')
+              : `${reais(atual.preco)}/mês.`}
+          </p>
+        </div>
+        {teste && <a href="#planos" className="btn btn-senha">Escolher um plano</a>}
+        {acabou && (
+          <div className="alert plano-alerta">
+            <span>
+              <b>{acabou === 'atendimentos' ? 'Os atendimentos' : 'As mensagens'} deste mês acabaram.</b>{' '}
+              {!teste && profile?.extra_ativo
+                ? 'O uso extra está ligado: o assistente continua respondendo e o excedente entra na próxima fatura.'
+                : `As conversas novas viram recado para a equipe até a cota renovar.${teste ? ' Assine um plano para continuar atendendo.' : ' Para continuar atendendo, ligue o uso extra ou mude de plano.'}`}
+            </span>
+          </div>
+        )}
+      </section>
 
       <section className="card stack" style={{ marginBottom: 28 }}>
         <h2 className="card-title">Uso deste mês</h2>
         <div className="grid-2">
-          <Uso rotulo="Atendimentos" usado={uso?.atendimentos} limite={atual.atendimentos} />
-          <Uso rotulo="Mensagens de clientes" usado={uso?.mensagens} limite={atual.mensagens} />
-          <Uso rotulo="Chamados abertos agora" usado={uso?.tickets_abertos} limite={atual.ticketsAbertos} />
-          <Uso rotulo="Assistentes" usado={uso?.assistentes} limite={atual.assistentes} />
-          <Uso rotulo="Tabelas de dados" usado={uso?.tabelas} limite={atual.tabelas} />
-          {atual.builderIA && <Uso rotulo="Mensagens no criador com IA" usado={uso?.builder_msgs} limite={atual.builderMsgs} />}
+          <UsoGrande rotulo="Atendimentos" usado={uso?.atendimentos} limite={atual.atendimentos} />
+          <UsoGrande rotulo="Mensagens de clientes" usado={uso?.mensagens} limite={atual.mensagens} />
         </div>
-        {profile?.creditos_extra > 0 && <p className="muted">Você tem <b>{profile.creditos_extra}</b> atendimentos extras de pacote.</p>}
-        <p className="faint" style={{ fontSize: 13 }}>
-          Quando os atendimentos ou as mensagens do mês acabam, o atendente não some: as conversas viram recados e chamados para a equipe até a cota renovar, a não ser que o uso extra esteja ligado.
-        </p>
+        <ul className="uso-menor">
+          <UsoMenor rotulo="Chamados abertos agora" usado={uso?.tickets_abertos} limite={atual.ticketsAbertos} cota />
+          <UsoMenor rotulo="Assistentes" usado={uso?.assistentes} limite={atual.assistentes} />
+          <UsoMenor rotulo="Tabelas de dados" usado={uso?.tabelas} limite={atual.tabelas} />
+          {atual.builderIA && <UsoMenor rotulo="Mensagens no criador com IA" usado={uso?.builder_msgs} limite={atual.builderMsgs} cota />}
+        </ul>
+        {profile?.creditos_extra > 0 && <p className="muted" style={{ margin: 0 }}>Você tem <b>{profile.creditos_extra}</b> atendimentos extras de pacote.</p>}
+        <p className="faint" style={{ fontSize: 13, margin: 0 }}>Um atendimento é uma conversa de um cliente com o assistente, do começo ao fim.</p>
       </section>
 
       <MinhaAssinatura dados={pagamentos} onMudou={carregar} />
 
-      <UsoExtra plano={atual} />
+      {!teste && <UsoExtra plano={atual} />}
 
+      <div className="plano-cab" id="planos">
+        <h2>Planos</h2>
+        <p className="muted">
+          Todos têm link, QR code, site, Discord, agenda e relatórios. Preço de lançamento: quem assina agora mantém o valor.
+        </p>
+      </div>
       <div className="lp-planos">
         {[PLANS.essencial, PLANS.profissional, PLANS.business].map((p) => {
           const ehAtual = p.id === atual.id;
           return (
             <article key={p.id} className={`lp-plano${p.destaque ? ' lp-plano-destaque' : ''}`}>
-              {ehAtual && <span className="badge badge-plain lp-plano-tag">Seu plano</span>}
-              <h3>{p.nome}</h3>
+              <div className="lp-plano-topo">
+                <h3>{p.nome}</h3>
+                {ehAtual ? <span className="badge badge-plain lp-plano-tag">Seu plano</span> : p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
+              </div>
               <p className="lp-preco">
                 {p.precoCheio && <s className="lp-preco-cheio">{reais(p.precoCheio)}</s>}
                 {reais(p.preco)}<small>/mês</small>
               </p>
-              <p className="lp-preco-nota">Preço de lançamento: fica assim para quem assinar agora.</p>
-              <ul>
-                {recursosDoPlano(p).map((r) => <li key={r}><Check /> {r}</li>)}
-              </ul>
+              <dl className="plano-linhas">
+                {LINHAS.map(([rotulo, valor]) => {
+                  const v = valor(p);
+                  return (
+                    <div key={rotulo} data-falta={v == null || undefined}>
+                      <dt>{rotulo}</dt>
+                      <dd>{v ?? '—'}</dd>
+                    </div>
+                  );
+                })}
+              </dl>
               {ehAtual ? (
                 <button type="button" className="btn btn-ghost btn-block" disabled>Plano atual</button>
               ) : pagamentos?.cobranca ? (
@@ -129,7 +195,7 @@ export default function Plano() {
         )}
       </section>
       <p className="faint" style={{ fontSize: 13, marginTop: 16 }}>
-        Funcionário além do plano: {reais(PRECO_FUNCIONARIO_EXTRA)}/mês por pessoa.
+        Pessoa na equipe além do plano: {reais(PRECO_FUNCIONARIO_EXTRA)}/mês cada.{!teste ? '' : ' Nos planos pagos dá para ligar o uso extra: o assistente continua respondendo depois da cota.'}
       </p>
       {assinar && <AssinarModal plano={assinar} profile={profile} ambiente={pagamentos?.ambiente} onFechar={() => setAssinar(null)} />}
     </div>
