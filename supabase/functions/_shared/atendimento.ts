@@ -9,7 +9,7 @@
 // como fonte de verdade, lacunas, e as regras de quando encerrar.
 // ============================================================
 
-import type Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
+import Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { buscar, categorias } from './busca.ts';
 import { cancelarPedido, cobrarHorario, fecharPedido, MINIMO_COBRANCA, valorDaReserva, vendeOnline } from './pedidos.ts';
@@ -156,6 +156,8 @@ const buscaNaWeb = (fuso: string): Anthropic.WebSearchTool20250305 => ({
   max_uses: 2,
   user_location: { type: 'approximate', country: 'BR', timezone: fuso },
 });
+
+const ehBusca = (t: Anthropic.ToolUnion) => 'type' in t && t.type === 'web_search_20250305';
 
 /** O texto final da resposta: com pesquisa, só o que veio depois do último resultado (as citações quebram o texto em pedaços). */
 function textoFinal(content: Anthropic.ContentBlock[]) {
@@ -906,7 +908,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     },
   ];
   const modeloNegocio = a.business_model || a.schema?.business_model || 'produto';
-  const tools: Anthropic.ToolUnion[] = [...ferramentas(a, tabelas, agenda, loja), ...(PESQUISA.includes(modeloNegocio) ? [buscaNaWeb(fuso)] : [])];
+  let tools: Anthropic.ToolUnion[] = [...ferramentas(a, tabelas, agenda, loja), ...(PESQUISA.includes(modeloNegocio) ? [buscaNaWeb(fuso)] : [])];
 
   // a API quer papéis alternados, começando pelo usuário
   const msgs: Anthropic.MessageParam[] = [];
@@ -924,7 +926,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   let texto = '';
   let modelo = MODELS.atendimento;
   for (let i = 0; i < 6; i++) {
-    const pedir = (m: string, mensagens: Anthropic.MessageParam[]) =>
+    const chamar = (m: string, mensagens: Anthropic.MessageParam[]) =>
       anthropic.messages.create({
         model: m,
         // o modelo pensa antes de responder, e o pensamento conta aqui
@@ -934,6 +936,17 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
         tools,
         messages: mensagens,
       } as Anthropic.MessageCreateParamsNonStreaming);
+    const pedir = async (m: string, mensagens: Anthropic.MessageParam[]) => {
+      try {
+        return await chamar(m, mensagens);
+      } catch (e) {
+        // se a pesquisa na internet for recusada pela API, atende sem ela em vez de falhar
+        if (!(e instanceof Anthropic.BadRequestError) || !tools.some(ehBusca) || mensagens.some((x) => Array.isArray(x.content) && (x.content as Array<{ type: string }>).some((b) => b.type === 'server_tool_use'))) throw e;
+        console.warn('[atendimento] pesquisa recusada, seguindo sem ela', e.message);
+        tools = tools.filter((t) => !ehBusca(t));
+        return await chamar(m, mensagens);
+      }
+    };
     let res = await pedir(modelo, msgs);
     addUsage(usage, res.usage);
     if (res.stop_reason === 'refusal' && modelo !== MODELS.reserva) {
