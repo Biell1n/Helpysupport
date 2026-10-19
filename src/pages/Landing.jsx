@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Lenis from 'lenis';
-import { ArrowRight, Check, Cloud, Database, FileSpreadsheet, Link2, Plus, PlugZap, QrCode, X } from 'lucide-react';
+import { ArrowRight, CalendarCheck, Check, Cloud, Database, FileSpreadsheet, Link2, MessageCircle, Plus, PlugZap, QrCode, ShoppingBag, Star, Ticket, Wallet, X } from 'lucide-react';
 import { IconeDoCanal } from '@/components/IconesCanais';
 import Logo, { Marca } from '@/components/Logo';
 import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
@@ -16,6 +16,7 @@ import { DIAS_DE_TESTE, PLANS, reais, recursosDoPlano } from '@/lib/plans';
 import Perto from '@/components/efeitos/Perto';
 import { MARCAS } from '@/components/efeitos/marcas';
 import Grifo from '@/components/efeitos/Grifo';
+import FeixeNaBorda from '@/components/efeitos/FeixeNaBorda';
 
 // efeitos pesados (WebGL e animações) só carregam quando chegam perto da tela
 const LightRays = lazy(() => import('@/components/efeitos/LightRays'));
@@ -30,6 +31,7 @@ const BarraDeLeitura = lazy(() => import('@/components/efeitos/BarraDeLeitura'))
 const TextoQueAcende = lazy(() => import('@/components/efeitos/TextoQueAcende'));
 const PainelFixo = lazy(() => import('@/components/efeitos/PainelFixo'));
 const GaleriaHorizontal = lazy(() => import('@/components/efeitos/GaleriaHorizontal'));
+const ListaAoVivo = lazy(() => import('@/components/efeitos/ListaAoVivo'));
 const ScrollStack = lazy(() => import('@/components/efeitos/ScrollStack'));
 const ScrollStackItem = lazy(() => import('@/components/efeitos/ScrollStack').then((m) => ({ default: m.ScrollStackItem })));
 
@@ -69,21 +71,24 @@ function useRolagemSuave() {
  * Quanto a seção já rolou, de 0 a 1, escrito em --p.
  * "preso": para seções altas com conteúdo sticky (0 no topo, 1 quando o fim chega).
  * "saida": para uma seção da altura da tela (0 no topo, 1 quando ela sai por cima).
+ * "entrada": 0 quando o topo da seção aparece embaixo, 1 quando ele chega a um terço da tela.
  */
 function useProgresso(ref, modo = 'preso') {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     if (reduzido()) {
-      el.style.setProperty('--p', '0');
+      el.style.setProperty('--p', modo === 'entrada' ? '1' : '0');
       return;
     }
     let pendente = false;
     const medir = () => {
       pendente = false;
       const r = el.getBoundingClientRect();
-      const curso = modo === 'saida' ? Math.max(1, r.height) : Math.max(1, r.height - window.innerHeight);
-      const p = Math.min(1, Math.max(0, -r.top / curso));
+      const vh = window.innerHeight;
+      const curso = modo === 'saida' ? Math.max(1, r.height) : Math.max(1, r.height - vh);
+      const bruto = modo === 'entrada' ? (vh - r.top) / (vh * 0.67) : -r.top / curso;
+      const p = Math.min(1, Math.max(0, bruto));
       el.style.setProperty('--p', p.toFixed(4));
     };
     const pedir = () => {
@@ -199,6 +204,17 @@ function Hero({ user, deslizar }) {
         </Link>
         <a href="#filme" className="lp-btn lp-btn-vidro" onClick={deslizar}>Ver funcionando</a>
       </div>
+    </section>
+  );
+}
+
+/** O convite final se abre num círculo que cresce enquanto a seção entra na tela. */
+function FinalCircular({ children }) {
+  const ref = useRef(null);
+  useProgresso(ref, 'entrada');
+  return (
+    <section className="lp-sec lp-sec-final" ref={ref}>
+      {children}
     </section>
   );
 }
@@ -345,6 +361,29 @@ const ASSUNTOS = [
 const HISTORIA = 'São 23h. Um cliente quer saber o preço do corte, se tem horário no sábado e se aceita Pix. Sua equipe já foi para casa. O *Helpy *responde, *marca *o *horário e *manda *o *link. De manhã, está tudo no painel.';
 
 // conversas de exemplo de cada tipo de negócio (a galeria que anda para o lado)
+// o que chega no painel durante uma noite (a lista mais nova fica por cima)
+const NOITE = [
+  { id: 'n1', hora: '23:04', Icone: ShoppingBag, cor: 'verde', titulo: 'Pedido #128 pago', texto: '2x pomada modeladora · R$ 89,80 no Pix' },
+  { id: 'n2', hora: '23:12', Icone: CalendarCheck, cor: 'azul', titulo: 'Horário marcado', texto: 'Corte e barba, sábado às 10h' },
+  { id: 'n3', hora: '23:47', Icone: MessageCircle, cor: 'cinza', titulo: 'Pergunta respondida', texto: '“Vocês abrem no feriado?”' },
+  { id: 'n4', hora: '00:15', Icone: Ticket, cor: 'ambar', titulo: 'Chamado aberto', texto: 'Troca de tamanho do pedido #121' },
+  { id: 'n5', hora: '00:32', Icone: Wallet, cor: 'verde', titulo: 'Sinal recebido', texto: 'R$ 20,00 · escova, terça às 14h' },
+  { id: 'n6', hora: '01:10', Icone: Star, cor: 'ambar', titulo: 'Avaliação 5 estrelas', texto: '“Marquei em um minuto, muito bom!”' },
+];
+
+function Aviso({ hora, Icone, cor, titulo, texto }) {
+  return (
+    <div className="lp-aviso">
+      <span className={`lp-aviso-ico lp-aviso-${cor}`}><Icone aria-hidden="true" /></span>
+      <span className="lp-aviso-txt">
+        <b>{titulo}</b>
+        <span>{texto}</span>
+      </span>
+      <time>{hora}</time>
+    </div>
+  );
+}
+
 const NEGOCIOS = [
   { tipo: 'Barbearia', faz: 'Marca horário', cliente: 'Tem horário sábado de manhã?', helpy: 'Tenho 9h40 com o Zé. Marco para você?', cor: '#1f66f4' },
   { tipo: 'Loja de informática', faz: 'Vende pelo chat', cliente: 'Quero um PC até R$ 3.500 para jogar.', helpy: 'Montei um com Ryzen 5 8600G e 16 GB: R$ 3.549. Fecho o pedido?', cor: '#7c4dff' },
@@ -470,6 +509,30 @@ export default function Landing() {
           <TextoQueAcende texto={HISTORIA} />
         </Suspense>
       )}
+
+      <section className="lp-sec lp-sec-noite">
+        <div className="lp-in lp-duas">
+          <Reveal>
+            <span className="lp-etiqueta">De manhã</span>
+            <h2 className="lp-h2">Enquanto você dormia, <Grifo>ele trabalhou.</Grifo></h2>
+            <p className="lp-lead">
+              Cada venda paga, horário marcado e chamado aberto fica no painel, com a conversa junto. Você abre o celular e já sabe o
+              que aconteceu.
+            </p>
+          </Reveal>
+          <Reveal atraso={120} className="lp-noite" aria-label="Exemplo do que chega no painel durante a noite">
+            <div className="lp-noite-cab">
+              <b>Hoje</b>
+              <span>{NOITE.length} novidades</span>
+            </div>
+            <Perto className="lp-noite-lista" decorativo={false} margem="100px" reserva={<div className="lp-noite-fila">{NOITE.map((n) => <Aviso key={n.id} {...n} />).reverse()}</div>}>
+              <ListaAoVivo className="lp-noite-fila">
+                {NOITE.map((n) => <Aviso key={n.id} {...n} />)}
+              </ListaAoVivo>
+            </Perto>
+          </Reveal>
+        </div>
+      </section>
 
       <section id="como" className="lp-sec lp-sec-pontos">
         <Perto className="lp-fundo-efeito">
@@ -730,6 +793,8 @@ export default function Landing() {
           </Reveal>
           <div className="lp-compara">
             <Reveal as="article" className="lp-compara-col lp-compara-sim" data-luz="">
+              <FeixeNaBorda tamanho={110} duracao={8} />
+              <FeixeNaBorda tamanho={110} duracao={8} atraso={4} de="#9ec0ff" para="#1f66f4" />
               <div className="lp-compara-cab">
                 <Marca size={26} />
                 <b>Com o Helpy</b>
@@ -808,7 +873,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="lp-sec lp-sec-final">
+      <FinalCircular>
         <div className="lp-in">
           <Reveal className="lp-final">
             <Perto className="lp-final-raios">
@@ -821,7 +886,7 @@ export default function Landing() {
             </Link>
           </Reveal>
         </div>
-      </section>
+      </FinalCircular>
 
       <footer className="lp-foot">
         <div className="lp-foot-marca" aria-hidden="true">helpy</div>

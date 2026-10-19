@@ -2343,3 +2343,62 @@
   .lp-filme-midia { rotate: none; }
   .grifo { transition: none; background-size: 100% 100%; }
 }
+
+/* de manhã: o que chegou no painel durante a noite */
+.lp-noite {
+  background: var(--branco);
+  border-radius: 28px;
+  padding: 22px 22px 0;
+  box-shadow: var(--sombra);
+}
+.lp-noite-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0 4px 16px;
+}
+.lp-noite-cab b { font-size: 17px; letter-spacing: -0.01em; }
+.lp-noite-cab span { font-size: 13px; color: var(--tinta-3); }
+.lp-noite-lista {
+  height: 400px;
+  overflow: hidden;
+  mask: linear-gradient(to bottom, #000 70%, transparent);
+}
+.lp-noite-fila { display: grid; gap: 10px; }
+.lp-noite-fila > div { min-width: 0; }
+.lp-aviso {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+}
+.lp-aviso-ico {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+.lp-aviso-ico svg { width: 19px; height: 19px; }
+.lp-aviso-verde { background: rgba(18, 161, 80, 0.12); color: #0e8a44; }
+.lp-aviso-azul { background: var(--senha-clara); color: var(--senha); }
+.lp-aviso-ambar { background: rgba(217, 138, 0, 0.13); color: #b06f00; }
+.lp-aviso-cinza { background: color-mix(in srgb, var(--tinta) 7%, transparent); color: var(--tinta-2); }
+.lp-aviso-txt { display: grid; gap: 2px; min-width: 0; }
+.lp-aviso-txt b { font-size: 14.5px; font-weight: 600; }
+.lp-aviso-txt span { font-size: 13.5px; color: var(--tinta-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp-aviso time { align-self: start; font-size: 12px; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+
+/* convite final: abre num círculo conforme entra na tela */
+.lp-sec-final .lp-final {
+  clip-path: circle(calc(9% + var(--p, 1) * 67%) at 50% 50%);
+}
+
+@media (max-width: 860px) {
+  .lp-noite { padding: 18px 14px 0; border-radius: 24px; }
+  .lp-noite-lista { height: 360px; }
+}

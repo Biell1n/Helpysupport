@@ -1,0 +1,36 @@
+.feixe-borda {
+  display: none;
+}
+
+@supports (offset-path: rect(0 auto auto 0 round 1px)) and (mask-composite: intersect) {
+  .feixe-borda {
+    display: block;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: var(--feixe-l) solid transparent;
+    pointer-events: none;
+    mask:
+      linear-gradient(transparent, transparent) padding-box,
+      linear-gradient(#000, #000) border-box;
+    mask-composite: intersect;
+  }
+
+  .feixe-borda-luz {
+    position: absolute;
+    width: var(--feixe-t);
+    aspect-ratio: 1;
+    background: linear-gradient(to left, var(--feixe-de), var(--feixe-para), transparent);
+    offset-path: rect(0 auto auto 0 round var(--feixe-t));
+    animation: feixe-corre var(--feixe-d) linear var(--feixe-a) infinite;
+  }
+}
+
+@keyframes feixe-corre {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feixe-borda { display: none; }
+}
