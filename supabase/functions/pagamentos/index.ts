@@ -379,7 +379,7 @@ Deno.serve(async (req) => {
       if (!ped || ped.owner_id !== conta) throw new UserError('Pedido não encontrado.', 404);
       if (ped.status !== 'pago' || !ped.pagamento_id) throw new UserError('Só dá para devolver um pedido pago.');
       const loja = await contaDaLoja(admin, conta);
-      if (!loja) throw new UserError('Ligue de novo o recebimento em Canais para devolver pelo Asaas.');
+      if (!loja) throw new UserError('Ligue de novo o recebimento na Carteira para devolver pelo Asaas.');
       await loja.pedir(`/payments/${ped.pagamento_id}/refund`, { method: 'POST', body: {} });
       await admin.from('pedidos').update({ status: 'estornado' }).eq('id', id);
       if (ped.agendamento_id) await admin.from('agendamentos').update({ status: 'cancelado' }).eq('id', ped.agendamento_id);

@@ -561,6 +561,10 @@ button, input, select, textarea {
 }
 
 .meter[data-nivel='alto'] > span {
+  background: #d98a00;
+}
+
+.meter[data-nivel='cheio'] > span {
   background: var(--brasa);
 }
 

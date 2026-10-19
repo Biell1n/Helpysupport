@@ -654,99 +654,10 @@
   position: relative;
 }
 
-/* uma lista numerada, como índice de revista: número, título largo,
-   explicação e uma prova pequena do que ele faz. Ao passar o mouse a
-   linha escurece. */
-.lp-recursos {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--linha-forte);
-}
-
-.lp-recurso {
-  position: relative;
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1.15fr) minmax(0, 1fr) 260px;
-  align-items: center;
-  gap: 28px;
-  padding: 34px 20px;
-  border-bottom: 1px solid var(--linha-forte);
-  isolation: isolate;
-}
-
-.lp-recurso::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: var(--tinta);
-  opacity: 0;
-  transition: opacity 0.35s ease;
-}
-
 .lp-recurso-n {
   font-family: var(--f-mono);
   font-size: 13px;
   color: var(--tinta-3);
-  transition: color 0.4s;
-}
-
-.lp-recurso h3 {
-  margin: 0;
-  font-family: var(--f-display);
-  font-stretch: 118%;
-  font-weight: 600;
-  font-size: clamp(22px, 2.5vw, 34px);
-  letter-spacing: -0.035em;
-  line-height: 1.05;
-  transition: color 0.4s, translate 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.lp-recurso p {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--tinta-2);
-  max-width: 40ch;
-  transition: color 0.4s;
-}
-
-.lp-recurso-prova {
-  justify-self: end;
-  font-family: var(--f-mono);
-  font-size: 12.5px;
-  color: var(--tinta-2);
-  transition: color 0.4s, translate 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@media (hover: hover) {
-  .lp-recurso:hover::before {
-    opacity: 1;
-  }
-
-  .lp-recurso:hover h3 {
-    color: var(--sobre-tinta);
-  }
-
-  .lp-recurso:hover .lp-recurso-n {
-    color: var(--senha);
-  }
-
-  .lp-recurso:hover p,
-  .lp-recurso:hover .lp-recurso-prova {
-    color: rgba(255, 255, 255, 0.74);
-  }
-
-  .lp-recurso:hover .lp-prova-fala {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.16);
-    color: #fff;
-  }
-
-  .lp-recurso:hover .lp-prova-linha b {
-    color: #fff;
-  }
 }
 
 .lp-prova-fala {
@@ -824,10 +735,6 @@
 
 .lp-prova-barras i:nth-child(5) {
   background: var(--senha);
-}
-
-.lp-recurso[data-visto='true'] .lp-prova-barras i {
-  transform: none;
 }
 
 /* ---------- horários de pico em perspectiva (relatório de exemplo) ---------- */
@@ -1447,15 +1354,6 @@
   .lp-top-in {
     grid-template-columns: auto 1fr;
   }
-
-  .lp-recurso {
-    grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .lp-recurso-prova {
-    grid-column: 2 / -1;
-    justify-self: start;
-  }
 }
 
 @media (max-width: 860px) {
@@ -1830,24 +1728,6 @@
   animation-play-state: paused;
 }
 
-@media (max-width: 860px) {
-  .lp-recurso {
-    grid-template-columns: 40px minmax(0, 1fr);
-    gap: 10px 14px;
-    padding: 26px 4px;
-  }
-
-  .lp-recurso p,
-  .lp-recurso-prova {
-    grid-column: 2;
-  }
-
-  .lp-recurso-prova {
-    justify-self: start;
-    margin-top: 6px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .lp-feixe-luz {
     animation: none;
@@ -2219,44 +2099,66 @@
 .pfixo-pontos i { width: 8px; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--tinta) 14%, transparent); transition: width 0.35s ease, background 0.35s ease; }
 .pfixo-pontos i[data-ativo] { width: 26px; background: var(--senha); }
 
-/* o que ele faz: cartões que se empilham (ScrollStack, React Bits) */
-.lp-pilha .scroll-stack__inner { padding-inline: 0; }
-.lp-pilha .lp-pilha-cartao {
-  height: auto;
-  min-height: 15rem;
-  padding: 36px 40px;
+/* o que ele faz: grade de cartões, cada um com uma prova pequena em cima */
+.lp-bento {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 32px;
-  align-items: center;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.lp-bento-cartao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 14px 26px;
+  border-radius: 26px;
   background: var(--branco);
-  color: var(--tinta);
-  box-shadow: 0 0 0 1px rgba(11, 26, 44, 0.06), 0 -12px 40px -18px rgba(11, 26, 44, 0.25), 0 30px 60px -30px rgba(11, 26, 44, 0.35);
+  box-shadow: 0 0 0 1px rgba(11, 26, 44, 0.06), 0 24px 50px -32px rgba(11, 26, 44, 0.35);
+  transition: translate 0.45s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.45s;
 }
-.lp-pilha-cartao:nth-child(even) { background: linear-gradient(160deg, #ffffff, #eef4fb); }
-.lp-pilha-texto h3 {
-  margin: 8px 0 10px;
-  font-family: var(--f-display);
-  font-stretch: 125%;
-  font-weight: 500;
-  font-size: clamp(24px, 2.6vw, 34px);
-  letter-spacing: -0.04em;
-}
-.lp-pilha-texto p { font-size: 16px; line-height: 1.6; color: var(--tinta-2); max-width: 460px; }
-.lp-pilha-prova {
-  justify-self: stretch;
+.lp-bento-prova {
   display: grid;
   place-items: center;
-  min-height: 150px;
-  border-radius: 20px;
+  height: 150px;
+  margin-bottom: 14px;
+  border-radius: 18px;
   background: linear-gradient(160deg, #d3e3f2, #eef4fa);
   font-family: var(--f-mono);
-  font-size: 15px;
+  font-size: 13.5px;
   color: var(--tinta);
-  padding: 22px;
+  padding: 18px;
   text-align: center;
 }
-.lp-pilha-prova .lp-prova-barras { transform: scale(1.6); }
+.lp-bento-prova .lp-prova-barras { transform: scale(1.5); }
+.lp-bento-cartao .lp-recurso-n,
+.lp-bento-cartao h3,
+.lp-bento-cartao p { margin: 0; padding-inline: 12px; }
+.lp-bento-cartao h3 {
+  font-family: var(--f-display);
+  font-stretch: 118%;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.lp-bento-cartao p { font-size: 15px; line-height: 1.55; color: var(--tinta-2); }
+.lp-bento-cartao[data-visto='true'] .lp-prova-barras i { transform: none; }
+@media (hover: hover) {
+  .lp-bento-cartao:hover {
+    translate: 0 -4px;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--senha) 30%, transparent), 0 30px 60px -30px rgba(31, 102, 244, 0.4);
+  }
+}
+@media (max-width: 1080px) {
+  .lp-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .lp-bento { grid-template-columns: 1fr; }
+  .lp-bento-prova { height: 120px; }
+}
 
 /* um jeito para cada negócio: galeria que anda de lado */
 .ghoriz { position: relative; height: var(--altura, 300vh); margin-top: 120px; }
@@ -2336,8 +2238,7 @@
   .pfixo-lado { display: none; }
   .pfixo-passo { min-height: 0; opacity: 1; padding: 22px 0; }
   .pfixo-tela-celular { display: block; margin-top: 18px; }
-  .lp-pilha .lp-pilha-cartao { grid-template-columns: 1fr; padding: 26px; gap: 18px; }
-  .acende { height: 200vh; }
+    .acende { height: 200vh; }
 }
 @media (prefers-reduced-motion: reduce) {
   .lp-filme-midia { rotate: none; }

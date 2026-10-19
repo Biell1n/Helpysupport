@@ -264,7 +264,7 @@ const CORE_TAIL: Section[] = [
       {
         key: 'agenda_pagamento', label: 'Cobrar para marcar?', type: 'select', importance: 'optional',
         options: [COBRA_NAO, COBRA_TOTAL, COBRA_SINAL],
-        hint: 'Com cobrança, o assistente manda um link de pagamento e o horário fica guardado por 2 horas. Pagou, confirma sozinho. Precisa ligar "Receber pelo assistente" em Canais.',
+        hint: 'Com cobrança, o assistente manda um link de pagamento e o horário fica guardado por 2 horas. Pagou, confirma sozinho. Precisa ativar a Carteira.',
         depende: { campo: 'usar_agenda', valores: ['Sim, marca sozinho', 'Sim, mas eu confirmo'], estrito: true },
       },
       {
@@ -323,13 +323,13 @@ const OPERACAO: Record<string, FieldDef[]> = {
     { key: 'promocoes', label: 'Promoções e condições', type: 'textarea', importance: 'optional', hint: 'Desconto na primeira compra, cupom, frete grátis acima de tanto' },
     {
       key: 'fora_do_catalogo', label: 'Quando pedirem algo que vocês não têm', type: 'select', importance: 'optional',
-      options: ['Oferecer o que temos e chamar a equipe para o resto', 'Também dizer o que procurar fora da loja'],
-      hint: 'O assistente sempre monta a melhor opção com o que vocês têm. Aqui você decide se ele pode indicar o que procurar em outro lugar.',
+      options: ['Montar com o que temos e indicar o que procurar fora, com preço de mercado', 'Só oferecer o que temos e chamar a equipe para o resto'],
+      hint: 'O assistente sempre monta a melhor opção com o que vocês têm. Aqui você decide se, para o que falta, ele pode indicar a peça certa para buscar fora, com o preço médio do mercado (sem citar outras lojas).',
     },
     {
       key: 'venda_no_chat', label: 'Fechar a venda no chat?', type: 'select', importance: 'optional',
       options: [VENDA_NAO, VENDA_SIM],
-      hint: 'Com "Sim", quando o cliente decide comprar, o assistente confirma os itens e o total e manda um link de Pix, cartão ou boleto. Precisa ligar "Receber pelo assistente" em Canais.',
+      hint: 'Com "Sim", quando o cliente decide comprar, o assistente confirma os itens e o total e manda um link de Pix, cartão ou boleto. Precisa ativar a Carteira.',
     },
     {
       key: 'venda_estoque', label: 'Baixar o estoque quando o pagamento cair?', type: 'select', importance: 'optional',

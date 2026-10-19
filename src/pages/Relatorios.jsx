@@ -495,6 +495,56 @@ function PorCanal({ porCanal }) {
   );
 }
 
+/** Quanto cada pessoa da equipe atendeu: chamados que assumiu, quantos fechou, rapidez e nota. */
+function PorPessoa({ dias }) {
+  const [pessoas, setPessoas] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    const fuso = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';
+    supabase.rpc('helpy_relatorio_equipe', { dias, fuso }).then(({ data }) => vivo && setPessoas(data ?? []));
+    return () => {
+      vivo = false;
+    };
+  }, [dias]);
+
+  return (
+    <section className="card rel-card rel-equipe">
+      <div className="card-head">
+        <div>
+          <h2 className="card-title">Por pessoa da equipe</h2>
+          <p className="faint rel-sub">Chamados que cada um assumiu no período, pelo painel, Discord ou app do Instagram.</p>
+        </div>
+        <Link to="/painel/equipe" className="btn btn-quiet btn-sm">Equipe</Link>
+      </div>
+      {pessoas === null ? (
+        <div className="skeleton" style={{ height: 90 }} />
+      ) : pessoas.length ? (
+        <div className="rel-tabela-rolagem">
+          <table className="rel-tabela">
+            <thead>
+              <tr><th>Pessoa</th><th>Chamados</th><th>Resolvidos</th><th>Até assumir</th><th>Respostas</th><th>Nota</th></tr>
+            </thead>
+            <tbody>
+              {pessoas.map((p) => (
+                <tr key={p.chave}>
+                  <td>{p.nome}{p.dono && <span className="faint"> (você)</span>}</td>
+                  <td className="num">{fmt(p.chamados)}</td>
+                  <td className="num">{fmt(p.resolvidos)} <span className="faint">({pct(p.resolvidos, p.chamados)}%)</span></td>
+                  <td className="num">{p.assumir_min == null ? '—' : minutos(p.assumir_min)}</td>
+                  <td className="num">{fmt(p.respostas)}</td>
+                  <td className="num">{p.nota ? `${fmt(p.nota, 1)}` : '—'}{p.notas ? <span className="faint"> ({fmt(p.notas)})</span> : null}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="faint">Ninguém assumiu chamado no período. Quando alguém da equipe assumir, aparece aqui quanto cada um atendeu.</p>
+      )}
+    </section>
+  );
+}
+
 function Numero({ rotulo, valor, detalhe, variacao, faisca }) {
   return (
     <div className="card rel-numero">
@@ -701,6 +751,8 @@ export default function Relatorios() {
               )}
             </div>
           </section>
+
+          <PorPessoa dias={dias} />
         </>
       ) : null}
     </div>

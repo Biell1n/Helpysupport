@@ -116,6 +116,12 @@ export default function Carteira() {
             </div>
           </section>
 
+          {rec.ativo && (
+            <p className="faint" style={{ margin: 0, fontSize: 13.5 }}>
+              Para o assistente vender, ligue em <Link to="/painel/assistentes">Assistentes</Link> → Editar → Como funciona: <b>Fechar a venda no chat?</b> e, se ele marca horários, <b>Cobrar para marcar?</b>
+            </p>
+          )}
+
           <section className="card">
             <h2 className="card-title">Extrato</h2>
             {(dados.extrato ?? []).length === 0 ? (
