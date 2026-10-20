@@ -234,6 +234,8 @@ function Filme() {
         <div className="lp-filme-passos" aria-hidden="true">
           <span>Conte</span>
           <span>Publique</span>
+          <span>Canais</span>
+          <span>Dados</span>
           <span>Chamados</span>
           <span>Relatórios</span>
           <span>Planos</span>

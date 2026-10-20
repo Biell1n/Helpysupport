@@ -7,3 +7,6 @@ dist
 .DS_Store
 supabase/.temp
 supabase/.branches
+
+# versão narrada do vídeo (só para revisão, não vai para o site)
+video/saida/
