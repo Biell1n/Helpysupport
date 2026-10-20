@@ -5,13 +5,14 @@
 //
 // Cada quadro é desenhado com window.__quadro(t) e fotografado; o ffmpeg
 // junta tudo em public/videos/helpy-demo.mp4 e .webm, mais um pôster.
-// A locução (video/narracao, gerada por video/narrar.mjs) entra no ponto
-// em que cada cena começa a falar.
+// O site usa o vídeo sem som. A versão narrada (locução de video/narracao,
+// gerada por video/narrar.mjs, no ponto em que cada cena começa a falar)
+// sai à parte em video/saida/helpy-demo-narrado.mp4, fora do site.
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { unlink } from 'node:fs/promises';
+import { mkdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
@@ -62,10 +63,14 @@ for (let i = 0; i < total; i++) {
 ffmpeg.stdin.end();
 await new Promise((r) => ffmpeg.on('close', r));
 
-// locução: cada fala atrasada até o começo da sua cena, todas somadas numa trilha só
+// site: sem áudio
 const rodar = (args) => new Promise((ok, erro) => spawn('ffmpeg', args, { stdio: 'inherit' }).on('close', (c) => (c ? erro(new Error(`ffmpeg ${c}`)) : ok())));
+await rodar(['-y', '-loglevel', 'error', '-i', mudo, '-c', 'copy', '-an', '-movflags', '+faststart', mp4]);
+
+// versão narrada: cada fala atrasada até o começo da sua cena, todas somadas numa trilha só
 if (falas.length) {
   const DIR = path.dirname(fileURLToPath(import.meta.url));
+  await mkdir(path.join(DIR, 'saida'), { recursive: true });
   const entradas = falas.flatMap((f) => ['-i', path.join(DIR, f.arquivo)]);
   const atrasos = falas.map((f, i) => `[${i + 1}:a]adelay=${f.inicio}:all=1[a${i}]`).join(';');
   const soma = `${falas.map((_, i) => `[a${i}]`).join('')}amix=inputs=${falas.length}:normalize=0,loudnorm=I=-16:TP=-1.5,apad[voz]`;
@@ -73,10 +78,8 @@ if (falas.length) {
     '-y', '-loglevel', 'error', '-i', mudo, ...entradas,
     '-filter_complex', `${atrasos};${soma}`,
     '-map', '0:v', '-map', '[voz]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-shortest', '-movflags', '+faststart',
-    mp4,
+    path.join(DIR, 'saida', 'helpy-demo-narrado.mp4'),
   ]);
-} else {
-  await rodar(['-y', '-loglevel', 'error', '-i', mudo, '-c', 'copy', '-movflags', '+faststart', mp4]);
 }
 await unlink(mudo);
 
@@ -89,7 +92,7 @@ await navegador.close();
 await new Promise((r) => spawn('ffmpeg', [
   '-y', '-loglevel', 'error', '-i', mp4,
   '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '38', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '4',
-  '-c:a', 'libopus', '-b:a', '96k',
+  '-an',
   path.join(SAIDA, 'helpy-demo.webm'),
 ], { stdio: 'inherit' }).on('close', r));
 

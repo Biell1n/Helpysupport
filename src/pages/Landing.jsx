@@ -229,7 +229,7 @@ function Filme() {
           <h2 className="lp-h2">Veja o Helpy trabalhando.</h2>
         </div>
         <div className="lp-filme-midia">
-          <VideoDemo className="lp-filme-video" som />
+          <VideoDemo className="lp-filme-video" />
         </div>
         <div className="lp-filme-passos" aria-hidden="true">
           <span>Conte</span>
