@@ -1,0 +1,15 @@
+.texto-chega > span {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  animation: palavra-chega 0.45s cubic-bezier(0.23, 1, 0.32, 1) var(--d, 0ms) both;
+}
+
+@keyframes palavra-chega {
+  from { opacity: 0; filter: blur(4px); transform: translateY(3px); }
+  to { opacity: 1; filter: none; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .texto-chega > span { animation: none; }
+}

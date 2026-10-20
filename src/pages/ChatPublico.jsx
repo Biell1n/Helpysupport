@@ -5,6 +5,7 @@ import PeekRating from '@/components/PeekRating';
 import Sugestoes from '@/components/Sugestoes';
 import { useToast } from '@/components/Toasts';
 import BolinhasPensando from '@/components/BolinhasPensando';
+import TextoQueChega from '@/components/TextoQueChega';
 import { chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolverDesafio } from '@/lib/prova';
@@ -191,7 +192,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         anunciar(d.eventos);
         ultimoAgente.current = d.eventos.at(-1).created_at;
       }
-      if (d.message) setMensagens((p) => [...p, { role: d.modo === 'recado' || d.modo === 'login' ? 'system' : 'assistant', content: d.message }]);
+      if (d.message) setMensagens((p) => [...p, { role: d.modo === 'recado' || d.modo === 'login' ? 'system' : 'assistant', content: d.message, novo: true }]);
     } catch (e) {
       setMensagens((p) => [...p, { role: 'system', content: e.message }]);
     } finally {
@@ -291,7 +292,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           <div key={i} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'agent' ? 'msg-agent' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`}>
             {m.role === 'assistant' && <span className="msg-who">{nome}</span>}
             {m.role === 'agent' && <span className="msg-who">{m.author_name || estado.assumido_nome || 'Equipe'} · equipe</span>}
-            <div className="msg-body">{m.content}</div>
+            <div className="msg-body">{m.novo && m.role === 'assistant' ? <TextoQueChega texto={m.content} /> : m.content}</div>
           </div>
         ))}
 
