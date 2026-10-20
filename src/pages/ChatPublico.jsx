@@ -65,11 +65,6 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
   const [pedeLogin, setPedeLogin] = useState(false);
   const notificar = useToast();
   const statusAntes = useRef(null);
-  const anunciar = (eventos) =>
-    eventos.forEach((m) => {
-      const t = tipoDoEvento(m);
-      if (t) notificar(EVENTOS[t]?.titulo ?? 'Aviso', { texto: m.content });
-    });
   const { user } = useAuth() ?? {};
   const prova = useRef(null);
   const ultimoAgente = useRef(null);
@@ -82,7 +77,6 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
     if (d.status === 'human' && statusAntes.current && statusAntes.current !== 'human') {
       const aviso = { role: 'system', author_name: 'evento:assumido', content: `${d.assumido_nome || 'Uma pessoa da equipe'} vai continuar o atendimento com você.` };
       setMensagens((p) => [...p, aviso]);
-      anunciar([aviso]);
     }
     if (d.status) statusAntes.current = d.status;
     setEstado((p) => ({ ...p, ...Object.fromEntries(Object.entries({ status: d.status, numero: d.numero, assumido: d.assumido, assumido_nome: d.assumido_nome }).filter(([, v]) => v !== undefined)) }));
@@ -140,7 +134,6 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         if (d.messages?.length) {
           ultimoAgente.current = d.messages.at(-1).created_at;
           setMensagens((p) => [...p, ...d.messages]);
-          anunciar(d.messages);
         }
       } catch {
         /* consulta de fundo: silenciosa */
@@ -189,7 +182,6 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
       absorver(d);
       if (d.eventos?.length) {
         setMensagens((p) => [...p, ...d.eventos]);
-        anunciar(d.eventos);
         ultimoAgente.current = d.eventos.at(-1).created_at;
       }
       if (d.message) setMensagens((p) => [...p, { role: d.modo === 'recado' || d.modo === 'login' ? 'system' : 'assistant', content: d.message, novo: true }]);
@@ -313,8 +305,8 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           </div>
         )}
         {estado.status === 'human' && (
-          <div className="alert alert-ok ticket-aviso">
-            <span><b>{estado.assumido_nome || 'Uma pessoa da equipe'}</b> está cuidando do seu atendimento.</span>
+          <div className="chat-presenca" role="status">
+            <i aria-hidden="true" /> <b>{estado.assumido_nome || 'Alguém da equipe'}</b> está atendendo você
           </div>
         )}
 
@@ -408,23 +400,65 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
 
 // avisos de ação concluída: aparecem destacados na conversa e como notificação
 const EVENTOS = {
-  agendado: { titulo: 'Horário confirmado', Icone: CalendarCheck },
-  pendente: { titulo: 'Pedido de horário enviado', Icone: CalendarClock },
-  remarcado: { titulo: 'Horário remarcado', Icone: CalendarCheck },
-  cancelado: { titulo: 'Horário cancelado', Icone: CalendarX },
-  assumido: { titulo: 'Atendimento assumido', Icone: UserCheck },
-  pago: { titulo: 'Pagamento confirmado', Icone: CircleCheckBig },
+  agendado: { titulo: 'Horário confirmado', tom: 'ok', Icone: CalendarCheck },
+  pendente: { titulo: 'Aguardando confirmação', tom: 'espera', Icone: CalendarClock },
+  remarcado: { titulo: 'Horário remarcado', tom: 'info', Icone: CalendarCheck },
+  cancelado: { titulo: 'Horário cancelado', tom: 'perigo', Icone: CalendarX },
+  assumido: { titulo: 'Atendimento assumido', tom: 'info', Icone: UserCheck },
+  pago: { titulo: 'Pagamento confirmado', tom: 'ok', Icone: CircleCheckBig },
 };
 const tipoDoEvento = (m) => (m.role === 'system' && String(m.author_name ?? '').startsWith('evento:') ? m.author_name.slice(7) : null);
+// "sábado, 10/10, 10:00 · Corte" (como a agenda escreve o horário)
+const DATA = /([a-zà-ú-]+),\s*(\d{2}\/\d{2}),?\s*(?:às\s*)?(\d{1,2}:\d{2})(?:\s*·\s*([^·.]+))?/i;
+const VALOR = /R\$\s?[\d.]+,\d{2}/;
 
+/** Avisos na conversa: alguém da equipe entrou vira uma linha discreta; horário e pagamento viram um comprovante. */
 function Evento({ m }) {
-  const { titulo, Icone } = EVENTOS[tipoDoEvento(m)] ?? { titulo: 'Aviso', Icone: CalendarCheck };
+  const tipo = tipoDoEvento(m);
+  const texto = String(m.content ?? '');
+  if (tipo === 'assumido') {
+    const nome = texto.split(' vai continuar')[0].trim() || 'Uma pessoa da equipe';
+    return (
+      <div className="chat-marco" role="status">
+        <span className="chat-marco-avatar" aria-hidden="true">{nome[0].toUpperCase()}</span>
+        <span><b>{nome}</b> entrou na conversa</span>
+      </div>
+    );
+  }
+  const { titulo, tom, Icone } = EVENTOS[tipo] ?? { titulo: 'Aviso', tom: 'info', Icone: CalendarCheck };
+  const data = texto.match(DATA);
+  const valor = texto.match(VALOR)?.[0];
+  const detalhe = !data
+    ? (valor && texto.replace(/^[^.]*R\$[^.]*\.\s*/, '')) || texto
+    : tipo === 'pendente'
+      ? 'O negócio ainda vai confirmar. O aviso chega aqui.'
+      : valor
+        ? `Pagamento de ${valor} recebido.`
+        : tipo === 'cancelado'
+          ? 'Este horário foi liberado.'
+          : 'Está na agenda. Até lá!';
   return (
-    <div className="chat-evento" data-tipo={tipoDoEvento(m)} role="status">
-      <span className="chat-evento-icone"><Icone size={18} /></span>
-      <div>
-        <b>{titulo}</b>
-        <span>{m.content}</span>
+    <div className="chat-recibo-sombra" role="status">
+      <div className="chat-recibo" data-tom={tom} data-tipo={tipo}>
+        <div className="chat-recibo-lado">
+          {data ? (
+            <>
+              <small>{data[1].slice(0, 3)}</small>
+              <b>{data[2]}</b>
+              <span>{data[3]}</span>
+            </>
+          ) : (
+            <>
+              <small>{tipo === 'pago' ? 'Pago' : 'Aviso'}</small>
+              <b className="chat-recibo-valor">{valor ?? <Icone size={22} />}</b>
+            </>
+          )}
+        </div>
+        <div className="chat-recibo-corpo">
+          <span className="chat-recibo-status"><Icone size={14} aria-hidden="true" /> {titulo}</span>
+          {data && <b>{data[4]?.trim() || 'Horário marcado'}</b>}
+          <p>{detalhe}</p>
+        </div>
       </div>
     </div>
   );
