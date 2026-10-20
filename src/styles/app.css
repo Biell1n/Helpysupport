@@ -1205,7 +1205,9 @@
 /* ---------- chat público ---------- */
 
 .publico {
-  min-height: 100vh;
+  /* só a conversa rola: a caixa de digitar fica sempre embaixo, sem cobrir a última mensagem */
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--papel);
@@ -1888,58 +1890,168 @@
 }
 
 /* aviso de ação concluída na conversa do cliente (horário marcado, atendimento assumido) */
-.chat-evento {
+/* avisos na conversa: comprovante de horário/pagamento e linha de "entrou na conversa" */
+.chat-recibo-sombra {
   align-self: center;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: min(440px, 100%);
-  padding: 12px 16px 12px 12px;
-  border-radius: var(--r);
-  background: var(--senha-clara);
-  border: 1px solid rgba(31, 102, 244, 0.25);
-  animation: chat-evento 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: min(340px, 100%);
+  filter: drop-shadow(0 10px 18px rgba(11, 26, 44, 0.1)) drop-shadow(0 1px 1px rgba(11, 26, 44, 0.06));
+  animation: chat-evento 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.chat-evento-icone {
-  flex: none;
+.chat-recibo {
+  --notch: 8px;
+  --tom: #0e8a44;
+  --tom-fundo: rgba(18, 161, 80, 0.08);
   display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--senha);
-  color: var(--sobre-senha);
+  grid-template-columns: 84px minmax(0, 1fr);
+  background: var(--branco);
+  border-radius: 16px;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at 84px 0, transparent 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at 84px 100%, transparent 97%, #000) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at 84px 0, transparent 97%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--notch) at 84px 100%, transparent 97%, #000) bottom / 100% 51% no-repeat;
 }
+.chat-recibo[data-tom='espera'] { --tom: #a86a00; --tom-fundo: rgba(217, 138, 0, 0.1); }
+.chat-recibo[data-tom='info'] { --tom: var(--senha); --tom-fundo: var(--senha-clara); }
+.chat-recibo[data-tom='perigo'] { --tom: var(--brasa); --tom-fundo: var(--brasa-clara); }
 
-.chat-evento b {
-  display: block;
-  font-size: 14px;
+.chat-recibo-lado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 12px 8px;
+  background: var(--tom-fundo);
+  border-right: 2px dashed color-mix(in srgb, var(--tom) 30%, transparent);
+  color: var(--tom);
+  text-align: center;
 }
-
-.chat-evento span {
+.chat-recibo-lado small {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.chat-recibo-lado b {
+  font-family: var(--f-mono);
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--tinta);
+}
+.chat-recibo-lado b.chat-recibo-valor { font-size: 14px; color: var(--tom); }
+.chat-recibo-lado span {
+  font-family: var(--f-mono);
   font-size: 13px;
   color: var(--tinta-2);
 }
 
-.chat-evento[data-tipo='cancelado'] {
-  background: var(--brasa-clara);
-  border-color: rgba(201, 73, 44, 0.25);
+.chat-recibo-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px 12px 14px;
+  min-width: 0;
+}
+.chat-recibo-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tom);
+}
+.chat-recibo-corpo b {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tinta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-recibo-corpo p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--tinta-3);
+}
+.chat-recibo[data-tipo='cancelado'] .chat-recibo-lado b,
+.chat-recibo[data-tipo='cancelado'] .chat-recibo-corpo b {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--brasa) 60%, transparent);
+  color: var(--tinta-3);
 }
 
-.chat-evento[data-tipo='cancelado'] .chat-evento-icone {
-  background: var(--brasa);
+.chat-marco {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  font-size: 12.5px;
+  color: var(--tinta-3);
+  animation: chat-evento 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.chat-marco::before,
+.chat-marco::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--linha);
+}
+.chat-marco b { font-weight: 600; color: var(--tinta-2); }
+.chat-marco-avatar {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--tinta);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.chat-presenca {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  background: var(--branco);
+  border: 1px solid var(--linha);
+  font-size: 12.5px;
+  color: var(--tinta-3);
+}
+.chat-presenca b { font-weight: 600; color: var(--tinta-2); }
+.chat-presenca i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #12a150;
+  box-shadow: 0 0 0 0 rgba(18, 161, 80, 0.45);
+  animation: presenca 2s ease-out infinite;
+}
+
+@keyframes presenca {
+  70% { box-shadow: 0 0 0 7px rgba(18, 161, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(18, 161, 80, 0); }
 }
 
 @keyframes chat-evento {
   from {
     opacity: 0;
-    transform: scale(0.92) translateY(6px);
+    transform: translateY(6px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-evento {
+  .chat-recibo-sombra,
+  .chat-marco,
+  .chat-presenca i {
     animation: none;
   }
 }
