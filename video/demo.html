@@ -31,17 +31,19 @@
     <header class="moldura-topo">
       <span class="marca" data-marca="44"></span>
       <ol class="capitulos">
-        <li data-de="4000" data-ate="12000">Conte</li>
-        <li data-de="12000" data-ate="20000">Publique</li>
-        <li data-de="20000" data-ate="26000">Chamados</li>
-        <li data-de="26000" data-ate="31500">Relatórios</li>
-        <li data-de="31500" data-ate="37000">Planos</li>
+        <li data-cena="conte">Conte</li>
+        <li data-cena="publique">Publique</li>
+        <li data-cena="canais">Canais</li>
+        <li data-cena="dados">Dados</li>
+        <li data-cena="chamados">Chamados</li>
+        <li data-cena="relatorios">Relatórios</li>
+        <li data-cena="planos">Planos</li>
       </ol>
     </header>
     <div class="progresso"><span></span></div>
 
     <!-- 1. abertura -->
-    <section class="cena" data-ini="0" data-fim="3600">
+    <section class="cena" data-cena="abertura">
       <div class="abertura">
         <span class="marca grande anim a-escala" data-marca="132" style="--d: 150ms"></span>
         <h1 class="titulo-gigante">
@@ -53,37 +55,37 @@
     </section>
 
     <!-- 2. conte do seu jeito -->
-    <section class="cena" data-ini="3600" data-fim="11600">
+    <section class="cena" data-cena="conte">
       <div class="duas">
         <div class="texto">
-          <span class="capitulo anim a-fade" style="--d: 3900ms">01</span>
-          <h2 class="anim a-sobe" style="--d: 4000ms">Conte do<br />seu jeito.</h2>
-          <p class="anim a-fade" style="--d: 4400ms">Escreva como falaria com um funcionário novo. O Helpy pergunta só o que falta e vai montando tudo.</p>
+          <span class="capitulo anim a-fade" style="--d: 300ms">01</span>
+          <h2 class="anim a-sobe" style="--d: 400ms">Conte do<br />seu jeito.</h2>
+          <p class="anim a-fade" style="--d: 800ms">Escreva como falaria com um funcionário novo. O Helpy pergunta só o que falta e vai montando tudo.</p>
         </div>
-        <div class="janela anim a-direita" style="--d: 4100ms">
+        <div class="janela anim a-direita" style="--d: 500ms">
           <div class="janela-topo"><i></i><i></i><i></i><span>Montar assistente</span></div>
           <div class="construtor">
             <div class="chat">
-              <div class="bolha eu anim a-sobe-p" style="--d: 4700ms"><span data-digita data-t0="4700" data-dur="1300">Tenho uma barbearia no Centro. Corte R$ 45, barba R$ 35.</span></div>
-              <div class="bolha ele anim a-sobe-p" style="--d: 6300ms"><small>Helpy</small>Anotado! Vocês atendem só com horário marcado?</div>
-              <div class="bolha eu anim a-sobe-p" style="--d: 7500ms"><span data-digita data-t0="7500" data-dur="900">Só com horário, seg a sáb, 9h às 19h.</span></div>
-              <div class="bolha ele anim a-sobe-p" style="--d: 8900ms"><small>Helpy</small>Fechado: ele marca direto na sua agenda.</div>
+              <div class="bolha eu anim a-sobe-p" style="--d: 1100ms"><span data-digita data-t0="1100" data-dur="1300">Tenho uma barbearia no Centro. Corte R$ 45, barba R$ 35.</span></div>
+              <div class="bolha ele anim a-sobe-p" style="--d: 2700ms"><small>Helpy</small>Anotado! Vocês atendem só com horário marcado?</div>
+              <div class="bolha eu anim a-sobe-p" style="--d: 3900ms"><span data-digita data-t0="3900" data-dur="900">Só com horário, seg a sáb, 9h às 19h.</span></div>
+              <div class="bolha ele anim a-sobe-p" style="--d: 5300ms"><small>Helpy</small>Fechado: ele marca direto na sua agenda.</div>
             </div>
             <div class="documento">
               <div class="doc-topo">
                 <b>O que o Zeca sabe</b>
-                <span class="barra"><span class="anim a-barra" style="--d: 6000ms; --dur: 4200ms"></span></span>
-                <em data-conta data-de="0" data-para="100" data-t0="6000" data-dur="4200" data-sufixo="%">0%</em>
+                <span class="barra"><span class="anim a-barra" style="--d: 2400ms; --dur: 4200ms"></span></span>
+                <em data-conta data-de="0" data-para="100" data-t0="2400" data-dur="4200" data-sufixo="%">0%</em>
               </div>
               <ul>
-                <li class="anim a-campo" style="--d: 6400ms"><span>Nome</span><b>Zeca</b></li>
-                <li class="anim a-campo" style="--d: 6900ms"><span>Ramo</span><b>Barbearia</b></li>
-                <li class="anim a-campo" style="--d: 7700ms"><span>Corte</span><b>R$ 45</b></li>
-                <li class="anim a-campo" style="--d: 8100ms"><span>Barba</span><b>R$ 35</b></li>
-                <li class="anim a-campo" style="--d: 8900ms"><span>Horário</span><b>Seg a sáb, 9h–19h</b></li>
-                <li class="anim a-campo" style="--d: 9500ms"><span>Agenda</span><b>Marca sozinho</b></li>
+                <li class="anim a-campo" style="--d: 2800ms"><span>Nome</span><b>Zeca</b></li>
+                <li class="anim a-campo" style="--d: 3300ms"><span>Ramo</span><b>Barbearia</b></li>
+                <li class="anim a-campo" style="--d: 4100ms"><span>Corte</span><b>R$ 45</b></li>
+                <li class="anim a-campo" style="--d: 4500ms"><span>Barba</span><b>R$ 35</b></li>
+                <li class="anim a-campo" style="--d: 5300ms"><span>Horário</span><b>Seg a sáb, 9h–19h</b></li>
+                <li class="anim a-campo" style="--d: 5900ms"><span>Agenda</span><b>Marca sozinho</b></li>
               </ul>
-              <span class="botao-pilula anim a-pulso" style="--d: 10300ms">Publicar</span>
+              <span class="botao-pilula anim a-pulso" style="--d: 6700ms">Publicar</span>
             </div>
           </div>
         </div>
@@ -91,61 +93,176 @@
     </section>
 
     <!-- 3. publique o link -->
-    <section class="cena" data-ini="11600" data-fim="19600">
+    <section class="cena" data-cena="publique">
       <div class="duas">
         <div class="texto">
-          <span class="capitulo anim a-fade" style="--d: 11900ms">02</span>
-          <h2 class="anim a-sobe" style="--d: 12000ms">Publique<br />o link.</h2>
-          <div class="link-pilula anim a-sobe" style="--d: 12500ms">
+          <span class="capitulo anim a-fade" style="--d: 300ms">02</span>
+          <h2 class="anim a-sobe" style="--d: 400ms">Publique<br />o link.</h2>
+          <div class="link-pilula anim a-sobe" style="--d: 900ms">
             <span class="cadeado"></span>
-            <span data-digita data-t0="12800" data-dur="1200">helpy.app/c/barbearia-do-ze</span>
+            <span data-digita data-t0="1200" data-dur="1200">helpy.app/c/barbearia-do-ze</span>
           </div>
-          <p class="anim a-fade" style="--d: 13900ms">Na bio, no site ou no QR do balcão. A partir daí ele atende, a qualquer hora.</p>
+          <p class="anim a-fade" style="--d: 2300ms">Na bio, no site ou no QR do balcão. A partir daí ele atende, a qualquer hora.</p>
         </div>
         <div class="palco-celular">
-          <div class="celular anim a-celular" style="--d: 13800ms">
+          <div class="celular anim a-celular" style="--d: 2200ms">
             <div class="cel-topo"><span class="avatar">Z</span><div><b>Zeca</b><small>Barbearia do Zé</small></div><em>23:12</em></div>
             <div class="cel-chat">
-              <div class="bolha eu anim a-sobe-p" style="--d: 14600ms">Tem horário sábado de manhã?</div>
-              <div class="digitando anim a-digitando" style="--d: 15200ms"><i></i><i></i><i></i></div>
-              <div class="bolha ele anim a-sobe-p" style="--d: 16200ms">Tenho 9h, 9h40 e 10h20. O corte sai por R$ 45.</div>
-              <div class="bolha eu anim a-sobe-p" style="--d: 17200ms">9h40!</div>
-              <div class="bolha ele anim a-sobe-p" style="--d: 17900ms">Marquei sábado, 9h40. Te espero.</div>
+              <div class="bolha eu anim a-sobe-p" style="--d: 3000ms">Tem horário sábado de manhã?</div>
+              <div class="digitando anim a-digitando" style="--d: 3600ms"><i></i><i></i><i></i></div>
+              <div class="bolha ele anim a-sobe-p" style="--d: 4600ms">Tenho 9h, 9h40 e 10h20. O corte sai por R$ 45.</div>
+              <div class="bolha eu anim a-sobe-p" style="--d: 5600ms">9h40!</div>
+              <div class="bolha ele anim a-sobe-p" style="--d: 6300ms">Marquei sábado, 9h40. Te espero.</div>
             </div>
           </div>
-          <div class="ponto p1 anim a-ponto" style="--d: 16600ms"><i></i><span>Consultou a tabela de serviços</span></div>
-          <div class="ponto p2 anim a-ponto" style="--d: 18300ms"><i></i><span>Marcou na agenda</span></div>
+          <div class="ponto p1 anim a-ponto" style="--d: 5000ms"><i></i><span>Consultou a tabela de serviços</span></div>
+          <div class="ponto p2 anim a-ponto" style="--d: 6700ms"><i></i><span>Marcou na agenda</span></div>
         </div>
       </div>
     </section>
 
-    <!-- 4. chamados -->
-    <section class="cena" data-ini="19600" data-fim="25600">
+    <!-- 4. canais: atende onde o cliente está -->
+    <section class="cena" data-cena="canais">
       <div class="duas">
         <div class="texto">
-          <span class="capitulo anim a-fade" style="--d: 19900ms">03</span>
-          <h2 class="anim a-sobe" style="--d: 20000ms">Chama você<br />quando precisa.</h2>
-          <p class="anim a-fade" style="--d: 20400ms">Reclamação ou negociação vira chamado com número e resumo. Você responde na mesma conversa.</p>
+          <span class="capitulo anim a-fade" style="--d: 300ms">03</span>
+          <h2 class="anim a-sobe h-menor" style="--d: 400ms">Atende onde<br />o cliente está.</h2>
+          <p class="anim a-fade" style="--d: 900ms">WhatsApp, Instagram, Discord e o link do seu site. Tudo cai num painel só.</p>
+        </div>
+        <div class="hub">
+          <svg class="hub-fios" viewBox="0 0 1000 760" aria-hidden="true">
+            <path pathLength="1" class="fio anim a-fio" style="--d: 1500ms" d="M190 170 C 330 170, 380 330, 500 380" />
+            <path pathLength="1" class="fio anim a-fio" style="--d: 1800ms" d="M810 170 C 670 170, 620 330, 500 380" />
+            <path pathLength="1" class="fio anim a-fio" style="--d: 2100ms" d="M190 590 C 330 590, 380 430, 500 380" />
+            <path pathLength="1" class="fio anim a-fio" style="--d: 2400ms" d="M810 590 C 670 590, 620 430, 500 380" />
+          </svg>
+          <i class="pacote anim a-pacote" style="--d: 2600ms; offset-path: path('M190 170 C 330 170, 380 330, 500 380')"></i>
+          <i class="pacote anim a-pacote" style="--d: 3300ms; offset-path: path('M810 170 C 670 170, 620 330, 500 380')"></i>
+          <i class="pacote anim a-pacote" style="--d: 4000ms; offset-path: path('M190 590 C 330 590, 380 430, 500 380')"></i>
+          <i class="pacote anim a-pacote" style="--d: 4700ms; offset-path: path('M810 590 C 670 590, 620 430, 500 380')"></i>
+
+          <div class="hub-centro anim a-escala" style="--d: 900ms">
+            <span class="marca" data-marca="110"></span>
+            <i class="hub-onda anim a-onda" style="--d: 1400ms"></i>
+            <i class="hub-onda anim a-onda" style="--d: 2600ms"></i>
+          </div>
+
+          <div class="no no-wa anim a-no" style="--d: 1200ms"><span class="no-logo" data-logo="whatsapp"></span><b>WhatsApp</b></div>
+          <div class="no no-ig anim a-no" style="--d: 1500ms"><span class="no-logo" data-logo="instagram"></span><b>Instagram</b></div>
+          <div class="no no-dc anim a-no" style="--d: 1800ms"><span class="no-logo" data-logo="discord"></span><b>Discord</b></div>
+          <div class="no no-site anim a-no" style="--d: 2100ms"><span class="no-logo no-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg></span><b>Seu site</b></div>
+
+          <div class="balao b-wa anim a-balao" style="--d: 2700ms">Tem horário amanhã?</div>
+          <div class="balao b-ig anim a-balao" style="--d: 3400ms">Quanto custa o corte?</div>
+          <div class="balao b-dc anim a-balao" style="--d: 4100ms"><b>#ticket-0043</b> aberto</div>
+          <div class="balao b-site anim a-balao" style="--d: 4800ms">Vocês entregam?</div>
+
+          <!-- mergulho rápido: a câmera entra no WhatsApp e depois no Discord -->
+          <i class="hub-veu anim a-veu" style="--d: 5100ms"></i>
+          <div class="mergulho m-wa anim a-mergulho" style="--d: 5200ms; transform-origin: 130px 140px">
+            <div class="wa-topo"><span class="wa-avatar">Z</span><div><b>Barbearia do Zé</b><small>online</small></div></div>
+            <div class="wa-chat">
+              <span class="wa-dia">HOJE</span>
+              <div class="wa-msg wa-eu anim a-sobe-p" style="--d: 5600ms">Oi! Quanto custa o corte? <em>18:02 ✓✓</em></div>
+              <div class="wa-msg wa-ele anim a-sobe-p" style="--d: 6200ms">Oi! O corte sai R$ 45. Tenho horário hoje às 18h40, quer que eu marque? <em>18:02</em></div>
+              <div class="wa-msg wa-eu anim a-sobe-p" style="--d: 6900ms">Quero! <em>18:03 ✓✓</em></div>
+            </div>
+          </div>
+          <div class="mergulho m-dc anim a-mergulho" style="--d: 7900ms; transform-origin: 130px 560px">
+            <div class="dc-servidores"><i class="dc-s ativo"></i><i class="dc-s"></i><i class="dc-s"></i></div>
+            <div class="dc-canais">
+              <b>Loja do Zé</b>
+              <span># geral</span><span class="ativo"># atendimento</span><span># ticket-0043</span>
+            </div>
+            <div class="dc-chat">
+              <div class="dc-topo"># atendimento</div>
+              <div class="dc-msg anim a-sobe-p" style="--d: 8400ms"><span class="dc-av av-rafa">R</span><div><b>rafa <em>hoje às 21:14</em></b>vocês têm a camiseta preta no tamanho G?</div></div>
+              <div class="dc-msg anim a-sobe-p" style="--d: 9000ms"><span class="dc-av av-bot"><span class="marca" data-marca="60"></span></span><div><b>Zeca <i>APP</i> <em>hoje às 21:14</em></b>Tenho sim, 3 unidades por R$ 59,90. Quer que eu separe uma para você?</div></div>
+              <div class="dc-embed anim a-sobe-p" style="--d: 9600ms"><b>Ticket #0043 aberto</b>A equipe responde por aqui.</div>
+            </div>
+          </div>
+
+          <div class="painel-unico anim a-sobe-p" style="--d: 10900ms">
+            <b>Atendimentos</b>
+            <span><i class="ponto-wa"></i>4</span><span><i class="ponto-ig"></i>2</span><span><i class="ponto-dc"></i>1</span><span><i class="ponto-site"></i>3</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. dados: consulta antes de responder -->
+    <section class="cena" data-cena="dados">
+      <div class="duas">
+        <div class="texto">
+          <span class="capitulo anim a-fade" style="--d: 300ms">04</span>
+          <h2 class="anim a-sobe h-menor" style="--d: 400ms">Consulta os<br />seus dados.</h2>
+          <p class="anim a-fade" style="--d: 900ms">Excel, Google Planilhas, banco SQL, SAP, TOTVS ou a sua API. Ele consulta antes de responder.</p>
+        </div>
+        <div class="dados-palco">
+          <ul class="fontes">
+            <li class="anim a-fonte" style="--d: 1300ms"><span class="fonte-logo f-excel">X</span>Excel</li>
+            <li class="anim a-fonte" style="--d: 1550ms"><span class="fonte-logo f-sheets" data-logo="googlesheets"></span>Google Planilhas</li>
+            <li class="anim a-fonte" style="--d: 1800ms"><span class="fonte-logo f-pg" data-logo="postgresql"></span>PostgreSQL</li>
+            <li class="anim a-fonte" style="--d: 2050ms"><span class="fonte-logo f-mysql" data-logo="mysql"></span>MySQL</li>
+            <li class="anim a-fonte" style="--d: 2300ms"><span class="fonte-logo f-sap" data-logo="sap"></span>SAP</li>
+            <li class="anim a-fonte" style="--d: 2550ms"><span class="fonte-logo f-totvs" data-logo="totvs"></span>TOTVS</li>
+            <li class="anim a-fonte" style="--d: 2800ms"><span class="fonte-logo f-api">{ }</span>Sua API</li>
+          </ul>
+          <svg class="dados-fios" viewBox="0 0 220 622" aria-hidden="true">
+            <path pathLength="1" class="fio anim a-fio" style="--d: 3000ms" d="M0 38 C 120 38, 100 311, 220 311" />
+            <path pathLength="1" class="fio anim a-fio" style="--d: 3100ms" d="M0 129 C 120 129, 100 311, 220 311" />
+            <path pathLength="1" class="fio anim a-fio" style="--d: 3200ms" d="M0 220 C 120 220, 100 311, 220 311" />
+            <path pathLength="1" class="fio anim a-fio" style="--d: 3300ms" d="M0 311 C 120 311, 100 311, 220 311" />
+            <path pathLength="1" class="fio anim a-fio" style="--d: 3400ms" d="M0 402 C 120 402, 100 311, 220 311" />
+            <path pathLength="1" class="fio anim a-fio" style="--d: 3500ms" d="M0 493 C 120 493, 100 311, 220 311" />
+            <path pathLength="1" class="fio anim a-fio" style="--d: 3600ms" d="M0 584 C 120 584, 100 311, 220 311" />
+          </svg>
+          <div class="dados-lado">
+            <div class="tabela anim a-direita" style="--d: 3400ms">
+              <div class="tabela-topo"><b>Produtos</b><span class="ao-vivo">ao vivo</span></div>
+              <div class="tabela-cab"><span>Produto</span><span>Preço</span><span>Estoque</span></div>
+              <div class="tabela-linha"><span>Filtro de ar</span><span>R$ 54,90</span><span>4</span></div>
+              <div class="tabela-linha alvo"><span>Óleo 5W30</span><span>R$ 39,90</span><span><b data-conta data-de="15" data-para="12" data-t0="9200" data-dur="900">15</b></span><i class="varredura anim a-varredura" style="--d: 7000ms"></i></div>
+              <div class="tabela-linha"><span>Pastilha de freio</span><span>R$ 129,00</span><span>7</span></div>
+            </div>
+            <div class="mini-chat">
+              <div class="bolha eu anim a-sobe-p" style="--d: 6000ms">Tem óleo 5W30?</div>
+              <div class="consultou anim a-ponto" style="--d: 7200ms"><i></i>Consultou a tabela Produtos</div>
+              <div class="bolha ele anim a-sobe-p" style="--d: 8100ms">Tem sim! 15 unidades, R$ 39,90. Quer que eu separe 3?</div>
+              <div class="pix anim a-pix" style="--d: 9000ms"><span class="pix-logo" data-logo="pix"></span><b>Pago no Pix</b><span>estoque atualizado</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. chamados -->
+    <section class="cena" data-cena="chamados">
+      <div class="duas">
+        <div class="texto">
+          <span class="capitulo anim a-fade" style="--d: 300ms">05</span>
+          <h2 class="anim a-sobe" style="--d: 400ms">Chama você<br />quando precisa.</h2>
+          <p class="anim a-fade" style="--d: 800ms">Reclamação ou negociação vira chamado com número e resumo. Você responde na mesma conversa.</p>
         </div>
         <div class="palco-chamado">
-          <div class="senha anim a-senha" style="--d: 20600ms">
+          <div class="senha anim a-senha" style="--d: 1000ms">
             <div class="senha-num"><small>Senha</small><b>Nº 0042</b></div>
             <div class="senha-corpo"><b>Reclamação do serviço</b><span>Aberto às 23:15</span></div>
           </div>
-          <div class="caixa anim a-sobe" style="--d: 21300ms">
+          <div class="caixa anim a-sobe" style="--d: 1700ms">
             <div class="caixa-topo"><b>Atendimentos</b><span class="pilula-cinza">Na fila · 3</span></div>
-            <div class="caixa-linha anim a-sobe-p" style="--d: 21700ms">
+            <div class="caixa-linha anim a-sobe-p" style="--d: 2100ms">
               <span class="mini-senha">0042</span>
               <div><b>Corte da semana passada ficou torto</b><small>Rafael · há 2 min</small></div>
               <span class="estado e1">Aguardando</span>
-              <span class="estado e2 anim a-troca" style="--d: 23600ms">Em atendimento</span>
+              <span class="estado e2 anim a-troca" style="--d: 4000ms">Em atendimento</span>
             </div>
-            <div class="caixa-linha anim a-sobe-p" style="--d: 21950ms">
+            <div class="caixa-linha anim a-sobe-p" style="--d: 2350ms">
               <span class="mini-senha cinza">0041</span>
               <div><b>Quer remarcar fora do horário</b><small>Marcos · há 1 h</small></div>
               <span class="estado e1">Aguardando</span>
             </div>
-            <div class="resumo anim a-fade" style="--d: 22600ms">
+            <div class="resumo anim a-fade" style="--d: 3000ms">
               <small>Resumo do atendente</small>
               Cliente marcou corte sábado 9h40 e reclamou do corte anterior. Pediu retorno da equipe.
             </div>
@@ -155,23 +272,23 @@
     </section>
 
     <!-- 5. relatórios -->
-    <section class="cena" data-ini="25600" data-fim="31100">
+    <section class="cena" data-cena="relatorios">
       <div class="duas">
         <div class="texto">
-          <span class="capitulo anim a-fade" style="--d: 25900ms">Relatórios</span>
-          <h2 class="anim a-sobe" style="--d: 26000ms">Saiba o que<br />perguntam.</h2>
+          <span class="capitulo anim a-fade" style="--d: 300ms">Relatórios</span>
+          <h2 class="anim a-sobe" style="--d: 400ms">Saiba o que<br />perguntam.</h2>
           <div class="numeros">
-            <div class="anim a-sobe" style="--d: 26500ms"><b data-conta data-de="0" data-para="84" data-t0="26600" data-dur="1800" data-sufixo="%">0%</b><span>resolvidas sem a equipe</span></div>
-            <div class="anim a-sobe" style="--d: 26700ms"><b data-conta data-de="0" data-para="281" data-t0="26800" data-dur="1800">0</b><span>conversas no mês</span></div>
+            <div class="anim a-sobe" style="--d: 900ms"><b data-conta data-de="0" data-para="84" data-t0="1000" data-dur="1800" data-sufixo="%">0%</b><span>resolvidas sem a equipe</span></div>
+            <div class="anim a-sobe" style="--d: 1100ms"><b data-conta data-de="0" data-para="281" data-t0="1200" data-dur="1800">0</b><span>conversas no mês</span></div>
           </div>
         </div>
-        <div class="painel-rel anim a-direita" style="--d: 26200ms">
+        <div class="painel-rel anim a-direita" style="--d: 600ms">
           <div class="rel-topo"><b>O que mais perguntaram</b><span>Últimos 30 dias</span></div>
           <ul>
-            <li style="--w: 1"><span>Preço e formas de pagamento</span><b>58</b><i class="anim a-barra" style="--d: 26800ms; --dur: 1400ms"></i></li>
-            <li style="--w: 0.7"><span>Horário livre no sábado</span><b>41</b><i class="anim a-barra" style="--d: 26950ms; --dur: 1400ms"></i></li>
-            <li style="--w: 0.46"><span>Remarcar horário</span><b>27</b><i class="anim a-barra" style="--d: 27100ms; --dur: 1400ms"></i></li>
-            <li style="--w: 0.33"><span>Estacionamento</span><b>19</b><i class="anim a-barra" style="--d: 27250ms; --dur: 1400ms"></i></li>
+            <li style="--w: 1"><span>Preço e formas de pagamento</span><b>58</b><i class="anim a-barra" style="--d: 1200ms; --dur: 1400ms"></i></li>
+            <li style="--w: 0.7"><span>Horário livre no sábado</span><b>41</b><i class="anim a-barra" style="--d: 1350ms; --dur: 1400ms"></i></li>
+            <li style="--w: 0.46"><span>Remarcar horário</span><b>27</b><i class="anim a-barra" style="--d: 1500ms; --dur: 1400ms"></i></li>
+            <li style="--w: 0.33"><span>Estacionamento</span><b>19</b><i class="anim a-barra" style="--d: 1650ms; --dur: 1400ms"></i></li>
           </ul>
           <div class="calor">
             <span>Horários de pico</span>
@@ -182,30 +299,30 @@
     </section>
 
     <!-- 6. planos -->
-    <section class="cena" data-ini="31100" data-fim="36800">
+    <section class="cena" data-cena="planos">
       <div class="planos-cena">
         <div class="texto centro">
-          <span class="capitulo anim a-fade" style="--d: 31400ms">Planos</span>
-          <h2 class="anim a-sobe" style="--d: 31500ms">Preço fixo por mês.</h2>
+          <span class="capitulo anim a-fade" style="--d: 300ms">Planos</span>
+          <h2 class="anim a-sobe" style="--d: 400ms">Preço fixo por mês.</h2>
         </div>
         <div class="planos">
-          <div class="plano anim a-sobe" style="--d: 32000ms"><span>Essencial</span><b>R$ 79<small>/mês</small></b><ul><li>200 atendimentos</li><li>1 assistente</li><li>Link, QR code e Discord</li></ul></div>
-          <div class="plano destaque anim a-sobe" style="--d: 32250ms"><span>Profissional <em>Mais escolhido</em></span><b>R$ 197<small>/mês</small></b><ul><li>600 atendimentos</li><li>3 assistentes</li><li>WhatsApp e Instagram</li></ul></div>
-          <div class="plano anim a-sobe" style="--d: 32500ms"><span>Business</span><b>R$ 497<small>/mês</small></b><ul><li>1.500 atendimentos</li><li>10 assistentes</li><li>Chamados sem limite</li></ul></div>
+          <div class="plano anim a-sobe" style="--d: 900ms"><span>Essencial</span><b>R$ 79<small>/mês</small></b><ul><li>200 atendimentos</li><li>1 assistente</li><li>Link, QR code e Discord</li></ul></div>
+          <div class="plano destaque anim a-sobe" style="--d: 1150ms"><span>Profissional <em>Mais escolhido</em></span><b>R$ 197<small>/mês</small></b><ul><li>600 atendimentos</li><li>3 assistentes</li><li>WhatsApp e Instagram</li></ul></div>
+          <div class="plano anim a-sobe" style="--d: 1400ms"><span>Business</span><b>R$ 497<small>/mês</small></b><ul><li>1.500 atendimentos</li><li>10 assistentes</li><li>Chamados sem limite</li></ul></div>
         </div>
-        <p class="nota anim a-fade" style="--d: 33400ms">7 dias grátis · sem cartão</p>
+        <p class="nota anim a-fade" style="--d: 2300ms">7 dias grátis · sem cartão</p>
       </div>
     </section>
 
     <!-- 7. fechamento -->
-    <section class="cena" data-ini="36800" data-fim="99999">
+    <section class="cena" data-cena="fechamento">
       <div class="abertura">
-        <span class="marca grande anim a-escala" data-marca="120" style="--d: 37000ms"></span>
+        <span class="marca grande anim a-escala" data-marca="120" style="--d: 200ms"></span>
         <h1 class="titulo-gigante menor">
-          <span class="linha"><span class="anim a-sobe" style="--d: 37300ms">Teste grátis</span></span>
-          <span class="linha"><span class="anim a-sobe" style="--d: 37450ms">por <b>7 dias.</b></span></span>
+          <span class="linha"><span class="anim a-sobe" style="--d: 500ms">Teste grátis</span></span>
+          <span class="linha"><span class="anim a-sobe" style="--d: 650ms">por <b>7 dias.</b></span></span>
         </h1>
-        <span class="botao-pilula grande anim a-fade" style="--d: 38000ms">Criar meu atendente</span>
+        <span class="botao-pilula grande anim a-fade" style="--d: 1200ms">Criar meu atendente</span>
       </div>
     </section>
   </div>
