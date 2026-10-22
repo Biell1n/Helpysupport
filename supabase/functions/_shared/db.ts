@@ -50,9 +50,10 @@ const TOLERANCIA_ATRASO_DIAS = 5;
 async function planoEmDia<T extends { id: string; plan: string | null }>(p: T): Promise<T> {
   if (!p.plan || p.plan === 'trial') return p;
   const { data: ass } = await admin.from('assinaturas').select('status, proximo_vencimento').eq('owner_id', p.id).maybeSingle();
-  if (!ass?.proximo_vencimento || !['cancelada', 'atrasada'].includes(ass.status)) return p;
+  // só a assinatura em dia segura o plano; atrasada ou com troca pendente ganha uns dias de folga
+  if (!ass?.proximo_vencimento || ass.status === 'ativa') return p;
   const limite = new Date(`${ass.proximo_vencimento}T23:59:59-03:00`);
-  if (ass.status === 'atrasada') limite.setDate(limite.getDate() + TOLERANCIA_ATRASO_DIAS);
+  if (ass.status !== 'cancelada') limite.setDate(limite.getDate() + TOLERANCIA_ATRASO_DIAS);
   if (Date.now() <= limite.getTime()) return p;
   const agora = new Date().toISOString();
   await admin.from('profiles').update({ plan: 'trial', trial_ends_at: agora }).eq('id', p.id);

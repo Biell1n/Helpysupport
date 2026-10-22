@@ -67,16 +67,41 @@ export async function urlSegura(bruta: string): Promise<URL> {
     throw new UserError('Esse endereço é de rede interna. O Helpy só alcança endereços públicos da internet.');
   }
   if (!/^\d+\.\d+\.\d+\.\d+$/.test(host) && !host.includes(':')) {
-    let falhou = 0;
+    const ips = await enderecosDe(host);
+    if (ips === null) throw new UserError('Não consegui conferir esse endereço agora. Tente de novo em instantes.', 503);
+    if (ips.some(ipPrivado)) throw new UserError('Esse endereço aponta para uma rede interna.');
+    // o nome existe mas não tem endereço público: não deixa passar
+    if (!ips.length) throw new UserError('Não encontrei esse endereço na internet. Confira o link.');
+  }
+  return u;
+}
+
+// Endereços (A e AAAA) de um nome. Se a consulta falhar, devolve null: na dúvida, não deixa passar.
+async function enderecosDe(host: string): Promise<string[] | null> {
+  if (typeof Deno.resolveDns === 'function') {
+    let falhou = false;
     const consulta = (tipo: 'A' | 'AAAA') => Deno.resolveDns(host, tipo).catch((e) => {
       // "não existe registro desse tipo" é normal; outro erro conta como falha
-      if (!/NotFound|no records|NXDOMAIN/i.test(String(e?.name ?? '') + String(e?.message ?? ''))) falhou++;
+      if (!/NotFound|no records|NXDOMAIN/i.test(String(e?.name ?? '') + String(e?.message ?? ''))) falhou = true;
       return [] as string[];
     });
     const ips = [...(await consulta('A')), ...(await consulta('AAAA'))];
-    if (ips.some(ipPrivado)) throw new UserError('Esse endereço aponta para uma rede interna.');
-    // o nome existe mas não tem endereço público: não deixa passar
-    if (!ips.length && falhou < 2) throw new UserError('Não encontrei esse endereço na internet. Confira o link.');
+    if (ips.length || !falhou) return ips;
   }
-  return u;
+  // sem DNS no servidor: pergunta por HTTPS
+  try {
+    const ips: string[] = [];
+    for (const tipo of ['A', 'AAAA']) {
+      const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=${tipo}`, {
+        headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(5000),
+      });
+      if (!r.ok) return null;
+      const d = await r.json() as { Status?: number; Answer?: { type: number; data: string }[] };
+      if (d.Status !== 0 && d.Status !== 3) return null;
+      for (const a of d.Answer ?? []) if (a.type === 1 || a.type === 28) ips.push(a.data);
+    }
+    return ips;
+  } catch {
+    return null;
+  }
 }

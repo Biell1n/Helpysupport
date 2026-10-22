@@ -456,7 +456,7 @@ export async function apelidarBotHelpy(servidor: string, nome: string, foto?: st
   }
   if (foto) {
     try {
-      const r = await fetch(foto, { signal: AbortSignal.timeout(10000) });
+      const r = await fetch(fotoNossa(foto), { signal: AbortSignal.timeout(10000), redirect: 'error' });
       const tipo = r.headers.get('content-type') ?? 'image/png';
       const bytes = new Uint8Array(await r.arrayBuffer());
       if (r.ok && /^image\//.test(tipo) && bytes.length < 8_000_000) {
@@ -496,6 +496,14 @@ function nomeDeBot(nome: string) {
   return limpo.length >= 2 ? limpo : 'Atendimento';
 }
 
+// A foto do assistente só é baixada do nosso armazenamento (o link fica salvo na conta e
+// poderia apontar para qualquer lugar, inclusive a rede interna).
+function fotoNossa(url: string): string {
+  const base = `${Deno.env.get('SUPABASE_URL') ?? ''}/storage/v1/object/public/`;
+  if (!base.startsWith('https://') || !url.startsWith(base) || url.includes('..')) throw new Error('foto fora do armazenamento');
+  return url;
+}
+
 /**
  * Discord: deixa o bot com a cara do assistente (nome e foto) e cadastra
  * sozinho o endereço das interações, para a empresa não precisar colar.
@@ -509,7 +517,7 @@ export async function vestirBotDiscord(token: string, o: { nome: string; foto?: 
   const perfil: Record<string, string> = { username: nomeDeBot(o.nome) };
   if (o.foto) {
     try {
-      const r = await fetch(o.foto, { signal: AbortSignal.timeout(10000) });
+      const r = await fetch(fotoNossa(o.foto), { signal: AbortSignal.timeout(10000), redirect: 'error' });
       const tipo = r.headers.get('content-type') ?? 'image/png';
       const bytes = new Uint8Array(await r.arrayBuffer());
       if (r.ok && bytes.length < 8_000_000 && /^image\//.test(tipo)) {

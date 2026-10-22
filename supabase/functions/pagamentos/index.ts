@@ -87,9 +87,33 @@ function maisUmMes(data: string) {
 // ------------------------------------------------------------
 async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, unknown> }) {
   const pg = evento.payment;
-  if (!pg?.subscription) return;
-  const { data: ass } = await admin.from('assinaturas').select('*').eq('asaas_assinatura', String(pg.subscription)).maybeSingle();
+  const subId = String(pg?.subscription ?? '');
+  if (!pg || !/^[\w-]+$/.test(subId)) return;
+  // a cobrança pode ser da assinatura nova ou da antiga, que segue valendo até a troca ser paga
+  const { data: ass } = await admin.from('assinaturas').select('*')
+    .or(`asaas_assinatura.eq.${subId},asaas_anterior.eq.${subId}`).maybeSingle();
   if (!ass) return;
+  const daAntiga = ass.asaas_anterior === subId && ass.asaas_assinatura !== subId;
+  const agora = new Date().toISOString();
+
+  if (daAntiga) {
+    const plano = await planoDaAssinatura(subId);
+    await guardarFatura(ass.owner_id, pg, `Plano ${PLANS[plano ?? (ass.plano as PlanId)]?.nome ?? plano ?? ass.plano}`);
+    if (pago(String(pg.status), evento.event)) {
+      if (ass.status === 'cancelada') return;
+      // pagou o plano de antes: ele continua valendo e a troca segue esperando
+      if (plano) await admin.from('profiles').update({ plan: plano, trial_ends_at: null }).eq('id', ass.owner_id);
+      await admin.from('assinaturas').update({
+        status: 'ativa', atualizada_em: agora,
+        proximo_vencimento: pg.dueDate ? maisUmMes(String(pg.dueDate)) : ass.proximo_vencimento,
+      }).eq('owner_id', ass.owner_id);
+    } else if (evento.event === 'PAYMENT_OVERDUE') {
+      await admin.from('assinaturas').update({ status: 'atrasada', atualizada_em: agora }).eq('owner_id', ass.owner_id);
+      await avisoDeAtraso(ass.owner_id, String(pg.id));
+    }
+    return;
+  }
+
   await guardarFatura(ass.owner_id, pg, `Plano ${PLANS[ass.plano as PlanId]?.nome ?? ass.plano}`);
 
   if (pago(String(pg.status), evento.event)) {
@@ -97,7 +121,7 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
     if (ass.status === 'cancelada') return;
     await admin.from('profiles').update({ plan: ass.plano, trial_ends_at: null }).eq('id', ass.owner_id);
     await admin.from('assinaturas').update({
-      status: 'ativa', asaas_anterior: null, atualizada_em: new Date().toISOString(),
+      status: 'ativa', asaas_anterior: null, atualizada_em: agora,
       proximo_vencimento: pg.dueDate ? maisUmMes(String(pg.dueDate)) : null,
     }).eq('owner_id', ass.owner_id);
     // troca de plano: a assinatura antiga só sai depois que a nova foi paga
@@ -108,13 +132,41 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
       detalhe: 'Obrigado! O plano já está ativo.',
     });
   } else if (evento.event === 'PAYMENT_OVERDUE') {
-    await admin.from('assinaturas').update({ status: 'atrasada', atualizada_em: new Date().toISOString() }).eq('owner_id', ass.owner_id);
-    await admin.from('alertas').insert({
-      owner_id: ass.owner_id, origem: 'sistema', chave: `fatura:atrasada:${pg.id}`,
-      assunto: 'A fatura do plano venceu',
-      detalhe: 'Pague pela página Plano para não perder o acesso. Se já pagou, pode ignorar.',
-    });
+    if (ass.asaas_anterior) {
+      // troca de plano que não foi paga: desfaz e volta para a assinatura de antes, sem mexer no acesso
+      await contaHelpy().pedir(`/subscriptions/${subId}`, { method: 'DELETE' }).catch(() => {});
+      const { data: perfil } = await admin.from('profiles').select('plan').eq('id', ass.owner_id).maybeSingle();
+      const plano = (await planoDaAssinatura(ass.asaas_anterior)) ?? (perfil?.plan as PlanId | undefined);
+      await admin.from('assinaturas').update({
+        asaas_assinatura: ass.asaas_anterior, asaas_anterior: null, atualizada_em: agora,
+        status: ass.status === 'ativa' ? 'ativa' : 'atrasada',
+        ...(plano && PLANS[plano] && plano !== 'trial' ? { plano, valor: PLANS[plano].preco } : {}),
+      }).eq('owner_id', ass.owner_id);
+      await admin.from('alertas').insert({
+        owner_id: ass.owner_id, origem: 'sistema', chave: `fatura:troca:${pg.id}`,
+        assunto: 'A troca de plano não foi paga',
+        detalhe: 'Você continua no plano de antes. Para trocar, escolha o plano de novo na página Plano.',
+      });
+      return;
+    }
+    await admin.from('assinaturas').update({ status: 'atrasada', atualizada_em: agora }).eq('owner_id', ass.owner_id);
+    await avisoDeAtraso(ass.owner_id, String(pg.id));
   }
+}
+
+async function avisoDeAtraso(ownerId: string, pagamento: string) {
+  await admin.from('alertas').insert({
+    owner_id: ownerId, origem: 'sistema', chave: `fatura:atrasada:${pagamento}`,
+    assunto: 'A fatura do plano venceu',
+    detalhe: 'Pague pela página Plano para não perder o acesso. Se já pagou, pode ignorar.',
+  });
+}
+
+// O plano de uma assinatura do Helpy vem no externalReference ("conta:plano").
+async function planoDaAssinatura(id: string): Promise<PlanId | null> {
+  const sub = await contaHelpy().pedir<{ externalReference?: string }>(`/subscriptions/${id}`).catch(() => null);
+  const plano = String(sub?.externalReference ?? '').split(':')[1] as PlanId;
+  return plano && plano !== 'trial' && PLANS[plano] ? plano : null;
 }
 
 async function aviso(req: Request, url: URL): Promise<Response> {
@@ -220,7 +272,7 @@ Deno.serve(async (req) => {
         },
       });
       // pendente de antes (nunca paga) sai na hora; a ativa espera a nova ser paga
-      const anterior = atual?.asaas_assinatura && atual.asaas_assinatura !== sub.id ? atual.asaas_assinatura : null;
+      const anterior = atual?.asaas_assinatura && atual.asaas_assinatura !== sub.id && atual.status !== 'cancelada' ? atual.asaas_assinatura : null;
       if (anterior && atual?.status === 'pendente') await c.pedir(`/subscriptions/${anterior}`, { method: 'DELETE' }).catch(() => {});
       // troca de plano em cima de outra troca que ainda não foi paga: a do meio não pode continuar cobrando
       if (atual?.asaas_anterior && anterior && atual.status !== 'pendente') {
@@ -229,7 +281,8 @@ Deno.serve(async (req) => {
       await admin.from('assinaturas').upsert({
         owner_id: conta, plano, valor, status: atual?.status === 'ativa' ? 'ativa' : 'pendente',
         asaas_cliente: cliente, asaas_assinatura: sub.id,
-        asaas_anterior: anterior && atual?.status !== 'pendente' ? anterior : null,
+        // numa troca em cima de outra, a que vale continua sendo a primeira (a que foi paga)
+        asaas_anterior: atual?.asaas_anterior ?? (anterior && atual?.status !== 'pendente' ? anterior : null),
         atualizada_em: new Date().toISOString(),
       });
 
