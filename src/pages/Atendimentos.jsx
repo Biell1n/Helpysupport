@@ -97,12 +97,17 @@ export default function Atendimentos() {
   // a conversa que está aberta agora: resposta atrasada de outra (troca rápida de chamado) é descartada
   const abertaAgora = useRef(null);
   const carregarAberta = useCallback(async (id) => {
-    const [{ data: c }, { data: msgs }, { data: evs }] = await Promise.all([
+    const [{ data: c, error: erro }, { data: msgs }, { data: evs }] = await Promise.all([
       supabase.from('conversations').select('*').eq('id', id).maybeSingle(),
       supabase.from('conversation_messages').select('id, role, content, author_name, created_at').eq('conversation_id', id).order('created_at').limit(300),
       supabase.from('conversa_eventos').select('id, tipo, quem, detalhe, criado_em').eq('conversation_id', id).order('criado_em').limit(100),
     ]);
     if (abertaAgora.current !== id) return;
+    // uma falha de rede numa atualização não apaga da tela a conversa que já estava aberta
+    if (erro) {
+      setAberta((antes) => (antes?.id === id ? antes : null));
+      return;
+    }
     setAberta(c ?? null);
     setMensagens(msgs ?? []);
     setEventos(evs ?? []);
