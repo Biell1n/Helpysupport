@@ -49,10 +49,14 @@ export const PLANS: Record<PlanId, Plan> = {
 
 /**
  * Uso extra: o que passa da cota do plano, cobrado à parte até o limite do
- * mês que o dono escolher. Custo de IA no pior caso: atendimento ≈ R$ 0,20
- * (30 mensagens) e mensagem ≈ R$ 0,007; os preços deixam margem folgada.
+ * mês que o dono escolher. Custo medido de IA por mensagem: média ≈ R$ 0,01,
+ * as mais pesadas ≈ R$ 0,03 (e uma busca na internet soma ≈ R$ 0,05); a
+ * mensagem a R$ 0,05 cobre isso com margem.
  */
-export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.02 } as const;
+export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.05 } as const;
+
+/** Vaga de funcionário além das incluídas no plano (por mês). Espelha src/lib/plans.js. */
+export const PRECO_FUNCIONARIO_EXTRA = 19;
 
 export interface Profile {
   id: string;

@@ -39,11 +39,11 @@ export function recursosDoPlano(p) {
   ].filter(Boolean);
 }
 
-/** Uso extra fica escondido até a fatura do excedente existir. Espelha COBRANCA_EXTRA_PRONTA de extra.ts. */
-export const USO_EXTRA_DISPONIVEL = false;
+/** Chave geral do uso extra no painel. Espelha COBRANCA_EXTRA_PRONTA de extra.ts. */
+export const USO_EXTRA_DISPONIVEL = true;
 
 /** Uso extra: o que passa da cota do plano, cobrado à parte até o limite do mês. Espelha PRECO_EXTRA de plans.ts. */
-export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.02 };
+export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.05 };
 
 /** Vaga de funcionário além das incluídas no plano. */
 export const PRECO_FUNCIONARIO_EXTRA = 19;

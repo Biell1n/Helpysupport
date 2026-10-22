@@ -9,7 +9,8 @@ const moeda = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency',
 
 /**
  * Uso extra: quando a cota do plano acaba, o atendimento continua e o que
- * passar entra na próxima fatura, até o limite do mês que o dono escolhe.
+ * passar vira uma fatura separada no começo do mês seguinte, até o limite do
+ * mês que o dono escolhe.
  */
 export default function UsoExtra({ plano }) {
   const { user, profile, reloadProfile } = useAuth();
@@ -17,6 +18,7 @@ export default function UsoExtra({ plano }) {
   const [ativo, setAtivo] = useState(!!profile?.extra_ativo);
   const [limite, setLimite] = useState(String(Number(profile?.extra_limite ?? 0) || 50));
   const [gasto, setGasto] = useState(null);
+  const [atrasada, setAtrasada] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const teste = plano.id === 'trial';
 
@@ -30,6 +32,8 @@ export default function UsoExtra({ plano }) {
     const mes = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0, 10);
     supabase.from('uso_extra').select('atendimentos, mensagens, valor').eq('mes', mes).maybeSingle()
       .then(({ data }) => setGasto(data ?? { atendimentos: 0, mensagens: 0, valor: 0 }));
+    supabase.from('uso_extra').select('mes', { count: 'exact', head: true }).eq('status', 'atrasado')
+      .then(({ count }) => setAtrasada((count ?? 0) > 0));
   }, []);
 
   const valorLimite = Math.max(0, Math.min(10000, Number(String(limite).replace(',', '.')) || 0));
@@ -54,8 +58,9 @@ export default function UsoExtra({ plano }) {
         <div>
           <h2 className="card-title">Uso extra</h2>
           <p className="muted" style={{ margin: '4px 0 0', fontSize: 14, maxWidth: 620 }}>
-            Quando os atendimentos ou as mensagens do plano acabarem, o assistente continua respondendo e o que passar entra na
-            próxima fatura, até o limite que você escolher. Desligado, as conversas viram recado para a equipe até o mês virar.
+            Quando os atendimentos ou as mensagens do plano acabarem, o assistente continua respondendo e você paga só o que usar,
+            até o limite que escolher. O total do mês vem numa fatura separada no começo do mês seguinte. Desligado, as conversas
+            viram recado para a equipe até o mês virar.
           </p>
         </div>
         <label className="interruptor" aria-disabled={teste || undefined}>
@@ -64,6 +69,15 @@ export default function UsoExtra({ plano }) {
           <span><b>{ativo ? 'Ligado' : 'Desligado'}</b></span>
         </label>
       </div>
+
+      {atrasada && (
+        <div className="alert">
+          <span>A fatura do uso extra está atrasada. Enquanto ela não for paga, o uso extra fica parado. Pague em Sua assinatura, acima.</span>
+        </div>
+      )}
+      {profile?.cobranca_isenta && !teste && (
+        <p className="faint" style={{ fontSize: 13, margin: 0 }}>Conta de teste: o uso extra é contado aqui, mas nunca vira fatura.</p>
+      )}
 
       {teste ? (
         <p className="faint" style={{ fontSize: 14, margin: 0 }}>Disponível depois de assinar um plano.</p>
@@ -90,7 +104,7 @@ export default function UsoExtra({ plano }) {
                 </button>
               ))}
             </div>
-            <span className="hint">Chegou no limite, para na hora e as conversas vão para a equipe. Nada é cobrado além dele.</span>
+            <span className="hint">Chegou no limite, para na hora e as conversas vão para a equipe. Nada é cobrado além dele. Faturas abaixo de R$ 5 esperam o mês seguinte.</span>
           </label>
 
           <div className="stack stack-sm">

@@ -56,7 +56,7 @@ async function planoEmDia<T extends { id: string; plan: string | null }>(p: T): 
   if (ass.status !== 'cancelada') limite.setDate(limite.getDate() + TOLERANCIA_ATRASO_DIAS);
   if (Date.now() <= limite.getTime()) return p;
   const agora = new Date().toISOString();
-  await admin.from('profiles').update({ plan: 'trial', trial_ends_at: agora }).eq('id', p.id);
+  await admin.from('profiles').update({ plan: 'trial', trial_ends_at: agora, funcionarios_extra: 0 }).eq('id', p.id);
   return { ...p, plan: 'trial', trial_ends_at: agora };
 }
 

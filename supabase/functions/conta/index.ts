@@ -54,7 +54,7 @@ async function vagasDaEquipe(ownerId: string) {
     admin.from('convites').select('token', { count: 'exact', head: true }).eq('owner_id', ownerId)
       .is('usado_em', null).gt('expira_em', new Date().toISOString()),
   ]);
-  const extra = Number((profile as { funcionarios_extra?: number }).funcionarios_extra ?? 0);
+  const extra = plan.id === 'trial' ? 0 : Number((profile as { funcionarios_extra?: number }).funcionarios_extra ?? 0);
   return { limite: plan.funcionarios + extra, incluidos: plan.funcionarios, extra, membros: membros ?? 0, pendentes: pendentes ?? 0, plano: plan.nome };
 }
 
