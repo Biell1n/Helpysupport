@@ -213,10 +213,11 @@ function Sacar({ dados, onFechar, onPronto }) {
   const [valor, setValor] = useState('');
   const [indo, setIndo] = useState(false);
   const [erro, setErro] = useState('');
+  const [tentativa, setTentativa] = useState(0);
   const numero = Number(valor.replace(/\./g, '').replace(',', '.'));
 
-  const ir = async (e) => {
-    e?.preventDefault();
+  // o saque só sai segurando o botão; Enter no campo não manda nada
+  const ir = async () => {
     if (indo || !(numero >= 1)) return;
     setErro('');
     setIndo(true);
@@ -227,12 +228,13 @@ function Sacar({ dados, onFechar, onPronto }) {
     } catch (e2) {
       setErro(e2.message);
       setIndo(false);
+      setTentativa((n) => n + 1); // o botão volta ao começo para tentar de novo
     }
   };
 
   return (
     <Modal aberto onFechar={onFechar} largura={440}>
-      <form className="stack" onSubmit={ir}>
+      <form className="stack" onSubmit={(e) => e.preventDefault()}>
         <div>
           <h2 style={{ margin: 0 }}>Sacar por Pix</h2>
           <p className="faint" style={{ margin: '4px 0 0' }}>Disponível: {reais(Number(dados.saldo ?? 0))}</p>
@@ -249,7 +251,7 @@ function Sacar({ dados, onFechar, onPronto }) {
         {erro && <div className="alert alert-erro"><span>{erro}</span></div>}
         <div className="modal-foot">
           <button type="button" className="btn btn-ghost" onClick={onFechar}>Voltar</button>
-          <HoldButton size="md" radius={999} fillColor="#138a5e" disabled={indo || !(numero >= 1)} doneLabel="Pedindo o saque…" resetAfter={0} onHold={ir}>
+          <HoldButton key={tentativa} size="md" radius={999} fillColor="#138a5e" disabled={indo || !(numero >= 1)} doneLabel="Pedindo o saque…" resetAfter={0} onHold={ir}>
             {numero >= 1 ? `Segure para sacar ${reais(numero)}` : 'Digite o valor'}
           </HoldButton>
         </div>

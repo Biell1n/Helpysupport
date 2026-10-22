@@ -40,6 +40,25 @@ export async function requireUser(req: Request): Promise<User> {
   return user;
 }
 
+// dias de tolerância para uma fatura atrasada antes de o plano voltar ao básico
+const TOLERANCIA_ATRASO_DIAS = 5;
+
+/**
+ * Assinatura cancelada (depois do período pago) ou atrasada (passada a tolerância):
+ * o plano volta ao teste encerrado. Feito aqui porque é por onde o servidor lê o plano.
+ */
+async function planoEmDia<T extends { id: string; plan: string | null }>(p: T): Promise<T> {
+  if (!p.plan || p.plan === 'trial') return p;
+  const { data: ass } = await admin.from('assinaturas').select('status, proximo_vencimento').eq('owner_id', p.id).maybeSingle();
+  if (!ass?.proximo_vencimento || !['cancelada', 'atrasada'].includes(ass.status)) return p;
+  const limite = new Date(`${ass.proximo_vencimento}T23:59:59-03:00`);
+  if (ass.status === 'atrasada') limite.setDate(limite.getDate() + TOLERANCIA_ATRASO_DIAS);
+  if (Date.now() <= limite.getTime()) return p;
+  const agora = new Date().toISOString();
+  await admin.from('profiles').update({ plan: 'trial', trial_ends_at: agora }).eq('id', p.id);
+  return { ...p, plan: 'trial', trial_ends_at: agora };
+}
+
 export async function profileOf(userId: string) {
   const { data, error } = await admin
     .from('profiles')
@@ -47,7 +66,7 @@ export async function profileOf(userId: string) {
     .eq('id', userId)
     .maybeSingle();
   if (error) throw error;
-  if (data) return data;
+  if (data) return await planoEmDia(data);
   // conta criada antes do gatilho existir
   const { data: novo, error: e2 } = await admin
     .from('profiles')

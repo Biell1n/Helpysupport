@@ -137,7 +137,7 @@ async function ecoDoInstagram(r: Recebida) {
   await new Promise((ok) => setTimeout(ok, 4000)); // o Helpy marca o que mandou logo depois do envio
   if (await jaVista(admin, `ig:eu:${r.id.slice(3)}`)) return;
   const { data: c } = await admin.from('conversations').select('id, status')
-    .eq('canal_id', r.canal.id).eq('contato_externo', r.contato.id)
+    .eq('owner_id', r.canal.owner_id).eq('canal_id', r.canal.id).eq('contato_externo', r.contato.id)
     .order('last_message_at', { ascending: false }).limit(1).maybeSingle();
   if (!c || !r.texto) return;
   // corrida rara: o eco chegou antes de o Helpy marcar o envio (mesmo texto há pouco)
@@ -180,20 +180,25 @@ async function meta(req: Request): Promise<Response> {
   const recebidas = await lerMeta(corpo);
   if (!recebidas.length) return ok();
 
-  // a assinatura vale para o aviso inteiro: segredo do app do Helpy ou o do app da própria empresa
-  const segredos = [Deno.env.get('META_APP_SECRET') ?? '', Deno.env.get('INSTAGRAM_APP_SECRET') ?? ''];
+  // Cada canal só aceita a assinatura do seu próprio app: o segredo do app da empresa, se ela usa
+  // um app próprio, ou o do app do Helpy, se não usa. Assim uma empresa não consegue assinar com o
+  // segredo dela um aviso que fale do número de outra.
+  const globais = [Deno.env.get('META_APP_SECRET') ?? '', Deno.env.get('INSTAGRAM_APP_SECRET') ?? ''].filter(Boolean);
+  const cabecalho = req.headers.get('X-Hub-Signature-256');
+  const globalOk = globais.length > 0 && (await assinaturaMetaOk(bruto, cabecalho, globais));
+  const valeCanal = new Map<string, boolean>();
   for (const c of new Set(recebidas.map((r) => r.canal.id))) {
     const s = await segredoDo(admin, c).catch(() => null);
-    if (s?.app_secret) segredos.push(s.app_secret);
+    valeCanal.set(c, s?.app_secret ? await assinaturaMetaOk(bruto, cabecalho, [s.app_secret]) : globalOk);
   }
-  if (!segredos.some(Boolean)) {
-    console.error('canal-webhook: falta META_APP_SECRET (ou o segredo do app no canal)');
-    return ok('', 503);
+  const validas = recebidas.filter((r) => valeCanal.get(r.canal.id));
+  if (!validas.length) {
+    if (!globais.length) console.error('canal-webhook: falta META_APP_SECRET (ou o segredo do app no canal)');
+    return ok('', 401);
   }
-  if (!(await assinaturaMetaOk(bruto, req.headers.get('X-Hub-Signature-256'), segredos))) return ok('', 401);
 
   depois((async () => {
-    for (const r of recebidas) {
+    for (const r of validas) {
       if (r.canal.status === 'pausado') continue;
       if (await jaVista(admin, r.id)) continue;
       if (r.eco) await ecoDoInstagram(r);
@@ -230,9 +235,13 @@ async function discord(req: Request, alvo: string): Promise<Response> {
   const chave = doHelpy ? DISCORD_HELPY.chavePublica : canal?.config?.public_key ?? '';
   const assinou = await assinaturaDiscordOk(bruto, req.headers.get('X-Signature-Ed25519'), req.headers.get('X-Signature-Timestamp'), chave);
   if (!assinou) return ok('assinatura inválida', 401);
+  // pedido assinado mas velho (alguém guardou e reenviou): o Discord sempre manda na hora
+  const momento = Number(req.headers.get('X-Signature-Timestamp'));
+  if (!Number.isFinite(momento) || Math.abs(Date.now() / 1000 - momento) > 300) return ok('pedido expirado', 401);
 
   const i = JSON.parse(bruto) as Interacao;
   if (i.type === 1) return jsonOk({ type: 1 }); // PING do Discord ao salvar o endereço
+  if (i.id && (await jaVista(admin, `dci:${i.id}`))) return ok('repetido', 409);
 
   if (doHelpy) {
     if (!i.guild_id) return efemera('Use os comandos do Helpy dentro do servidor da empresa.');

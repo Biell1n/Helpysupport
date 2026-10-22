@@ -50,7 +50,7 @@ export function ExigeLogin({ children }) {
   const { loading, user, precisaCodigo } = useAuth();
   const loc = useLocation();
   if (loading) return <Carregando />;
-  if (!user) return <Navigate to="/entrar" replace state={{ de: loc.pathname }} />;
+  if (!user) return <Navigate to="/entrar" replace state={{ de: loc.pathname + loc.search }} />;
   if (precisaCodigo) return <VerificarCodigo />;
   return <AceiteTermos>{children}</AceiteTermos>;
 }

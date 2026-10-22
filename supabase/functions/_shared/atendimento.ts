@@ -170,6 +170,13 @@ function textoFinal(content: Anthropic.ContentBlock[]) {
     .trim();
 }
 
+/** A ficha sem a senha dos chamados: quem confere a senha é o servidor, e o que o modelo sabe dá para arrancar dele. */
+function semSenha(cfg: Config): Config {
+  if (!cfg.fields?.codigo_chamado) return cfg;
+  const { codigo_chamado: _senha, ...fields } = cfg.fields;
+  return { ...cfg, fields };
+}
+
 export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false, agendaPaga = false): string {
   const cfg = a.config;
   const model = a.business_model || a.schema?.business_model || 'produto';
@@ -261,7 +268,7 @@ VENDA PELO CHAT
 Você fecha a compra aqui mesmo. Quando a pessoa decidir comprar: confirme os produtos, as quantidades e o total (e entrega/frete conforme a ficha). Com o "pode fechar", chame fechar_pedido com o nome exato de cada produto e mande o link exatamente como veio, dizendo que dá para pagar com Pix, cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
 
 FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para os itens das tabelas, consulte as tabelas' : ' — sua fonte de verdade'}
-${describeConfig(a.schema, cfg) || '(vazia)'}
+${describeConfig(a.schema, semSenha(cfg)) || '(vazia)'}
 
 ${blocoMateriais}
 
@@ -309,11 +316,15 @@ ${saudacao ? `Na primeira resposta da conversa, apresente-se de forma coerente c
 // ------------------------------------------------------------
 
 export async function carregarTabelas(db: SupabaseClient, assistantId: string): Promise<Tabela[]> {
-  const { data: links } = await db.from('assistente_tabelas').select('tabela_id').eq('assistant_id', assistantId);
+  const [{ data: links }, { data: dono }] = await Promise.all([
+    db.from('assistente_tabelas').select('tabela_id').eq('assistant_id', assistantId),
+    db.from('assistants').select('owner_id').eq('id', assistantId).maybeSingle(),
+  ]);
   const ids = (links ?? []).map((l) => l.tabela_id);
-  if (!ids.length) return [];
+  if (!ids.length || !dono) return [];
   const [{ data: tabs }, { data: cols }] = await Promise.all([
-    db.from('tabelas').select('id, nome, proposito, fonte, api_config, api_segredo, sincronizada_em').in('id', ids),
+    // só tabelas do dono do assistente, mesmo que alguém tenha ligado outra
+    db.from('tabelas').select('id, nome, proposito, fonte, api_config, api_segredo, sincronizada_em').in('id', ids).eq('owner_id', dono.owner_id),
     db.from('tabela_colunas').select('tabela_id, chave, rotulo, ordem').in('tabela_id', ids).order('ordem'),
   ]);
   const lista = await Promise.all((tabs ?? []).map(async ({ api_segredo, ...t }) => {
@@ -804,7 +815,12 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       return { erro: 'Só quem entrou na conta pode marcar. O botão de entrar já apareceu para a pessoa: peça para ela entrar e voltar a esta conversa.' };
     }
     const servico = args.servico ? String(args.servico) : undefined;
-    const valorServico = servicoDaAgenda(agenda, servico)?.valor ?? (args.valor != null && Number.isFinite(Number(args.valor)) ? Number(args.valor) : undefined);
+    // cobrança só pelo valor cadastrado na agenda: o valor que o modelo propõe vem da conversa,
+    // e o cliente poderia negociar o próprio preço. Serviço sem valor cadastrado fica pendente.
+    const valorCadastrado = servicoDaAgenda(agenda, servico)?.valor;
+    const valorServico = r.vendas?.agendaPaga
+      ? valorCadastrado ?? undefined
+      : valorCadastrado ?? (args.valor != null && Number.isFinite(Number(args.valor)) ? Number(args.valor) : undefined);
     const sinal = valueOf(cfg, 'agenda_pagamento') === COBRA_SINAL ? valueOf(cfg, 'agenda_sinal') : null;
     const cobrar = r.vendas?.agendaPaga ? valorDaReserva(valorServico, sinal) : null;
     if (r.vendas?.agendaPaga && (cobrar == null || cobrar < MINIMO_COBRANCA)) {

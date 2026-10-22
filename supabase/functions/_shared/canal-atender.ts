@@ -51,7 +51,7 @@ export async function atenderNoCanal(
   // conversa aberta com este contato (ou uma nova)
   const { data: ultima } = await db.from('conversations')
     .select('id, status, escalado_em, last_message_at')
-    .eq('canal_id', canal.id).eq('contato_externo', contato.id)
+    .eq('owner_id', canal.owner_id).eq('canal_id', canal.id).eq('contato_externo', contato.id)
     .order('last_message_at', { ascending: false }).limit(1).maybeSingle();
   let c = ultima as Conversa | null;
   const velha = c && c.status === 'closed' && Date.now() - new Date(c.last_message_at).getTime() > 12 * 3600e3;
@@ -62,9 +62,8 @@ export async function atenderNoCanal(
       .eq('owner_id', canal.owner_id).eq('teste', false).gte('created_at', inicioDoMes());
     if (trialExpirado(profile)) recado = true;
     else if ((mes ?? 0) >= plan.atendimentos) {
-      if (profile.creditos_extra > 0) {
-        await db.from('profiles').update({ creditos_extra: profile.creditos_extra - 1 }).eq('id', profile.id);
-      } else if (!(await usarExtra(db, profile, 'atendimento'))) recado = true;
+      const { data: gastou } = profile.creditos_extra > 0 ? await db.rpc('helpy_gastar_credito', { p_dono: profile.id }) : { data: false };
+      if (!gastou && !(await usarExtra(db, profile, 'atendimento'))) recado = true;
     }
     const contatoTexto = contato.rotulo || (contato.telefone ? `+${contato.telefone}` : `${NOMES[canal.tipo]} ${contato.id}`);
     const { data: nova, error } = await db.from('conversations').insert({
