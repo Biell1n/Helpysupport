@@ -4,11 +4,13 @@ import { supabase } from '@/lib/supabase';
 export const TERMOS_VERSAO = '2026-10';
 
 const CHAVE = 'helpy_termos_pendente';
+// o aceite marcado antes do Google só vale para o login que acabou de acontecer
+const VALIDADE_MS = 30 * 60 * 1000;
 
 /** Marcado antes de ir para o Google: o aceite é gravado na volta. */
 export function lembrarAceite(tipo) {
   try {
-    localStorage.setItem(CHAVE, TERMOS_VERSAO);
+    localStorage.setItem(CHAVE, `${TERMOS_VERSAO}|${Date.now()}`);
     // conta nova pelo Google nasce "empresa"; quem escolheu cliente é ajustado na volta
     if (tipo === 'cliente') localStorage.setItem('helpy_tipo_pendente', 'cliente');
   } catch {
@@ -25,7 +27,10 @@ export async function gravarAceitePendente() {
     return false;
   }
   if (!v) return false;
-  const { error } = await supabase.rpc('helpy_aceitar_termos', { p_versao: v });
+  const [versao, quando] = v.split('|');
+  // marca antiga (login abandonado, outra pessoa no mesmo navegador): não vale como aceite
+  if (versao !== TERMOS_VERSAO || !(Date.now() - Number(quando) < VALIDADE_MS)) return false;
+  const { error } = await supabase.rpc('helpy_aceitar_termos', { p_versao: versao });
   return !error;
 }
 

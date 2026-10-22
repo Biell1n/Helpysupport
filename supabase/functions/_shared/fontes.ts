@@ -43,10 +43,14 @@ async function baixar(u: URL, headers: Record<string, string> = {}): Promise<{ t
   let atual = u;
   try {
     // segue até 5 redirecionamentos (OneDrive/SharePoint usam vários), checando cada destino
+    let cabecalhos = headers;
     for (let i = 0; ; i++) {
-      res = await fetch(atual, { headers, redirect: 'manual', signal: ctrl.signal });
+      res = await fetch(atual, { headers: cabecalhos, redirect: 'manual', signal: ctrl.signal });
       if (res.status >= 300 && res.status < 400 && res.headers.get('location') && i < 5) {
-        atual = await urlSegura(new URL(res.headers.get('location')!, atual).toString());
+        const proximo = await urlSegura(new URL(res.headers.get('location')!, atual).toString());
+        // a chave da API do cliente não vai junto para outro domínio
+        if (proximo.origin !== atual.origin) cabecalhos = {};
+        atual = proximo;
         await res.body?.cancel();
         continue;
       }

@@ -1506,7 +1506,12 @@ Deno.serve(async (req) => {
       }
 
       // tabelas criadas durante a montagem passam a ser consultadas por ele
-      const criadas = s.meta.tabelas_criadas ?? [];
+      // (só as que são desta conta: a lista mora na sessão, que o navegador consegue editar)
+      const pedidas = (s.meta.tabelas_criadas ?? []).filter((id: unknown) => typeof id === 'string');
+      const { data: minhas } = pedidas.length
+        ? await admin.from('tabelas').select('id').eq('owner_id', user.id).in('id', pedidas)
+        : { data: [] };
+      const criadas = (minhas ?? []).map((t) => t.id);
       if (criadas.length) {
         await admin.from('assistente_tabelas').upsert(criadas.map((tabela_id) => ({ assistant_id: assistant.id, tabela_id })));
       }

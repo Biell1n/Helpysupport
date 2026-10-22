@@ -29,6 +29,7 @@ import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
 
 const MAX_CHARS = 2000;
 const BITS_DESAFIO = 17;
+const TESTES_POR_DIA = 40;
 const RAJADA_ANONIMA = 30;
 const PEDE_LOGIN =
   'Para falar com a equipe, entre com sua conta tocando em "Entrar para falar com a equipe", aqui embaixo. Leva poucos segundos e a conversa continua de onde parou.';
@@ -243,6 +244,13 @@ Deno.serve(async (req) => {
           return json({ conversation_id: null, status: 'bot', message: MUITA_PROCURA, modo: 'login', precisa_login: true });
         }
       }
+      if (teste) {
+        // o teste do painel não conta na cota, então tem limite próprio: só com o plano valendo e poucas conversas por dia
+        if (trialExpirado(profile)) throw new UserError('O seu teste grátis terminou. Escolha um plano para continuar testando o assistente.', 402);
+        const { count: testesHoje } = await admin.from('conversations').select('id', { count: 'exact', head: true })
+          .eq('owner_id', assistant.owner_id).eq('teste', true).gte('created_at', new Date(Date.now() - 864e5).toISOString());
+        if ((testesHoje ?? 0) >= TESTES_POR_DIA) throw new UserError(`Você já abriu ${TESTES_POR_DIA} conversas de teste hoje. Continue numa delas ou tente amanhã.`, 429);
+      }
       if (!teste) {
         const umDia = new Date(Date.now() - 864e5).toISOString();
         const { count: hoje } = await admin.from('conversations').select('id', { count: 'exact', head: true })
@@ -259,9 +267,9 @@ Deno.serve(async (req) => {
           .eq('owner_id', assistant.owner_id).eq('teste', false).gte('created_at', inicioDoMes());
         if (trialExpirado(profile)) recado = true;
         else if ((mes ?? 0) >= plan.atendimentos) {
-          if (profile.creditos_extra > 0) {
-            await admin.from('profiles').update({ creditos_extra: profile.creditos_extra - 1 }).eq('id', profile.id);
-          } else if (!(await usarExtra(admin, profile, 'atendimento'))) recado = true;
+          // crédito avulso gasto de um em um no banco: dois atendimentos ao mesmo tempo não usam o mesmo
+          const { data: gastou } = profile.creditos_extra > 0 ? await admin.rpc('helpy_gastar_credito', { p_dono: profile.id }) : { data: false };
+          if (!gastou && !(await usarExtra(admin, profile, 'atendimento'))) recado = true;
         }
         // sem login não vira recado na fila da equipe (seria a porta do spam)
         if (recado && !cliente) {

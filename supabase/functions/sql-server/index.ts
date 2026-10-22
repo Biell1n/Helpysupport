@@ -11,20 +11,17 @@ import mssql from 'npm:mssql@11.0.1';
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { comTempo, configSql, hostPublico, montarConsulta, TEMPO_MS, termoDeBusca, traduzErro } from '../_shared/sql.ts';
 
-/** Só o próprio Helpy chama esta função: a chave de serviço do projeto (formato novo ou JWT antigo). */
+/** Só o próprio Helpy chama esta função: a mesma chave de serviço que o servidor usa para chamá-la. */
 function chamadaInterna(req: Request): boolean {
   const recebida = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   const esperada = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   if (recebida && esperada && recebida.length === esperada.length) {
     let dif = 0;
     for (let i = 0; i < recebida.length; i++) dif |= recebida.charCodeAt(i) ^ esperada.charCodeAt(i);
-    if (dif === 0) return true;
+    return dif === 0;
   }
-  try {
-    return JSON.parse(atob(recebida.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role === 'service_role';
-  } catch {
-    return false;
-  }
+  // nada de confiar no que o token diz de si mesmo: só a chave exata vale
+  return false;
 }
 
 Deno.serve(async (req) => {

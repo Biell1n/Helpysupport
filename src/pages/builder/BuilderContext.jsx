@@ -128,6 +128,23 @@ export function BuilderProvider({ assistantId = null, children }) {
     }
   }, [gravar]);
 
+  // saindo da tela com algo ainda por gravar: grava na saída (e avisa se for fechar a aba)
+  useEffect(() => {
+    const avisar = (e) => {
+      if (!pendente.current) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', avisar);
+    return () => {
+      window.removeEventListener('beforeunload', avisar);
+      const cfg = pendente.current;
+      const id = sessionRef.current;
+      pendente.current = null;
+      if (cfg && id) supabase.from('builder_sessions').update({ config: cfg }).eq('id', id).then(() => {});
+    };
+  }, []);
+
   const mutate = useCallback(
     (fn) => {
       const next = fn(clone(configRef.current));

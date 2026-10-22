@@ -24,7 +24,11 @@ const reais = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curr
 export function lerPreco(v: unknown): number | null {
   let s = String(v ?? '').replace(/[^\d.,-]/g, '');
   if (!s) return null;
-  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const virgula = s.lastIndexOf(',');
+  const ponto = s.lastIndexOf('.');
+  if (virgula > ponto) s = s.replace(/\./g, '').replace(',', '.'); // 1.234,56
+  else if (virgula >= 0) s = s.replace(/,/g, ''); // 1,234.56
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ''); // 12.000 é doze mil, não doze
   const n = Number(s);
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
 }
@@ -270,7 +274,19 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   const linkId = String(pg.paymentLink ?? '');
   if (!linkId || !pago(String(pg.status), evento.event)) return;
   const { data: ped } = await db.from('pedidos').select('*').eq('owner_id', ownerId).eq('link_id', linkId).maybeSingle();
-  if (!ped || ped.status === 'pago' || ped.status === 'estornado') return;
+  if (!ped) return;
+  if (ped.status === 'pago' || ped.status === 'estornado') {
+    // o mesmo link pago de novo (outro Pix, cartão em outra aba): o dinheiro entrou sem pedido
+    if (pg.id && String(pg.id) !== String(ped.pagamento_id ?? '')) {
+      await db.from('alertas').insert({
+        owner_id: ownerId, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',
+        chave: `pedido:dup:${pg.id}`,
+        assunto: `Pagamento em dobro — pedido nº ${ped.numero}`.slice(0, 160),
+        detalhe: `O cliente pagou de novo o link do pedido nº ${ped.numero} (${reais(Number(pg.value ?? ped.total))}). Devolva o valor pelo Asaas ou combine com ele.`,
+      });
+    }
+    return;
+  }
 
   const { data: mudou } = await db.from('pedidos')
     .update({ status: 'pago', pago_em: new Date().toISOString(), pagamento_id: String(pg.id ?? ''), forma: FORMA[String(pg.billingType)] ?? null })

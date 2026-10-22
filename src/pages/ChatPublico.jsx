@@ -133,7 +133,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         absorver(d);
         if (d.messages?.length) {
           ultimoAgente.current = d.messages.at(-1).created_at;
-          setMensagens((p) => [...p, ...d.messages]);
+          setMensagens((p) => juntar(p, d.messages));
         }
       } catch {
         /* consulta de fundo: silenciosa */
@@ -181,7 +181,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
       }
       absorver(d);
       if (d.eventos?.length) {
-        setMensagens((p) => [...p, ...d.eventos]);
+        setMensagens((p) => juntar(p, d.eventos));
         ultimoAgente.current = d.eventos.at(-1).created_at;
       }
       if (d.message) setMensagens((p) => [...p, { role: d.modo === 'recado' || d.modo === 'login' ? 'system' : 'assistant', content: d.message, novo: true }]);
@@ -406,6 +406,12 @@ const EVENTOS = {
   cancelado: { titulo: 'Horário cancelado', tom: 'perigo', Icone: CalendarX },
   assumido: { titulo: 'Atendimento assumido', tom: 'info', Icone: UserCheck },
   pago: { titulo: 'Pagamento confirmado', tom: 'ok', Icone: CircleCheckBig },
+};
+// a mesma mensagem pode chegar pela consulta periódica e pela resposta do envio: entra uma vez só
+const chaveDa = (m) => `${m.role}|${m.author_name ?? ''}|${m.created_at ?? ''}|${m.content}`;
+const juntar = (atuais, novas) => {
+  const vistas = new Set(atuais.map(chaveDa));
+  return [...atuais, ...novas.filter((m) => !vistas.has(chaveDa(m)))];
 };
 const tipoDoEvento = (m) => (m.role === 'system' && String(m.author_name ?? '').startsWith('evento:') ? m.author_name.slice(7) : null);
 // "sábado, 10/10, 10:00 · Corte" (como a agenda escreve o horário)

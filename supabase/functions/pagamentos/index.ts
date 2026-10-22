@@ -93,6 +93,8 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
   await guardarFatura(ass.owner_id, pg, `Plano ${PLANS[ass.plano as PlanId]?.nome ?? ass.plano}`);
 
   if (pago(String(pg.status), evento.event)) {
+    // cobrança antiga que caiu depois do cancelamento: guarda a fatura, mas não reativa o plano
+    if (ass.status === 'cancelada') return;
     await admin.from('profiles').update({ plan: ass.plano, trial_ends_at: null }).eq('id', ass.owner_id);
     await admin.from('assinaturas').update({
       status: 'ativa', asaas_anterior: null, atualizada_em: new Date().toISOString(),
@@ -121,7 +123,13 @@ async function aviso(req: Request, url: URL): Promise<Response> {
   const evento = await req.json().catch(() => ({}));
   if (quem === 'helpy') {
     if (!iguais(token, Deno.env.get('ASAAS_WEBHOOK_TOKEN') ?? '')) return new Response('', { status: 401 });
-    depois(avisoDoHelpy(evento));
+    // tratado antes de responder: se falhar, o Asaas manda de novo (o tratamento não repete efeito)
+    try {
+      await avisoDoHelpy(evento);
+    } catch (e) {
+      console.error('[asaas helpy]', (e as Error).message);
+      return new Response('erro', { status: 500 });
+    }
     return new Response('ok');
   }
   if (quem === 'loja') {
@@ -129,7 +137,12 @@ async function aviso(req: Request, url: URL): Promise<Response> {
     if (!UUID.test(conta)) return new Response('', { status: 404 });
     const { data: rec } = await admin.from('recebimentos').select('webhook_token').eq('owner_id', conta).maybeSingle();
     if (!rec || !iguais(token, rec.webhook_token)) return new Response('', { status: 401 });
-    depois(pagamentoDaLoja(admin, conta, evento));
+    try {
+      await pagamentoDaLoja(admin, conta, evento);
+    } catch (e) {
+      console.error('[asaas loja]', (e as Error).message);
+      return new Response('erro', { status: 500 });
+    }
     return new Response('ok');
   }
   return new Response('', { status: 404 });
@@ -209,6 +222,10 @@ Deno.serve(async (req) => {
       // pendente de antes (nunca paga) sai na hora; a ativa espera a nova ser paga
       const anterior = atual?.asaas_assinatura && atual.asaas_assinatura !== sub.id ? atual.asaas_assinatura : null;
       if (anterior && atual?.status === 'pendente') await c.pedir(`/subscriptions/${anterior}`, { method: 'DELETE' }).catch(() => {});
+      // troca de plano em cima de outra troca que ainda não foi paga: a do meio não pode continuar cobrando
+      if (atual?.asaas_anterior && anterior && atual.status !== 'pendente') {
+        await c.pedir(`/subscriptions/${anterior}`, { method: 'DELETE' }).catch(() => {});
+      }
       await admin.from('assinaturas').upsert({
         owner_id: conta, plano, valor, status: atual?.status === 'ativa' ? 'ativa' : 'pendente',
         asaas_cliente: cliente, asaas_assinatura: sub.id,
@@ -227,7 +244,9 @@ Deno.serve(async (req) => {
       const { data: atual } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
       if (!atual?.asaas_assinatura) throw new UserError('Não há assinatura para cancelar.');
       await contaHelpy().pedir(`/subscriptions/${atual.asaas_assinatura}`, { method: 'DELETE' });
-      await admin.from('assinaturas').update({ status: 'cancelada', atualizada_em: new Date().toISOString() }).eq('owner_id', conta);
+      // se estava no meio de uma troca de plano, a antiga também para de cobrar
+      if (atual.asaas_anterior) await contaHelpy().pedir(`/subscriptions/${atual.asaas_anterior}`, { method: 'DELETE' }).catch(() => {});
+      await admin.from('assinaturas').update({ status: 'cancelada', asaas_anterior: null, atualizada_em: new Date().toISOString() }).eq('owner_id', conta);
       return json({ ok: true, vale_ate: atual.proximo_vencimento });
     }
 
@@ -398,7 +417,9 @@ Deno.serve(async (req) => {
       const { data: ped } = await admin.from('pedidos').select('id, owner_id, status, link_id, agendamento_id').eq('id', id).maybeSingle();
       if (!ped || ped.owner_id !== conta) throw new UserError('Pedido não encontrado.', 404);
       if (ped.status !== 'aguardando') throw new UserError('Só dá para cancelar pedido que ainda não foi pago.');
-      await admin.from('pedidos').update({ status: 'cancelado' }).eq('id', id);
+      // só cancela se ainda estiver aguardando: o pagamento pode ter caído agora mesmo
+      const { data: cancelou } = await admin.from('pedidos').update({ status: 'cancelado' }).eq('id', id).eq('status', 'aguardando').select('id');
+      if (!cancelou?.length) throw new UserError('O pagamento deste pedido acabou de cair. Atualize a página.', 409);
       if (ped.agendamento_id) {
         await admin.from('agendamentos').update({ status: 'cancelado', reserva_ate: null }).eq('id', ped.agendamento_id).eq('status', 'aguardando_pagamento');
       }
