@@ -361,7 +361,11 @@ Deno.serve(async (req) => {
       const { data: guardada } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
       const ass = desteAmbiente(guardada);
       const plano = (p.cobranca_isenta ? p.plan : ass?.plano) as PlanoPago | undefined;
-      if (!plano || !PAGOS.includes(plano)) throw new UserError('Vagas extras são para planos pagos. Assine um plano primeiro.');
+      if (!plano || !PAGOS.includes(plano)) {
+        throw new UserError(PAGOS.includes(p.plan as PlanoPago)
+          ? 'As vagas extras entram na mensalidade: elas ficam disponíveis com uma assinatura feita pela página Plano.'
+          : 'Vagas extras são para planos pagos. Assine um plano primeiro.');
+      }
       const ciclo: Ciclo = ass?.ciclo === 'anual' ? 'anual' : 'mensal';
       const precos = precosVigentes(await precosDeTeste());
       const [{ count: membros }, { count: convites }] = await Promise.all([
