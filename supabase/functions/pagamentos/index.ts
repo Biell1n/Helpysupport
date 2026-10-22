@@ -20,9 +20,10 @@
 // ============================================================
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
-import { admin, requireUser } from '../_shared/db.ts';
-import { PLANS, type PlanId, PRECO_FUNCIONARIO_EXTRA } from '../_shared/plans.ts';
-import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, FORMA, garantirWebhook, hojeBr, novoToken, pago, tokenAceito } from '../_shared/asaas.ts';
+import { admin, precosDeTeste, requireUser } from '../_shared/db.ts';
+import { type Ciclo, PAGOS, PLANS, type PlanId, type PlanoPago, precosVigentes, valorDaAssinatura } from '../_shared/plans.ts';
+import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, garantirWebhook, hojeBr, novoToken, pago, tokenAceito } from '../_shared/asaas.ts';
+import { AMBIENTE, contaHelpy, desteAmbiente, fecharUsoExtra, guardarFatura, MINIMO_FATURA } from '../_shared/cobranca.ts';
 import { contaDaLoja, pagamentoDaLoja } from '../_shared/pedidos.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
@@ -32,15 +33,7 @@ const depois = (p: Promise<unknown>) => {
 };
 
 const FUNCAO = () => `${Deno.env.get('SUPABASE_URL')}/functions/v1/pagamentos`;
-const AMBIENTE = (Deno.env.get('ASAAS_AMBIENTE') === 'producao' ? 'producao' : 'sandbox') as Ambiente;
 const UUID = /^[0-9a-f-]{36}$/i;
-
-/** A conta Asaas do próprio Helpy (quem recebe pelos planos). */
-function contaHelpy() {
-  const chave = Deno.env.get('ASAAS_API_KEY');
-  if (!chave) throw new UserError('A cobrança dos planos ainda não foi ligada. Tente de novo em instantes.', 503);
-  return asaas(chave, AMBIENTE);
-}
 
 function iguais(a: string, b: string) {
   if (!a || a.length !== b.length) return false;
@@ -61,93 +54,23 @@ async function contaDe(userId: string) {
   return { conta: userId, dono: true, perfil: p };
 }
 
-async function guardarFatura(ownerId: string, pg: Record<string, unknown>, descricao?: string) {
-  await admin.from('faturas').upsert({
-    id: String(pg.id),
-    owner_id: ownerId,
-    valor: Number(pg.value ?? 0),
-    status: String(pg.status ?? 'PENDING'),
-    vencimento: pg.dueDate ? String(pg.dueDate) : null,
-    pago_em: pago(String(pg.status)) ? new Date().toISOString() : null,
-    link: pg.invoiceUrl ? String(pg.invoiceUrl) : null,
-    forma: FORMA[String(pg.billingType)] ?? null,
-    descricao: descricao ?? (pg.description ? String(pg.description).slice(0, 200) : null),
-  });
+/** Próximo vencimento: um ciclo (mês ou ano) depois do que acabou de ser pago. */
+function proximoVencimento(data: string, ciclo: string) {
+  if (ciclo !== 'anual') return maisUmMes(data);
+  const d = new Date(`${data}T12:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
-/** Próximo vencimento: um mês depois do que acabou de ser pago. */
 function maisUmMes(data: string) {
   const d = new Date(`${data}T12:00:00Z`);
   d.setUTCMonth(d.getUTCMonth() + 1);
   return d.toISOString().slice(0, 10);
 }
 
-/** Mensalidade com as vagas extras de equipe. */
-const mensalidade = (plano: PlanId, vagas: number) => PLANS[plano].preco + Math.max(0, vagas) * PRECO_FUNCIONARIO_EXTRA;
-
-// ------------------------------------------------------------
-// Uso extra: o que passou da cota vira uma fatura separada
-// ------------------------------------------------------------
-const MINIMO_FATURA = 5; // o Asaas não emite cobrança menor que isso
-const reais = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const mesUtc = () => new Date().toISOString().slice(0, 7) + '-01';
-const nomeMes = (mes: string) => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${mes}T00:00:00Z`));
-
-/**
- * Fecha numa fatura só o uso extra dos meses que já acabaram (no
- * cancelamento, também o do mês atual). Abaixo do mínimo do Asaas espera
- * somar mais; no cancelamento, o que não chega ao mínimo é perdoado. Conta
- * isenta (as de teste da casa) só registra.
- */
-async function fecharUsoExtra(ownerId: string, incluirAtual = false) {
-  let busca = admin.from('uso_extra').select('mes, valor').eq('owner_id', ownerId).eq('status', 'aberto').gt('valor', 0);
-  if (!incluirAtual) busca = busca.lt('mes', mesUtc());
-  const { data: abertos } = await busca;
-  if (!abertos?.length) return;
-  const meses = abertos.map((r) => String(r.mes));
-  const total = abertos.reduce((s, r) => s + Number(r.valor), 0);
-  const marcar = (status: string) => admin.from('uso_extra').update({ status, cobrado_em: new Date().toISOString() })
-    .eq('owner_id', ownerId).in('mes', meses).eq('status', 'aberto');
-
-  const { data: perfil } = await admin.from('profiles').select('cobranca_isenta').eq('id', ownerId).maybeSingle();
-  if (perfil?.cobranca_isenta) return void (await marcar('isento'));
-  if (total < MINIMO_FATURA) return void (incluirAtual ? await marcar('perdoado') : null);
-
-  const { data: ass } = await admin.from('assinaturas').select('asaas_cliente').eq('owner_id', ownerId).maybeSingle();
-  if (!ass?.asaas_cliente) return void console.warn('[uso extra] conta sem cliente no Asaas', ownerId);
-
-  // reserva as linhas antes de cobrar: duas chamadas juntas não geram duas faturas
-  const { data: reservados } = await admin.from('uso_extra').update({ status: 'cobrando', atualizado_em: new Date().toISOString() })
-    .eq('owner_id', ownerId).in('mes', meses).eq('status', 'aberto').select('mes, valor');
-  if (!reservados?.length) return;
-  const lote = reservados.map((r) => String(r.mes)).sort();
-  const valor = Math.round(reservados.reduce((s, r) => s + Number(r.valor), 0) * 100) / 100;
-  const voltar = () => admin.from('uso_extra').update({ status: 'aberto' }).eq('owner_id', ownerId).in('mes', lote).eq('status', 'cobrando');
-  if (valor < MINIMO_FATURA) return void (await voltar());
-
-  const descricao = `Uso extra de ${lote.map(nomeMes).join(', ')}`;
-  const vence = hojeBr(5);
-  try {
-    const pg = await contaHelpy().pedir<Record<string, unknown> & { id: string }>('/payments', {
-      method: 'POST',
-      body: {
-        customer: ass.asaas_cliente, billingType: 'UNDEFINED', value: valor, dueDate: vence,
-        description: `Helpy — ${descricao.toLowerCase()}`, externalReference: `extra:${ownerId}`,
-      },
-    });
-    await admin.from('uso_extra').update({ status: 'cobrado', fatura_id: pg.id, cobrado_em: new Date().toISOString() })
-      .eq('owner_id', ownerId).in('mes', lote).eq('status', 'cobrando');
-    await guardarFatura(ownerId, pg, descricao);
-    await admin.from('alertas').insert({
-      owner_id: ownerId, origem: 'sistema', chave: `extra:fatura:${pg.id}`,
-      assunto: `Fatura do uso extra: ${reais(valor)}`,
-      detalhe: `${descricao}. Vence em ${vence.split('-').reverse().join('/')}. Pague pela página Plano.`,
-    });
-  } catch (e) {
-    await voltar();
-    throw e;
-  }
-}
+/** Descrição da assinatura no Asaas (aparece na fatura do cliente). */
+const descricaoDaAssinatura = (plano: PlanoPago, ciclo: Ciclo, vagas: number) =>
+  `Helpy — plano ${PLANS[plano].nome} ${ciclo === 'anual' ? 'anual' : 'mensal'}${vagas ? ` + ${vagas} ${vagas === 1 ? 'vaga extra' : 'vagas extras'} na equipe` : ''}`;
 
 /** Aviso do Asaas sobre uma fatura de uso extra. */
 async function avisoDoExtra(evento: { event?: string; payment?: Record<string, unknown> }) {
@@ -178,7 +101,15 @@ async function avisoDoExtra(evento: { event?: string; payment?: Record<string, u
 // ------------------------------------------------------------
 async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, unknown> }) {
   const pg = evento.payment;
-  if (pg && String(pg.externalReference ?? '').startsWith('extra:')) return await avisoDoExtra(evento);
+  const ref = String(pg?.externalReference ?? '');
+  if (pg && ref.startsWith('extra:')) return await avisoDoExtra(evento);
+  // vagas extras pagas à parte no plano anual: só atualiza a fatura na tela
+  if (pg && ref.startsWith('vagas:')) {
+    const dono = ref.slice(6);
+    const { data: antes } = await admin.from('faturas').select('descricao').eq('id', String(pg.id)).eq('owner_id', dono).maybeSingle();
+    if (antes) await guardarFatura(dono, pg, antes.descricao ?? undefined);
+    return;
+  }
   const subId = String(pg?.subscription ?? '');
   if (!pg || !/^[\w-]+$/.test(subId)) return;
   // a cobrança pode ser da assinatura nova ou da antiga, que segue valendo até a troca ser paga
@@ -199,7 +130,7 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
       if (plano) await admin.from('profiles').update({ plan: plano, trial_ends_at: null }).eq('id', ass.owner_id);
       await admin.from('assinaturas').update({
         status: 'ativa', atualizada_em: agora,
-        proximo_vencimento: pg.dueDate ? maisUmMes(String(pg.dueDate)) : ass.proximo_vencimento,
+        proximo_vencimento: pg.dueDate ? proximoVencimento(String(pg.dueDate), ass.ciclo) : ass.proximo_vencimento,
       }).eq('owner_id', ass.owner_id);
     } else if (evento.event === 'PAYMENT_OVERDUE') {
       await admin.from('assinaturas').update({ status: 'atrasada', atualizada_em: agora }).eq('owner_id', ass.owner_id);
@@ -216,7 +147,7 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
     await admin.from('profiles').update({ plan: ass.plano, trial_ends_at: null }).eq('id', ass.owner_id);
     await admin.from('assinaturas').update({
       status: 'ativa', asaas_anterior: null, atualizada_em: agora,
-      proximo_vencimento: pg.dueDate ? maisUmMes(String(pg.dueDate)) : null,
+      proximo_vencimento: pg.dueDate ? proximoVencimento(String(pg.dueDate), ass.ciclo) : null,
     }).eq('owner_id', ass.owner_id);
     // troca de plano: a assinatura antiga só sai depois que a nova foi paga
     if (ass.asaas_anterior) await contaHelpy().pedir(`/subscriptions/${ass.asaas_anterior}`, { method: 'DELETE' }).catch(() => {});
@@ -234,7 +165,9 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
       await admin.from('assinaturas').update({
         asaas_assinatura: ass.asaas_anterior, asaas_anterior: null, atualizada_em: agora,
         status: ass.status === 'ativa' ? 'ativa' : 'atrasada',
-        ...(plano && PLANS[plano] && plano !== 'trial' ? { plano, valor: mensalidade(plano, Number(perfil?.funcionarios_extra ?? 0)) } : {}),
+        ...(plano && PAGOS.includes(plano as PlanoPago)
+          ? { plano, valor: valorDaAssinatura(precosVigentes(await precosDeTeste()), plano as PlanoPago, ass.ciclo === 'anual' ? 'anual' : 'mensal', Number(perfil?.funcionarios_extra ?? 0)) }
+          : {}),
       }).eq('owner_id', ass.owner_id);
       await admin.from('alertas').insert({
         owner_id: ass.owner_id, origem: 'sistema', chave: `fatura:troca:${pg.id}`,
@@ -313,12 +246,19 @@ Deno.serve(async (req) => {
     const action = String(body.action ?? 'status');
     const { conta, dono, perfil } = await contaDe(user.id);
 
+    if (action === 'precos') return json(precosVigentes(await precosDeTeste()));
+
     if (action === 'status') {
-      const [{ data: assinatura }, { data: faturas }, { data: rec }] = await Promise.all([
-        admin.from('assinaturas').select('plano, status, valor, proximo_vencimento, atualizada_em').eq('owner_id', conta).maybeSingle(),
-        admin.from('faturas').select('id, valor, status, vencimento, pago_em, link, forma, descricao').eq('owner_id', conta).order('criada_em', { ascending: false }).limit(12),
+      // só o que é deste Asaas: ao virar para produção, as cobranças do sandbox somem da tela
+      const doAmbiente = AMBIENTE === 'sandbox' ? 'ambiente.is.null,ambiente.eq.sandbox' : 'ambiente.eq.producao';
+      const [{ data: bruta }, { data: faturas }, { data: rec }, precos] = await Promise.all([
+        admin.from('assinaturas').select('plano, status, valor, ciclo, ambiente, proximo_vencimento, atualizada_em').eq('owner_id', conta).maybeSingle(),
+        admin.from('faturas').select('id, valor, status, vencimento, pago_em, link, forma, descricao').eq('owner_id', conta).or(doAmbiente)
+          .order('criada_em', { ascending: false }).limit(12),
         admin.from('recebimentos').select('ambiente, conta_nome, ativo, modo, situacao').eq('owner_id', conta).maybeSingle(),
+        precosDeTeste().then(precosVigentes),
       ]);
+      const assinatura = bruta && (bruta.ambiente ?? 'sandbox') === AMBIENTE ? bruta : null;
       // abriu a página Plano: fecha o uso extra de mês que já acabou, se ainda estiver em aberto
       if (dono && Deno.env.get('ASAAS_API_KEY')) depois(fecharUsoExtra(conta));
       return json({
@@ -327,14 +267,16 @@ Deno.serve(async (req) => {
         assinatura,
         faturas: faturas ?? [],
         recebimento: rec ?? null,
+        precos,
       });
     }
 
     if (!dono && action !== 'pedido_cancelar') throw new UserError('Só o dono da conta mexe em pagamentos.', 403);
 
     if (action === 'assinar') {
-      const plano = String(body.plano ?? '') as PlanId;
-      if (!['essencial', 'profissional', 'business'].includes(plano)) throw new UserError('Escolha um plano.');
+      const plano = String(body.plano ?? '') as PlanoPago;
+      if (!PAGOS.includes(plano)) throw new UserError('Escolha um plano.');
+      const ciclo: Ciclo = body.ciclo === 'anual' ? 'anual' : 'mensal';
       const documento = String(body.documento ?? '').replace(/\D/g, '');
       if (!documentoValido(documento)) throw new UserError('Confira o CPF ou CNPJ: o número não é válido.');
       const nome = String(body.nome ?? '').trim().slice(0, 100) || perfil?.company_name || perfil?.full_name || user.email || 'Cliente Helpy';
@@ -347,8 +289,9 @@ Deno.serve(async (req) => {
         await admin.from('helpy_servicos').upsert({ nome: `asaas-webhook-${AMBIENTE}`, visto_em: new Date().toISOString() });
       }
 
-      const { data: atual } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
-      let cliente = atual?.asaas_cliente as string | undefined;
+      const { data: guardada } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
+      const atual = desteAmbiente(guardada);
+      let cliente = (atual?.asaas_cliente ?? undefined) as string | undefined;
       if (cliente) {
         await c.pedir(`/customers/${cliente}`, { method: 'PUT', body: { name: nome, cpfCnpj: documento } }).catch(() => {});
       } else {
@@ -362,13 +305,13 @@ Deno.serve(async (req) => {
       // as vagas extras de equipe seguem para o plano novo
       const { data: vagasDe } = await admin.from('profiles').select('funcionarios_extra').eq('id', conta).maybeSingle();
       const vagas = Number(vagasDe?.funcionarios_extra ?? 0);
-      const valor = mensalidade(plano, vagas);
+      const valor = valorDaAssinatura(precosVigentes(await precosDeTeste()), plano, ciclo, vagas);
       const sub = await c.pedir<{ id: string }>('/subscriptions', {
         method: 'POST',
         body: {
-          customer: cliente, billingType: 'UNDEFINED', value: valor, nextDueDate: hojeBr(), cycle: 'MONTHLY',
-          description: `Helpy — plano ${PLANS[plano].nome}${vagas ? ` + ${vagas} ${vagas === 1 ? 'vaga extra' : 'vagas extras'} na equipe` : ''}`,
-          externalReference: `${conta}:${plano}`,
+          customer: cliente, billingType: 'UNDEFINED', value: valor, nextDueDate: hojeBr(), cycle: ciclo === 'anual' ? 'YEARLY' : 'MONTHLY',
+          description: descricaoDaAssinatura(plano, ciclo, vagas),
+          externalReference: `${conta}:${plano}:${ciclo}`,
         },
       });
       // pendente de antes (nunca paga) sai na hora; a ativa espera a nova ser paga
@@ -379,7 +322,7 @@ Deno.serve(async (req) => {
         await c.pedir(`/subscriptions/${anterior}`, { method: 'DELETE' }).catch(() => {});
       }
       await admin.from('assinaturas').upsert({
-        owner_id: conta, plano, valor, status: atual?.status === 'ativa' ? 'ativa' : 'pendente',
+        owner_id: conta, plano, valor, ciclo, ambiente: AMBIENTE, status: atual?.status === 'ativa' ? 'ativa' : 'pendente',
         asaas_cliente: cliente, asaas_assinatura: sub.id,
         // numa troca em cima de outra, a que vale continua sendo a primeira (a que foi paga)
         asaas_anterior: atual?.asaas_anterior ?? (anterior && atual?.status !== 'pendente' ? anterior : null),
@@ -389,12 +332,13 @@ Deno.serve(async (req) => {
       const pagamentos = await c.pedir<{ data?: Record<string, unknown>[] }>(`/subscriptions/${sub.id}/payments`);
       const primeiro = pagamentos.data?.[0];
       if (!primeiro?.invoiceUrl) throw new UserError('A assinatura foi criada, mas a fatura ainda não apareceu. Atualize a página em alguns segundos.', 502);
-      await guardarFatura(conta, primeiro, `Plano ${PLANS[plano].nome}`);
+      await guardarFatura(conta, primeiro, `Plano ${PLANS[plano].nome}${ciclo === 'anual' ? ' (anual)' : ''}`);
       return json({ url: primeiro.invoiceUrl, ambiente: AMBIENTE });
     }
 
     if (action === 'cancelar') {
-      const { data: atual } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
+      const { data: guardada } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
+      const atual = desteAmbiente(guardada);
       if (!atual?.asaas_assinatura) throw new UserError('Não há assinatura para cancelar.');
       await contaHelpy().pedir(`/subscriptions/${atual.asaas_assinatura}`, { method: 'DELETE' });
       // se estava no meio de uma troca de plano, a antiga também para de cobrar
@@ -411,9 +355,12 @@ Deno.serve(async (req) => {
       if (!Number.isFinite(quero) || quero < 0 || quero > 50) throw new UserError('Escolha entre 0 e 50 vagas extras.');
       const { data: p } = await admin.from('profiles').select('plan, funcionarios_extra, cobranca_isenta').eq('id', conta).maybeSingle();
       if (!p) throw new UserError('Conta não encontrada.', 404);
-      const { data: ass } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
-      const plano = (p.cobranca_isenta ? p.plan : ass?.plano) as PlanId | undefined;
-      if (!plano || plano === 'trial' || !PLANS[plano]) throw new UserError('Vagas extras são para planos pagos. Assine um plano primeiro.');
+      const { data: guardada } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
+      const ass = desteAmbiente(guardada);
+      const plano = (p.cobranca_isenta ? p.plan : ass?.plano) as PlanoPago | undefined;
+      if (!plano || !PAGOS.includes(plano)) throw new UserError('Vagas extras são para planos pagos. Assine um plano primeiro.');
+      const ciclo: Ciclo = ass?.ciclo === 'anual' ? 'anual' : 'mensal';
+      const precos = precosVigentes(await precosDeTeste());
       const [{ count: membros }, { count: convites }] = await Promise.all([
         admin.from('equipe').select('user_id', { count: 'exact', head: true }).eq('owner_id', conta),
         admin.from('convites').select('token', { count: 'exact', head: true }).eq('owner_id', conta)
@@ -423,21 +370,36 @@ Deno.serve(async (req) => {
       if (quero < ocupadas - PLANS[plano].funcionarios) {
         throw new UserError(`A equipe tem ${ocupadas} entre pessoas e convites. Remova alguém antes de diminuir as vagas.`);
       }
-      const valor = mensalidade(plano, quero);
+      const valor = valorDaAssinatura(precos, plano, ciclo, quero);
+      let agora = 0;
       if (!p.cobranca_isenta) {
         if (!ass?.asaas_assinatura || ass.status !== 'ativa') throw new UserError('As vagas extras entram na mensalidade: elas ficam disponíveis com a assinatura em dia.');
         if (ass.asaas_anterior) throw new UserError('Há uma troca de plano esperando pagamento. Mude as vagas depois que ela for paga.');
         await contaHelpy().pedir(`/subscriptions/${ass.asaas_assinatura}`, {
           method: 'PUT',
-          body: {
-            value: valor, updatePendingPayments: true,
-            description: `Helpy — plano ${PLANS[plano].nome}${quero ? ` + ${quero} ${quero === 1 ? 'vaga extra' : 'vagas extras'} na equipe` : ''}`,
-          },
+          body: { value: valor, updatePendingPayments: true, description: descricaoDaAssinatura(plano, ciclo, quero) },
         });
         await admin.from('assinaturas').update({ valor, atualizada_em: new Date().toISOString() }).eq('owner_id', conta);
+        // no anual a próxima cobrança só vem daqui a meses: as vagas novas pagam agora os meses que faltam
+        const novas = quero - Number(p.funcionarios_extra ?? 0);
+        if (ciclo === 'anual' && novas > 0 && ass.proximo_vencimento && ass.asaas_cliente) {
+          const meses = Math.max(1, Math.ceil((new Date(`${ass.proximo_vencimento}T12:00:00Z`).getTime() - Date.now()) / (30.44 * 864e5)));
+          agora = Math.round(novas * precos.vaga * meses * 100) / 100;
+          if (agora >= MINIMO_FATURA) {
+            const pg = await contaHelpy().pedir<Record<string, unknown> & { id: string }>('/payments', {
+              method: 'POST',
+              body: {
+                customer: ass.asaas_cliente, billingType: 'UNDEFINED', value: agora, dueDate: hojeBr(3),
+                description: `Helpy — ${novas} ${novas === 1 ? 'vaga extra' : 'vagas extras'} até a renovação (${meses} ${meses === 1 ? 'mês' : 'meses'})`,
+                externalReference: `vagas:${conta}`,
+              },
+            });
+            await guardarFatura(conta, pg, `${novas} ${novas === 1 ? 'vaga extra' : 'vagas extras'} até a renovação`);
+          } else agora = 0;
+        }
       }
       await admin.from('profiles').update({ funcionarios_extra: quero }).eq('id', conta);
-      return json({ ok: true, vagas: quero, valor, isenta: !!p.cobranca_isenta });
+      return json({ ok: true, vagas: quero, valor, ciclo, agora, isenta: !!p.cobranca_isenta });
     }
 
     if (action === 'loja_conectar') {

@@ -12,7 +12,8 @@ export type PlanId = 'trial' | 'essencial' | 'profissional' | 'business';
 export interface Plan {
   id: PlanId;
   nome: string;
-  preco: number; // R$/mês (preço de lançamento)
+  preco: number; // R$/mês no plano anual (cobrado 12x de uma vez)
+  precoMensal: number; // R$/mês no plano mensal
   assistentes: number;
   builderIA: boolean; // criar/editar conversando com a IA
   builderMsgs: number; // mensagens do criador por mês
@@ -30,19 +31,19 @@ export interface Plan {
 
 export const PLANS: Record<PlanId, Plan> = {
   trial: {
-    id: 'trial', nome: 'Teste grátis', preco: 0, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 25, mensagens: 400,
+    id: 'trial', nome: 'Teste grátis', preco: 0, precoMensal: 0, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 25, mensagens: 400,
     ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 0, tabelas: 3, msgsPorAtendimento: 30, funcionarios: 2,
   },
   essencial: {
-    id: 'essencial', nome: 'Essencial', preco: 79, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 200, mensagens: 4000,
+    id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 200, mensagens: 4000,
     ticketsAbertos: 20, chamados: true, chamadosAvancados: false, integracoes: false, canaisMeta: 0, tabelas: 3, msgsPorAtendimento: 40, funcionarios: 1,
   },
   profissional: {
-    id: 'profissional', nome: 'Profissional', preco: 197, assistentes: 3, builderIA: true, builderMsgs: 150, atendimentos: 600, mensagens: 9000,
+    id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 150, atendimentos: 600, mensagens: 9000,
     ticketsAbertos: 100, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 2, tabelas: 10, msgsPorAtendimento: 40, funcionarios: 5,
   },
   business: {
-    id: 'business', nome: 'Business', preco: 497, assistentes: 10, builderIA: true, builderMsgs: 300, atendimentos: 1500, mensagens: 24000,
+    id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 300, atendimentos: 1500, mensagens: 24000,
     ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, msgsPorAtendimento: 40, funcionarios: 20,
   },
 };
@@ -67,8 +68,50 @@ export interface Profile {
   full_name: string | null;
 }
 
-export function planOf(profile: Pick<Profile, 'plan'> | null): Plan {
-  return PLANS[(profile?.plan as PlanId) ?? 'trial'] ?? PLANS.trial;
+export function planOf(profile: (Pick<Profile, 'plan'> & { precos_teste?: boolean }) | null): Plan {
+  const plan = PLANS[(profile?.plan as PlanId) ?? 'trial'] ?? PLANS.trial;
+  // preços de teste: o Essencial fica com cota pequena, para dar para testar o uso extra
+  return profile?.precos_teste && plan.id === 'essencial' ? { ...plan, ...COTA_TESTE } : plan;
+}
+
+// ------------------------------------------------------------
+// Preços cobrados. Anual = 12x o preço do plano, numa cobrança só.
+// Com os preços de teste ligados (helpy_config.precos_teste), tudo vai para o
+// mínimo do Asaas (R$ 5 por cobrança), para o dono testar pagando de verdade.
+// ------------------------------------------------------------
+export type Ciclo = 'mensal' | 'anual';
+export type PlanoPago = 'essencial' | 'profissional' | 'business';
+export const PAGOS: PlanoPago[] = ['essencial', 'profissional', 'business'];
+
+export interface Precos {
+  teste: boolean;
+  planos: Record<PlanoPago, Record<Ciclo, number>>; // valor de cada cobrança (mês ou ano)
+  vaga: number; // por mês
+  extra: { atendimento: number; mensagem: number };
+  cota_teste?: typeof COTA_TESTE;
+}
+
+const COTA_TESTE = { atendimentos: 3, mensagens: 15 };
+
+export function precosVigentes(teste: boolean): Precos {
+  if (teste) {
+    return {
+      teste,
+      planos: { essencial: { mensal: 5, anual: 5 }, profissional: { mensal: 6, anual: 6 }, business: { mensal: 7, anual: 7 } },
+      vaga: 0.01,
+      // a fatura mínima do Asaas é R$ 5: a R$ 0,50 por mensagem, 10 mensagens já geram uma
+      extra: { atendimento: 1, mensagem: 0.5 },
+      cota_teste: COTA_TESTE,
+    };
+  }
+  const planos = Object.fromEntries(PAGOS.map((id) => [id, { mensal: PLANS[id].precoMensal, anual: PLANS[id].preco * 12 }])) as Precos['planos'];
+  return { teste, planos, vaga: PRECO_FUNCIONARIO_EXTRA, extra: { ...PRECO_EXTRA } };
+}
+
+/** Valor de cada cobrança da assinatura: plano no ciclo + vagas extras (mensais, x12 no anual). */
+export function valorDaAssinatura(p: Precos, plano: PlanoPago, ciclo: Ciclo, vagas: number): number {
+  const v = p.planos[plano][ciclo] + Math.max(0, vagas) * p.vaga * (ciclo === 'anual' ? 12 : 1);
+  return Math.round(v * 100) / 100;
 }
 
 export function trialExpirado(profile: Pick<Profile, 'plan' | 'trial_ends_at'> | null): boolean {

@@ -5,9 +5,12 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { alertar } from './atendimento.ts';
-import { inicioDoMes, type Plan, type PlanId, PRECO_EXTRA, trialExpirado } from './plans.ts';
+import { inicioDoMes, type Plan, type PlanId, precosVigentes, trialExpirado } from './plans.ts';
+import { fecharUsoExtra } from './cobranca.ts';
 
-type PerfilExtra = { id: string; plan: string; extra_ativo?: boolean | null; extra_limite?: number | string | null };
+type PerfilExtra = { id: string; plan: string; extra_ativo?: boolean | null; extra_limite?: number | string | null; precos_teste?: boolean };
+
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
 const reais = (n: number) => `R$ ${n.toFixed(2).replace('.', ',')}`;
 
@@ -27,8 +30,9 @@ export function extraLigado(p: PerfilExtra) {
 export async function usarExtra(db: SupabaseClient, p: PerfilExtra, tipo: 'atendimento' | 'mensagem'): Promise<boolean> {
   if (!extraLigado(p)) return false;
   const limite = Number(p.extra_limite);
+  const preco = precosVigentes(!!p.precos_teste).extra;
   const { data, error } = await db.rpc('helpy_usar_extra', {
-    p_owner: p.id, p_tipo: tipo, p_valor: PRECO_EXTRA[tipo], p_limite: limite,
+    p_owner: p.id, p_tipo: tipo, p_valor: preco[tipo], p_limite: limite,
   });
   if (error) {
     console.error('[extra]', error.message);
@@ -36,10 +40,17 @@ export async function usarExtra(db: SupabaseClient, p: PerfilExtra, tipo: 'atend
   }
   const mes = inicioDoMes().slice(0, 7);
   if (data === true) {
+    // ainda há uso extra de mês que já acabou sem fatura (plano anual não tem mensalidade para puxar): fatura agora
+    const { count: antigos } = await db.from('uso_extra').select('mes', { count: 'exact', head: true })
+      .eq('owner_id', p.id).eq('status', 'aberto').lt('mes', new Date().toISOString().slice(0, 7) + '-01');
+    if (antigos) {
+      const fechar = fecharUsoExtra(p.id).catch((e) => console.error('[extra] fatura', (e as Error).message));
+      if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(fechar);
+    }
     await alertar(db, p.id, {
       origem: 'sistema', chave: `extra:inicio:${mes}`,
       assunto: 'O uso extra começou',
-      detalhe: `A cota do plano acabou e o atendimento seguiu pelo uso extra (${reais(PRECO_EXTRA.atendimento)} por atendimento e ${reais(PRECO_EXTRA.mensagem)} por mensagem além do plano), até o limite de ${reais(limite)} neste mês. Acompanhe em Plano.`,
+      detalhe: `A cota do plano acabou e o atendimento seguiu pelo uso extra (${reais(preco.atendimento)} por atendimento e ${reais(preco.mensagem)} por mensagem além do plano), até o limite de ${reais(limite)} neste mês. Acompanhe em Plano.`,
     });
     return true;
   }
