@@ -60,14 +60,18 @@ async function planoEmDia<T extends { id: string; plan: string | null }>(p: T): 
   return { ...p, plan: 'trial', trial_ends_at: agora };
 }
 
-// Preços de teste ligados? (helpy_config.precos_teste; guardado por 30 s em cada servidor)
-let testeLido: { valor: boolean; em: number } | null = null;
-export async function precosDeTeste(): Promise<boolean> {
-  if (testeLido && Date.now() - testeLido.em < 30_000) return testeLido.valor;
-  const { data } = await admin.from('helpy_config').select('valor').eq('chave', 'precos_teste').maybeSingle();
-  testeLido = { valor: data?.valor === true, em: Date.now() };
-  return testeLido.valor;
+// Chaves liga/desliga de helpy_config (guardadas por 30 s em cada servidor)
+const configLida = new Map<string, { valor: boolean; em: number }>();
+export async function configLigada(chave: 'precos_teste' | 'carteira_disponivel'): Promise<boolean> {
+  const lida = configLida.get(chave);
+  if (lida && Date.now() - lida.em < 30_000) return lida.valor;
+  const { data } = await admin.from('helpy_config').select('valor').eq('chave', chave).maybeSingle();
+  configLida.set(chave, { valor: data?.valor === true, em: Date.now() });
+  return data?.valor === true;
 }
+
+/** Preços de teste ligados? (helpy_config.precos_teste) */
+export const precosDeTeste = () => configLigada('precos_teste');
 
 export async function profileOf(userId: string) {
   const [perfil, precos_teste] = await Promise.all([lerPerfil(userId), precosDeTeste()]);

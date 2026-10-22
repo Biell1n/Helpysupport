@@ -20,11 +20,11 @@
 // ============================================================
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
-import { admin, precosDeTeste, requireUser } from '../_shared/db.ts';
+import { admin, configLigada, precosDeTeste, requireUser } from '../_shared/db.ts';
 import { type Ciclo, PAGOS, PLANS, type PlanId, type PlanoPago, precosVigentes, valorDaAssinatura } from '../_shared/plans.ts';
 import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, garantirWebhook, hojeBr, novoToken, pago, tokenAceito } from '../_shared/asaas.ts';
 import { AMBIENTE, contaHelpy, desteAmbiente, fecharUsoExtra, guardarFatura, MINIMO_FATURA } from '../_shared/cobranca.ts';
-import { contaDaLoja, pagamentoDaLoja } from '../_shared/pedidos.ts';
+import { contaDaLoja, pagamentoDaLoja, tirarTaxa } from '../_shared/pedidos.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const depois = (p: Promise<unknown>) => {
@@ -246,7 +246,10 @@ Deno.serve(async (req) => {
     const action = String(body.action ?? 'status');
     const { conta, dono, perfil } = await contaDe(user.id);
 
-    if (action === 'precos') return json(precosVigentes(await precosDeTeste()));
+    if (action === 'precos') {
+      const [teste, carteira] = await Promise.all([precosDeTeste(), configLigada('carteira_disponivel')]);
+      return json({ ...precosVigentes(teste), carteira });
+    }
 
     if (action === 'status') {
       // só o que é deste Asaas: ao virar para produção, as cobranças do sandbox somem da tela
@@ -443,6 +446,10 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'carteira_ativar') {
+      // a Carteira é uma subconta do Asaas do Helpy, e o Asaas só deixa conta de CNPJ abrir subcontas
+      if (!(await configLigada('carteira_disponivel'))) {
+        throw new UserError('A Carteira Helpy ainda não está disponível. Por enquanto, ligue a sua própria conta do Asaas em "Já tenho conta no Asaas".', 409);
+      }
       const c = contaHelpy();
       const { data: ja } = await admin.from('recebimentos').select('modo').eq('owner_id', conta).maybeSingle();
       if (ja) throw new UserError(ja.modo === 'carteira' ? 'A carteira já está ativa.' : 'Esta empresa já recebe por uma conta Asaas própria. Desligue em Carteira para trocar.');
@@ -552,7 +559,8 @@ Deno.serve(async (req) => {
       const loja = await contaDaLoja(admin, conta);
       if (!loja) throw new UserError('Ligue de novo o recebimento na Carteira para devolver pelo Asaas.');
       await loja.pedir(`/payments/${ped.pagamento_id}/refund`, { method: 'POST', body: {} });
-      await admin.from('pedidos').update({ status: 'estornado' }).eq('id', id);
+      const { data: devolvido } = await admin.from('pedidos').update({ status: 'estornado' }).eq('id', id).eq('status', 'pago').select('id');
+      if (devolvido?.length) await tirarTaxa(admin, conta, Number(ped.taxa ?? 0));
       if (ped.agendamento_id) await admin.from('agendamentos').update({ status: 'cancelado' }).eq('id', ped.agendamento_id);
       if (ped.conversation_id) {
         await admin.from('conversation_messages').insert({

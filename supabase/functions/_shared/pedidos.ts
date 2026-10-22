@@ -17,6 +17,7 @@ import { asaas, type Ambiente, type ClienteAsaas, FORMA, pago } from './asaas.ts
 import { buscar } from './busca.ts';
 import { type Canal, enviarPeloCanal } from './canais.ts';
 import { horarioPago, RESERVA_MIN } from './agenda.ts';
+import { type PlanId, TAXA_VENDAS } from './plans.ts';
 
 const reais = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -253,6 +254,27 @@ export async function fecharPedido(
   };
 }
 
+/**
+ * Taxa do Helpy sobre a venda paga (% do plano), somada no mês e cobrada com o
+ * uso extra. Contas isentas (testes da casa) não pagam.
+ */
+async function cobrarTaxa(db: SupabaseClient, ownerId: string, pedidoId: string, total: number) {
+  const { data: p } = await db.from('profiles').select('plan, cobranca_isenta').eq('id', ownerId).maybeSingle();
+  if (!p || p.cobranca_isenta) return;
+  const taxa = Math.round(total * (TAXA_VENDAS[(p.plan ?? 'trial') as PlanId] ?? TAXA_VENDAS.trial)) / 100;
+  if (!(taxa > 0)) return;
+  await db.from('pedidos').update({ taxa }).eq('id', pedidoId);
+  const { error } = await db.rpc('helpy_somar_taxa', { p_owner: ownerId, p_valor: taxa });
+  if (error) console.error('[pedido] taxa', error.message);
+}
+
+/** Venda devolvida: a taxa dela sai do mês (se ainda não foi faturada). */
+export async function tirarTaxa(db: SupabaseClient, ownerId: string, taxa: number) {
+  if (!(taxa > 0)) return;
+  const { error } = await db.rpc('helpy_somar_taxa', { p_owner: ownerId, p_valor: -taxa });
+  if (error) console.error('[pedido] taxa', error.message);
+}
+
 /** Mensagem na conversa (e no canal de onde o cliente escreveu: WhatsApp, Instagram, Discord). */
 async function avisarCliente(db: SupabaseClient, conversationId: string | null, evento: string, texto: string) {
   if (!conversationId) return;
@@ -272,7 +294,18 @@ async function avisarCliente(db: SupabaseClient, conversationId: string | null, 
 export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, evento: { event?: string; payment?: Record<string, unknown> }) {
   const pg = evento.payment ?? {};
   const linkId = String(pg.paymentLink ?? '');
-  if (!linkId || !pago(String(pg.status), evento.event)) return;
+  if (!linkId) return;
+  // devolvido pelo próprio site do Asaas: o pedido vira estornado e a taxa do Helpy sai da conta
+  if (evento.event === 'PAYMENT_REFUNDED') {
+    const { data: dev } = await db.from('pedidos').update({ status: 'estornado' })
+      .eq('owner_id', ownerId).eq('link_id', linkId).eq('pagamento_id', String(pg.id ?? '')).eq('status', 'pago').select('taxa, agendamento_id');
+    if (dev?.[0]) {
+      await tirarTaxa(db, ownerId, Number(dev[0].taxa));
+      if (dev[0].agendamento_id) await db.from('agendamentos').update({ status: 'cancelado' }).eq('id', dev[0].agendamento_id);
+    }
+    return;
+  }
+  if (!pago(String(pg.status), evento.event)) return;
   const { data: ped } = await db.from('pedidos').select('*').eq('owner_id', ownerId).eq('link_id', linkId).maybeSingle();
   if (!ped) return;
   if (ped.status === 'pago' || ped.status === 'estornado') {
@@ -292,6 +325,7 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
     .update({ status: 'pago', pago_em: new Date().toISOString(), pagamento_id: String(pg.id ?? ''), forma: FORMA[String(pg.billingType)] ?? null })
     .eq('id', ped.id).in('status', ['aguardando', 'cancelado']).select('id');
   if (!mudou?.length) return; // outro aviso já tratou
+  await cobrarTaxa(db, ownerId, ped.id, Number(ped.total));
 
   const conta = await contaDaLoja(db, ownerId);
   // o link já cumpriu o papel: tira do ar para ninguém pagar duas vezes
