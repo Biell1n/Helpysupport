@@ -88,8 +88,17 @@ export interface Precos {
   planos: Record<PlanoPago, Record<Ciclo, number>>; // valor de cada cobrança (mês ou ano)
   vaga: number; // por mês
   extra: { atendimento: number; mensagem: number };
+  vendas: Record<PlanId, number>; // % do Helpy sobre cada venda paga pelo chat
   cota_teste?: typeof COTA_TESTE;
 }
+
+/**
+ * Taxa do Helpy sobre as vendas fechadas pelo assistente (em %), somada no
+ * mês e cobrada com o uso extra. Menor nos planos maiores: quem vende mais
+ * tem motivo para subir de plano. Fica abaixo do que marketplaces cobram
+ * (10% a 20%) porque a venda e o cliente são da empresa.
+ */
+export const TAXA_VENDAS: Record<PlanId, number> = { trial: 2, essencial: 2, profissional: 1.5, business: 1 };
 
 const COTA_TESTE = { atendimentos: 3, mensagens: 15 };
 
@@ -101,11 +110,12 @@ export function precosVigentes(teste: boolean): Precos {
       vaga: 0.01,
       // a fatura mínima do Asaas é R$ 5: a R$ 0,50 por mensagem, 10 mensagens já geram uma
       extra: { atendimento: 1, mensagem: 0.5 },
+      vendas: TAXA_VENDAS,
       cota_teste: COTA_TESTE,
     };
   }
   const planos = Object.fromEntries(PAGOS.map((id) => [id, { mensal: PLANS[id].precoMensal, anual: PLANS[id].preco * 12 }])) as Precos['planos'];
-  return { teste, planos, vaga: PRECO_FUNCIONARIO_EXTRA, extra: { ...PRECO_EXTRA } };
+  return { teste, planos, vaga: PRECO_FUNCIONARIO_EXTRA, extra: { ...PRECO_EXTRA }, vendas: TAXA_VENDAS };
 }
 
 /** Valor de cada cobrança da assinatura: plano no ciclo + vagas extras (mensais, x12 no anual). */

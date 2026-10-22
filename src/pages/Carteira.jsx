@@ -7,7 +7,8 @@ import { useToast } from '@/components/Toasts';
 import { Confirmar, Modal } from '@/components/Modal';
 import Counter from '@/components/Counter';
 import HoldButton from '@/components/HoldButton';
-import { reais } from '@/lib/plans';
+import { planOf, reais } from '@/lib/plans';
+import { usePrecos } from '@/lib/precos';
 import { quando } from '@/lib/format';
 
 const SITUACAO = {
@@ -28,6 +29,8 @@ const dataBr = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString('pt-BR')
 /** Carteira: o dinheiro das vendas do assistente, dentro do Helpy. */
 export default function Carteira() {
   const avisar = useToast();
+  const { profile } = useAuth();
+  const taxa = usePrecos().vendas?.[planOf(profile).id];
   const [dados, setDados] = useState(undefined);
   const [sacando, setSacando] = useState(false);
   const [pausar, setPausar] = useState(false);
@@ -79,6 +82,12 @@ export default function Carteira() {
           )}
 
           {carteira && rec.situacao !== 'aprovada' && <Situacao dados={dados} />}
+          {taxa > 0 && !profile?.cobranca_isenta && (
+            <p className="faint" style={{ margin: 0, fontSize: 13.5 }}>
+              Taxa do Helpy: {String(taxa).replace('.', ',')}% sobre cada venda paga pelo chat, somada no mês e cobrada no começo do mês
+              seguinte, na mesma fatura do uso extra. Venda devolvida não paga taxa.
+            </p>
+          )}
 
           <div className="carteira-saldos">
             <div className="card carteira-saldo">
@@ -264,7 +273,11 @@ function Sacar({ dados, onFechar, onPronto }) {
 function Ativar({ onPronto }) {
   const { profile, user } = useAuth();
   const avisar = useToast();
-  const [modo, setModo] = useState('carteira');
+  const precos = usePrecos();
+  // a Carteira Helpy (subconta) só abre quando o Helpy tiver CNPJ no Asaas; até lá, só conta própria
+  const [escolhido, setModo] = useState('carteira');
+  const modo = precos.carteira ? escolhido : 'chave';
+  const taxa = precos.vendas?.[planOf(profile).id];
   const [f, setF] = useState({
     nome: profile?.company_name || profile?.full_name || '', documento: '', email: user?.email ?? '', celular: '',
     nascimento: '', tipo_empresa: 'MEI', cep: '', endereco: '', numero: '', complemento: '', bairro: '', renda: '',
@@ -312,15 +325,22 @@ function Ativar({ onPronto }) {
         <div>
           <h2 className="card-title" style={{ margin: 0 }}>Ative a sua carteira</h2>
           <p className="muted" style={{ margin: '2px 0 0' }}>
-            Com ela, o assistente fecha a venda no chat com Pix, cartão ou boleto e o dinheiro cai aqui. Sem mensalidade: só a taxa de cada pagamento recebido.
+            Com ela, o assistente fecha a venda no chat com Pix, cartão ou boleto e o dinheiro cai aqui. Sem mensalidade: a taxa do
+            Asaas em cada pagamento{taxa ? ` e ${String(taxa).replace('.', ',')}% do Helpy sobre cada venda paga, cobrados no começo do mês seguinte` : ''}.
           </p>
         </div>
       </div>
 
-      <div className="abas-mini" role="tablist">
-        <button type="button" role="tab" aria-selected={modo === 'carteira'} className={`btn btn-sm ${modo === 'carteira' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setModo('carteira')}>Abrir a Carteira Helpy</button>
-        <button type="button" role="tab" aria-selected={modo === 'chave'} className={`btn btn-sm ${modo === 'chave' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setModo('chave')}>Já tenho conta no Asaas</button>
-      </div>
+      {precos.carteira ? (
+        <div className="abas-mini" role="tablist">
+          <button type="button" role="tab" aria-selected={modo === 'carteira'} className={`btn btn-sm ${modo === 'carteira' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setModo('carteira')}>Abrir a Carteira Helpy</button>
+          <button type="button" role="tab" aria-selected={modo === 'chave'} className={`btn btn-sm ${modo === 'chave' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setModo('chave')}>Já tenho conta no Asaas</button>
+        </div>
+      ) : (
+        <p className="faint" style={{ margin: 0, fontSize: 14 }}>
+          Ligue a conta do Asaas da sua empresa (é grátis abrir uma em asaas.com). O dinheiro das vendas cai direto nela.
+        </p>
+      )}
 
       <form className="stack" onSubmit={ativar}>
         {modo === 'carteira' ? (

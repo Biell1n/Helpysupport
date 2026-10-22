@@ -60,12 +60,15 @@ const nomeMes = (mes: string) => new Intl.DateTimeFormat('pt-BR', { month: 'long
  * isenta (as de teste da casa) só registra.
  */
 export async function fecharUsoExtra(ownerId: string, incluirAtual = false) {
-  let busca = admin.from('uso_extra').select('mes, valor').eq('owner_id', ownerId).eq('status', 'aberto').gt('valor', 0);
+  // uso extra e taxa das vendas do mês vão na mesma fatura
+  let busca = admin.from('uso_extra').select('mes, valor, taxa_vendas').eq('owner_id', ownerId).eq('status', 'aberto')
+    .or('valor.gt.0,taxa_vendas.gt.0');
   if (!incluirAtual) busca = busca.lt('mes', mesUtc());
   const { data: abertos } = await busca;
   if (!abertos?.length) return;
   const meses = abertos.map((r) => String(r.mes));
-  const total = abertos.reduce((s, r) => s + Number(r.valor), 0);
+  const soma = (rs: { valor: unknown; taxa_vendas: unknown }[]) => rs.reduce((s, r) => s + Number(r.valor) + Number(r.taxa_vendas), 0);
+  const total = soma(abertos);
   const marcar = (status: string) => admin.from('uso_extra').update({ status, cobrado_em: new Date().toISOString() })
     .eq('owner_id', ownerId).in('mes', meses).eq('status', 'aberto');
 
@@ -79,14 +82,16 @@ export async function fecharUsoExtra(ownerId: string, incluirAtual = false) {
 
   // reserva as linhas antes de cobrar: duas chamadas juntas não geram duas faturas
   const { data: reservados } = await admin.from('uso_extra').update({ status: 'cobrando', atualizado_em: new Date().toISOString() })
-    .eq('owner_id', ownerId).in('mes', meses).eq('status', 'aberto').select('mes, valor');
+    .eq('owner_id', ownerId).in('mes', meses).eq('status', 'aberto').select('mes, valor, taxa_vendas');
   if (!reservados?.length) return;
   const lote = reservados.map((r) => String(r.mes)).sort();
-  const valor = Math.round(reservados.reduce((s, r) => s + Number(r.valor), 0) * 100) / 100;
+  const valor = Math.round(soma(reservados) * 100) / 100;
+  const temExtra = reservados.some((r) => Number(r.valor) > 0);
+  const temTaxa = reservados.some((r) => Number(r.taxa_vendas) > 0);
   const voltar = () => admin.from('uso_extra').update({ status: 'aberto' }).eq('owner_id', ownerId).in('mes', lote).eq('status', 'cobrando');
   if (valor < MINIMO_FATURA) return void (await voltar());
 
-  const descricao = `Uso extra de ${lote.map(nomeMes).join(', ')}`;
+  const descricao = `${temExtra && temTaxa ? 'Uso extra e taxa de vendas' : temTaxa ? 'Taxa de vendas' : 'Uso extra'} de ${lote.map(nomeMes).join(', ')}`;
   const vence = hojeBr(5);
   try {
     const pg = await contaHelpy().pedir<Record<string, unknown> & { id: string }>('/payments', {
@@ -101,7 +106,7 @@ export async function fecharUsoExtra(ownerId: string, incluirAtual = false) {
     await guardarFatura(ownerId, pg, descricao);
     await admin.from('alertas').insert({
       owner_id: ownerId, origem: 'sistema', chave: `extra:fatura:${pg.id}`,
-      assunto: `Fatura do uso extra: ${reais(valor)}`,
+      assunto: `Fatura de ${reais(valor)}: ${descricao.split(' de ')[0].toLowerCase()}`,
       detalhe: `${descricao}. Vence em ${vence.split('-').reverse().join('/')}. Pague pela página Plano.`,
     });
   } catch (e) {
