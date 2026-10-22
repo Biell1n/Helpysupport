@@ -24,13 +24,15 @@ import { logUsage } from '../_shared/ai.ts';
 import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { normalizeConfig, sugestoesIniciais, valueOf } from '../_shared/schema.ts';
-import { usarExtra } from '../_shared/extra.ts';
+import { MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from '../_shared/extra.ts';
 import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
 
 const MAX_CHARS = 2000;
 const BITS_DESAFIO = 17;
 const TESTES_POR_DIA = 40;
 const RAJADA_ANONIMA = 30;
+// mensagens em 10 minutos somando todas as conversas abertas da mesma rede
+const MSGS_POR_REDE = 60;
 const PEDE_LOGIN =
   'Para falar com a equipe, entre com sua conta tocando em "Entrar para falar com a equipe", aqui embaixo. Leva poucos segundos e a conversa continua de onde parou.';
 const MUITA_PROCURA =
@@ -52,6 +54,8 @@ type Conversa = {
   nota: number | null;
   teste: boolean;
   last_message_at: string;
+  motivo?: string | null;
+  ip_hash?: string | null;
 };
 
 /**
@@ -97,7 +101,7 @@ async function conversaDo(assistantId: string, visitorId: string, clienteId: str
   if (!id || !visitorId || !/^[0-9a-f-]{36}$/i.test(String(id))) return null;
   const { data } = await admin
     .from('conversations')
-    .select('id, assistant_id, visitor_id, cliente_id, status, numero, assumido_nome, assumido_em, escalado_em, nota, teste, last_message_at')
+    .select('id, assistant_id, visitor_id, cliente_id, status, numero, assumido_nome, assumido_em, escalado_em, nota, teste, last_message_at, motivo, ip_hash')
     .eq('id', String(id))
     .maybeSingle();
   if (!data || data.assistant_id !== assistantId) return null;
@@ -293,7 +297,7 @@ Deno.serve(async (req) => {
           teste,
           ...(clienteInfo ? { cliente_id: clienteInfo.id, cliente_email: clienteInfo.email, lead_nome: clienteInfo.nome, lead_contato: clienteInfo.email } : {}),
           ...(recado
-            ? { status: 'waiting', titulo: 'Recado', motivo: 'Chegou com a cota do plano esgotada: o assistente não respondeu.', escalado_em: new Date().toISOString() }
+            ? { status: 'waiting', titulo: 'Recado', motivo: MOTIVO_RECADO, escalado_em: new Date().toISOString() }
             : {}),
         })
         .select('id, assistant_id, visitor_id, status, numero, assumido_nome, assumido_em, escalado_em, nota, teste, last_message_at')
@@ -305,6 +309,14 @@ Deno.serve(async (req) => {
       const { count: recentes } = await admin.from('conversation_messages').select('id', { count: 'exact', head: true })
         .eq('conversation_id', c.id).eq('role', 'user').gte('created_at', minuto);
       if ((recentes ?? 0) >= 6) throw new UserError('Calma aí, ainda estou respondendo as anteriores.', 429);
+      // várias conversas abertas da mesma rede não somam mais que um teto de mensagens
+      if (c.ip_hash && !teste) {
+        const { count: daRede } = await admin.from('conversation_messages')
+          .select('id, conversations!inner(ip_hash)', { count: 'exact', head: true })
+          .eq('role', 'user').eq('conversations.ip_hash', c.ip_hash)
+          .gte('created_at', new Date(Date.now() - 10 * 60_000).toISOString());
+        if ((daRede ?? 0) >= MSGS_POR_REDE) throw new UserError('Muitas mensagens a partir desta rede. Espere alguns minutos e tente de novo.', 429);
+      }
       if (clienteInfo) {
         await admin.from('conversations').update({ cliente_id: clienteInfo.id, cliente_email: clienteInfo.email })
           .eq('id', c.id).is('cliente_id', null);
@@ -328,6 +340,12 @@ Deno.serve(async (req) => {
     // a equipe assumiu (ou vai assumir): a IA sai de cena e não custa nada
     if (c.status === 'waiting' || c.status === 'human') {
       return json({ ...estado(c), message: null, modo: 'humano' });
+    }
+
+    // recado que a equipe devolveu ao assistente: só responde se a conta cobrir este atendimento
+    if (!teste && c.motivo === MOTIVO_RECADO && !(await recadoPodeSeguir(admin, c.id, profile, plan))) {
+      await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'system', content: RECADO });
+      return json({ ...estado(c), status: 'waiting', message: RECADO, modo: 'recado' });
     }
 
     // teto por atendimento: passa para a equipe em vez de girar

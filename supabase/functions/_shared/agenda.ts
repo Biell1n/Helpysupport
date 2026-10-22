@@ -199,7 +199,14 @@ export async function marcar(
     })
     .select('id')
     .single();
-  if (error) return { erro: 'Não consegui gravar o agendamento.' };
+  if (error) {
+    // outra conversa pegou o mesmo horário um instante antes (conferido de novo no banco)
+    if (/horario_ocupado/.test(error.message)) {
+      const { livres: agora } = await horariosLivres(db, cfg, input.dia, input.duracao_min);
+      return { erro: 'Esse horário acabou de ser ocupado.', livres: agora ?? [] };
+    }
+    return { erro: 'Não consegui gravar o agendamento.' };
+  }
   if (input.registrar) {
     await registrarNosDados(db, cfg, {
       agendamento_id: data.id,
@@ -287,7 +294,7 @@ export async function alterarAgendamento(
   if (!Object.keys(patch).length) return { erro: 'Diga o que mudar: data/hora, observação ou cancelar.' };
 
   const { error } = await db.from('agendamentos').update(patch).eq('id', a.id);
-  if (error) return { erro: 'Não consegui alterar o agendamento.' };
+  if (error) return { erro: /horario_ocupado/.test(error.message) ? 'Esse horário acabou de ser ocupado. Escolha outro.' : 'Não consegui alterar o agendamento.' };
   if (input.registrar && Object.keys(dados).length) await atualizarNosDados(db, cfg, a.id, dados);
   if (patch.inicio) {
     await avisoNaConversa(db, conversationId, 'remarcado', `${utcToLocal(new Date(String(patch.inicio)), cfg.fuso)}${a.servico ? ` · ${a.servico}` : ''}`);

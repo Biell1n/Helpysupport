@@ -12,13 +12,13 @@ import { alertar, type Assistant, responder } from './atendimento.ts';
 import { profileOf } from './db.ts';
 import { inicioDoMes, planOf, trialExpirado } from './plans.ts';
 import { type Canal, NOMES } from './canais.ts';
-import { usarExtra } from './extra.ts';
+import { MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from './extra.ts';
 
 const PASSOU_PARA_EQUIPE =
   'Vou passar para alguém da equipe continuar daqui. É só aguardar: respondemos por aqui mesmo.';
 const RECADO =
   'Recebemos sua mensagem! No momento o atendimento automático está indisponível, mas ela já chegou para a equipe, que responde por aqui mesmo.';
-type Conversa = { id: string; status: string; escalado_em: string | null; last_message_at: string };
+type Conversa = { id: string; status: string; escalado_em: string | null; last_message_at: string; motivo?: string | null };
 
 /**
  * Recebe a mensagem de um contato num canal e devolve o que responder
@@ -50,7 +50,7 @@ export async function atenderNoCanal(
 
   // conversa aberta com este contato (ou uma nova)
   const { data: ultima } = await db.from('conversations')
-    .select('id, status, escalado_em, last_message_at')
+    .select('id, status, escalado_em, last_message_at, motivo')
     .eq('owner_id', canal.owner_id).eq('canal_id', canal.id).eq('contato_externo', contato.id)
     .order('last_message_at', { ascending: false }).limit(1).maybeSingle();
   let c = ultima as Conversa | null;
@@ -75,7 +75,7 @@ export async function atenderNoCanal(
       lead_nome: contato.nome?.slice(0, 120) || null,
       lead_contato: contatoTexto.slice(0, 120),
       ...(recado
-        ? { status: 'waiting', titulo: 'Recado', motivo: 'Chegou com a cota do plano esgotada: o assistente não respondeu.', escalado_em: new Date().toISOString() }
+        ? { status: 'waiting', titulo: 'Recado', motivo: MOTIVO_RECADO, escalado_em: new Date().toISOString() }
         : {}),
     }).select('id, status, escalado_em, last_message_at').single();
     if (error) throw error;
@@ -94,6 +94,11 @@ export async function atenderNoCanal(
   }
   // a equipe está no atendimento: a IA não fala por cima
   if (c.status === 'waiting' || c.status === 'human') return null;
+  // recado que a equipe devolveu ao assistente: só responde se a conta cobrir este atendimento
+  if (c.motivo === MOTIVO_RECADO && !(await recadoPodeSeguir(db, c.id, profile, plan))) {
+    await db.from('conversation_messages').insert({ conversation_id: c.id, role: 'system', content: RECADO });
+    return RECADO;
+  }
 
   // teto por conversa e total de mensagens do mês: passa para a equipe
   const { count: daConversa } = await db.from('conversation_messages').select('id', { count: 'exact', head: true })

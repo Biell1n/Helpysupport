@@ -331,12 +331,19 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   }
 
   // venda: baixa de estoque nas linhas da tabela (só os itens que levaram a coluna de estoque)
+  // (a baixa é uma conta só no banco: dois pagamentos juntos não perdem uma das vendas)
+  const faltou: string[] = [];
   for (const it of (ped.itens ?? []) as Item[]) {
     if (!it.linha_id || !it.estoque_chave) continue;
-    const { data: linha } = await db.from('tabela_linhas').select('dados').eq('id', it.linha_id).maybeSingle();
-    const atual = Number(String(linha?.dados?.[it.estoque_chave] ?? '').replace(',', '.'));
-    if (!linha || !Number.isFinite(atual)) continue;
-    await db.from('tabela_linhas').update({ dados: { ...linha.dados, [it.estoque_chave]: String(Math.max(0, atual - it.quantidade)) } }).eq('id', it.linha_id);
+    const { data: antes } = await db.rpc('helpy_baixar_estoque', { p_linha: it.linha_id, p_chave: it.estoque_chave, p_qtd: it.quantidade });
+    if (antes != null && Number(antes) < it.quantidade) faltou.push(`${it.produto} (havia ${Math.max(0, Number(antes))}, venderam ${it.quantidade})`);
+  }
+  if (faltou.length) {
+    await db.from('alertas').insert({
+      owner_id: ownerId, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',
+      chave: `pedido:estoque:${ped.id}`, assunto: `Pedido nº ${ped.numero} pago sem estoque suficiente`.slice(0, 160),
+      detalhe: `Outra venda levou as últimas unidades antes deste pagamento cair. Combine com o cliente: esperar a reposição ou devolver o valor. ${faltou.join('; ')}`.slice(0, 1000),
+    });
   }
   await avisarCliente(db, ped.conversation_id, 'pago',
     `Pagamento do pedido nº ${ped.numero} confirmado (${reais(Number(ped.total))}). Obrigado pela compra! A equipe já foi avisada para seguir com o pedido.`);
