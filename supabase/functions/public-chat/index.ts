@@ -24,7 +24,7 @@ import { logUsage } from '../_shared/ai.ts';
 import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { normalizeConfig, sugestoesIniciais, valueOf } from '../_shared/schema.ts';
-import { MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from '../_shared/extra.ts';
+import { COBRANCA_EXTRA_PRONTA, MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from '../_shared/extra.ts';
 import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
 
 const MAX_CHARS = 2000;
@@ -378,14 +378,14 @@ Deno.serve(async (req) => {
       if (n === Math.ceil(plan.mensagens * 0.8)) {
         await alertar(admin, assistant.owner_id, {
           origem: 'sistema', chave: `cota80:${mes}`, assunto: 'Você já usou 80% das mensagens do mês',
-          detalhe: `Foram ${n} de ${plan.mensagens} mensagens de clientes no plano ${plan.nome}. Quando acabar, a equipe passa a responder pelos chamados até o mês virar, a não ser que o uso extra esteja ligado. Veja em Plano.`,
+          detalhe: `Foram ${n} de ${plan.mensagens} mensagens de clientes no plano ${plan.nome}. Quando acabar, a equipe passa a responder pelos chamados até o mês virar${COBRANCA_EXTRA_PRONTA ? ', a não ser que o uso extra esteja ligado' : ''}. Veja em Plano.`,
         });
       }
       // passou do plano: o uso extra cobre esta mensagem, se estiver ligado e couber no limite
       if (n > plan.mensagens && !(await usarExtra(admin, profile, 'mensagem'))) {
         await alertar(admin, assistant.owner_id, {
           origem: 'sistema', chave: `cota100:${mes}`, assunto: 'As mensagens do mês acabaram',
-          detalhe: `O plano ${plan.nome} inclui ${plan.mensagens} mensagens de clientes por mês. Até o mês virar, as conversas novas vão para a equipe. Para continuar com o atendimento automático, ligue o uso extra ou mude de plano em Plano.`,
+          detalhe: `O plano ${plan.nome} inclui ${plan.mensagens} mensagens de clientes por mês. Até o mês virar, as conversas novas vão para a equipe. Para continuar com o atendimento automático, ${COBRANCA_EXTRA_PRONTA ? 'ligue o uso extra ou ' : ''}mude de plano em Plano.`,
         });
         if (!cliente) {
           await admin.from('conversations').update({ status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'assistente' }).eq('id', c.id);
