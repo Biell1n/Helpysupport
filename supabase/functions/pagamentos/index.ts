@@ -21,7 +21,7 @@
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, requireUser } from '../_shared/db.ts';
-import { PLANS, type PlanId } from '../_shared/plans.ts';
+import { PLANS, type PlanId, PRECO_FUNCIONARIO_EXTRA } from '../_shared/plans.ts';
 import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, FORMA, garantirWebhook, hojeBr, novoToken, pago, tokenAceito } from '../_shared/asaas.ts';
 import { contaDaLoja, pagamentoDaLoja } from '../_shared/pedidos.ts';
 
@@ -82,17 +82,111 @@ function maisUmMes(data: string) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Mensalidade com as vagas extras de equipe. */
+const mensalidade = (plano: PlanId, vagas: number) => PLANS[plano].preco + Math.max(0, vagas) * PRECO_FUNCIONARIO_EXTRA;
+
+// ------------------------------------------------------------
+// Uso extra: o que passou da cota vira uma fatura separada
+// ------------------------------------------------------------
+const MINIMO_FATURA = 5; // o Asaas não emite cobrança menor que isso
+const reais = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const mesUtc = () => new Date().toISOString().slice(0, 7) + '-01';
+const nomeMes = (mes: string) => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${mes}T00:00:00Z`));
+
+/**
+ * Fecha numa fatura só o uso extra dos meses que já acabaram (no
+ * cancelamento, também o do mês atual). Abaixo do mínimo do Asaas espera
+ * somar mais; no cancelamento, o que não chega ao mínimo é perdoado. Conta
+ * isenta (as de teste da casa) só registra.
+ */
+async function fecharUsoExtra(ownerId: string, incluirAtual = false) {
+  let busca = admin.from('uso_extra').select('mes, valor').eq('owner_id', ownerId).eq('status', 'aberto').gt('valor', 0);
+  if (!incluirAtual) busca = busca.lt('mes', mesUtc());
+  const { data: abertos } = await busca;
+  if (!abertos?.length) return;
+  const meses = abertos.map((r) => String(r.mes));
+  const total = abertos.reduce((s, r) => s + Number(r.valor), 0);
+  const marcar = (status: string) => admin.from('uso_extra').update({ status, cobrado_em: new Date().toISOString() })
+    .eq('owner_id', ownerId).in('mes', meses).eq('status', 'aberto');
+
+  const { data: perfil } = await admin.from('profiles').select('cobranca_isenta').eq('id', ownerId).maybeSingle();
+  if (perfil?.cobranca_isenta) return void (await marcar('isento'));
+  if (total < MINIMO_FATURA) return void (incluirAtual ? await marcar('perdoado') : null);
+
+  const { data: ass } = await admin.from('assinaturas').select('asaas_cliente').eq('owner_id', ownerId).maybeSingle();
+  if (!ass?.asaas_cliente) return void console.warn('[uso extra] conta sem cliente no Asaas', ownerId);
+
+  // reserva as linhas antes de cobrar: duas chamadas juntas não geram duas faturas
+  const { data: reservados } = await admin.from('uso_extra').update({ status: 'cobrando', atualizado_em: new Date().toISOString() })
+    .eq('owner_id', ownerId).in('mes', meses).eq('status', 'aberto').select('mes, valor');
+  if (!reservados?.length) return;
+  const lote = reservados.map((r) => String(r.mes)).sort();
+  const valor = Math.round(reservados.reduce((s, r) => s + Number(r.valor), 0) * 100) / 100;
+  const voltar = () => admin.from('uso_extra').update({ status: 'aberto' }).eq('owner_id', ownerId).in('mes', lote).eq('status', 'cobrando');
+  if (valor < MINIMO_FATURA) return void (await voltar());
+
+  const descricao = `Uso extra de ${lote.map(nomeMes).join(', ')}`;
+  const vence = hojeBr(5);
+  try {
+    const pg = await contaHelpy().pedir<Record<string, unknown> & { id: string }>('/payments', {
+      method: 'POST',
+      body: {
+        customer: ass.asaas_cliente, billingType: 'UNDEFINED', value: valor, dueDate: vence,
+        description: `Helpy — ${descricao.toLowerCase()}`, externalReference: `extra:${ownerId}`,
+      },
+    });
+    await admin.from('uso_extra').update({ status: 'cobrado', fatura_id: pg.id, cobrado_em: new Date().toISOString() })
+      .eq('owner_id', ownerId).in('mes', lote).eq('status', 'cobrando');
+    await guardarFatura(ownerId, pg, descricao);
+    await admin.from('alertas').insert({
+      owner_id: ownerId, origem: 'sistema', chave: `extra:fatura:${pg.id}`,
+      assunto: `Fatura do uso extra: ${reais(valor)}`,
+      detalhe: `${descricao}. Vence em ${vence.split('-').reverse().join('/')}. Pague pela página Plano.`,
+    });
+  } catch (e) {
+    await voltar();
+    throw e;
+  }
+}
+
+/** Aviso do Asaas sobre uma fatura de uso extra. */
+async function avisoDoExtra(evento: { event?: string; payment?: Record<string, unknown> }) {
+  const pg = evento.payment!;
+  const id = String(pg.id ?? '');
+  const { data: linhas } = await admin.from('uso_extra').select('owner_id').eq('fatura_id', id).limit(1);
+  const dono = linhas?.[0]?.owner_id as string | undefined;
+  if (!dono) return;
+  const { data: antes } = await admin.from('faturas').select('descricao').eq('id', id).maybeSingle();
+  await guardarFatura(dono, pg, antes?.descricao ?? 'Uso extra');
+  if (pago(String(pg.status), evento.event)) {
+    await admin.from('uso_extra').update({ status: 'pago' }).eq('fatura_id', id);
+  } else if (evento.event === 'PAYMENT_OVERDUE') {
+    // fatura atrasada: o uso extra para (o banco recusa) até ela ser paga
+    await admin.from('uso_extra').update({ status: 'atrasado' }).eq('fatura_id', id).eq('status', 'cobrado');
+    await admin.from('alertas').insert({
+      owner_id: dono, origem: 'sistema', chave: `extra:atrasada:${id}`,
+      assunto: 'A fatura do uso extra venceu',
+      detalhe: 'Enquanto ela não for paga, o uso extra fica parado e as conversas além da cota vão para a equipe. Pague pela página Plano.',
+    });
+  } else if (evento.event === 'PAYMENT_DELETED') {
+    await admin.from('uso_extra').update({ status: 'perdoado' }).eq('fatura_id', id).in('status', ['cobrado', 'atrasado']);
+  }
+}
+
 // ------------------------------------------------------------
 // Avisos do Asaas
 // ------------------------------------------------------------
 async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, unknown> }) {
   const pg = evento.payment;
+  if (pg && String(pg.externalReference ?? '').startsWith('extra:')) return await avisoDoExtra(evento);
   const subId = String(pg?.subscription ?? '');
   if (!pg || !/^[\w-]+$/.test(subId)) return;
   // a cobrança pode ser da assinatura nova ou da antiga, que segue valendo até a troca ser paga
   const { data: ass } = await admin.from('assinaturas').select('*')
     .or(`asaas_assinatura.eq.${subId},asaas_anterior.eq.${subId}`).maybeSingle();
   if (!ass) return;
+  // a mensalidade chega todo mês: aproveita para fechar o uso extra do mês que acabou
+  depois(fecharUsoExtra(ass.owner_id));
   const daAntiga = ass.asaas_anterior === subId && ass.asaas_assinatura !== subId;
   const agora = new Date().toISOString();
 
@@ -135,12 +229,12 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
     if (ass.asaas_anterior) {
       // troca de plano que não foi paga: desfaz e volta para a assinatura de antes, sem mexer no acesso
       await contaHelpy().pedir(`/subscriptions/${subId}`, { method: 'DELETE' }).catch(() => {});
-      const { data: perfil } = await admin.from('profiles').select('plan').eq('id', ass.owner_id).maybeSingle();
+      const { data: perfil } = await admin.from('profiles').select('plan, funcionarios_extra').eq('id', ass.owner_id).maybeSingle();
       const plano = (await planoDaAssinatura(ass.asaas_anterior)) ?? (perfil?.plan as PlanId | undefined);
       await admin.from('assinaturas').update({
         asaas_assinatura: ass.asaas_anterior, asaas_anterior: null, atualizada_em: agora,
         status: ass.status === 'ativa' ? 'ativa' : 'atrasada',
-        ...(plano && PLANS[plano] && plano !== 'trial' ? { plano, valor: PLANS[plano].preco } : {}),
+        ...(plano && PLANS[plano] && plano !== 'trial' ? { plano, valor: mensalidade(plano, Number(perfil?.funcionarios_extra ?? 0)) } : {}),
       }).eq('owner_id', ass.owner_id);
       await admin.from('alertas').insert({
         owner_id: ass.owner_id, origem: 'sistema', chave: `fatura:troca:${pg.id}`,
@@ -225,6 +319,8 @@ Deno.serve(async (req) => {
         admin.from('faturas').select('id, valor, status, vencimento, pago_em, link, forma, descricao').eq('owner_id', conta).order('criada_em', { ascending: false }).limit(12),
         admin.from('recebimentos').select('ambiente, conta_nome, ativo, modo, situacao').eq('owner_id', conta).maybeSingle(),
       ]);
+      // abriu a página Plano: fecha o uso extra de mês que já acabou, se ainda estiver em aberto
+      if (dono && Deno.env.get('ASAAS_API_KEY')) depois(fecharUsoExtra(conta));
       return json({
         cobranca: !!Deno.env.get('ASAAS_API_KEY'),
         ambiente: AMBIENTE,
@@ -263,12 +359,16 @@ Deno.serve(async (req) => {
         cliente = novo.id;
       }
 
-      const valor = PLANS[plano].preco;
+      // as vagas extras de equipe seguem para o plano novo
+      const { data: vagasDe } = await admin.from('profiles').select('funcionarios_extra').eq('id', conta).maybeSingle();
+      const vagas = Number(vagasDe?.funcionarios_extra ?? 0);
+      const valor = mensalidade(plano, vagas);
       const sub = await c.pedir<{ id: string }>('/subscriptions', {
         method: 'POST',
         body: {
           customer: cliente, billingType: 'UNDEFINED', value: valor, nextDueDate: hojeBr(), cycle: 'MONTHLY',
-          description: `Helpy — plano ${PLANS[plano].nome}`, externalReference: `${conta}:${plano}`,
+          description: `Helpy — plano ${PLANS[plano].nome}${vagas ? ` + ${vagas} ${vagas === 1 ? 'vaga extra' : 'vagas extras'} na equipe` : ''}`,
+          externalReference: `${conta}:${plano}`,
         },
       });
       // pendente de antes (nunca paga) sai na hora; a ativa espera a nova ser paga
@@ -300,7 +400,44 @@ Deno.serve(async (req) => {
       // se estava no meio de uma troca de plano, a antiga também para de cobrar
       if (atual.asaas_anterior) await contaHelpy().pedir(`/subscriptions/${atual.asaas_anterior}`, { method: 'DELETE' }).catch(() => {});
       await admin.from('assinaturas').update({ status: 'cancelada', asaas_anterior: null, atualizada_em: new Date().toISOString() }).eq('owner_id', conta);
+      // o uso extra que ficou (inclusive deste mês) sai numa última fatura
+      depois(fecharUsoExtra(conta, true));
       return json({ ok: true, vale_ate: atual.proximo_vencimento });
+    }
+
+    if (action === 'vagas') {
+      // vagas extras de equipe: entram na mensalidade a partir da próxima fatura
+      const quero = Math.trunc(Number(body.quantidade));
+      if (!Number.isFinite(quero) || quero < 0 || quero > 50) throw new UserError('Escolha entre 0 e 50 vagas extras.');
+      const { data: p } = await admin.from('profiles').select('plan, funcionarios_extra, cobranca_isenta').eq('id', conta).maybeSingle();
+      if (!p) throw new UserError('Conta não encontrada.', 404);
+      const { data: ass } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
+      const plano = (p.cobranca_isenta ? p.plan : ass?.plano) as PlanId | undefined;
+      if (!plano || plano === 'trial' || !PLANS[plano]) throw new UserError('Vagas extras são para planos pagos. Assine um plano primeiro.');
+      const [{ count: membros }, { count: convites }] = await Promise.all([
+        admin.from('equipe').select('user_id', { count: 'exact', head: true }).eq('owner_id', conta),
+        admin.from('convites').select('token', { count: 'exact', head: true }).eq('owner_id', conta)
+          .is('usado_em', null).gt('expira_em', new Date().toISOString()),
+      ]);
+      const ocupadas = (membros ?? 0) + (convites ?? 0);
+      if (quero < ocupadas - PLANS[plano].funcionarios) {
+        throw new UserError(`A equipe tem ${ocupadas} entre pessoas e convites. Remova alguém antes de diminuir as vagas.`);
+      }
+      const valor = mensalidade(plano, quero);
+      if (!p.cobranca_isenta) {
+        if (!ass?.asaas_assinatura || ass.status !== 'ativa') throw new UserError('As vagas extras entram na mensalidade: elas ficam disponíveis com a assinatura em dia.');
+        if (ass.asaas_anterior) throw new UserError('Há uma troca de plano esperando pagamento. Mude as vagas depois que ela for paga.');
+        await contaHelpy().pedir(`/subscriptions/${ass.asaas_assinatura}`, {
+          method: 'PUT',
+          body: {
+            value: valor, updatePendingPayments: true,
+            description: `Helpy — plano ${PLANS[plano].nome}${quero ? ` + ${quero} ${quero === 1 ? 'vaga extra' : 'vagas extras'} na equipe` : ''}`,
+          },
+        });
+        await admin.from('assinaturas').update({ valor, atualizada_em: new Date().toISOString() }).eq('owner_id', conta);
+      }
+      await admin.from('profiles').update({ funcionarios_extra: quero }).eq('id', conta);
+      return json({ ok: true, vagas: quero, valor, isenta: !!p.cobranca_isenta });
     }
 
     if (action === 'loja_conectar') {

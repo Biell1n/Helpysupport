@@ -1,10 +1,79 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Copy, Link2, Trash2, UserMinus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Copy, Link2, Minus, Plus, Trash2, UserMinus } from 'lucide-react';
 import { chamar } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { PRECO_FUNCIONARIO_EXTRA, reais } from '@/lib/plans';
 
-const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
+/** Vagas além das do plano: entram na mensalidade a partir da próxima fatura. */
+function VagasExtras({ vagas, onMudou }) {
+  const avisar = useToast();
+  const { profile, reloadProfile } = useAuth();
+  const [quero, setQuero] = useState(vagas.extra);
+  const [salvando, setSalvando] = useState(false);
+  useEffect(() => setQuero(vagas.extra), [vagas.extra]);
+  const minimo = Math.max(0, vagas.membros + vagas.pendentes - vagas.incluidos);
+
+  if (profile?.plan === 'trial') {
+    return (
+      <section className="card stack" style={{ marginBottom: 16 }}>
+        <h2 className="card-title">Vagas extras</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+          Nos planos pagos dá para pôr mais gente na equipe por {reais(PRECO_FUNCIONARIO_EXTRA)}/mês cada. <Link to="/painel/plano">Ver planos</Link>
+        </p>
+      </section>
+    );
+  }
+
+  const salvar = async () => {
+    setSalvando(true);
+    try {
+      const r = await chamar('pagamentos', { action: 'vagas', quantidade: quero });
+      await reloadProfile?.();
+      await onMudou();
+      avisar(quero > vagas.extra ? 'Vagas adicionadas' : 'Vagas atualizadas', {
+        texto: r.isenta ? 'Conta de teste: sem cobrança.' : `A mensalidade passa a ser ${reais(r.valor)} a partir da próxima fatura.`,
+      });
+    } catch (e) {
+      avisar('Não deu para mudar as vagas', { erro: true, texto: e.message });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <section className="card stack" style={{ marginBottom: 16 }}>
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 className="card-title" style={{ margin: 0 }}>Vagas extras</h2>
+          <p className="muted" style={{ margin: '4px 0 0', fontSize: 14 }}>
+            {vagas.incluidos} no plano. Cada vaga a mais custa {reais(PRECO_FUNCIONARIO_EXTRA)}/mês e entra na mensalidade.
+          </p>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <button type="button" className="btn btn-ghost btn-sm" aria-label="Uma vaga a menos" disabled={salvando || quero <= minimo} onClick={() => setQuero((q) => q - 1)}>
+            <Minus size={16} />
+          </button>
+          <b className="num" style={{ minWidth: 28, textAlign: 'center' }}>{quero}</b>
+          <button type="button" className="btn btn-ghost btn-sm" aria-label="Uma vaga a mais" disabled={salvando || quero >= 50} onClick={() => setQuero((q) => q + 1)}>
+            <Plus size={16} />
+          </button>
+        </div>
+      </div>
+      {quero !== vagas.extra && (
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <span className="faint" style={{ fontSize: 14 }}>
+            {quero ? `${quero} ${quero === 1 ? 'vaga extra' : 'vagas extras'}: ${reais(quero * PRECO_FUNCIONARIO_EXTRA)}/mês` : 'Sem vagas extras'}
+          </span>
+          <button type="button" className="btn btn-primary btn-sm" disabled={salvando} onClick={salvar}>
+            {salvando ? 'Salvando…' : 'Confirmar'}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
 
 /** Funcionários da empresa: entram só por link de convite, um por pessoa. */
 export default function Equipe() {
@@ -65,16 +134,10 @@ export default function Equipe() {
       )}
       {cheia && (
         <div className="alert" style={{ marginBottom: 16 }}>
-          <span>
-            Equipe cheia. Cada funcionário a mais custa {reais(PRECO_FUNCIONARIO_EXTRA)}/mês.{' '}
-            {VENDAS ? (
-              <a href={VENDAS.startsWith('mailto:') ? `${VENDAS}?subject=${encodeURIComponent('Vaga extra de funcionário no Helpy')}` : VENDAS} target="_blank" rel="noreferrer">Pedir mais vagas</a>
-            ) : (
-              'Fale com a gente para liberar mais vagas.'
-            )}
-          </span>
+          <span>Equipe cheia. Para convidar mais alguém, adicione uma vaga extra aqui embaixo.</span>
         </div>
       )}
+      {vagas && <VagasExtras vagas={vagas} onMudou={carregar} />}
 
       <section className="card stack" style={{ marginBottom: 16 }}>
         <h2 className="card-title">Pessoas</h2>

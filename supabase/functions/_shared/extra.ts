@@ -11,9 +11,9 @@ type PerfilExtra = { id: string; plan: string; extra_ativo?: boolean | null; ext
 
 const reais = (n: number) => `R$ ${n.toFixed(2).replace('.', ',')}`;
 
-// Desligado até a fatura do excedente existir (sem ela, o uso extra sairia de graça).
-// Para religar: true aqui e USO_EXTRA_DISPONIVEL em src/lib/plans.js.
-export const COBRANCA_EXTRA_PRONTA = false;
+// Chave geral do uso extra (o excedente vira fatura em pagamentos/index.ts).
+// Para pausar: false aqui e USO_EXTRA_DISPONIVEL em src/lib/plans.js.
+export const COBRANCA_EXTRA_PRONTA = true;
 
 /** O uso extra está ligado e com limite para esta conta? */
 export function extraLigado(p: PerfilExtra) {

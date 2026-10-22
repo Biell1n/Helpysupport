@@ -3,6 +3,7 @@ import { CreditCard, ExternalLink, Receipt } from 'lucide-react';
 import { chamar } from '@/lib/supabase';
 import { Modal, Confirmar } from '@/components/Modal';
 import { useToast } from '@/components/Toasts';
+import { useAuth } from '@/contexts/AuthContext';
 import { PLANS, reais } from '@/lib/plans';
 import { quando } from '@/lib/format';
 
@@ -75,6 +76,8 @@ export function AssinarModal({ plano, profile, ambiente, onFechar }) {
 /** A assinatura atual e as últimas faturas, na página Plano. */
 export function MinhaAssinatura({ dados, onMudou }) {
   const avisar = useToast();
+  const { profile } = useAuth();
+  const vagas = Number(profile?.funcionarios_extra ?? 0);
   const [cancelar, setCancelar] = useState(false);
   const a = dados?.assinatura;
   const faturas = dados?.faturas ?? [];
@@ -100,6 +103,7 @@ export function MinhaAssinatura({ dados, onMudou }) {
           {a && (
             <p className="muted" style={{ margin: '4px 0 0' }}>
               {PLANS[a.plano]?.nome} · {reais(Number(a.valor))}/mês
+              {vagas > 0 ? ` (com ${vagas} ${vagas === 1 ? 'vaga extra' : 'vagas extras'} na equipe)` : ''}
               {a.status === 'ativa' && a.proximo_vencimento ? ` · próxima cobrança em ${dataBr(a.proximo_vencimento)}` : ''}
               {a.status === 'cancelada' && a.proximo_vencimento ? ` · vale até ${dataBr(a.proximo_vencimento)}` : ''}
             </p>
