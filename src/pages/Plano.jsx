@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { chamar } from '@/lib/supabase';
 import UsoExtra from '@/components/UsoExtra';
 import { AssinarModal, MinhaAssinatura } from '@/components/Assinatura';
-import { diasDeTeste, PLANS, planOf, reais, PRECO_FUNCIONARIO_EXTRA } from '@/lib/plans';
+import { diasDeTeste, PLANS, planOf, reais, PRECO_FUNCIONARIO_EXTRA, USO_EXTRA_DISPONIVEL } from '@/lib/plans';
 
 const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
 
@@ -108,9 +108,9 @@ export default function Plano() {
           <div className="alert plano-alerta">
             <span>
               <b>{acabou === 'atendimentos' ? 'Os atendimentos' : 'As mensagens'} deste mês acabaram.</b>{' '}
-              {!teste && profile?.extra_ativo
+              {USO_EXTRA_DISPONIVEL && !teste && profile?.extra_ativo
                 ? 'O uso extra está ligado: o assistente continua respondendo e o excedente entra na próxima fatura.'
-                : `As conversas novas viram recado para a equipe até a cota renovar.${teste ? ' Assine um plano para continuar atendendo.' : ' Para continuar atendendo, ligue o uso extra ou mude de plano.'}`}
+                : `As conversas novas viram recado para a equipe até a cota renovar.${teste ? ' Assine um plano para continuar atendendo.' : ` Para continuar atendendo, ${USO_EXTRA_DISPONIVEL ? 'ligue o uso extra ou ' : ''}mude de plano.`}`}
             </span>
           </div>
         )}
@@ -134,7 +134,7 @@ export default function Plano() {
 
       <MinhaAssinatura dados={pagamentos} onMudou={carregar} />
 
-      {!teste && <UsoExtra plano={atual} />}
+      {USO_EXTRA_DISPONIVEL && !teste && <UsoExtra plano={atual} />}
 
       <div className="plano-cab" id="planos">
         <h2>Planos</h2>
@@ -195,7 +195,7 @@ export default function Plano() {
         )}
       </section>
       <p className="faint" style={{ fontSize: 13, marginTop: 16 }}>
-        Pessoa na equipe além do plano: {reais(PRECO_FUNCIONARIO_EXTRA)}/mês cada.{!teste ? '' : ' Nos planos pagos dá para ligar o uso extra: o assistente continua respondendo depois da cota.'}
+        Pessoa na equipe além do plano: {reais(PRECO_FUNCIONARIO_EXTRA)}/mês cada.{!teste || !USO_EXTRA_DISPONIVEL ? '' : ' Nos planos pagos dá para ligar o uso extra: o assistente continua respondendo depois da cota.'}
       </p>
       {assinar && <AssinarModal plano={assinar} profile={profile} ambiente={pagamentos?.ambiente} onFechar={() => setAssinar(null)} />}
     </div>
