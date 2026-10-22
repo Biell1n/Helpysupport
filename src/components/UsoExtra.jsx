@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
-import { PRECO_EXTRA, reais } from '@/lib/plans';
+import { reais } from '@/lib/plans';
+import { usePrecos } from '@/lib/precos';
 
 const SUGESTOES = [20, 50, 100, 200];
 const moeda = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -17,6 +18,7 @@ export default function UsoExtra({ plano }) {
   const avisar = useToast();
   const [ativo, setAtivo] = useState(!!profile?.extra_ativo);
   const [limite, setLimite] = useState(String(Number(profile?.extra_limite ?? 0) || 50));
+  const { extra: PRECO_EXTRA } = usePrecos();
   const [gasto, setGasto] = useState(null);
   const [atrasada, setAtrasada] = useState(false);
   const [salvando, setSalvando] = useState(false);

@@ -1,21 +1,21 @@
 // Espelho de supabase/functions/_shared/plans.ts — mude os dois juntos.
 
-// preco = preço de lançamento (quem assina agora mantém); precoCheio = quando chegarem WhatsApp e Instagram
+// preco = R$/mês no plano anual (cobrado 12x de uma vez); precoMensal = R$/mês no plano mensal
 export const PLANS = {
   trial: {
-    id: 'trial', nome: 'Teste grátis', preco: 0, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 25, mensagens: 400,
+    id: 'trial', nome: 'Teste grátis', preco: 0, precoMensal: 0, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 25, mensagens: 400,
     ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 0, tabelas: 3, funcionarios: 2,
   },
   essencial: {
-    id: 'essencial', nome: 'Essencial', preco: 79, precoCheio: 97, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 200, mensagens: 4000,
+    id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 200, mensagens: 4000,
     ticketsAbertos: 20, chamados: true, chamadosAvancados: false, integracoes: false, canaisMeta: 0, tabelas: 3, funcionarios: 1,
   },
   profissional: {
-    id: 'profissional', nome: 'Profissional', preco: 197, precoCheio: 247, assistentes: 3, builderIA: true, builderMsgs: 150, atendimentos: 600, mensagens: 9000,
+    id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 150, atendimentos: 600, mensagens: 9000,
     ticketsAbertos: 100, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 2, tabelas: 10, funcionarios: 5, destaque: true,
   },
   business: {
-    id: 'business', nome: 'Business', preco: 497, precoCheio: 597, assistentes: 10, builderIA: true, builderMsgs: 300, atendimentos: 1500, mensagens: 24000,
+    id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 300, atendimentos: 1500, mensagens: 24000,
     ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, funcionarios: 20,
   },
 };
@@ -49,6 +49,17 @@ export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.05 };
 export const PRECO_FUNCIONARIO_EXTRA = 19;
 
 export const planOf = (profile) => PLANS[profile?.plan] ?? PLANS.trial;
+
+/** Quanto o anual economiza em relação ao mensal (em %). */
+export const descontoAnual = (p) => (p.precoMensal ? Math.round((1 - p.preco / p.precoMensal) * 100) : 0);
+
+/** Preços cobrados (espelha precosVigentes de plans.ts). O servidor manda os de verdade, inclusive os de teste. */
+export const PRECOS_PADRAO = {
+  teste: false,
+  planos: Object.fromEntries(['essencial', 'profissional', 'business'].map((id) => [id, { mensal: PLANS[id].precoMensal, anual: PLANS[id].preco * 12 }])),
+  vaga: PRECO_FUNCIONARIO_EXTRA,
+  extra: PRECO_EXTRA,
+};
 
 export const diasDeTeste = (profile) => {
   if (profile?.plan !== 'trial' || !profile?.trial_ends_at) return null;

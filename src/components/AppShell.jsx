@@ -7,6 +7,7 @@ import { VerificarCodigo } from '@/components/DuasEtapas';
 import { aceitar, gravarAceitePendente, TERMOS_VERSAO } from '@/lib/termos';
 import { useUso } from '@/lib/useUso';
 import { diasDeTeste, planOf } from '@/lib/plans';
+import { usePrecos } from '@/lib/precos';
 import { iniciais } from '@/lib/format';
 import { Avatar } from '@/components/TrocarFoto';
 
@@ -92,6 +93,7 @@ function AceiteTermos({ children }) {
 export default function AppShell() {
   const { user, profile, nome, signOut, tipo } = useAuth();
   const [uso, recarregarUso] = useUso();
+  usePrecos(); // com os preços de teste, ajusta a cota do Essencial antes das telas lerem
   const plano = planOf(profile);
   const dias = diasDeTeste(profile);
   const usados = uso?.atendimentos ?? 0;

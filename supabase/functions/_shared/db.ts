@@ -60,7 +60,21 @@ async function planoEmDia<T extends { id: string; plan: string | null }>(p: T): 
   return { ...p, plan: 'trial', trial_ends_at: agora };
 }
 
+// Preços de teste ligados? (helpy_config.precos_teste; guardado por 30 s em cada servidor)
+let testeLido: { valor: boolean; em: number } | null = null;
+export async function precosDeTeste(): Promise<boolean> {
+  if (testeLido && Date.now() - testeLido.em < 30_000) return testeLido.valor;
+  const { data } = await admin.from('helpy_config').select('valor').eq('chave', 'precos_teste').maybeSingle();
+  testeLido = { valor: data?.valor === true, em: Date.now() };
+  return testeLido.valor;
+}
+
 export async function profileOf(userId: string) {
+  const [perfil, precos_teste] = await Promise.all([lerPerfil(userId), precosDeTeste()]);
+  return { ...perfil, precos_teste };
+}
+
+async function lerPerfil(userId: string) {
   const { data, error } = await admin
     .from('profiles')
     .select('id, plan, trial_ends_at, creditos_extra, funcionarios_extra, company_name, full_name, extra_ativo, extra_limite')

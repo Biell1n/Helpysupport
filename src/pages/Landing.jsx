@@ -12,7 +12,8 @@ import Reveal from '@/components/Reveal';
 import { useEfeitosDoMouse } from '@/lib/efeitosDoMouse';
 import VideoDemo, { reduzido } from '@/components/VideoDemo';
 import { useAuth } from '@/contexts/AuthContext';
-import { DIAS_DE_TESTE, PLANS, reais, recursosDoPlano } from '@/lib/plans';
+import { descontoAnual, DIAS_DE_TESTE, PLANS, recursosDoPlano } from '@/lib/plans';
+import PrecoDoPlano from '@/components/PrecoDoPlano';
 import Perto from '@/components/efeitos/Perto';
 import { MARCAS } from '@/components/efeitos/marcas';
 import Grifo from '@/components/efeitos/Grifo';
@@ -461,6 +462,7 @@ export default function Landing() {
   const deslizar = useRolagemSuave();
   useEfeitosDoMouse();
   const pagos = [PLANS.essencial, PLANS.profissional, PLANS.business];
+  const [ciclo, setCiclo] = useState('anual');
   const destino = user ? '/painel' : '/criar-conta';
   const [abertura, setAbertura] = useState(deveMostrarAbertura);
   const [esperando, setEsperando] = useState(abertura);
@@ -805,7 +807,13 @@ export default function Landing() {
           <Reveal className="lp-cab lp-cab-centro">
             <span className="lp-etiqueta">Planos</span>
             <h2 className="lp-h2">Um preço fixo por mês,<br /><Grifo>sem surpresa</Grifo> na fatura.</h2>
-            <p className="lp-lead">Todos começam com {DIAS_DE_TESTE} dias grátis, sem cartão. Preço de lançamento: quem assina agora mantém.</p>
+            <p className="lp-lead">Todos começam com {DIAS_DE_TESTE} dias grátis, sem cartão. No plano anual você paga menos por mês.</p>
+            <div className="lp-ciclo" role="group" aria-label="Forma de cobrança">
+              <button type="button" aria-pressed={ciclo === 'mensal'} onClick={() => setCiclo('mensal')}>Mensal</button>
+              <button type="button" aria-pressed={ciclo === 'anual'} onClick={() => setCiclo('anual')}>
+                Anual <small>até {Math.max(...pagos.map(descontoAnual))}% off</small>
+              </button>
+            </div>
           </Reveal>
           <div className="lp-planos">
             {pagos.map((p, i) => (
@@ -819,10 +827,7 @@ export default function Landing() {
                   <h3>{p.nome}</h3>
                   {p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
                 </div>
-                <p className="lp-preco">
-                  {p.precoCheio && <s className="lp-preco-cheio">{reais(p.precoCheio)}</s>}
-                  {reais(p.preco)}<small>/mês</small>
-                </p>
+                <PrecoDoPlano p={p} ciclo={ciclo} />
                 <ul>
                   {recursosDoPlano(p).map((r) => <li key={r}>{r}</li>)}
                 </ul>

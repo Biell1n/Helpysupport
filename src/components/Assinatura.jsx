@@ -24,7 +24,7 @@ const mascarar = (v) => {
 };
 
 /** Pede CPF/CNPJ e leva para a fatura (Pix, cartão ou boleto) no Asaas. */
-export function AssinarModal({ plano, profile, ambiente, onFechar }) {
+export function AssinarModal({ plano, ciclo = 'mensal', valor, profile, ambiente, onFechar }) {
   const [documento, setDocumento] = useState('');
   const [nome, setNome] = useState(profile?.company_name || profile?.full_name || '');
   const [indo, setIndo] = useState(false);
@@ -36,7 +36,7 @@ export function AssinarModal({ plano, profile, ambiente, onFechar }) {
     setErro('');
     setIndo(true);
     try {
-      const r = await chamar('pagamentos', { action: 'assinar', plano, documento, nome });
+      const r = await chamar('pagamentos', { action: 'assinar', plano, ciclo, documento, nome });
       window.location.href = r.url;
     } catch (e2) {
       setErro(e2.message);
@@ -48,8 +48,12 @@ export function AssinarModal({ plano, profile, ambiente, onFechar }) {
     <Modal aberto onFechar={onFechar} largura={460}>
       <form onSubmit={ir} className="stack">
         <div>
-          <h2 style={{ margin: 0 }}>Assinar o {p.nome}</h2>
-          <p className="faint" style={{ margin: '4px 0 0' }}>{reais(p.preco)}/mês · Pix, cartão ou boleto. Cancele quando quiser.</p>
+          <h2 style={{ margin: 0 }}>Assinar o {p.nome} {ciclo === 'anual' ? 'anual' : 'mensal'}</h2>
+          <p className="faint" style={{ margin: '4px 0 0' }}>
+            {ciclo === 'anual'
+              ? `${reais(valor ?? p.preco * 12)} por ano, de uma vez`
+              : `${reais(valor ?? p.precoMensal)}/mês`} · Pix, cartão ou boleto. Cancele quando quiser.
+          </p>
         </div>
         {ambiente === 'sandbox' && (
           <div className="alert"><span><b>Modo de teste:</b> nada é cobrado de verdade. Use o cartão de teste do Asaas ou simule o Pix no painel de teste.</span></div>
@@ -102,9 +106,9 @@ export function MinhaAssinatura({ dados, onMudou }) {
           <h2 className="card-title" style={{ margin: 0 }}>Sua assinatura</h2>
           {a && (
             <p className="muted" style={{ margin: '4px 0 0' }}>
-              {PLANS[a.plano]?.nome} · {reais(Number(a.valor))}/mês
+              {PLANS[a.plano]?.nome} · {reais(Number(a.valor))}/{a.ciclo === 'anual' ? 'ano' : 'mês'}
               {vagas > 0 ? ` (com ${vagas} ${vagas === 1 ? 'vaga extra' : 'vagas extras'} na equipe)` : ''}
-              {a.status === 'ativa' && a.proximo_vencimento ? ` · próxima cobrança em ${dataBr(a.proximo_vencimento)}` : ''}
+              {a.status === 'ativa' && a.proximo_vencimento ? ` · ${a.ciclo === 'anual' ? 'renova' : 'próxima cobrança'} em ${dataBr(a.proximo_vencimento)}` : ''}
               {a.status === 'cancelada' && a.proximo_vencimento ? ` · vale até ${dataBr(a.proximo_vencimento)}` : ''}
             </p>
           )}

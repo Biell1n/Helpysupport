@@ -5,7 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { chamar } from '@/lib/supabase';
 import UsoExtra from '@/components/UsoExtra';
 import { AssinarModal, MinhaAssinatura } from '@/components/Assinatura';
-import { diasDeTeste, PLANS, planOf, reais, PRECO_FUNCIONARIO_EXTRA, USO_EXTRA_DISPONIVEL } from '@/lib/plans';
+import { descontoAnual, diasDeTeste, PLANS, planOf, reais, USO_EXTRA_DISPONIVEL } from '@/lib/plans';
+import { usePrecos } from '@/lib/precos';
+import PrecoDoPlano from '@/components/PrecoDoPlano';
 
 const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
 
@@ -58,6 +60,8 @@ export default function Plano() {
   const dias = diasDeTeste(profile);
   const [pagamentos, setPagamentos] = useState(null);
   const [assinar, setAssinar] = useState(null);
+  const [ciclo, setCiclo] = useState('anual');
+  const precos = usePrecos();
 
   const carregar = useCallback(async () => {
     try {
@@ -100,7 +104,9 @@ export default function Plano() {
           <p className="muted">
             {teste
               ? dias != null && (dias > 0 ? `Termina em ${dias} ${dias === 1 ? 'dia' : 'dias'}.` : 'Já terminou.')
-              : `${reais(atual.preco)}/mês.`}
+              : pagamentos?.assinatura?.ciclo === 'anual'
+                ? `Anual · ${reais(Number(pagamentos.assinatura.valor))}/ano.`
+                : `${reais(Number(pagamentos?.assinatura?.valor ?? atual.precoMensal))}/mês.`}
           </p>
         </div>
         {teste && <a href="#planos" className="btn btn-senha">Escolher um plano</a>}
@@ -139,8 +145,19 @@ export default function Plano() {
       <div className="plano-cab" id="planos">
         <h2>Planos</h2>
         <p className="muted">
-          Todos têm link, QR code, site, Discord, agenda e relatórios. Preço de lançamento: quem assina agora mantém o valor.
+          Todos têm link, QR code, site, Discord, agenda e relatórios. No anual você paga menos por mês.
         </p>
+        <div className="row" role="group" aria-label="Forma de cobrança" style={{ gap: 6, marginTop: 10 }}>
+          <button type="button" className="chip" aria-pressed={ciclo === 'mensal'} onClick={() => setCiclo('mensal')}>Mensal</button>
+          <button type="button" className="chip" aria-pressed={ciclo === 'anual'} onClick={() => setCiclo('anual')}>
+            Anual <small>até {Math.max(...[PLANS.essencial, PLANS.profissional, PLANS.business].map(descontoAnual))}% off</small>
+          </button>
+        </div>
+        {precos.teste && (
+          <div className="alert" style={{ marginTop: 12 }}>
+            <span><b>Preços de teste ligados:</b> os planos custam o mínimo do Asaas (R$ 5 a R$ 7) e o Essencial tem cota pequena, para testar a cobrança de verdade.</span>
+          </div>
+        )}
       </div>
       <div className="lp-planos">
         {[PLANS.essencial, PLANS.profissional, PLANS.business].map((p) => {
@@ -151,10 +168,7 @@ export default function Plano() {
                 <h3>{p.nome}</h3>
                 {ehAtual ? <span className="badge badge-plain lp-plano-tag">Seu plano</span> : p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
               </div>
-              <p className="lp-preco">
-                {p.precoCheio && <s className="lp-preco-cheio">{reais(p.precoCheio)}</s>}
-                {reais(p.preco)}<small>/mês</small>
-              </p>
+              <PrecoDoPlano p={p} ciclo={ciclo} precos={precos} />
               <dl className="plano-linhas">
                 {LINHAS.map(([rotulo, valor]) => {
                   const v = valor(p);
@@ -195,9 +209,9 @@ export default function Plano() {
         )}
       </section>
       <p className="faint" style={{ fontSize: 13, marginTop: 16 }}>
-        Pessoa na equipe além do plano: {reais(PRECO_FUNCIONARIO_EXTRA)}/mês cada.{!teste || !USO_EXTRA_DISPONIVEL ? '' : ' Nos planos pagos dá para ligar o uso extra: o assistente continua respondendo depois da cota.'}
+        Pessoa na equipe além do plano: {reais(precos.vaga)}/mês cada.{!teste || !USO_EXTRA_DISPONIVEL ? '' : ' Nos planos pagos dá para ligar o uso extra: o assistente continua respondendo depois da cota.'}
       </p>
-      {assinar && <AssinarModal plano={assinar} profile={profile} ambiente={pagamentos?.ambiente} onFechar={() => setAssinar(null)} />}
+      {assinar && <AssinarModal plano={assinar} ciclo={ciclo} valor={precos.planos[assinar][ciclo]} profile={profile} ambiente={pagamentos?.ambiente} onFechar={() => setAssinar(null)} />}
     </div>
   );
 }
