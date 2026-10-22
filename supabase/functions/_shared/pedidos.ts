@@ -298,10 +298,14 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   // devolvido pelo próprio site do Asaas: o pedido vira estornado e a taxa do Helpy sai da conta
   if (evento.event === 'PAYMENT_REFUNDED') {
     const { data: dev } = await db.from('pedidos').update({ status: 'estornado' })
-      .eq('owner_id', ownerId).eq('link_id', linkId).eq('pagamento_id', String(pg.id ?? '')).eq('status', 'pago').select('taxa, agendamento_id');
-    if (dev?.[0]) {
-      await tirarTaxa(db, ownerId, Number(dev[0].taxa));
-      if (dev[0].agendamento_id) await db.from('agendamentos').update({ status: 'cancelado' }).eq('id', dev[0].agendamento_id);
+      .eq('owner_id', ownerId).eq('link_id', linkId).eq('pagamento_id', String(pg.id ?? '')).eq('status', 'pago')
+      .select('taxa, agendamento_id, conversation_id, total, tipo');
+    const d = dev?.[0];
+    if (d) {
+      await tirarTaxa(db, ownerId, Number(d.taxa));
+      if (d.agendamento_id) await db.from('agendamentos').update({ status: 'cancelado' }).eq('id', d.agendamento_id);
+      await avisarCliente(db, d.conversation_id, 'cancelado',
+        `${d.tipo === 'agendamento' ? 'Horário cancelado. ' : ''}O valor de ${reais(Number(d.total))} foi devolvido pela mesma forma de pagamento.`);
     }
     return;
   }
