@@ -211,7 +211,7 @@ export default function Plano() {
       <p className="faint" style={{ fontSize: 13, marginTop: 16 }}>
         Pessoa na equipe além do plano: {reais(precos.vaga)}/mês cada.{!teste || !USO_EXTRA_DISPONIVEL ? '' : ' Nos planos pagos dá para ligar o uso extra: o assistente continua respondendo depois da cota.'}
       </p>
-      {assinar && <AssinarModal plano={assinar} ciclo={ciclo} valor={precos.planos[assinar][ciclo]} profile={profile} ambiente={pagamentos?.ambiente} onFechar={() => setAssinar(null)} />}
+      {assinar && <AssinarModal plano={assinar} ciclo={ciclo} precos={precos} profile={profile} ambiente={pagamentos?.ambiente} onFechar={() => setAssinar(null)} />}
     </div>
   );
 }
