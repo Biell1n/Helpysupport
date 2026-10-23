@@ -192,7 +192,7 @@ function Hero({ user, deslizar }) {
 
       <p className="lp-robo-lado">
         <span className="lp-entra" style={{ '--d': '0.6s' }}>
-          Conte como o seu negócio funciona. O Helpy monta um atendente que responde seus clientes, consulta seus preços e chama
+          Conte como o seu negócio funciona. O Helpy monta um assistente que responde seus clientes, consulta seus preços e chama
           você quando precisa de gente.
         </span>
       </p>
@@ -422,7 +422,7 @@ const COM_HELPY = [
   'Responde na hora, de madrugada e no fim de semana',
   'Consulta preço e estoque de verdade antes de responder',
   'Marca horário e fecha a venda com link de Pix',
-  'O mesmo atendente no site, WhatsApp, Instagram e Discord',
+  'O mesmo assistente no site, WhatsApp, Instagram e Discord',
   'Chama você só quando precisa, com o resumo pronto',
   'Mostra o que os clientes mais perguntam',
 ];
@@ -451,10 +451,10 @@ const TELAS = [
 
 const FAQ = [
   ['Preciso saber programar?', 'Não. Você conversa, revisa o documento e publica um link. Dá para colocar na bio, no site ou mandar pelo WhatsApp.'],
-  ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu atendente, do começo ao fim. Cada plano tem uma cota de atendimentos e um total de mensagens de clientes no mês, que folga para conversas de todos os tamanhos.'],
-  ['E quando a cota acaba?', 'O atendente não some: as conversas passam a virar recados e chamados para a sua equipe até a cota renovar, e você recebe um aviso no painel antes de chegar lá.'],
+  ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu assistente, do começo ao fim. Cada plano tem uma cota de atendimentos e um total de mensagens de clientes no mês, que folga para conversas de todos os tamanhos.'],
+  ['E quando a cota acaba?', 'O assistente não some: as conversas passam a virar recados e chamados para a sua equipe até a cota renovar, e você recebe um aviso no painel antes de chegar lá.'],
   ['Consigo ligar no meu sistema?', 'Sim. Ele lê planilhas do Excel (inclusive no OneDrive e no SharePoint), Google Planilhas, bancos PostgreSQL, MySQL e SQL Server direto, e sistemas com API REST, como SAP e TOTVS Protheus. Sempre só leitura, e só com a sua autorização.'],
-  ['Funciona no WhatsApp?', 'Funciona. Do plano Profissional em diante, o mesmo assistente responde no WhatsApp e no Instagram pela API oficial da Meta (sem chip no celular e sem risco de bloqueio), e o painel mostra o passo a passo para conectar. Em qualquer plano dá para usar o link do chat, o QR code e um bot no Discord.'],
+  ['Funciona no WhatsApp?', 'Funciona, em todos os planos e no teste grátis. O assistente responde no WhatsApp e no Instagram pela API oficial da Meta (sem chip no celular e sem risco de bloqueio): o Essencial conecta 1 conta, o Profissional 2 e o Business até 20. O painel mostra o passo a passo, e se preferir a gente conecta com você. Também dá para usar o link do chat, o QR code e um bot no Discord.'],
 ];
 
 export default function Landing() {
@@ -657,7 +657,7 @@ export default function Landing() {
               </div>
             </div>
             <div className="lp-chamado-caixa">
-              <small>Resumo do atendente</small>
+              <small>Resumo do assistente</small>
               <p>Cliente marcou corte sábado às 9h40 e reclamou do corte anterior. Pediu retorno da equipe.</p>
             </div>
           </Reveal>
@@ -673,7 +673,7 @@ export default function Landing() {
             <span className="lp-etiqueta">Integrações</span>
             <h2 className="lp-h2">Lê o que você <Grifo>já usa.</Grifo></h2>
             <p className="lp-lead">
-              O atendente responde com o dado de agora. Suba uma planilha, ligue uma planilha online ou conecte o seu sistema: ele
+              O assistente responde com o dado de agora. Suba uma planilha, ligue uma planilha online ou conecte o seu sistema: ele
               consulta na hora de responder.
             </p>
           </Reveal>
@@ -718,7 +718,7 @@ export default function Landing() {
             <span className="lp-etiqueta">Canais</span>
             <h2 className="lp-h2">Um assistente, <Grifo>todos os canais.</Grifo></h2>
             <p className="lp-lead">
-              O mesmo atendente responde no link do chat, no WhatsApp, no Instagram e no Discord. Preços, regras e agenda são os
+              O mesmo assistente responde no link do chat, no WhatsApp, no Instagram e no Discord. Preços, regras e agenda são os
               mesmos em todo lugar, e as conversas caem todas no mesmo painel.
             </p>
           </Reveal>
@@ -868,9 +868,9 @@ export default function Landing() {
               <LightRays raysColor="#9ec0ff" raysOrigin="top-center" lightSpread={0.9} rayLength={2.4} raysSpeed={0.8} glow={0.7} haze={0.3} followMouse mouseInfluence={0.08} intro={false} />
             </Perto>
             <h2>Teste grátis<br />por {DIAS_DE_TESTE} dias.</h2>
-            <p>Em uma tarde o seu atendente está no ar. Sem cartão para testar.</p>
+            <p>Em uma tarde o seu assistente está no ar. Sem cartão para testar.</p>
             <Link to={destino} className="lp-btn lp-btn-claro" data-ima="">
-              {user ? 'Ir para o painel' : 'Criar meu atendente'} <ArrowRight />
+              {user ? 'Ir para o painel' : 'Criar meu assistente'} <ArrowRight />
             </Link>
           </Reveal>
         </div>

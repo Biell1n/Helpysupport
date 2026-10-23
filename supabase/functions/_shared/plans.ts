@@ -32,11 +32,11 @@ export interface Plan {
 export const PLANS: Record<PlanId, Plan> = {
   trial: {
     id: 'trial', nome: 'Teste grátis', preco: 0, precoMensal: 0, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 25, mensagens: 400,
-    ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 0, tabelas: 3, msgsPorAtendimento: 30, funcionarios: 2,
+    ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 1, tabelas: 3, msgsPorAtendimento: 30, funcionarios: 2,
   },
   essencial: {
     id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 200, mensagens: 4000,
-    ticketsAbertos: 20, chamados: true, chamadosAvancados: false, integracoes: false, canaisMeta: 0, tabelas: 3, msgsPorAtendimento: 40, funcionarios: 1,
+    ticketsAbertos: 20, chamados: true, chamadosAvancados: true, integracoes: false, canaisMeta: 1, tabelas: 3, msgsPorAtendimento: 40, funcionarios: 1,
   },
   profissional: {
     id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 150, atendimentos: 600, mensagens: 9000,

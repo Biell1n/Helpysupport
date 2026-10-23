@@ -61,6 +61,19 @@ function Conversa() {
     setArquivos([]);
   };
 
+  // assistente novo vindo do painel: a descrição já é a primeira mensagem, vai sozinha.
+  // (no "Ensinar" a frase chega pela metade, então espera a pessoa completar)
+  const { id } = useParams();
+  const navegar = useNavigate();
+  const enviouComeco = useRef(false);
+  useEffect(() => {
+    if (!comeco || id || enviouComeco.current) return;
+    enviouComeco.current = true;
+    enviar(String(comeco).slice(0, 2000));
+    // tira o texto do histórico para não reenviar ao recarregar a página
+    navegar('.', { replace: true, state: null });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const semCota = b.plano && b.plano.builderRestantes <= 0;
 
   return (

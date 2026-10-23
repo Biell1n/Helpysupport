@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, CalendarDays, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, Users, Wallet } from 'lucide-react';
+import { BarChart3, CalendarDays, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, UserRound, Users, Wallet } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { VerificarCodigo } from '@/components/DuasEtapas';
@@ -130,12 +130,17 @@ export default function AppShell() {
 
         <nav className="side-nav" aria-label="Seções do painel">
           {NAV.filter((n) => n.tipos.includes(tipo)).map(({ to, label, icon: Icon, end, contador }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
+            <NavLink key={to + label} to={to} end={end} aria-label={label} className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
               <Icon aria-hidden="true" />
               <span className="side-label">{label}</span>
               {contador && uso?.[contador] > 0 && <span className="side-count">{uso[contador]}</span>}
             </NavLink>
           ))}
+          {/* no celular o rodapé some: a conta (e o Sair) entra no menu */}
+          <NavLink to="/painel/conta" aria-label="Sua conta" className={({ isActive }) => `side-link side-so-celular${isActive ? ' active' : ''}`}>
+            <UserRound aria-hidden="true" />
+            <span className="side-label">Conta</span>
+          </NavLink>
         </nav>
 
         <div className="side-foot">

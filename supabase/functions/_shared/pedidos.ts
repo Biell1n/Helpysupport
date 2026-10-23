@@ -15,6 +15,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { asaas, type Ambiente, type ClienteAsaas, FORMA, pago } from './asaas.ts';
 import { buscar } from './busca.ts';
+import { linhasDasTabelas } from './fontes.ts';
 import { type Canal, enviarPeloCanal } from './canais.ts';
 import { horarioPago, RESERVA_MIN } from './agenda.ts';
 import { type PlanId, TAXA_VENDAS } from './plans.ts';
@@ -63,7 +64,7 @@ async function montarItens(
   const locais = tabelas.filter((t) => t.fonte === 'manual' || t.fonte === 'url');
   const ids = locais.map((t) => t.id);
   const [{ data: linhas }, { data: tipos }] = await Promise.all([
-    ids.length ? db.from('tabela_linhas').select('id, tabela_id, dados').in('tabela_id', ids).limit(5000) : Promise.resolve({ data: [] }),
+    linhasDasTabelas<{ id: string; tabela_id: string; dados: Record<string, string> }>(db, ids, 'id, tabela_id, dados').then((data) => ({ data })),
     ids.length ? db.from('tabela_colunas').select('tabela_id, chave, rotulo, tipo').in('tabela_id', ids) : Promise.resolve({ data: [] }),
   ]);
   const colunasDe = (tid: string) => (tipos ?? []).filter((c) => c.tabela_id === tid);

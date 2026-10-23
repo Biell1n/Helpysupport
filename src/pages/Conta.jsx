@@ -11,7 +11,7 @@ import { useToast } from '@/components/Toasts';
 import EscolherTema from '@/components/EscolherTema';
 
 export default function Conta() {
-  const { user, profile, reloadProfile, tipo } = useAuth();
+  const { user, profile, reloadProfile, signOut, tipo } = useAuth();
   const avisar = useToast();
   const [f, setF] = useState({ full_name: '', company_name: '', phone: '' });
   const [senha, setSenha] = useState('');
@@ -177,8 +177,11 @@ export default function Conta() {
 
       <section className="card stack">
         <h2 className="card-title">Aparelhos</h2>
-        <p className="muted" style={{ fontSize: 14 }}>Esqueceu a conta aberta em outro computador ou acha que alguém entrou? Encerre todas as sessões.</p>
-        <div><button type="button" className="btn btn-ghost" onClick={sairDeTudo}>Sair de todos os aparelhos</button></div>
+        <p className="muted" style={{ fontSize: 14 }}>Sair só daqui, ou de todos os lugares se esqueceu a conta aberta em outro computador ou acha que alguém entrou.</p>
+        <div className="row row-wrap" style={{ gap: 8 }}>
+          <button type="button" className="btn btn-ghost" onClick={signOut}>Sair deste aparelho</button>
+          <button type="button" className="btn btn-quiet" onClick={sairDeTudo}>Sair de todos os aparelhos</button>
+        </div>
       </section>
 
       <section className="card stack" style={{ marginTop: 16, borderColor: 'var(--brasa)' }}>

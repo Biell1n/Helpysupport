@@ -47,10 +47,10 @@ const LINHAS = [
   ['Assistentes', (p) => p.assistentes],
   ['Pessoas na equipe', (p) => p.funcionarios],
   ['WhatsApp e Instagram', (p) => (p.canaisMeta ? `até ${p.canaisMeta} contas` : null)],
-  ['API e banco SQL', (p) => (p.integracoes ? 'Sim' : null)],
+  ['Ligar ao seu sistema (estoque, ERP)', (p) => (p.integracoes ? 'Sim' : null)],
   ['Tabelas de dados', (p) => p.tabelas],
   ['Chamados abertos', (p) => p.ticketsAbertos ?? 'Sem limite'],
-  ['Criador com IA', (p) => `${n(p.builderMsgs)} msgs`],
+  ['Ajustes conversando com a IA', (p) => `${n(p.builderMsgs)} mensagens/mês`],
 ];
 
 export default function Plano() {
@@ -184,7 +184,7 @@ export default function Plano() {
                 <button type="button" className="btn btn-ghost btn-block" disabled>Plano atual</button>
               ) : pagamentos?.cobranca ? (
                 <button type="button" className={`btn btn-block ${p.destaque ? 'btn-senha' : 'btn-ghost'}`} onClick={() => setAssinar(p.id)}>
-                  <CreditCard /> Assinar {p.nome}
+                  <CreditCard /> {!teste && p.precoMensal < atual.precoMensal ? `Mudar para o ${p.nome}` : `Assinar ${p.nome}`}
                 </button>
               ) : VENDAS ? (
                 <a className={`btn btn-block ${p.destaque ? 'btn-senha' : 'btn-ghost'}`} href={`${VENDAS}${VENDAS.includes('wa.me') ? `?text=${encodeURIComponent(`Quero assinar o plano ${p.nome} do Helpy`)}` : ''}`} target="_blank" rel="noreferrer">

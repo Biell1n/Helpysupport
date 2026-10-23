@@ -110,14 +110,6 @@
   background: rgba(10, 17, 26, 0.85);
 }
 
-/* chamado selecionado (azul): textos e selos legíveis por cima */
-[data-tema='escuro'] .ticket[aria-current='true'] :is(.ticket-sub, .ticket-meta, .stub-num small) {
-  color: #ffffff;
-}
-
-[data-tema='escuro'] .ticket[aria-current='true'] :is(.ticket-meta .badge, .selo-canal) {
-  background: rgba(11, 26, 44, 0.22);
-}
 
 [data-tema='escuro'] .side-count {
   color: #0b1a2c;
@@ -250,4 +242,63 @@
 [data-tema='escuro'] .lp-plano-destaque .lp-btn-claro {
   background: var(--senha);
   color: #ffffff;
+}
+
+/* ---------- página inicial no escuro ---------- */
+
+/* céu vira noite: a imagem escurece e o texto claro continua legível */
+[data-tema='escuro'] .lp-robo {
+  background: #0c1520;
+}
+
+[data-tema='escuro'] .lp-robo-ceu {
+  animation: none;
+  filter: brightness(0.32) saturate(1.35);
+}
+
+[data-tema='escuro'] :is(.lp-nav, .lp-btn-vidro) {
+  background: rgba(12, 21, 32, 0.55);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-tema='escuro'] .lp-btn-vidro:hover {
+  background: rgba(18, 29, 42, 0.85);
+}
+
+[data-tema='escuro'] .lp-nav a:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-tema='escuro'] .lp-top[data-rolou='true'] {
+  background: rgba(8, 13, 20, 0.78);
+}
+
+[data-tema='escuro'] .lp-filme-passos {
+  background: rgba(18, 29, 42, 0.78);
+}
+
+/* telinhas dos passos e cartões de prova: fundo noturno em vez do céu claro */
+[data-tema='escuro'] :is(.lp-passo-tela, .lp-bento-prova) {
+  background: linear-gradient(160deg, #16263a, #0f1a27);
+}
+
+/* grade de pontos: presença, sem brigar com o texto */
+[data-tema='escuro'] .lp-sec-pontos .lp-fundo-efeito {
+  opacity: 0.22;
+}
+
+/* horário marcado à mão: se destaca do fundo da grade */
+[data-tema='escuro'] .cal-ev {
+  background: #22405f;
+  box-shadow: inset 3px 0 0 var(--azul-forte);
+}
+
+[data-tema='escuro'] .cal-legenda i[data-cor='manual'] {
+  background: #22405f;
+}
+
+/* plano em destaque: contorno azul, porque o fundo sozinho quase não muda */
+[data-tema='escuro'] .lp-plano-destaque {
+  border-color: var(--senha);
+  box-shadow: 0 0 0 1px var(--senha);
 }

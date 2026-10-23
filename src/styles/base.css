@@ -17,7 +17,7 @@
   /* texto: tinta azul-marinho */
   --tinta: #0b1a2c;
   --tinta-2: #4a5c71;
-  --tinta-3: #8394a8;
+  --tinta-3: #5f7084; /* 5:1 sobre o branco: texto de apoio ainda legível */
   --sobre-tinta: #ffffff;
 
   --linha: #e1e9f1;

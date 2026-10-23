@@ -220,12 +220,22 @@
     font-size: 13.5px;
   }
 
+  /* só o ícone na faixa, mas o nome continua para leitor de tela */
   .side-link span.side-label {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
+
   .side-link.active span.side-label {
-    display: inline;
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
   }
 
   .side-foot {
@@ -349,9 +359,8 @@
 }
 
 .msg-agent .msg-body {
-  background: var(--branco);
-  border: 1px solid var(--linha);
-  box-shadow: inset 2px 0 0 rgba(31, 102, 244, 0.7);
+  background: color-mix(in srgb, var(--senha) 7%, var(--branco));
+  border: 1px solid color-mix(in srgb, var(--senha) 25%, var(--linha));
   border-bottom-left-radius: var(--r-sm);
 }
 
@@ -778,18 +787,9 @@
 }
 
 .ticket[aria-current='true'] .stub {
-  background: var(--senha);
-  color: var(--sobre-senha);
-}
-
-.ticket[aria-current='true'] .stub-num {
-  border-right-color: rgba(255, 255, 255, 0.4);
-}
-
-.ticket[aria-current='true'] .ticket-sub,
-.ticket[aria-current='true'] .ticket-meta,
-.ticket[aria-current='true'] .stub-num small {
-  color: rgba(255, 255, 255, 0.78);
+  background: var(--azul-claro);
+  color: var(--tinta);
+  box-shadow: inset 3px 0 0 var(--senha);
 }
 
 .ticket-title {
@@ -823,13 +823,6 @@
   white-space: nowrap;
 }
 
-/* no chamado aberto (fundo azul) os selos ficam brancos */
-.ticket[aria-current='true'] .ticket-meta .badge,
-.ticket[aria-current='true'] .selo-canal {
-  --cor-canal: #fff;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.18);
-}
 
 .inbox-detail {
   display: flex;
@@ -1133,8 +1126,24 @@
 }
 
 .cal-slot {
+  display: block;
+  width: 100%;
   height: 52px;
+  padding: 0;
+  border: 0;
   border-bottom: 1px solid var(--linha);
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cal-slot:not(.fechado):hover {
+  background: color-mix(in srgb, var(--senha) 6%, transparent);
+}
+
+.cal-slot:focus-visible {
+  outline: 2px solid var(--senha);
+  outline-offset: -2px;
 }
 
 .cal-slot.fechado {
@@ -3013,7 +3022,7 @@
 
 /* um número manda na faixa: atendimentos do mês */
 .kpi-faixa > .kpi:first-child .kpi-valor {
-  font-size: 52px;
+  font-size: 44px;
 }
 
 /* faixa de dois números (Pedidos, Carteira) */
@@ -3045,4 +3054,113 @@
 .assinar-resumo b {
   font-size: 18px;
   font-variant-numeric: tabular-nums;
+}
+
+/* entrada de Conta no menu: só no celular (no computador ela fica no rodapé) */
+.side-link.side-so-celular {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .side-link.side-so-celular {
+    display: flex;
+  }
+
+  /* a faixa de ícones rola: o fim esmaecido mostra que tem mais */
+  .side-nav {
+    mask-image: linear-gradient(90deg, #000 85%, transparent);
+  }
+}
+
+/* toque: alvo mínimo de 44px nos botões pequenos */
+@media (pointer: coarse) {
+  .btn-sm,
+  .btn-icon,
+  .chip {
+    min-height: 44px;
+  }
+
+  .btn-icon {
+    min-width: 44px;
+  }
+}
+
+/* abas da caixa de atendimentos: cabem numa linha (rola se faltar espaço) */
+.inbox-list-head .tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.inbox-list-head .tab {
+  flex: 1 0 auto;
+  white-space: nowrap;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+/* "Não se aplica" ao lado do campo: texto discreto, não um X solto */
+.doc-nao-se-aplica {
+  flex: 0 0 auto;
+  color: var(--tinta-3);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* legenda da agenda */
+.cal-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+
+.cal-legenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-legenda i {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid var(--linha-forte);
+}
+
+.cal-legenda i[data-cor='assistente'] {
+  background: var(--senha);
+  border-color: var(--senha);
+}
+
+.cal-legenda i[data-cor='manual'] {
+  background: var(--azul-claro);
+}
+
+.cal-legenda i[data-cor='fechado'] {
+  background: repeating-linear-gradient(-45deg, var(--papel-2) 0 3px, var(--linha) 3px 6px);
+}
+
+/* dados do chamado: recolhíveis (fechados de início no celular) */
+.detail-dados > summary {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .detail-dados > summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--linha);
+    background: var(--noite);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .detail-dados .detail-info {
+    max-height: 40vh;
+    overflow-y: auto;
+  }
 }

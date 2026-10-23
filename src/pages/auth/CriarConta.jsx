@@ -119,7 +119,7 @@ export default function CriarConta() {
             ? 'Depois de confirmar o e-mail, você entra na equipe pelo mesmo link.'
             : visitante
             ? 'Para falar com a equipe das empresas e acompanhar seus chamados.'
-            : '7 dias com tudo liberado.'}{' '}
+            : '7 dias grátis, sem cartão.'}{' '}
           Já tem conta?{' '}
           <Link to={`/entrar${deQuery}`}>Entrar</Link>
         </p>
@@ -183,7 +183,7 @@ export default function CriarConta() {
           </label>
         )}
         {erro && <p className="error-text" role="alert">{erro}</p>}
-        <button className="btn btn-senha btn-lg btn-block" disabled={enviando || !aceite || (captchaLigado ? cap.falta : robo.estado !== 'ok')}>
+        <button className="btn btn-senha btn-lg btn-block" disabled={enviando}>
           {enviando ? 'Criando…' : 'Criar conta'}
         </button>
       </form>

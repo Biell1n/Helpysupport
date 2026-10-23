@@ -18,7 +18,7 @@ import {
   type AgendaConfig, agendamentosDaConversa, alterarAgendamento, carregarAgenda, descreverAgendamento, hojeNoFuso, horariosLivres, marcar,
   servicoDaAgenda,
 } from './agenda.ts';
-import { type ApiConfig, consultarApi, sincronizarUrl, VALIDADE_URL_MS } from './fontes.ts';
+import { type ApiConfig, consultarApi, linhasDasTabelas, sincronizarUrl, VALIDADE_URL_MS } from './fontes.ts';
 import { configSql, consultarSql } from './sql.ts';
 import {
   allCollections, COBRA_SINAL, type CollectionDef, type Config, describeConfig, normalizeConfig, type Schema, slug, valueOf, VENDE,
@@ -650,8 +650,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       t.sincronizada_em = new Date().toISOString();
     }
     const termo = semAcento(String(args.busca ?? '').trim());
-    const { data } = await db.from('tabela_linhas').select('dados').eq('tabela_id', t.id).order('criada_em').limit(2000);
-    const todas = data ?? [];
+    const todas = await linhasDasTabelas<{ dados: Record<string, unknown> }>(db, [t.id], 'dados');
     if (!todas.length) return { encontrados: 0, aviso: `A tabela "${t.nome}" está vazia.` };
     const linha = (l: { dados: Record<string, unknown> }, curto = false) => {
       const o: Record<string, string> = {};
@@ -774,7 +773,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       escalado_em: new Date().toISOString(),
       ...(r.cliente ? { cliente_id: r.cliente.id, cliente_email: r.cliente.email } : {}),
     }).eq('id', conversationId);
-    return { ok: true, mensagem: 'Chamado aberto. Avise que alguém da equipe vai responder nesta mesma conversa (e pelo e-mail da conta, se ela sair da página).' };
+    return { ok: true, mensagem: 'Chamado aberto. Avise que alguém da equipe vai responder nesta mesma conversa (se a pessoa sair, a resposta fica guardada aqui quando ela voltar). Não prometa e-mail, ligação nem prazo.' };
   }
 
   if (nome === 'encerrar_atendimento') {

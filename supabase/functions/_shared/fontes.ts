@@ -33,6 +33,28 @@ export type Linha = Record<string, string>;
 
 const LIMITE_BYTES = 3_000_000;
 const LIMITE_LINHAS = 5_000;
+
+/**
+ * Todas as linhas das tabelas, em páginas de mil (o banco devolve no máximo mil
+ * por consulta). Sem isso, numa tabela grande o assistente não via o fim dela.
+ */
+export async function linhasDasTabelas<T = Record<string, unknown>>(
+  db: SupabaseClient,
+  tabelaIds: string[],
+  colunas: string,
+): Promise<T[]> {
+  if (!tabelaIds.length) return [];
+  const out: T[] = [];
+  const teto = LIMITE_LINHAS * tabelaIds.length;
+  for (let de = 0; de < teto; de += 1000) {
+    const { data, error } = await db.from('tabela_linhas').select(colunas).in('tabela_id', tabelaIds)
+      .order('tabela_id').order('criada_em').order('id').range(de, de + 999);
+    if (error) throw error;
+    out.push(...((data ?? []) as T[]));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
 const TEMPO_MS = 10_000;
 export const VALIDADE_URL_MS = 6 * 60 * 60 * 1000;
 
