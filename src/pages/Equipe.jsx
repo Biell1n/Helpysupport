@@ -149,7 +149,7 @@ export default function Equipe() {
         <h2 className="card-title">Pessoas</h2>
         {!d ? (
           <p className="muted">Carregando…</p>
-        ) : d.membros.length === 0 ? (
+        ) : !d.membros?.length ? (
           <p className="muted" style={{ fontSize: 14 }}>Ninguém ainda. Gere um link e mande para o funcionário: ele cria a conta por ele.</p>
         ) : (
           d.membros.map((m) => (
