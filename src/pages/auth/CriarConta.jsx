@@ -128,7 +128,7 @@ export default function CriarConta() {
         <div className="tipo-conta" role="radiogroup" aria-label="Tipo de conta">
           <button type="button" role="radio" aria-checked={tipo === 'empresa'} onClick={() => setTipo('empresa')}>
             <b>Sou empresa</b>
-            <span>Quero criar um atendente com IA</span>
+            <span>Quero criar um assistente com IA</span>
           </button>
           <button type="button" role="radio" aria-checked={tipo === 'cliente'} onClick={() => setTipo('cliente')}>
             <b>Sou cliente</b>

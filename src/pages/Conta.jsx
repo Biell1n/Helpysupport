@@ -11,7 +11,7 @@ import { useToast } from '@/components/Toasts';
 import EscolherTema from '@/components/EscolherTema';
 
 export default function Conta() {
-  const { user, profile, reloadProfile, signOut, tipo } = useAuth();
+  const { user, profile, reloadProfile, tipo } = useAuth();
   const avisar = useToast();
   const [f, setF] = useState({ full_name: '', company_name: '', phone: '' });
   const [senha, setSenha] = useState('');
@@ -108,7 +108,6 @@ export default function Conta() {
           <h1>Sua conta</h1>
           <p>{user?.email}</p>
         </div>
-        <button type="button" className="btn btn-ghost" onClick={signOut}>Sair</button>
       </header>
 
       <section className="card stack" style={{ marginBottom: 16 }}>
@@ -120,7 +119,7 @@ export default function Conta() {
       </section>
 
       <form className="card stack" onSubmit={salvar} style={{ marginBottom: 16 }}>
-        <h2 className="card-title">Dados</h2>
+        <h2 className="card-title">Seus dados</h2>
         <TrocarFoto userId={user.id} nomeArquivo="perfil" foto={profile?.foto_url} nome={f.full_name || user?.email} onSalvar={salvarFoto} redondo />
         <div className="grid-2">
           <label className="field">

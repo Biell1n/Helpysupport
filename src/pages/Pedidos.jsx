@@ -13,7 +13,7 @@ const STATUS = {
   aguardando: ['Aguardando pagamento', 'badge-waiting'],
   pago: ['Pago', 'badge-closed'],
   cancelado: ['Cancelado', 'badge-bot'],
-  estornado: ['Devolvido', 'badge-bot'],
+  estornado: ['Estornado', 'badge-bot'],
 };
 const FILTROS = [
   { id: 'todos', rotulo: 'Todos' },
@@ -37,7 +37,8 @@ export default function Pedidos() {
       .select('id, numero, tipo, itens, total, status, cliente_nome, link_url, forma, pago_em, criado_em, conversation_id')
       .order('criado_em', { ascending: false })
       .limit(200);
-    if (error) avisar('Não deu para carregar os pedidos', { erro: true, texto: error.message });
+    // erro não vira "nenhum pedido ainda": mostra o aviso e deixa tentar de novo
+    if (error) return setPedidos('erro');
     setPedidos(data ?? []);
   }, [avisar]);
 
@@ -89,12 +90,12 @@ export default function Pedidos() {
       avisar(`Pedido #${p.numero} devolvido`, { texto: 'O valor volta para o cliente pela mesma forma de pagamento.' });
       carregar();
     } catch (e) {
-      avisar('Não deu para devolver', { erro: true, texto: e.message });
+      avisar('Não deu para estornar', { erro: true, texto: e.message });
     }
   };
 
   return (
-    <div className="page" style={{ maxWidth: 960 }}>
+    <div className="page">
       <header className="page-head">
         <div>
           <h1>Pedidos</h1>
@@ -104,6 +105,12 @@ export default function Pedidos() {
       </header>
 
       {pedidos === null && <div className="skeleton" style={{ height: 200 }} />}
+      {pedidos === 'erro' && (
+        <div className="alert alert-erro">
+          <span>Não conseguimos carregar os pedidos agora. Confira a internet.</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={carregar}>Tentar de novo</button>
+        </div>
+      )}
 
       {pedidos?.length === 0 && (
         <div className="empty">
@@ -116,14 +123,22 @@ export default function Pedidos() {
 
       {pedidos?.length > 0 && (
         <>
-          <div className="pedidos-resumo">
-            <div className="card"><span className="faint">Vendido</span><b><Counter value={resumo.vendido} format={{ style: 'currency', currency: 'BRL' }} /></b><span className="faint">{resumo.pagos} pago{resumo.pagos === 1 ? '' : 's'}</span></div>
-            <div className="card"><span className="faint">Aguardando pagamento</span><b><Counter value={resumo.emAberto} format={{ style: 'currency', currency: 'BRL' }} /></b><span className="faint">{resumo.aguardando} pedido{resumo.aguardando === 1 ? '' : 's'}</span></div>
-          </div>
+          <section className="card kpi-faixa kpi-faixa-2">
+            <div className="kpi">
+              <span className="eyebrow">Vendido</span>
+              <span className="kpi-valor"><Counter value={resumo.vendido} format={{ style: 'currency', currency: 'BRL' }} /></span>
+              <span className="faint">{resumo.pagos} pago{resumo.pagos === 1 ? '' : 's'}</span>
+            </div>
+            <div className="kpi">
+              <span className="eyebrow">Aguardando pagamento</span>
+              <span className="kpi-valor"><Counter value={resumo.emAberto} format={{ style: 'currency', currency: 'BRL' }} /></span>
+              <span className="faint">{resumo.aguardando} pedido{resumo.aguardando === 1 ? '' : 's'}</span>
+            </div>
+          </section>
 
-          <div className="row row-wrap" style={{ gap: 6, margin: '20px 0 12px' }} role="tablist" aria-label="Filtrar pedidos">
+          <div className="row row-wrap" style={{ gap: 6, margin: '20px 0 12px' }} role="group" aria-label="Filtrar pedidos">
             {FILTROS.map((f) => (
-              <button key={f.id} type="button" role="tab" aria-selected={filtro === f.id} className={`btn btn-sm ${filtro === f.id ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltro(f.id)}>
+              <button key={f.id} type="button" aria-pressed={filtro === f.id} className="chip" onClick={() => setFiltro(f.id)}>
                 {f.rotulo}
               </button>
             ))}
@@ -159,13 +174,13 @@ export default function Pedidos() {
                         <Link to={`/painel/atendimentos?id=${p.conversation_id}`} className="btn btn-quiet btn-sm"><MessagesSquare size={14} /> Conversa</Link>
                       )}
                       {p.status === 'aguardando' && p.link_url && (
-                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => copiar(p.link_url)}><Copy size={14} /> Link</button>
+                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => copiar(p.link_url)}><Copy size={14} /> Copiar link de pagamento</button>
                       )}
                       {p.status === 'aguardando' && tipo === 'empresa' && (
                         <button type="button" className="btn btn-quiet btn-sm" onClick={() => setCancelando(p)}>Cancelar</button>
                       )}
                       {p.status === 'pago' && tipo === 'empresa' && (
-                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => setDevolvendo(p)}>Devolver</button>
+                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => setDevolvendo(p)}>Estornar</button>
                       )}
                     </div>
                   </div>
@@ -187,9 +202,9 @@ export default function Pedidos() {
       />
       <Confirmar
         aberto={!!devolvendo}
-        titulo={`Devolver o pedido #${devolvendo?.numero ?? ''}?`}
+        titulo={`Estornar o pedido #${devolvendo?.numero ?? ''}?`}
         texto={devolvendo ? `${Number(devolvendo.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} voltam para o cliente pelo Asaas, na mesma forma de pagamento.${devolvendo.tipo === 'agendamento' ? ' O horário é cancelado.' : ' O estoque não volta sozinho: ajuste em Dados se precisar.'}` : ''}
-        acao="Devolver"
+        acao="Estornar"
         voltar="Voltar"
         segurar
         perigo

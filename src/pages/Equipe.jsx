@@ -87,7 +87,12 @@ export default function Equipe() {
   const [d, setD] = useState(null);
   const [ocupado, setOcupado] = useState(false);
 
-  const carregar = useCallback(() => chamar('conta', { action: 'equipe' }).then(setD).catch((e) => avisar('Não deu para carregar', { erro: true, texto: e.message })), [avisar]);
+  const [erro, setErro] = useState(false);
+  // erro não pode deixar a tela em "Carregando…" para sempre
+  const carregar = useCallback(() => {
+    setErro(false);
+    return chamar('conta', { action: 'equipe' }).then(setD).catch(() => setErro(true));
+  }, []);
   useEffect(() => {
     carregar();
   }, [carregar]);
@@ -147,7 +152,12 @@ export default function Equipe() {
 
       <section className="card stack" style={{ marginBottom: 16 }}>
         <h2 className="card-title">Pessoas</h2>
-        {!d ? (
+        {erro ? (
+          <div className="alert alert-erro">
+            <span>Não conseguimos carregar a equipe agora. Confira a internet.</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={carregar}>Tentar de novo</button>
+          </div>
+        ) : !d ? (
           <p className="muted">Carregando…</p>
         ) : !d.membros?.length ? (
           <p className="muted" style={{ fontSize: 14 }}>Ninguém ainda. Gere um link e mande para o funcionário: ele cria a conta por ele.</p>

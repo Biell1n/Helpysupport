@@ -5,7 +5,6 @@ import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { quando } from '@/lib/format';
 import { IconeDoCanal } from '@/components/IconesCanais';
-import Faisca from '@/components/Faisca';
 import Abas from '@/components/Abas';
 import '@/styles/relatorios.css';
 
@@ -545,10 +544,9 @@ function PorPessoa({ dias }) {
   );
 }
 
-function Numero({ rotulo, valor, detalhe, variacao, faisca }) {
+function Numero({ rotulo, valor, detalhe, variacao }) {
   return (
-    <div className="card rel-numero">
-      <Faisca valores={faisca} className="rel-faisca" />
+    <div className="rel-numero">
       <span className="rel-numero-rotulo">{rotulo}</span>
       <span className="rel-numero-valor">{valor}</span>
       {(detalhe || variacao != null) && (
@@ -618,13 +616,12 @@ export default function Relatorios() {
         </div>
       ) : dados ? (
         <>
-          <section className="rel-numeros">
+          <section className="card rel-numeros">
             <Numero
               rotulo="Conversas"
               valor={fmt(r.conversas)}
               variacao={variacao}
               detalhe={variacao != null ? ` vs. ${dias} dias antes` : r.conversas ? `em ${dias} dias` : 'nenhuma ainda'}
-              faisca={(dados.por_dia ?? []).map((d) => d.conversas)}
             />
             <Numero
               rotulo="Resolvidas pelo assistente"
@@ -634,7 +631,6 @@ export default function Relatorios() {
             <Numero
               rotulo="Viraram chamado"
               valor={fmt(r.chamados)}
-              faisca={(dados.por_dia ?? []).map((d) => d.chamados)}
               detalhe={r.chamados_abertos ? `${fmt(r.chamados_abertos)} ainda abertos` : 'nenhum aberto'}
             />
             <Numero

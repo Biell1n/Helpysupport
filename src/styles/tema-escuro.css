@@ -6,26 +6,31 @@
 :root[data-tema='escuro'] {
   color-scheme: dark;
 
-  --noite: #0d1621;
-  --papel: #0a111a;
-  --branco: #111b27;
-  --papel-2: #162230;
+  /* camadas: página < cartão < área interna; o cartão precisa se ver */
+  --noite: #0c1520;
+  --papel: #080d14;
+  --branco: #121d2a;
+  --papel-2: #1a2736;
+  --elevado: #1d2a3a;
 
   --tinta: #e4ebf3;
   --tinta-2: #a6b5c6;
-  --tinta-3: #718498;
+  --tinta-3: #8597ab;
   --sobre-tinta: #0b1a2c;
 
-  --linha: #1d2a39;
-  --linha-forte: #2b3b4e;
+  --linha: #223142;
+  --linha-forte: #34465b;
 
   --azul: #5b82aa;
   --azul-claro: #182a3d;
   --azul-forte: #8db4dc;
 
-  --senha: #4a85ff;
-  --senha-escura: #2f6cf0;
+  /* azul da senha mais fechado: texto branco por cima continua legível */
+  --senha: #2f6cf0;
+  --senha-escura: #2459d6;
   --senha-clara: rgba(74, 133, 255, 0.18);
+  --senha-texto: #6a9bff;
+  --ambar: #e0a63a;
   --sobre-senha: #ffffff;
 
   --folha: #3dbb84;
@@ -39,6 +44,11 @@
 }
 
 /* cores que o tema claro escreve direto */
+/* botão principal claro, mas sem ofuscar */
+[data-tema='escuro'] .btn-primary {
+  background: #d6e1ed;
+}
+
 [data-tema='escuro'] .btn-primary:hover:not(:disabled) {
   background: #ffffff;
 }
@@ -82,6 +92,93 @@
   transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease !important;
 }
 
+/* tela de entrar: o painel de arte tem fundo de céu claro fixo, então lá dentro
+   volta a tinta do tema claro */
+[data-tema='escuro'] .auth-arte {
+  --tinta: #0b1a2c;
+  --tinta-2: #4a5c71;
+  --azul-forte: #2c5d8f;
+  --senha: #1f66f4;
+  color: var(--tinta);
+}
+
+[data-tema='escuro'] .cal-slot.fechado {
+  background: repeating-linear-gradient(-45deg, #0d151f 0 6px, #121c28 6px 12px);
+}
+
+[data-tema='escuro'] .builder-top {
+  background: rgba(10, 17, 26, 0.85);
+}
+
+/* chamado selecionado (azul): textos e selos legíveis por cima */
+[data-tema='escuro'] .ticket[aria-current='true'] :is(.ticket-sub, .ticket-meta, .stub-num small) {
+  color: #ffffff;
+}
+
+[data-tema='escuro'] .ticket[aria-current='true'] :is(.ticket-meta .badge, .selo-canal) {
+  background: rgba(11, 26, 44, 0.22);
+}
+
+[data-tema='escuro'] .side-count {
+  color: #0b1a2c;
+}
+
+/* aviso flutuante (toast): no claro é escuro; no escuro, uma camada acima */
+[data-tema='escuro'] .toast {
+  background: var(--elevado);
+  color: var(--tinta);
+  border-color: var(--linha-forte);
+}
+
+[data-tema='escuro'] .toast span {
+  color: var(--tinta-2);
+}
+
+[data-tema='escuro'] .toast-erro {
+  background: #c9492c;
+  color: #ffffff;
+}
+
+[data-tema='escuro'] .chat-marco-avatar {
+  color: var(--sobre-tinta);
+}
+
+[data-tema='escuro'] .sugestoes button:hover {
+  background: color-mix(in srgb, var(--senha) 14%, var(--branco));
+}
+
+/* verdes e âmbar que o claro escreve escuros demais */
+[data-tema='escuro'] :is(.extrato-icone.entrada, .extrato b.entrada, .pp-ok) {
+  color: var(--folha);
+}
+
+[data-tema='escuro'] .chat-recibo {
+  --tom: #3dbb84;
+}
+
+[data-tema='escuro'] .chat-recibo[data-tom='espera'] {
+  --tom: var(--ambar);
+}
+
+[data-tema='escuro'] .comecar-balao-cliente {
+  background: var(--azul-claro);
+  border-color: var(--linha-forte);
+  color: var(--tinta);
+}
+
+[data-tema='escuro'] .cal-head.hoje span {
+  color: var(--senha-texto);
+}
+
+/* contorno de campo visível sobre o cartão */
+[data-tema='escuro'] :is(.input, .textarea, .select) {
+  border-color: #56708c;
+}
+
+[data-tema='escuro'] :is(.fonte-opcao:not(:disabled):hover, .fonte-soltar[data-arrastando], .chat[data-arrastando]) {
+  background: rgba(141, 180, 220, 0.06);
+}
+
 /* escolha do tema: Claro / Escuro / Automático */
 .tema-escolha {
   display: inline-flex;
@@ -116,6 +213,11 @@
   background: var(--branco);
   color: var(--tinta);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+[data-tema='escuro'] .tema-escolha button[aria-pressed='true'] {
+  background: var(--papel-2);
+  box-shadow: inset 0 0 0 1px var(--linha-forte);
 }
 
 .tema-escolha svg {

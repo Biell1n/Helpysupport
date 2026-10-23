@@ -27,7 +27,7 @@ function Comecar() {
     <section className="card comecar">
       <form className="comecar-texto" onSubmit={ir}>
         <h2>Como é o seu negócio?</h2>
-        <p className="muted">Escreva do seu jeito, como explicaria para alguém que começou hoje. O Helpy monta o atendente com isso e pergunta o que faltar.</p>
+        <p className="muted">Escreva do seu jeito, como explicaria para alguém que começou hoje. O Helpy monta o assistente com isso e pergunta o que faltar.</p>
         <textarea
           className="textarea"
           rows={4}
@@ -38,12 +38,12 @@ function Comecar() {
         />
         <div className="row row-wrap" style={{ gap: 12 }}>
           <button type="submit" className="btn btn-primary">
-            Montar meu atendente <ArrowRight />
+            Montar meu assistente <ArrowRight />
           </button>
           <span className="faint" style={{ fontSize: 13 }}>Leva uns 5 minutos. Dá para mudar tudo depois.</span>
         </div>
       </form>
-      <figure className="comecar-previa" aria-label="Exemplo de conversa com o atendente">
+      <figure className="comecar-previa" aria-label="Exemplo de conversa com o assistente">
         <figcaption>Do outro lado, o seu cliente:</figcaption>
         <p className="comecar-balao comecar-balao-cliente">Vocês abrem sábado?</p>
         <p className="comecar-balao">Abrimos sim, das 9h às 19h. Quer que eu já marque um horário para você?</p>
@@ -151,9 +151,11 @@ export default function Painel() {
               : 'Nenhum chamado esperando. O atendimento está em dia.'}
           </p>
         </div>
-        <Link to="/painel/assistentes/novo" className="btn btn-primary">
-          <Plus /> Novo assistente
-        </Link>
+        {assistentes?.length > 0 && (
+          <Link to="/painel/assistentes/novo" className="btn btn-primary">
+            <Plus /> Novo assistente
+          </Link>
+        )}
       </header>
 
       <AlertasDaConta />
@@ -164,7 +166,7 @@ export default function Painel() {
           <span>
             {dias > 0
               ? `Seu teste grátis termina em ${dias} ${dias === 1 ? 'dia' : 'dias'}. `
-              : 'Seu teste grátis terminou: o atendente só está anotando recados. '}
+              : 'Seu teste grátis terminou: o assistente só está anotando recados. '}
             <Link to="/painel/plano">Escolher um plano</Link>
           </span>
         </div>
@@ -216,7 +218,7 @@ export default function Painel() {
             <Link to="/painel/atendimentos" className="btn btn-quiet btn-sm">Abrir atendimentos</Link>
           </div>
           {fila.length === 0 ? (
-            <p className="faint">Quando o atendente precisar de alguém da equipe, o chamado aparece aqui.</p>
+            <p className="faint">Quando o assistente precisar de alguém da equipe, o chamado aparece aqui.</p>
           ) : (
             <ListaViva
               itens={fila}
@@ -244,7 +246,7 @@ export default function Painel() {
               <h2 className="card-title">O que perguntaram e ele não sabia</h2>
             </div>
             {lacunas.length === 0 ? (
-              <p className="faint">Nenhuma lacuna aberta. Quando um cliente perguntar algo que o atendente não sabe, aparece aqui.</p>
+              <p className="faint">Nenhuma lacuna aberta. Quando um cliente perguntar algo que o assistente não sabe, aparece aqui.</p>
             ) : (
               <ul className="list-plain">
                 {lacunas.map((g) => (
@@ -254,7 +256,13 @@ export default function Painel() {
                       {g.pergunta && <p className="faint" style={{ fontSize: 13 }}>“{g.pergunta}”</p>}
                     </div>
                     <span className="badge badge-plain">{g.vezes}×</span>
-                    <Link to={`/painel/assistentes/${g.assistant_id}/editar`} className="btn btn-ghost btn-sm">Ensinar</Link>
+                    <Link
+                      to={`/painel/assistentes/${g.assistant_id}/editar`}
+                      state={{ comeco: g.pergunta ? `Clientes perguntam: "${g.pergunta}". A resposta certa é: ` : `Sobre ${g.assunto}, a resposta certa é: ` }}
+                      className="btn btn-ghost btn-sm"
+                    >
+                      Ensinar
+                    </Link>
                     <button type="button" className="btn btn-quiet btn-sm btn-icon" title="Marcar como resolvida" aria-label="Marcar como resolvida" onClick={() => resolverLacuna(g.id)}>
                       <Check size={16} />
                     </button>
@@ -282,7 +290,7 @@ export default function Painel() {
                       <b>{p.cliente_nome}</b>
                       {p.servico && <span className="faint"> · {p.servico}</span>}
                     </span>
-                    {p.origem === 'assistente' && <span className="badge badge-human badge-plain">pelo atendente</span>}
+                    {p.origem === 'assistente' && <span className="badge badge-human badge-plain">pelo assistente</span>}
                   </li>
                 ))}
               </ul>

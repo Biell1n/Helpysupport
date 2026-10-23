@@ -28,7 +28,7 @@ export default function MinhasConversas() {
   }, []);
 
   const virarEmpresa = async () => {
-    if (!window.confirm('Criar um atendente para a sua empresa? Sua conta passa a ser de empresa, com 7 dias de teste grátis.')) return;
+    if (!window.confirm('Criar um assistente para a sua empresa? Sua conta passa a ser de empresa, com 7 dias de teste grátis.')) return;
     setVirando(true);
     try {
       await chamar('conta', { action: 'virar_empresa' });
@@ -56,7 +56,7 @@ export default function MinhasConversas() {
         <div className="card stack" style={{ alignItems: 'flex-start' }}>
           <MessagesSquare />
           <b>Nenhuma conversa ainda</b>
-          <p className="muted" style={{ fontSize: 14 }}>Quando você conversar com o atendente de uma empresa estando conectado, a conversa aparece aqui.</p>
+          <p className="muted" style={{ fontSize: 14 }}>Quando você conversar com o assistente de uma empresa estando conectado, a conversa aparece aqui.</p>
         </div>
       ) : (
         <ul className="stack" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -90,8 +90,8 @@ export default function MinhasConversas() {
 
       <section className="card stack" style={{ marginTop: 24 }}>
         <b>Tem um negócio?</b>
-        <p className="muted" style={{ fontSize: 14 }}>Crie um atendente com IA que responde seus clientes 24 horas, marca horários e chama a sua equipe quando precisa.</p>
-        <div><button type="button" className="btn btn-primary" disabled={virando} onClick={virarEmpresa}>Quero criar um atendente</button></div>
+        <p className="muted" style={{ fontSize: 14 }}>Crie um assistente com IA que responde seus clientes 24 horas, marca horários e chama a sua equipe quando precisa.</p>
+        <div><button type="button" className="btn btn-primary" disabled={virando} onClick={virarEmpresa}>Quero criar um assistente</button></div>
       </section>
     </div>
   );

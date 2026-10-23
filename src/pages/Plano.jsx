@@ -150,7 +150,7 @@ export default function Plano() {
         <div className="row" role="group" aria-label="Forma de cobrança" style={{ gap: 6, marginTop: 10 }}>
           <button type="button" className="chip" aria-pressed={ciclo === 'mensal'} onClick={() => setCiclo('mensal')}>Mensal</button>
           <button type="button" className="chip" aria-pressed={ciclo === 'anual'} onClick={() => setCiclo('anual')}>
-            Anual <small>até {Math.max(...[PLANS.essencial, PLANS.profissional, PLANS.business].map(descontoAnual))}% off</small>
+            Anual <small>até {Math.max(...[PLANS.essencial, PLANS.profissional, PLANS.business].map(descontoAnual))}% a menos</small>
           </button>
         </div>
         {precos.teste && (
