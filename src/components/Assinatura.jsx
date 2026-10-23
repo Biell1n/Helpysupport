@@ -24,7 +24,16 @@ const mascarar = (v) => {
 };
 
 /** Pede CPF/CNPJ e leva para a fatura (Pix, cartão ou boleto) no Asaas. */
-export function AssinarModal({ plano, ciclo = 'mensal', valor, profile, ambiente, onFechar }) {
+const umCicloDepois = (ciclo) => {
+  const d = new Date();
+  if (ciclo === 'anual') d.setFullYear(d.getFullYear() + 1);
+  else d.setMonth(d.getMonth() + 1);
+  return d.toLocaleDateString('pt-BR');
+};
+
+export function AssinarModal({ plano, ciclo: cicloInicial = 'mensal', precos, profile, ambiente, onFechar }) {
+  const [ciclo, setCiclo] = useState(cicloInicial);
+  const valor = precos?.planos?.[plano]?.[ciclo];
   const [documento, setDocumento] = useState('');
   const [nome, setNome] = useState(profile?.company_name || profile?.full_name || '');
   const [indo, setIndo] = useState(false);
@@ -48,12 +57,18 @@ export function AssinarModal({ plano, ciclo = 'mensal', valor, profile, ambiente
     <Modal aberto onFechar={onFechar} largura={460}>
       <form onSubmit={ir} className="stack">
         <div>
-          <h2 style={{ margin: 0 }}>Assinar o {p.nome} {ciclo === 'anual' ? 'anual' : 'mensal'}</h2>
-          <p className="faint" style={{ margin: '4px 0 0' }}>
-            {ciclo === 'anual'
-              ? `${reais(valor ?? p.preco * 12)} por ano, de uma vez`
-              : `${reais(valor ?? p.precoMensal)}/mês`} · Pix, cartão ou boleto. Cancele quando quiser.
-          </p>
+          <h2 style={{ margin: 0 }}>Assinar o {p.nome}</h2>
+          <p className="faint" style={{ margin: '4px 0 0' }}>Pix, cartão ou boleto. Cancele quando quiser.</p>
+        </div>
+        <div className="row" role="group" aria-label="Forma de cobrança" style={{ gap: 6 }}>
+          <button type="button" className="chip" aria-pressed={ciclo === 'mensal'} onClick={() => setCiclo('mensal')}>Mensal</button>
+          <button type="button" className="chip" aria-pressed={ciclo === 'anual'} onClick={() => setCiclo('anual')}>Anual</button>
+        </div>
+        <div className="assinar-resumo">
+          <b>{reais(valor ?? (ciclo === 'anual' ? p.preco * 12 : p.precoMensal))} hoje</b>
+          <span className="faint">
+            {ciclo === 'anual' ? 'Cobrança anual' : 'Cobrança mensal'}: a próxima vem em {umCicloDepois(ciclo)}.
+          </span>
         </div>
         {ambiente === 'sandbox' && (
           <div className="alert"><span><b>Modo de teste:</b> nada é cobrado de verdade. Use o cartão de teste do Asaas ou simule o Pix no painel de teste.</span></div>

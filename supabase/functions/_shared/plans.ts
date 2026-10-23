@@ -106,7 +106,8 @@ export function precosVigentes(teste: boolean): Precos {
   if (teste) {
     return {
       teste,
-      planos: { essencial: { mensal: 5, anual: 5 }, profissional: { mensal: 6, anual: 6 }, business: { mensal: 7, anual: 7 } },
+      // anual com valor próprio (e menor por mês), senão os dois ciclos parecem iguais na tela
+      planos: { essencial: { mensal: 5, anual: 10 }, profissional: { mensal: 6, anual: 11 }, business: { mensal: 7, anual: 12 } },
       vaga: 0.01,
       // a fatura mínima do Asaas é R$ 5: a R$ 0,50 por mensagem, 10 mensagens já geram uma
       extra: { atendimento: 1, mensagem: 0.5 },

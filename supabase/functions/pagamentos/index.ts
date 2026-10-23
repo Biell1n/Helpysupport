@@ -335,7 +335,7 @@ Deno.serve(async (req) => {
       const pagamentos = await c.pedir<{ data?: Record<string, unknown>[] }>(`/subscriptions/${sub.id}/payments`);
       const primeiro = pagamentos.data?.[0];
       if (!primeiro?.invoiceUrl) throw new UserError('A assinatura foi criada, mas a fatura ainda não apareceu. Atualize a página em alguns segundos.', 502);
-      await guardarFatura(conta, primeiro, `Plano ${PLANS[plano].nome}${ciclo === 'anual' ? ' (anual)' : ''}`);
+      await guardarFatura(conta, primeiro, `Plano ${PLANS[plano].nome} ${ciclo === 'anual' ? '(anual)' : '(mensal)'}`);
       return json({ url: primeiro.invoiceUrl, ambiente: AMBIENTE });
     }
 

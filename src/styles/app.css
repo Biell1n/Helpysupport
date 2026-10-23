@@ -3029,3 +3029,20 @@
 .main .lp-plano-tag {
   border-radius: var(--r-sm);
 }
+
+/* resumo da cobrança no modal de assinatura: valor e quando vem a próxima */
+.assinar-resumo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--linha);
+  border-radius: var(--r);
+  background: var(--papel);
+  font-size: 13.5px;
+}
+
+.assinar-resumo b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
