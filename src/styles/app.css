@@ -2686,7 +2686,7 @@
 
 .uso-extra {
   display: grid;
-  gap: 18px;
+  gap: 14px;
   margin-bottom: 28px;
 }
 
@@ -2695,50 +2695,65 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 20px;
-  flex-wrap: wrap;
 }
 
-.uso-extra-grade {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.2fr);
-  gap: 24px;
-  align-items: start;
-}
-
-.uso-extra-precos {
-  display: grid;
-  gap: 4px;
+.uso-extra-frase {
+  margin: 4px 0 0;
   font-size: 14px;
-  color: var(--tinta-2);
+  max-width: 560px;
 }
 
-.uso-extra-precos b {
+.uso-extra-frase b {
   color: var(--tinta);
   font-variant-numeric: tabular-nums;
 }
 
-.uso-extra-limite {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.uso-extra-corpo {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--linha);
 }
 
-.uso-extra-limite .input {
-  max-width: 140px;
+/* o limite vira uma frase: "Parar quando chegar a R$ [50] no mês." */
+.uso-extra-teto {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.uso-extra-reais {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tinta-2);
+}
+
+.uso-extra-reais .input {
+  width: 84px;
+  height: 36px;
+  padding: 0 10px;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.uso-extra-gasto {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+  font-size: 13px;
+}
+
+.uso-extra-nota {
+  font-size: 13px;
 }
 
 .interruptor[aria-disabled] {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
-@media (max-width: 860px) {
-  .uso-extra-grade {
-    grid-template-columns: 1fr;
-  }
-}
-
 
 /* histórico do chamado (painel de atendimentos) */
 .historico-chamado summary {

@@ -9,9 +9,12 @@ let pedido = null;
 
 function buscar() {
   pedido ??= chamar('pagamentos', { action: 'precos' })
-    .then((p) => {
+    .then((r) => {
+      // resposta incompleta não quebra a tela: o que faltar fica com o padrão
+      const p = { ...PRECOS_PADRAO, ...(r ?? {}), planos: { ...PRECOS_PADRAO.planos, ...(r?.planos ?? {}) }, extra: { ...PRECOS_PADRAO.extra, ...(r?.extra ?? {}) } };
+      if (typeof p.vaga !== 'number') p.vaga = PRECOS_PADRAO.vaga;
       // no teste o Essencial tem cota pequena, para dar para testar o uso extra
-      if (p?.teste && p.cota_teste) Object.assign(PLANS.essencial, p.cota_teste);
+      if (p.teste && p.cota_teste) Object.assign(PLANS.essencial, p.cota_teste);
       guardados = p;
       return p;
     })
