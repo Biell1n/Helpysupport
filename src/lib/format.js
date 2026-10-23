@@ -21,7 +21,7 @@ export const iniciais = (nome = '') =>
 
 export const STATUS = {
   bot: { rotulo: 'Com o assistente', classe: 'badge-bot' },
-  waiting: { rotulo: 'Aguardando equipe', classe: 'badge-waiting' },
+  waiting: { rotulo: 'Na fila', classe: 'badge-waiting' },
   human: { rotulo: 'Em atendimento', classe: 'badge-human' },
   closed: { rotulo: 'Encerrado', classe: 'badge-closed' },
 };

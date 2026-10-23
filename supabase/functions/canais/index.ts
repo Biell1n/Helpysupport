@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
       if (token.length < 20) throw new UserError('Cole o token de acesso completo.');
       const appSecret = texto(body.app_secret, 120);
 
-      // WhatsApp e Instagram: do Profissional em diante, com limite de contas
+      // WhatsApp e Instagram: todo plano tem um limite de contas
       if (tipo !== 'discord') {
         const plan = planOf(await profileOf(conta));
         if (!plan.canaisMeta) throw new UserError('WhatsApp e Instagram fazem parte do plano Profissional em diante.', 402);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowDownLeft, ArrowUpRight, ExternalLink, FileCheck2, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
-import { chamar } from '@/lib/supabase';
+import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { Confirmar, Modal } from '@/components/Modal';
@@ -34,6 +34,11 @@ export default function Carteira() {
   const [dados, setDados] = useState(undefined);
   const [sacando, setSacando] = useState(false);
   const [pausar, setPausar] = useState(false);
+  // atalho direto para ligar a venda no assistente (o primeiro, se houver vários)
+  const [primeiroAssistente, setPrimeiroAssistente] = useState(null);
+  useEffect(() => {
+    supabase.from('assistants').select('id').order('created_at').limit(1).then(({ data }) => setPrimeiroAssistente(data?.[0]?.id ?? null));
+  }, []);
 
   const carregar = useCallback(async () => {
     try {
@@ -126,9 +131,12 @@ export default function Carteira() {
           </section>
 
           {rec.ativo && (
-            <p className="faint" style={{ margin: 0, fontSize: 13.5 }}>
-              Para o assistente vender, ligue em <Link to="/painel/assistentes">Assistentes</Link> → Editar → Como funciona: <b>Fechar a venda no chat?</b> e, se ele marca horários, <b>Cobrar para marcar?</b>
-            </p>
+            <div className="row row-wrap" style={{ gap: 10 }}>
+              <span className="faint" style={{ fontSize: 13.5 }}>Falta só ligar a venda no assistente: ele confirma os itens e manda o link na conversa.</span>
+              <Link to={primeiroAssistente ? `/painel/assistentes/${primeiroAssistente}/editar` : '/painel/assistentes'} className="btn btn-ghost btn-sm">
+                Ligar vendas no assistente
+              </Link>
+            </div>
           )}
 
           <section className="card">

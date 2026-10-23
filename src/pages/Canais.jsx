@@ -11,6 +11,7 @@ import { IconeDoCanal as Icone } from '@/components/IconesCanais';
 import TutorialCanal from '@/components/TutorialCanal';
 
 // os avisos da Meta e do Discord chegam pelo mesmo endereço do chat público
+const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
 const BASE = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/public-chat`;
 const WEBHOOK = `${BASE}?canal=meta`;
 const COLUNAS = 'id, assistant_id, tipo, status, nome, externo_id, config, verificar_token, ultimo_evento_em, erro, criado_em';
@@ -154,6 +155,16 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
           <p className="faint" style={{ margin: '2px 0 0', fontSize: 14 }}>Siga os passos e cole aqui o que for pedido. Você pode deixar esta janela aberta enquanto faz.</p>
         </div>
       </div>
+      {VENDAS && (
+        <div className="alert" style={{ marginBottom: 16 }}>
+          <span>
+            <b>Prefere que a gente conecte com você?</b> Leva uns 15 minutos numa chamada, sem precisar entender de Meta.{' '}
+            <a href={`${VENDAS}${VENDAS.includes('wa.me') ? `?text=${encodeURIComponent(`Quero ajuda para conectar o ${servico.nome} no Helpy`)}` : ''}`} target="_blank" rel="noreferrer">
+              Falar com o suporte
+            </a>
+          </span>
+        </div>
+      )}
       <div className="conectar-grade">
       <TutorialCanal tipo={servico.tipo} />
       <form className="stack conectar-form" onSubmit={enviar}>
@@ -313,7 +324,7 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
         <TicketsDiscord canal={canal} />
       ) : (
         <button type="button" className="link-btn" style={{ marginTop: 10 }} onClick={() => setAberto((v) => !v)}>
-          {aberto ? 'Esconder endereços' : 'Ver endereços para colar no serviço'}
+          {aberto ? 'Esconder os dados' : `Ver dados para colar ${canal.tipo === 'discord' ? 'no Discord' : 'na Meta'}`}
         </button>
       )}
       {aberto && canal.config?.modo !== 'helpy' && (
@@ -450,7 +461,7 @@ export default function Canais() {
                 <div>
                   <h2 className="card-title">{s.nome}</h2>
                   {bloqueado ? (
-                    <span className="badge badge-plain badge-human">Profissional em diante</span>
+                    <span className="badge badge-plain badge-human">Fora do seu plano</span>
                   ) : doTipo.length ? (
                     <span className="badge badge-closed">{doTipo.length} conectad{doTipo.length > 1 ? 'os' : 'o'}</span>
                   ) : (
@@ -467,16 +478,27 @@ export default function Canais() {
               {bloqueado ? (
                 <Link to="/painel/plano" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }}>Ver planos</Link>
               ) : (
-                <button
-                  type="button"
-                  className={`btn btn-sm ${doTipo.length ? 'btn-ghost' : 'btn-primary'}`}
-                  style={{ alignSelf: 'flex-start' }}
-                  disabled={!canais || !assistentes.length || cheio}
-                  title={cheio ? `Seu plano conecta até ${plano.canaisMeta} contas de WhatsApp e Instagram` : !assistentes.length ? 'Crie um assistente primeiro' : undefined}
-                  onClick={() => setConectando(s)}
-                >
-                  {doTipo.length ? `Conectar outro ${s.nome}` : `Conectar ${s.nome}`}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${doTipo.length ? 'btn-ghost' : 'btn-primary'}`}
+                    style={{ alignSelf: 'flex-start' }}
+                    disabled={!canais || !assistentes.length || cheio}
+                    onClick={() => setConectando(s)}
+                  >
+                    {doTipo.length ? `Conectar outro ${s.nome}` : `Conectar ${s.nome}`}
+                  </button>
+                  {/* o motivo do botão travado aparece escrito (title não aparece no toque) */}
+                  {canais && (cheio || !assistentes.length) && (
+                    <span className="faint" style={{ fontSize: 12.5 }}>
+                      {cheio ? (
+                        <>Seu plano conecta até {plano.canaisMeta} {plano.canaisMeta === 1 ? 'conta' : 'contas'} de WhatsApp e Instagram. <Link to="/painel/plano">Ver planos</Link></>
+                      ) : (
+                        <>Crie um assistente primeiro. <Link to="/painel/assistentes/novo">Criar agora</Link></>
+                      )}
+                    </span>
+                  )}
+                </>
               )}
             </section>
           );

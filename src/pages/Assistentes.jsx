@@ -19,6 +19,7 @@ export default function Assistentes() {
   const plano = planOf(profile);
   const [lista, setLista] = useState(null);
   const [excluir, setExcluir] = useState(null);
+  const [trocando, setTrocando] = useState(null);
   const [qr, setQr] = useState(null);
 
   const carregar = useCallback(async () => {
@@ -138,7 +139,7 @@ export default function Assistentes() {
               <a href={linkPublico(a.public_token)} target="_blank" rel="noreferrer" className="btn btn-quiet btn-sm"><ExternalLink /> Abrir</a>
               <button type="button" className="btn btn-quiet btn-sm" onClick={() => setQr(a)}><QrCode /> QR code</button>
               <button type="button" className="btn btn-quiet btn-sm" onClick={() => alternar(a)}>{a.is_public ? 'Desligar' : 'Ligar'}</button>
-              <button type="button" className="btn btn-quiet btn-sm" title="Gera um endereço novo e desativa o antigo" onClick={() => trocarLink(a)}><RefreshCw /> Trocar link</button>
+              <button type="button" className="btn btn-quiet btn-sm" title="Gera um endereço novo e desativa o antigo" onClick={() => setTrocando(a)}><RefreshCw /> Trocar link</button>
             </div>
           </article>
         ))}
@@ -154,6 +155,19 @@ export default function Assistentes() {
         perigo
         onConfirmar={confirmarExclusao}
         onFechar={() => setExcluir(null)}
+      />
+      <Confirmar
+        aberto={!!trocando}
+        titulo={`Trocar o link do ${trocando?.name ?? 'assistente'}?`}
+        texto="O link e o QR code atuais param de funcionar na hora, inclusive os que você já imprimiu ou divulgou."
+        acao="Trocar link"
+        perigo
+        onConfirmar={() => {
+          const a = trocando;
+          setTrocando(null);
+          trocarLink(a);
+        }}
+        onFechar={() => setTrocando(null)}
       />
     </div>
   );

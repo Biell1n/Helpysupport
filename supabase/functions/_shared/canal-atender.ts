@@ -18,6 +18,10 @@ const PASSOU_PARA_EQUIPE =
   'Vou passar para alguém da equipe continuar daqui. É só aguardar: respondemos por aqui mesmo.';
 const RECADO =
   'Recebemos sua mensagem! No momento o atendimento automático está indisponível, mas ela já chegou para a equipe, que responde por aqui mesmo.';
+/** Quanto esperar por mais mensagens do mesmo contato antes de responder. */
+const ESPERA_MS = 3500;
+/** Acima disso por minuto, o contato está disparando: não chama a IA. */
+const MAX_POR_MINUTO = 12;
 type Conversa = { id: string; status: string; escalado_em: string | null; last_message_at: string; motivo?: string | null };
 
 /**
@@ -43,7 +47,7 @@ export async function atenderNoCanal(
     await alertar(db, canal.owner_id, {
       origem: 'sistema', chave: `plano:canal:${canal.id}`,
       assunto: `Mensagem no ${NOMES[canal.tipo]} sem resposta automática`,
-      detalhe: `Chegou uma mensagem pelo ${NOMES[canal.tipo]}, mas esse canal faz parte do plano Profissional em diante. Mude de plano para o assistente responder por lá.`,
+      detalhe: `Chegou uma mensagem pelo ${NOMES[canal.tipo]}, mas o seu plano não inclui esse canal. Mude de plano para o assistente responder por lá.`,
     });
     return null;
   }
@@ -54,7 +58,14 @@ export async function atenderNoCanal(
     .eq('owner_id', canal.owner_id).eq('canal_id', canal.id).eq('contato_externo', contato.id)
     .order('last_message_at', { ascending: false }).limit(1).maybeSingle();
   let c = ultima as Conversa | null;
-  const velha = c && c.status === 'closed' && Date.now() - new Date(c.last_message_at).getTime() > 12 * 3600e3;
+  const parada = c ? Date.now() - new Date(c.last_message_at).getTime() : 0;
+  // conversa só com o assistente, parada há um dia: o atendimento acabou. Fecha e a
+  // próxima mensagem abre outro (senão um contato vira um atendimento eterno)
+  if (c && c.status === 'bot' && parada > 24 * 3600e3) {
+    await db.from('conversations').update({ status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'assistente' }).eq('id', c.id);
+    c.status = 'closed';
+  }
+  const velha = c && c.status === 'closed' && parada > 12 * 3600e3;
   let recado = false;
 
   if (!c || velha) {
@@ -86,7 +97,8 @@ export async function atenderNoCanal(
     c.status = status;
   }
 
-  await db.from('conversation_messages').insert({ conversation_id: c.id, role: 'user', content: texto });
+  const { data: minha } = await db.from('conversation_messages')
+    .insert({ conversation_id: c.id, role: 'user', content: texto }).select('id, created_at').single();
 
   if (recado) {
     await db.from('conversation_messages').insert({ conversation_id: c.id, role: 'system', content: RECADO });
@@ -94,6 +106,20 @@ export async function atenderNoCanal(
   }
   // a equipe está no atendimento: a IA não fala por cima
   if (c.status === 'waiting' || c.status === 'human') return null;
+
+  // no WhatsApp/Instagram a pessoa manda várias mensagens seguidas: espera um pouco e
+  // só a última responde, já lendo todas (uma resposta, na ordem, e sem gastar IA à toa)
+  if (canal.tipo !== 'discord' && minha) {
+    await new Promise((r) => setTimeout(r, ESPERA_MS));
+    const { data: ultimaMsg } = await db.from('conversation_messages').select('id')
+      .eq('conversation_id', c.id).eq('role', 'user')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (ultimaMsg && ultimaMsg.id !== minha.id) return null;
+    // contato disparando mensagens (robô ou abuso): guarda, mas não chama a IA
+    const { count: noMinuto } = await db.from('conversation_messages').select('id', { count: 'exact', head: true })
+      .eq('conversation_id', c.id).eq('role', 'user').gte('created_at', new Date(Date.now() - 60e3).toISOString());
+    if ((noMinuto ?? 0) > MAX_POR_MINUTO) return null;
+  }
   // recado que a equipe devolveu ao assistente: só responde se a conta cobrir este atendimento
   if (c.motivo === MOTIVO_RECADO && !(await recadoPodeSeguir(db, c.id, profile, plan))) {
     await db.from('conversation_messages').insert({ conversation_id: c.id, role: 'system', content: RECADO });

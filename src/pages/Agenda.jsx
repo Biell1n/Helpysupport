@@ -324,10 +324,12 @@ export default function Agenda() {
         {dias.map((d) => (
           <div key={d.toISOString()} className="cal-day">
             {horas.map((h) => (
-              <div
+              <button
                 key={h}
+                type="button"
                 className={`cal-slot${fechado(d, h) ? ' fechado' : ''}`}
-                onDoubleClick={() => setNovo({ dia: iso(d), hora: `${String(h).padStart(2, '0')}:00` })}
+                aria-label={`Agendar ${CURTO[d.getDay()]} ${d.getDate()}, ${h}h`}
+                onClick={() => setNovo({ dia: iso(d), hora: `${String(h).padStart(2, '0')}:00` })}
               />
             ))}
             {eventos
@@ -359,7 +361,14 @@ export default function Agenda() {
           </div>
         ))}
       </div>
-      <p className="faint" style={{ fontSize: 12.5, marginTop: 8 }}>Dica: clique duas vezes num horário vazio para agendar.</p>
+      <div className="cal-legenda faint">
+        <span>Toque num horário vazio para agendar.</span>
+        <span><i data-cor="assistente" /> marcado pelo assistente</span>
+        <span><i data-cor="manual" /> marcado por você</span>
+        <span>⏳ esperando confirmação</span>
+        <span>💳 esperando pagamento</span>
+        <span><i data-cor="fechado" /> fora do horário</span>
+      </div>
 
       {configurando && cfg && <ConfigAgenda cfg={cfg} onSalvar={salvarCfg} onFechar={() => setConfigurando(false)} />}
       {novo && <NovoAgendamento inicial={novo} duracao={cfg?.duracao_min ?? 30} onSalvar={marcar} onFechar={() => setNovo(null)} />}

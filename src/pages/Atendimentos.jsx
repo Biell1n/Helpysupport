@@ -13,6 +13,7 @@ import Abas from '@/components/Abas';
 import { numero, quando, STATUS } from '@/lib/format';
 import { avisarNoCanal } from '@/lib/canais';
 
+const CELULAR = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 900px)').matches;
 const ABAS = [
   { id: 'waiting', rotulo: 'Na fila' },
   { id: 'human', rotulo: 'Em atendimento' },
@@ -377,6 +378,9 @@ export default function Atendimentos() {
               </div>
             </header>
 
+            {/* no celular os dados começam fechados: a conversa fica com a tela */}
+            <details className="detail-dados" open={!CELULAR}>
+            <summary>Dados do cliente e resumo</summary>
             <dl className="detail-info">
               <div><dt>Cliente</dt><dd>{nomeCliente(aberta)}</dd></div>
               <div><dt>Contato</dt><dd>{aberta.lead_contato || <span className="faint">não informado</span>}</dd></div>
@@ -392,6 +396,7 @@ export default function Atendimentos() {
               )}
               {eventos.length > 0 && <HistoricoDoChamado eventos={eventos} />}
             </dl>
+            </details>
 
             <div className="chat-scroll" style={{ flex: 1 }}>
               {mensagens.map((m) => (

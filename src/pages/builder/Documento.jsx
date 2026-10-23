@@ -48,15 +48,18 @@ function Campo({ def }) {
         ) : (
           <Controle def={def} id={id} value={entry?.value} onChange={(v) => b.setField(def.key, v)} />
         )}
-        <button
-          type="button"
-          className="btn btn-quiet btn-icon"
-          onClick={() => (pulado ? b.restoreField(def.key) : b.skipField(def.key))}
-          title={pulado ? 'Voltar a preencher' : 'Não se aplica'}
-          aria-label={pulado ? `Voltar a preencher ${def.label}` : `${def.label} não se aplica`}
-        >
-          {pulado ? <RotateCcw size={16} /> : <X size={16} />}
-        </button>
+        {/* campo obrigatório não pode ser dispensado: sem ele não dá para publicar */}
+        {(pulado || def.importance !== 'critical') && (
+          <button
+            type="button"
+            className={`btn btn-quiet ${pulado ? 'btn-icon' : 'btn-sm doc-nao-se-aplica'}`}
+            onClick={() => (pulado ? b.restoreField(def.key) : b.skipField(def.key))}
+            title={pulado ? 'Voltar a preencher' : undefined}
+            aria-label={pulado ? `Voltar a preencher ${def.label}` : `${def.label} não se aplica`}
+          >
+            {pulado ? <RotateCcw size={16} /> : 'Não se aplica'}
+          </button>
+        )}
       </div>
       {def.hint && def.type === 'select' && !pulado && <span className="hint">{def.hint}</span>}
     </div>

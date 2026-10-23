@@ -176,6 +176,9 @@ export default function Painel() {
 
       {assistentes && assistentes.length === 0 ? <Comecar /> : null}
 
+      {/* conta nova: só o começo; números e listas aparecem com o primeiro assistente */}
+      {assistentes?.length > 0 && (
+      <>
       <section className="card kpi-faixa">
         <div className="kpi">
           <Faisca valores={porDia} className="kpi-faisca" />
@@ -298,6 +301,8 @@ export default function Painel() {
           </div>
         </div>
       </section>
+      </>
+      )}
     </div>
   );
 }
