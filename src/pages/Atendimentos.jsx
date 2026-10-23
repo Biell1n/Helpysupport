@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUp, Bot, CheckCircle2, Columns3, Hand, RotateCcw, Search } from 'lucide-react';
+import { ArrowLeft, ArrowUp, CheckCircle2, Headset, Columns3, Hand, RotateCcw, Search } from 'lucide-react';
 import QuadroChamados from './QuadroChamados';
 import { chamar, supabase } from '@/lib/supabase';
 import { canalDe, NOME_DO_CANAL, SeloCanal } from '@/components/IconesCanais';
@@ -354,7 +354,7 @@ export default function Atendimentos() {
                   <button type="button" className="btn btn-senha" onClick={assumir}><Hand /> Assumir</button>
                 )}
                 {(aberta.status === 'waiting' || aberta.status === 'human') && (
-                  <button type="button" className="btn btn-ghost" onClick={() => setConfirmar('devolver')}><Bot /> Devolver ao assistente</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setConfirmar('devolver')}><Headset /> Devolver ao assistente</button>
                 )}
                 {/* devolvida ao assistente, a conversa deixa de ser chamado: não há o que encerrar */}
                 {(aberta.status === 'waiting' || aberta.status === 'human') && (
