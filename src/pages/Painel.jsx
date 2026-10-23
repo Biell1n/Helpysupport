@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
-import { ArrowRight, Bot, Check, Plus, Sparkles } from 'lucide-react';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
+import { ArrowRight, Check, Plus, Sparkles } from 'lucide-react';
 import AlertasDaConta from '@/components/AlertasDaConta';
 import Faisca from '@/components/Faisca';
 import ListaViva from '@/components/ListaViva';
@@ -14,6 +14,45 @@ const saudacao = () => {
   const h = new Date().getHours();
   return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
 };
+
+/** Conta sem assistente: já começa escrevendo sobre o negócio, e mostra o que vem no fim. */
+function Comecar() {
+  const navigate = useNavigate();
+  const [texto, setTexto] = useState('');
+  const ir = (e) => {
+    e.preventDefault();
+    navigate('/painel/assistentes/novo', { state: { comeco: texto.trim() } });
+  };
+  return (
+    <section className="card comecar">
+      <form className="comecar-texto" onSubmit={ir}>
+        <h2>Como é o seu negócio?</h2>
+        <p className="muted">Escreva do seu jeito, como explicaria para alguém que começou hoje. O Helpy monta o atendente com isso e pergunta o que faltar.</p>
+        <textarea
+          className="textarea"
+          rows={4}
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder="Barbearia no centro de Campinas. Corte R$ 45, barba R$ 30. Abro de terça a sábado, das 9h às 19h, e aceito Pix."
+          aria-label="Descreva o seu negócio"
+        />
+        <div className="row row-wrap" style={{ gap: 12 }}>
+          <button type="submit" className="btn btn-primary">
+            Montar meu atendente <ArrowRight />
+          </button>
+          <span className="faint" style={{ fontSize: 13 }}>Leva uns 5 minutos. Dá para mudar tudo depois.</span>
+        </div>
+      </form>
+      <figure className="comecar-previa" aria-label="Exemplo de conversa com o atendente">
+        <figcaption>Do outro lado, o seu cliente:</figcaption>
+        <p className="comecar-balao comecar-balao-cliente">Vocês abrem sábado?</p>
+        <p className="comecar-balao">Abrimos sim, das 9h às 19h. Quer que eu já marque um horário para você?</p>
+        <p className="comecar-balao comecar-balao-cliente">Quero, corte às 10h</p>
+        <p className="comecar-balao">Marcado: sábado, 10h, corte (R$ 45). Te espero lá!</p>
+      </figure>
+    </section>
+  );
+}
 
 export default function Painel() {
   const { uso } = useOutletContext();
@@ -133,19 +172,10 @@ export default function Painel() {
 
       {assistentes?.length > 0 && <PrimeirosPassos assistentes={assistentes} />}
 
-      {assistentes && assistentes.length === 0 ? (
-        <div className="empty" style={{ marginBottom: 24 }}>
-          <Bot size={32} />
-          <h3>Vamos montar o seu primeiro atendente</h3>
-          <p>Conte como o seu negócio funciona. Em poucos minutos você tem um link de atendimento para divulgar.</p>
-          <Link to="/painel/assistentes/novo" className="btn btn-senha btn-lg">
-            Começar agora <ArrowRight />
-          </Link>
-        </div>
-      ) : null}
+      {assistentes && assistentes.length === 0 ? <Comecar /> : null}
 
-      <section className="grid-3" style={{ marginBottom: 16 }}>
-        <div className="card kpi">
+      <section className="card kpi-faixa">
+        <div className="kpi">
           <Faisca valores={porDia} className="kpi-faisca" />
           <span className="eyebrow">Atendimentos no mês</span>
           <span className="kpi-valor">
@@ -163,7 +193,7 @@ export default function Painel() {
             );
           })()}
         </div>
-        <div className="card kpi">
+        <div className="kpi">
           <span className="eyebrow">Chamados abertos</span>
           <span className="kpi-valor">
             {uso?.tickets_abertos ?? '—'}
@@ -171,10 +201,10 @@ export default function Painel() {
           </span>
           <Link to="/painel/atendimentos" className="faint" style={{ fontSize: 13 }}>Ver atendimentos</Link>
         </div>
-        <div className="card kpi">
+        <div className="kpi">
           <span className="eyebrow">Nota dos clientes · 30 dias</span>
           <span className="kpi-valor">
-            {nota ? nota.media.toFixed(1).replace('.', ',') : '—'} <small>{nota ? `${nota.total} avaliações` : 'sem avaliações'}</small>
+            {nota ? nota.media.toFixed(1).replace('.', ',') : '—'} <small>{nota ? `${nota.total} ${nota.total === 1 ? 'avaliação' : 'avaliações'}` : 'sem avaliações'}</small>
           </span>
         </div>
       </section>

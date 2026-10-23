@@ -85,7 +85,8 @@ export function Nome({ size = 30, tom = 'escuro', className = 'logo-word' }) {
       viewBox={`0 ${-NOME.topo} ${NOME.largura} ${NOME.topo + NOME.base}`}
       aria-hidden="true"
     >
-      <g fill={tom === 'claro' ? CORES.branco : CORES.marinho}>
+      {/* a tinta acompanha o tema: marinho no claro, clara no escuro */}
+      <g style={{ fill: tom === 'claro' ? CORES.branco : `var(--tinta, ${CORES.marinho})` }}>
         {LETRAS.map((l) => <path key={l.x} d={l.d} transform={`translate(${l.x} 0)`} />)}
       </g>
     </svg>

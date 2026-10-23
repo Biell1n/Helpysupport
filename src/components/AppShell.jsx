@@ -10,6 +10,7 @@ import { diasDeTeste, planOf } from '@/lib/plans';
 import { usePrecos } from '@/lib/precos';
 import { iniciais } from '@/lib/format';
 import { Avatar } from '@/components/TrocarFoto';
+import EscolherTema from '@/components/EscolherTema';
 
 const NAV = [
   { to: '/painel', label: 'Painel', icon: LayoutGrid, end: true, tipos: ['empresa'] },
@@ -159,6 +160,11 @@ export default function AppShell() {
             </span>
           </Link>
           )}
+
+          <div className="side-tema">
+            <span className="faint">Tema</span>
+            <EscolherTema compacto />
+          </div>
 
           <div className="side-user">
             {profile?.foto_url ? <Avatar foto={profile.foto_url} tamanho={30} redondo /> : <span className="avatar">{iniciais(nome || user?.email)}</span>}

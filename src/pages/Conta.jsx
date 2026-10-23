@@ -8,6 +8,7 @@ import Captcha, { useCaptcha } from '@/components/Captcha';
 import TrocarFoto from '@/components/TrocarFoto';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
+import EscolherTema from '@/components/EscolherTema';
 
 export default function Conta() {
   const { user, profile, reloadProfile, signOut, tipo } = useAuth();
@@ -109,6 +110,14 @@ export default function Conta() {
         </div>
         <button type="button" className="btn btn-ghost" onClick={signOut}>Sair</button>
       </header>
+
+      <section className="card stack" style={{ marginBottom: 16 }}>
+        <h2 className="card-title">Aparência</h2>
+        <div className="row row-wrap" style={{ justifyContent: 'space-between', gap: 12 }}>
+          <span className="muted" style={{ fontSize: 14 }}>Automático segue o tema do seu computador ou celular.</span>
+          <EscolherTema />
+        </div>
+      </section>
 
       <form className="card stack" onSubmit={salvar} style={{ marginBottom: 16 }}>
         <h2 className="card-title">Dados</h2>
