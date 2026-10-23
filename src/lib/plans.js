@@ -59,6 +59,9 @@ export const PRECOS_PADRAO = {
   planos: Object.fromEntries(['essencial', 'profissional', 'business'].map((id) => [id, { mensal: PLANS[id].precoMensal, anual: PLANS[id].preco * 12 }])),
   vaga: PRECO_FUNCIONARIO_EXTRA,
   extra: PRECO_EXTRA,
+  // % do Helpy sobre cada venda paga pelo chat (espelha TAXA_VENDAS de plans.ts)
+  vendas: { trial: 2, essencial: 2, profissional: 1.5, business: 1 },
+  carteira: false,
 };
 
 export const diasDeTeste = (profile) => {
