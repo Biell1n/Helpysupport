@@ -61,6 +61,8 @@ function AceiteTermos({ children }) {
   const { profile, reloadProfile, signOut } = useAuth();
   const [marcado, setMarcado] = useState(false);
   const [tentou, setTentou] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState('');
   useEffect(() => {
     if (profile && profile.termos_versao !== TERMOS_VERSAO && !tentou) {
       setTentou(true);
@@ -79,9 +81,22 @@ function AceiteTermos({ children }) {
             Li e aceito os <Link to="/termos" target="_blank">termos de uso</Link> e a <Link to="/privacidade" target="_blank">política de privacidade (LGPD)</Link>.
           </span>
         </label>
+        {erro && <div className="alert alert-erro"><span>{erro}</span></div>}
         <div className="row row-wrap">
-          <button type="button" className="btn btn-primary" disabled={!marcado} onClick={async () => { await aceitar(); await reloadProfile(); }}>
-            Aceitar e continuar
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!marcado || salvando}
+            onClick={async () => {
+              setErro('');
+              setSalvando(true);
+              const { error } = await aceitar();
+              if (error) setErro('Não deu para salvar o aceite. Confira a internet e tente de novo.');
+              else await reloadProfile();
+              setSalvando(false);
+            }}
+          >
+            {salvando ? 'Salvando…' : 'Aceitar e continuar'}
           </button>
           <button type="button" className="btn btn-ghost" onClick={signOut}>Sair</button>
         </div>
