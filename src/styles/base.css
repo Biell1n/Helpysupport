@@ -44,9 +44,10 @@
   --f-body: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --f-mono: 'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
-  --r-sm: 8px;
-  --r: 14px;
-  --r-lg: 22px;
+  /* cantos discretos: cartão de papel, não bolha */
+  --r-sm: 4px;
+  --r: 6px;
+  --r-lg: 8px;
   --sombra: 0 1px 2px rgba(11, 26, 44, 0.04), 0 14px 34px -16px rgba(11, 26, 44, 0.14);
   --sombra-alta: 0 30px 70px -28px rgba(11, 26, 44, 0.3);
   --foco: 0 0 0 2px var(--branco), 0 0 0 4px rgba(44, 93, 143, 0.55);
@@ -219,7 +220,7 @@ button, input, select, textarea {
   gap: 8px;
   height: 40px;
   padding: 0 18px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   border: 1px solid transparent;
   background: none;
   font-size: 14px;
@@ -299,14 +300,14 @@ button, input, select, textarea {
   height: 32px;
   padding: 0 12px;
   font-size: 13px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
 }
 
 .btn-lg {
   height: 50px;
   padding: 0 24px;
   font-size: 16px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
 }
 
 .btn-icon {
@@ -547,7 +548,7 @@ button, input, select, textarea {
 
 .meter {
   height: 6px;
-  border-radius: 99px;
+  border-radius: 2px;
   background: var(--papel-2);
   overflow: hidden;
 }

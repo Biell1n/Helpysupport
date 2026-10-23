@@ -7,7 +7,11 @@ import '@fontsource/dm-mono/500.css';
 import '@/styles/base.css';
 import '@/styles/app.css';
 import '@/styles/landing.css';
+import '@/styles/tema-escuro.css';
+import { iniciarTema } from '@/lib/tema';
 import App from '@/App';
+
+iniciarTema();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUp, Check, FileText, Loader2, Lock, Paperclip, RotateCcw, Undo2, X } from 'lucide-react';
 import { ANEXO_ACEITA, BuilderProvider, useBuilder } from './BuilderContext';
 import Documento, { EscolherModelo } from './Documento';
@@ -23,7 +23,9 @@ const MAX_ANEXOS = 4;
 function Conversa() {
   const b = useBuilder();
   const avisar = useToast();
-  const [texto, setTexto] = useState('');
+  // quem veio do painel já descreveu o negócio: o texto chega pronto para enviar
+  const comeco = useLocation().state?.comeco;
+  const [texto, setTexto] = useState(() => String(comeco ?? '').slice(0, 2000));
   const [arquivos, setArquivos] = useState([]);
   const [arrastando, setArrastando] = useState(false);
   const fim = useRef(null);

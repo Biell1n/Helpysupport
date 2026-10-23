@@ -1,0 +1,151 @@
+/* ============================================================
+   Modo escuro: as mesmas peças do tema claro, com a noite no lugar
+   do céu. Liga por <html data-tema="escuro"> (src/lib/tema.js).
+   ============================================================ */
+
+:root[data-tema='escuro'] {
+  color-scheme: dark;
+
+  --noite: #0d1621;
+  --papel: #0a111a;
+  --branco: #111b27;
+  --papel-2: #162230;
+
+  --tinta: #e4ebf3;
+  --tinta-2: #a6b5c6;
+  --tinta-3: #718498;
+  --sobre-tinta: #0b1a2c;
+
+  --linha: #1d2a39;
+  --linha-forte: #2b3b4e;
+
+  --azul: #5b82aa;
+  --azul-claro: #182a3d;
+  --azul-forte: #8db4dc;
+
+  --senha: #4a85ff;
+  --senha-escura: #2f6cf0;
+  --senha-clara: rgba(74, 133, 255, 0.18);
+  --sobre-senha: #ffffff;
+
+  --folha: #3dbb84;
+  --folha-clara: rgba(61, 187, 132, 0.14);
+  --brasa: #ee7a5b;
+  --brasa-clara: rgba(238, 122, 91, 0.13);
+
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.35), 0 14px 34px -16px rgba(0, 0, 0, 0.6);
+  --sombra-alta: 0 30px 70px -28px rgba(0, 0, 0, 0.75);
+  --foco: 0 0 0 2px var(--papel), 0 0 0 4px rgba(141, 180, 220, 0.6);
+}
+
+/* cores que o tema claro escreve direto */
+[data-tema='escuro'] .btn-primary:hover:not(:disabled) {
+  background: #ffffff;
+}
+
+[data-tema='escuro'] .textarea::placeholder,
+[data-tema='escuro'] .input::placeholder {
+  color: var(--tinta-3);
+}
+
+[data-tema='escuro'] .skeleton {
+  background: linear-gradient(90deg, var(--papel-2), #1f2d3d, var(--papel-2));
+  background-size: 200% 100%;
+}
+
+[data-tema='escuro'] .alert-erro {
+  color: #f19a82;
+}
+
+[data-tema='escuro'] .alert-ok {
+  color: #6fd3a5;
+}
+
+[data-tema='escuro'] .carteira-situacao {
+  border-color: #6b5420;
+  background: #1c1709;
+}
+
+[data-tema='escuro'] .cal-ev[data-status='aguardando_pagamento'] {
+  background: repeating-linear-gradient(135deg, #2a2210 0 6px, var(--branco) 6px 12px);
+}
+
+/* o QR code precisa de fundo branco para o celular ler */
+[data-tema='escuro'] .qr-caixa {
+  background: #ffffff;
+}
+
+/* troca suave quando a pessoa muda o tema (não na primeira pintura) */
+:root[data-tema-trocando] *,
+:root[data-tema-trocando] *::before,
+:root[data-tema-trocando] *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease !important;
+}
+
+/* escolha do tema: Claro / Escuro / Automático */
+.tema-escolha {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--linha);
+  border-radius: var(--r-sm);
+  background: var(--papel);
+}
+
+.tema-escolha button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--tinta-3);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.tema-escolha button:hover {
+  color: var(--tinta);
+}
+
+.tema-escolha button[aria-pressed='true'] {
+  background: var(--branco);
+  color: var(--tinta);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.tema-escolha svg {
+  width: 14px;
+  height: 14px;
+}
+
+.side-tema {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 4px;
+  font-size: 12.5px;
+}
+
+/* plano em destaque: no escuro vira um azul-noite mais claro que os outros
+   (a cor "tinta" do claro ficaria branca aqui) */
+[data-tema='escuro'] .lp-plano-destaque {
+  background: #13243a;
+  color: var(--tinta);
+  border-color: #24456e;
+}
+
+[data-tema='escuro'] .lp-plano-destaque h3 {
+  color: var(--azul-forte);
+}
+
+[data-tema='escuro'] .lp-plano-destaque .btn-senha,
+[data-tema='escuro'] .lp-plano-destaque .lp-btn-claro {
+  background: var(--senha);
+  color: #ffffff;
+}
