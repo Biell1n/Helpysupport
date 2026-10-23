@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bot, CalendarDays, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, Users, Wallet } from 'lucide-react';
+import { BarChart3, CalendarDays, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, Users, Wallet } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { VerificarCodigo } from '@/components/DuasEtapas';
@@ -15,7 +15,7 @@ import EscolherTema from '@/components/EscolherTema';
 const NAV = [
   { to: '/painel', label: 'Painel', icon: LayoutGrid, end: true, tipos: ['empresa'] },
   { to: '/painel', label: 'Minhas conversas', icon: MessagesSquare, end: true, tipos: ['cliente'] },
-  { to: '/painel/assistentes', label: 'Assistentes', icon: Bot, tipos: ['empresa'] },
+  { to: '/painel/assistentes', label: 'Assistentes', icon: Headset, tipos: ['empresa'] },
   { to: '/painel/atendimentos', label: 'Atendimentos', icon: Ticket, contador: 'tickets_abertos', tipos: ['empresa', 'funcionario'] },
   { to: '/painel/canais', label: 'Canais', icon: Radio, tipos: ['empresa'] },
   { to: '/painel/pedidos', label: 'Pedidos', icon: ShoppingBag, tipos: ['empresa', 'funcionario'] },

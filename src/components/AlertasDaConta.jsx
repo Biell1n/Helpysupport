@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Bot, Check, CircleCheck } from 'lucide-react';
+import { AlertTriangle, Check, CircleCheck, MessageSquareText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { quando } from '@/lib/format';
 
@@ -50,7 +50,7 @@ export default function AlertasDaConta() {
         {lista.map((a) => (
           <li key={a.id} data-tom={ehBom(a) ? 'bom' : undefined}>
             <span className="alertas-icone" data-origem={a.origem}>
-              {ehBom(a) ? <CircleCheck size={16} /> : a.origem === 'sistema' ? <AlertTriangle size={16} /> : <Bot size={16} />}
+              {ehBom(a) ? <CircleCheck size={16} /> : a.origem === 'sistema' ? <AlertTriangle size={16} /> : <MessageSquareText size={16} />}
             </span>
             <div>
               <b>{a.assunto}</b>
