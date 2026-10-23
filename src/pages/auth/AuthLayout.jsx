@@ -14,7 +14,7 @@ export default function AuthLayout({ children }) {
           <h2>
             Seu cliente pergunta às 23h.
             <br />
-            <span>Seu atendente responde às 23h.</span>
+            <span>Seu assistente responde às 23h.</span>
           </h2>
           <div className="lp-senha">
             <div className="lp-senha-num">
@@ -22,7 +22,7 @@ export default function AuthLayout({ children }) {
               <b>Nº 0001</b>
             </div>
             <div className="lp-senha-corpo">
-              <b>O seu primeiro atendente</b>
+              <b>O seu primeiro assistente</b>
               <span>7 dias para testar, sem cartão</span>
             </div>
           </div>

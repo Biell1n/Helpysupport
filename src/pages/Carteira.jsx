@@ -61,7 +61,7 @@ export default function Carteira() {
   };
 
   return (
-    <div className="page" style={{ maxWidth: 960 }}>
+    <div className="page">
       <header className="page-head">
         <div>
           <h1>Carteira</h1>
@@ -89,10 +89,10 @@ export default function Carteira() {
             </p>
           )}
 
-          <div className="carteira-saldos">
-            <div className="card carteira-saldo">
-              <span className="faint">Saldo disponível</span>
-              <b>{dados.saldo == null ? '—' : <Counter value={Number(dados.saldo)} format={BRL} />}</b>
+          <section className="card kpi-faixa kpi-faixa-2">
+            <div className="kpi carteira-saldo">
+              <span className="eyebrow">Saldo disponível</span>
+              <span className="kpi-valor">{dados.saldo == null ? '—' : <Counter value={Number(dados.saldo)} format={BRL} />}</span>
               {carteira ? (
                 <button type="button" className="btn btn-primary btn-sm" disabled={!dados.saldo || rec.situacao !== 'aprovada'} onClick={() => setSacando(true)}
                   title={rec.situacao !== 'aprovada' ? 'O saque libera quando a carteira for aprovada' : undefined}>
@@ -104,12 +104,12 @@ export default function Carteira() {
                 </a>
               )}
             </div>
-            <div className="card carteira-saldo">
-              <span className="faint">A receber</span>
-              <b><Counter value={Number(dados.a_receber ?? 0)} format={BRL} /></b>
+            <div className="kpi carteira-saldo">
+              <span className="eyebrow">A receber</span>
+              <span className="kpi-valor"><Counter value={Number(dados.a_receber ?? 0)} format={BRL} /></span>
               <span className="faint" style={{ fontSize: 13 }}>Vendas no cartão: o valor libera nos próximos dias.</span>
             </div>
-          </div>
+          </section>
 
           <section className="card stack-sm">
             <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>

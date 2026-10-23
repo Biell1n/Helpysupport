@@ -16,6 +16,11 @@
   --g-seq-5: var(--azul-forte);
 }
 
+/* no escuro o primeiro degrau some no fundo: sobe um pouco */
+[data-tema='escuro'] .rel-page {
+  --g-seq-1: color-mix(in oklab, var(--azul-forte) 26%, var(--papel-2));
+}
+
 .rel-periodo {
   min-width: 260px;
 }
@@ -25,6 +30,19 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 16px;
+}
+
+/* os seis números numa faixa só, separados por fio (não seis cartões) */
+.rel-numeros.card {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.rel-numeros.card > .rel-numero {
+  border-top: 1px solid var(--linha);
+  border-left: 1px solid var(--linha);
+  margin: -1px 0 0 -1px;
 }
 
 .rel-numero {
@@ -397,19 +415,6 @@
   .rel-calor-hora {
     font-size: 9.5px;
   }
-}
-
-/* ---------- minigráfico nos números ---------- */
-
-.rel-numero {
-  position: relative;
-}
-
-.rel-faisca {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  overflow: visible;
 }
 
 

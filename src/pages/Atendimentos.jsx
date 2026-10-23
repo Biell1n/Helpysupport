@@ -15,8 +15,8 @@ import { avisarNoCanal } from '@/lib/canais';
 
 const ABAS = [
   { id: 'waiting', rotulo: 'Na fila' },
-  { id: 'human', rotulo: 'Atendendo' },
-  { id: 'bot', rotulo: 'Assistente' },
+  { id: 'human', rotulo: 'Em atendimento' },
+  { id: 'bot', rotulo: 'Com o assistente' },
   { id: 'closed', rotulo: 'Encerrados' },
 ];
 
@@ -48,6 +48,7 @@ export default function Atendimentos() {
   };
   const [busca, setBusca] = useState('');
   const [conversas, setConversas] = useState(null);
+  const [erroLista, setErroLista] = useState(false);
   const [contagem, setContagem] = useState({});
   const [assistentes, setAssistentes] = useState({});
   const [aberta, setAberta] = useState(null);
@@ -63,7 +64,7 @@ export default function Atendimentos() {
 
   // ---- lista ----
   const carregar = useCallback(async () => {
-    const [{ data }, ...counts] = await Promise.all([
+    const [{ data, error }, ...counts] = await Promise.all([
       supabase
         .from('conversations')
         .select('*')
@@ -75,6 +76,9 @@ export default function Atendimentos() {
         supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('teste', false).eq('status', a.id),
       ),
     ]);
+    // falha de rede não pode virar "fila vazia": a pessoa acharia que não tem ninguém esperando
+    setErroLista(!!error);
+    if (error) return;
     setConversas(data ?? []);
     setContagem(Object.fromEntries(ABAS.map((a, i) => [a.id, counts[i].count ?? 0])));
   }, [aba]);
@@ -289,7 +293,13 @@ export default function Atendimentos() {
 
         <div className="inbox-items">
           {visiveis === null && [0, 1, 2].map((i) => <div key={i} className="skeleton" style={{ height: 76 }} />)}
-          {visiveis?.length === 0 && (
+          {erroLista && (
+            <div className="alert alert-erro" style={{ margin: 12 }}>
+              <span>Não conseguimos carregar os chamados agora. Confira a internet.</span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={carregar}>Tentar de novo</button>
+            </div>
+          )}
+          {!erroLista && visiveis?.length === 0 && (
             <p className="faint" style={{ padding: 16, textAlign: 'center' }}>
               {aba === 'waiting' ? 'Fila vazia. Quando o assistente precisar de alguém, o chamado chega aqui.' : 'Nada por aqui.'}
             </p>
@@ -358,7 +368,8 @@ export default function Atendimentos() {
                 )}
                 {/* devolvida ao assistente, a conversa deixa de ser chamado: não há o que encerrar */}
                 {(aberta.status === 'waiting' || aberta.status === 'human') && (
-                  <button type="button" className="btn btn-primary" onClick={() => setConfirmar('encerrar')}><CheckCircle2 /> Encerrar</button>
+                  // na fila, a ação da vez é assumir; encerrar só ganha destaque depois
+                  <button type="button" className={`btn ${aberta.status === 'human' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setConfirmar('encerrar')}><CheckCircle2 /> Encerrar</button>
                 )}
                 {aberta.status === 'closed' && (
                   <button type="button" className="btn btn-ghost" onClick={reabrir}><RotateCcw /> Reabrir</button>
@@ -402,7 +413,7 @@ export default function Atendimentos() {
             <div className="composer">
               {aberta.status === 'closed' ? (
                 <p className="faint" style={{ fontSize: 14 }}>
-                  Encerrado{aberta.encerrado_por ? ` pelo ${aberta.encerrado_por === 'equipe' ? 'time' : aberta.encerrado_por}` : ''}.{' '}
+                  Encerrado{aberta.encerrado_por ? ` ${{ equipe: 'pela equipe', cliente: 'pelo cliente', assistente: 'pelo assistente' }[aberta.encerrado_por] ?? ''}` : ''}.{' '}
                   <button type="button" className="link-btn" onClick={reabrir}>Reabrir para responder</button>
                 </p>
               ) : (

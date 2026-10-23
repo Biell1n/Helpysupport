@@ -44,7 +44,7 @@ function ConfigAgenda({ cfg, onSalvar, onFechar }) {
       aberto
       onFechar={onFechar}
       titulo="Horários da agenda"
-      sub="O atendente só oferece horários dentro destas faixas e que não estejam ocupados."
+      sub="O assistente só oferece horários dentro destas faixas e que não estejam ocupados."
       rodape={
         <>
           <button type="button" className="btn btn-ghost" onClick={onFechar}>Cancelar</button>
@@ -284,7 +284,7 @@ export default function Agenda() {
       <header className="page-head">
         <div>
           <h1>Agenda</h1>
-          <p>Horários marcados por você e pelo atendente. Em azul, os que ele marcou sozinho.</p>
+          <p>Horários marcados por você e pelo assistente. Em azul, os que ele marcou sozinho.</p>
         </div>
         <div className="row row-wrap">
           {tipo === 'empresa' && <button type="button" className="btn btn-ghost" onClick={() => setConfigurando(true)}><Settings2 /> Horários</button>}
@@ -295,7 +295,7 @@ export default function Agenda() {
       {cfg && !cfg.ativa && tipo === 'empresa' && (
         <div className="alert" style={{ marginBottom: 16 }}>
           <span>
-            A agenda está desligada para o atendente. <button type="button" className="link-btn" onClick={() => setConfigurando(true)}>Ligar e definir horários</button>
+            A agenda está desligada para o assistente. <button type="button" className="link-btn" onClick={() => setConfigurando(true)}>Ligar e definir horários</button>
             {' '}— depois, na seção Agenda do assistente, ligue “Ele marca horários”.
           </span>
         </div>

@@ -225,7 +225,7 @@ export function EscolherModelo({ compacto }) {
         <div>
           <p className="eyebrow">Primeiro passo</p>
           <h2 style={{ fontSize: 26, marginTop: 6 }}>Que tipo de negócio é?</h2>
-          <p className="muted" style={{ marginTop: 6 }}>Isso decide o que o atendente precisa saber: uma loja tem frete, um professor não.</p>
+          <p className="muted" style={{ marginTop: 6 }}>Isso decide o que o assistente precisa saber: uma loja tem frete, um professor não.</p>
         </div>
       )}
       <label className="field" style={{ maxWidth: 420 }}>

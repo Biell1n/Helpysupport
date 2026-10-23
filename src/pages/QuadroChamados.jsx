@@ -10,7 +10,7 @@ import { avisarNoCanal } from '@/lib/canais';
 const COLUNAS = [
   { id: 'waiting', titulo: 'Na fila', vazio: 'Nenhum chamado esperando.' },
   { id: 'human', titulo: 'Em atendimento', vazio: 'Arraste um chamado para cá para assumir.' },
-  { id: 'closed', titulo: 'Resolvidos', vazio: 'Os encerrados dos últimos 14 dias aparecem aqui.' },
+  { id: 'closed', titulo: 'Encerrados', vazio: 'Os encerrados dos últimos 14 dias aparecem aqui.' },
 ];
 
 /** Os chamados como quadro: arrastar muda a etapa (assumir, devolver para a fila, encerrar). */

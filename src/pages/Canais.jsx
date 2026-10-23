@@ -31,7 +31,7 @@ const SERVICOS = [
   {
     tipo: 'discord',
     nome: 'Discord',
-    frase: 'O bot do Helpy entra no seu servidor com o nome do assistente: o cliente abre um ticket privado e conversa com ele ali.',
+    frase: 'O bot do Helpy entra no seu servidor com o nome do assistente: o cliente abre uma conversa privada e fala com ele ali.',
     meta: false,
   },
 ];
@@ -253,7 +253,7 @@ function Atividade({ dias }) {
   );
 }
 
-/** Bot do Helpy no Discord: como estão os tickets neste servidor. */
+/** Bot do Helpy no Discord: como estão as conversas privadas neste servidor. */
 function TicketsDiscord({ canal }) {
   const [livre, setLivre] = useState(null);
   useEffect(() => {
@@ -264,14 +264,14 @@ function TicketsDiscord({ canal }) {
   const publicado = !!canal.config?.painel_msg;
   const itens = [
     [publicado, publicado
-      ? <>Botão <b>Abrir atendimento</b> publicado. Cada cliente ganha um ticket privado.</>
+      ? <>Botão <b>Abrir atendimento</b> publicado. Cada cliente ganha uma conversa privada.</>
       : <>Falta configurar: no servidor, digite <b>/helpy-config</b>, escolha o canal e o cargo da equipe e publique o botão.</>],
     [!!canal.config?.cargo_equipe, canal.config?.cargo_equipe
       ? 'Cargo da equipe escolhido: ele é chamado quando o cliente pede uma pessoa.'
       : 'Sem cargo da equipe: escolha no /helpy-config para a equipe ser chamada.'],
     [livre, livre === null ? 'Conferindo a conversa livre…' : livre
-      ? 'Conversa livre ligada: o cliente e a equipe escrevem direto no ticket.'
-      : 'Conversa livre desligada: no ticket, o cliente fala com /helpy.'],
+      ? 'Conversa livre ligada: o cliente e a equipe escrevem direto na conversa privada.'
+      : 'Conversa livre desligada: na conversa privada, o cliente fala com /helpy.'],
   ];
   return (
     <div className="discord-tickets">
@@ -283,7 +283,7 @@ function TicketsDiscord({ canal }) {
           </li>
         ))}
       </ul>
-      <p className="faint">Os tickets aparecem em Atendimentos. O que você responde por lá chega no Discord com o seu nome, e quem responde pelo Discord aparece aqui.</p>
+      <p className="faint">Essas conversas aparecem em Atendimentos. O que você responde por lá chega no Discord com o seu nome, e quem responde pelo Discord aparece aqui.</p>
     </div>
   );
 }
@@ -323,7 +323,7 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
         </div>
       )}
       <div className="row row-wrap" style={{ gap: 8, marginTop: 12 }}>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('testar')}><RefreshCw size={15} /> Testar</button>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('testar')}><RefreshCw size={15} /> Testar conexão</button>
         {canal.status === 'pausado' ? (
           <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('pausar', { ativo: true })}><Play size={15} /> Retomar</button>
         ) : (
@@ -405,7 +405,7 @@ export default function Canais() {
     setOcupado(true);
     try {
       await chamar('canais', { action: 'desconectar', canal_id: c.id });
-      avisar('Canal desconectado', { texto: 'O token foi apagado do cofre.' });
+      avisar('Canal desconectado', { texto: 'A chave de acesso foi apagada do cofre.' });
       await carregar();
     } catch (e) {
       avisar('Não deu certo', { erro: true, texto: e.message });
@@ -417,7 +417,7 @@ export default function Canais() {
   const contasMeta = (canais ?? []).filter((c) => c.tipo !== 'discord').length;
 
   return (
-    <div className="page" style={{ maxWidth: 960 }}>
+    <div className="page">
       <header className="page-head">
         <div>
           <h1>Canais</h1>
@@ -504,7 +504,7 @@ export default function Canais() {
       <Confirmar
         aberto={!!apagar}
         titulo={`Desconectar ${apagar?.nome ?? 'o canal'}?`}
-        texto="O assistente para de responder por lá e o token é apagado. As conversas que já aconteceram continuam em Atendimentos."
+        texto="O assistente para de responder por lá e a chave de acesso é apagada. As conversas que já aconteceram continuam em Atendimentos."
         acao="Desconectar"
         perigo
         onConfirmar={desconectar}

@@ -87,7 +87,7 @@ function Conversa() {
             <div className="msg msg-bot">
               <span className="msg-who">Helpy</span>
               <div className="msg-body">
-                Oi! Eu monto o atendente do seu negócio com você. Me conta: o que a sua empresa faz e para quem? Pode escrever do seu jeito, colar sua tabela de preços ou mandar um arquivo (PDF, planilha, foto) no clipe aqui embaixo.
+                Oi! Eu monto o assistente do seu negócio com você. Me conta: o que a sua empresa faz e para quem? Pode escrever do seu jeito, colar sua tabela de preços ou mandar um arquivo (PDF, planilha, foto) no clipe aqui embaixo.
               </div>
             </div>
             <div className="stack stack-sm">
@@ -197,7 +197,7 @@ function ModoFormulario() {
         </span>
       </div>
       <p className="muted" style={{ fontSize: 14 }}>
-        Comece pelo tipo de negócio. Os campos com <span className="req">*</span> são o mínimo para publicar; o resto deixa o atendente mais esperto.
+        Comece pelo tipo de negócio. Os campos com <span className="req">*</span> são o mínimo para publicar; o resto deixa o assistente mais esperto.
       </p>
       {b.modelo && <EscolherModelo compacto />}
     </div>
