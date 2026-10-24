@@ -71,6 +71,14 @@ export async function montarItens(
   const precoChave = (tid: string) =>
     colunasDe(tid).find((c) => c.tipo === 'moeda')?.chave ?? colunasDe(tid).find((c) => /preco|valor|price/i.test(`${c.chave} ${c.rotulo}`))?.chave;
   const estoqueChave = (tid: string) => colunasDe(tid).find((c) => /estoque|quantidade|qtd|stock/i.test(`${c.chave} ${c.rotulo}`))?.chave;
+  // a coluna com o nome do produto: primeiro pelo rótulo que a pessoa vê (a chave pode ter
+  // sobrado de um título, como "catalogo_de_produtos"), nunca a de código/SKU
+  const NOME = /produto|nome|item|titulo|título|modelo|servi/i;
+  const ehCodigo = (c: { rotulo: string }) => /\b(sku|c[oó]d(igo)?|ref(er[eê]ncia)?|id|ean)\b/i.test(c.rotulo);
+  const colunaDoNome = (t: TabelaPedido) =>
+    t.colunas.find((c) => !ehCodigo(c) && NOME.test(c.rotulo)) ??
+      t.colunas.find((c) => !ehCodigo(c) && NOME.test(`${c.chave} ${c.rotulo}`)) ??
+      t.colunas[0];
 
   const registros = [
     ...(linhas ?? []).map((l) => {
@@ -78,7 +86,7 @@ export async function montarItens(
       const principais = t.colunas.filter((c, i) => i === 0 || /nome|produto|servi|item|titulo|modelo/i.test(`${c.chave} ${c.rotulo}`));
       return {
         // o nome que aparece no pedido e no link: a coluna de nome do produto (não o código/SKU)
-        nome: String(l.dados?.[(t.colunas.find((c) => /produto|nome|item|titulo|modelo|servi/i.test(`${c.chave} ${c.rotulo}`)) ?? t.colunas[0])?.chave] ?? '') ||
+        nome: String(l.dados?.[colunaDoNome(t)?.chave] ?? '') ||
           String(l.dados?.[t.colunas[0]?.chave] ?? ''),
         forte: principais.map((c) => String(l.dados?.[c.chave] ?? '')).join(' '),
         resto: Object.values(l.dados ?? {}).join(' '),
