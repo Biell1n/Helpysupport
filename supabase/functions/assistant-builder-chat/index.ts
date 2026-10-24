@@ -166,6 +166,45 @@ function desfazer(s: Session, passos = 1): number {
   return n;
 }
 
+// anotação que alguém deixou na planilha para resolver depois
+const PENDENTE = /(a|precisa[m]? ser|serão|ser[aã]o|ainda n[aã]o)\s+(confirmad|definid|informad|verificad)|a confirmar|a definir|sob consulta|consultar dispon|em defini[cç][aã]o/i;
+
+/**
+ * Lê as tabelas do assistente atrás de anotações pendentes ("tons precisam ser
+ * confirmados"). Sem IA: só procura o padrão e junta por anotação.
+ */
+async function pendenciasDasTabelas(s: Session): Promise<{ nota: string; produtos: string[] }[]> {
+  const ids = new Set((s.meta.tabelas_criadas ?? []).filter((x) => typeof x === 'string'));
+  if (s.assistant_id) {
+    const { data } = await admin.from('assistente_tabelas').select('tabela_id').eq('assistant_id', s.assistant_id);
+    for (const t of data ?? []) ids.add(t.tabela_id);
+  }
+  if (!ids.size) return [];
+  const { data: cols } = await admin.from('tabela_colunas').select('tabela_id, chave, ordem').in('tabela_id', [...ids]);
+  const { data: linhas } = await admin.from('tabela_linhas').select('tabela_id, dados').in('tabela_id', [...ids]).limit(1000);
+  const nomeDe = (tid: string, dados: Record<string, string>) => {
+    const ord = (cols ?? []).filter((c) => c.tabela_id === tid).sort((a, b) => a.ordem - b.ordem);
+    // o nome do produto costuma ser a primeira coluna de texto que não é código
+    for (const c of ord) {
+      const v = String(dados?.[c.chave] ?? '').trim();
+      if (v && !/^[A-Z0-9-]{3,}$/.test(v) && v.length < 80) return v;
+    }
+    return '';
+  };
+  const porNota = new Map<string, string[]>();
+  for (const l of linhas ?? []) {
+    for (const v of Object.values((l.dados ?? {}) as Record<string, string>)) {
+      const texto = String(v ?? '').trim();
+      if (texto.length > 160 || !PENDENTE.test(texto)) continue;
+      const lista = porNota.get(texto) ?? [];
+      const nome = nomeDe(l.tabela_id, l.dados as Record<string, string>);
+      if (nome && !lista.includes(nome)) lista.push(nome);
+      porNota.set(texto, lista);
+    }
+  }
+  return [...porNota.entries()].slice(0, 5).map(([nota, produtos]) => ({ nota, produtos: produtos.slice(0, 8) }));
+}
+
 /** Só a conversa de verdade (sem os avisos de desfazer). */
 function conversaDe(msgs: MensagemBuilder[]) {
   return msgs.filter((m) => m.role === 'user' || m.role === 'assistant');
@@ -336,6 +375,17 @@ function nextGoal(s: Session): Goal {
 É oferta: se disser não, siga e nunca mais toque no assunto (ferramenta recusar_tabela).`,
       };
     }
+  }
+
+  // a planilha tem anotações do tipo "tons a confirmar": resolver na montagem, não com o cliente
+  const pend = meta.pendencias_tabela ?? [];
+  if (pend.length && (asks.pendencias ?? 0) < 2) {
+    return {
+      key: 'pendencias',
+      text: `Na tabela de produtos há anotações pendentes que o assistente acabaria repetindo para o cliente:
+${pend.map((p) => `- "${p.nota}"${p.produtos.length ? ` (em ${p.produtos.slice(0, 4).join(', ')}${p.produtos.length > 4 ? '…' : ''})` : ''}`).join('\n')}
+Pergunte a informação certa (ex.: quais tons existem de cada produto) para o assistente vender sem precisar confirmar. Grave a resposta no campo que couber (tons, cores e tamanhos vão em variacoes) e diga que, se preferir, ela pode apagar a anotação da tabela em Dados. Se ela disser que não tem a informação, grave isso e siga.${insist('pendencias')}`,
+    };
   }
 
   const kMais = escolher(state.askMore.map((k) => `more:${k}`));
@@ -1237,6 +1287,7 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
   const usage = emptyUsage();
   const usageMateriais = emptyUsage();
   s.meta.turno += 1;
+  s.meta.pendencias_tabela = await pendenciasDasTabelas(s);
   let goal = nextGoal(s);
 
   // Antes da conversa, cada arquivo vira o que o construtor lê:
