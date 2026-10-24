@@ -228,6 +228,14 @@ export async function fecharPedido(
   // sem baixa de estoque: o item não leva a coluna, e o pagamento não mexe na tabela
   const itens = ctx.baixarEstoque ? achados : achados.map(({ estoque_chave: _, ...i }) => i);
   const total = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
+  // o Asaas não gera cobrança abaixo de R$ 5: nem cria o pedido (senão fica um pedido sem link)
+  if (total < MINIMO_COBRANCA) {
+    return {
+      erro: 'O pedido NÃO foi criado: o pagamento pelo link começa em R$ 5,00.',
+      total: reais(total),
+      mensagem: `Explique com naturalidade que o pagamento pelo link começa em ${reais(MINIMO_COBRANCA)} e o pedido deu ${reais(total)}. Ofereça completar com outro item (sugira algo do catálogo que combine) ou, se a pessoa preferir só esse item, combinar o pagamento com a equipe (abra chamado se ela aceitar). Nunca invente desconto ou taxa.`,
+    };
+  }
 
   const { data: ped, error } = await db.from('pedidos').insert({
     owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId,
