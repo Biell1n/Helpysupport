@@ -510,7 +510,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: 'criar_lista',
-    description: 'Cria uma lista nova para coisas que se repetem e não cabem nas listas existentes (ex.: Profissionais de um salão, Unidades de uma rede).',
+    description: 'Cria uma lista nova de coisas que o assistente consulta e que não cabem nas listas existentes (ex.: Profissionais de um salão, Unidades de uma rede). Nunca para registrar pedidos, solicitações, atendimentos ou clientes: isso o Helpy já guarda em Atendimentos e Pedidos.',
     input_schema: {
       type: 'object',
       properties: {
@@ -791,6 +791,10 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
       const rotulo = String(input.rotulo ?? '').trim().slice(0, 50);
       const attrs = ((input.atributos as string[]) ?? []).filter(Boolean).slice(0, 8);
       if (!rotulo || !attrs.length) return { erro: 'rótulo e atributos são obrigatórios' };
+      // registro do que acontece no atendimento não é lista: já existe em Atendimentos/Pedidos
+      if (/\b(pedidos?|solicita\w*|atendimentos?|chamados?|registros?|tickets?|reclama\w*|leads?|ocorr[eê]ncias?)\b/i.test(rotulo)) {
+        return { erro: 'Não crie isso: atendimentos e chamados já ficam em Atendimentos, e vendas em Pedidos. Explique isso em uma frase e siga.' };
+      }
       let key = slug(rotulo) || 'lista';
       while (fields.has(key) || cols.has(key)) key += '_2';
       const col = { ...hardenCollection({ key, label: rotulo, importance: 'optional', item_fields: attrs.map((a) => ({ key: slug(a), label: a, type: 'text' as const })) }, false), importance: 'optional' as const, custom: true };
@@ -996,6 +1000,12 @@ ENTENDA A INTENÇÃO
 - Não entendeu e devolveu pergunta → explique com um exemplo concreto e pergunte de novo.
 - Mudou de assunto → siga com ela; o assunto anterior volta depois.
 - Respondeu só parte das perguntas agrupadas → grave o que veio; o que faltou volta depois, sem repetir o que ela já respondeu.
+
+O QUE O HELPY JÁ FAZ SOZINHO (nunca crie lista, campo ou tabela para isto)
+- Conversas e pedidos de ajuda viram chamados em Atendimentos, com resumo, contato e status. A equipe assume e responde ali.
+- Vendas fechadas no chat viram pedidos em Pedidos (itens, total, pagamento por Pix ou cartão), e o estoque da tabela baixa sozinho quando o pagamento cai. Isso depende da Carteira e de "Fechar a venda no chat?".
+- Horários marcados ficam na Agenda. Contatos que o cliente deixa ficam no próprio atendimento e nos Relatórios.
+Tabelas em Dados servem só para o que o assistente CONSULTA ao responder: produtos, serviços, preços, estoque, unidades. O assistente não escreve em tabelas. Se a pessoa pedir para "registrar pedidos", "guardar solicitações" ou "anotar clientes", explique em uma frase onde isso já aparece (Atendimentos, Pedidos, Agenda) e siga. Nunca ofereça isso por conta própria.
 
 CAMPOS QUE SE CONFUNDEM
 - tom_de_voz = o jeito de falar, inclusive listas de comportamento ("simpático, nunca pressionar").
