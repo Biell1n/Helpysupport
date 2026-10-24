@@ -63,6 +63,27 @@ export function textoDaCelula(v) {
 }
 
 /**
+ * Planilha "enfeitada" (título, subtítulo, linha em branco antes da tabela):
+ * acha a linha do cabeçalho de verdade. É a primeira linha, entre as 15 de
+ * cima, com quase todas as colunas preenchidas, só com texto e sem nomes
+ * repetidos. Sem isso, o título vira cabeçalho e as colunas viram "Coluna 6".
+ */
+export function inicioDosDados(todas) {
+  const cheias = (l) => l.filter((c) => String(c ?? '').trim()).length;
+  const largura = Math.max(0, ...todas.slice(0, 40).map(cheias));
+  if (largura < 2) return 0;
+  for (let i = 0; i < Math.min(15, todas.length - 1); i++) {
+    const textos = todas[i].map((c) => String(c ?? '').trim()).filter(Boolean);
+    if (textos.length < Math.max(2, Math.ceil(largura * 0.6))) continue;
+    const numeros = textos.filter((v) => /^-?(R\$\s?)?[\d.,]+$/.test(v)).length;
+    if (numeros > textos.length * 0.2) continue;
+    if (new Set(textos.map((t) => t.toLowerCase())).size < textos.length) continue;
+    return i;
+  }
+  return 0;
+}
+
+/**
  * Lê o arquivo e devolve as abas com as linhas em texto.
  * [{ nome, linhas: [[...], ...] }]
  */
@@ -70,7 +91,8 @@ export async function lerArquivo(arquivo) {
   const nome = arquivo.name.toLowerCase();
   if (nome.endsWith('.csv') || nome.endsWith('.txt') || nome.endsWith('.tsv')) {
     const texto = await arquivo.text();
-    return [{ nome: arquivo.name.replace(/\.[^.]+$/, ''), linhas: lerCsv(texto) }];
+    const linhas = lerCsv(texto);
+    return [{ nome: arquivo.name.replace(/\.[^.]+$/, ''), linhas: linhas.slice(inicioDosDados(linhas)) }];
   }
   if (nome.endsWith('.xls')) {
     throw new Error('Arquivo .xls antigo: abra no Excel e salve como .xlsx ou .csv.');
@@ -79,7 +101,11 @@ export async function lerArquivo(arquivo) {
   const { default: lerExcel } = await import('read-excel-file/browser');
   const abas = await lerExcel(arquivo);
   return abas
-    .map((a) => ({ nome: a.sheet, linhas: (a.data ?? []).map((l) => l.map(textoDaCelula)).filter((l) => l.some((c) => c)) }))
+    .map((a) => {
+      const linhas = (a.data ?? []).map((l) => l.map(textoDaCelula)).filter((l) => l.some((c) => c));
+      // título e enfeites acima da tabela ficam de fora
+      return { nome: a.sheet, linhas: linhas.slice(inicioDosDados(linhas)) };
+    })
     .filter((a) => a.linhas.length);
 }
 
