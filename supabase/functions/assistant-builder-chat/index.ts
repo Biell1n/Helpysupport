@@ -32,7 +32,7 @@ import { colunasDe, lerAbas, registrosDe } from '../_shared/planilha.ts';
 import {
   allCollections, allFields, buildSchema, type CollectionDef, computeState, type Config,
   EMPTY_CONFIG, type FieldDef, hardenCollection, limpo, type Material, type MensagemBuilder, type Meta, missingCritical,
-  type Modelo, MODELOS, normalizeConfig, normalizeMeta, PRICE_RE, type Schema, semNoItem, slug, valueOf, VENDE,
+  type Modelo, MODELOS, normalizeConfig, normalizeMeta, PRICE_RE, type Schema, semNoItem, slug, valueOf, VENDA_NAO, VENDA_SIM, VENDE,
 } from '../_shared/schema.ts';
 
 type Versao = { em: string; config: Config; meta: Meta };
@@ -336,6 +336,23 @@ function nextGoal(s: Session): Goal {
 É oferta: se disser não, siga e nunca mais toque no assunto (ferramenta recusar_tabela).`,
       };
     }
+  }
+
+  // loja com catálogo: perguntar se o assistente fecha a venda no chat (pedido + baixa de estoque)
+  const vende = meta.business_model === 'produto' || meta.business_model === 'assinatura';
+  const temCatalogo = (meta.tabelas_criadas?.length ?? 0) > 0 ||
+    allCollections(schema).some((x) => !['contatos', 'faq'].includes(x.key) && (config.collections[x.key]?.length ?? 0) > 0);
+  const vendaRespondida = !!valueOf(config, 'venda_no_chat') || config.fields.venda_no_chat?.status === 'ignorado';
+  if (vende && temCatalogo && F('venda_no_chat') && !vendaRespondida && (asks.venda_no_chat ?? 0) < 2) {
+    return {
+      key: 'venda_no_chat',
+      text: `Perguntar se a pessoa quer que o assistente feche a venda no chat. Explique o ganho concreto, em poucas frases:
+- quando o cliente decide, o assistente confirma itens e total e manda o link de Pix ou cartão na conversa
+- quando o pagamento cai, o pedido aparece em Pedidos já pago e o cliente recebe a confirmação
+- com a coluna de estoque na tabela, o estoque baixa sozinho e ele nunca vende o que não tem
+Diga que, para receber, é preciso ativar a Carteira no painel; até lá ele só informa preço e disponibilidade.
+Se disser sim, grave venda_no_chat = "${VENDA_SIM}" e venda_estoque = "Sim, baixa na tabela de Dados" (a não ser que ela não queira mexer no estoque). Se disser não, grave venda_no_chat = "${VENDA_NAO}". Uma pergunta só.${insist('venda_no_chat')}`,
+    };
   }
 
   const kMais = escolher(state.askMore.map((k) => `more:${k}`));
