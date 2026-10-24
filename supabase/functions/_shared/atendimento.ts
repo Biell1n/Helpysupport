@@ -271,7 +271,7 @@ ${blocoTabelas}
 ${blocoAgenda}
 ${loja ? `
 VENDA PELO CHAT
-Você fecha a compra aqui mesmo. A pessoa vê um carrinho na tela: quando ela escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
+Você fecha a compra aqui mesmo. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
 
 FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para preço e estoque dos itens, consulte as tabelas. As perguntas frequentes daqui são respostas da equipe e valem mais que observações das tabelas' : ' — sua fonte de verdade'}
 ${describeConfig(a.schema, semSenha(cfg)) || '(vazia)'}
@@ -393,7 +393,7 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
   if (loja) {
     tools.push({
       name: 'atualizar_carrinho',
-      description: 'Atualiza o carrinho que o cliente vê na tela. Chame sempre que ele escolher, trocar, tirar um produto ou mudar a quantidade. Mande o carrinho INTEIRO como deve ficar (vazio para esvaziar). O preço vem do catálogo.',
+      description: 'Atualiza o carrinho da conversa. Chame sempre que ele escolher, trocar, tirar um produto ou mudar a quantidade. Mande o carrinho INTEIRO como deve ficar (vazio para esvaziar). O preço vem do catálogo.',
       input_schema: {
         type: 'object',
         properties: {
@@ -655,7 +655,12 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     const carrinho = itens.map((i) => ({ produto: i.produto, quantidade: i.quantidade, preco: i.preco, subtotal: i.subtotal }));
     await db.from('conversations').update({ carrinho }).eq('id', conversationId);
     const total = carrinho.reduce((s2, i) => s2 + i.subtotal, 0);
-    return { ok: true, carrinho: carrinho.map((i) => `${i.quantidade}x ${i.produto}`), total: reaisBR(total), mensagem: 'O carrinho aparece na tela da pessoa: não precisa repetir a lista inteira, só confirme o que mudou.' };
+    return {
+      ok: true, carrinho: carrinho.map((i) => `${i.quantidade}x ${i.produto}`), total: reaisBR(total),
+      mensagem: r.canal
+        ? 'Neste app a pessoa NÃO vê o carrinho: escreva a lista como ficou (quantidade, produto e preço) e o total.'
+        : 'O carrinho aparece na tela da pessoa: não precisa repetir a lista inteira, só confirme o que mudou.',
+    };
   }
 
   if (nome === 'fechar_pedido' && r.vendas?.loja) {
@@ -975,7 +980,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     ...(loja
       ? [{
         type: 'text' as const,
-        text: `CARRINHO ATUAL (o cliente vê na tela): ${carrinho.length ? carrinho.map((i) => `${i.quantidade}x ${i.produto} (${reaisBR(i.subtotal)})`).join('; ') : 'vazio'}.`,
+        text: `CARRINHO ATUAL (${r.canal ? 'a pessoa NÃO vê o carrinho neste app: quando ele mudar ou antes de fechar, escreva a lista com o total' : 'o cliente vê na tela e pode mudar a quantidade por lá'}): ${carrinho.length ? carrinho.map((i) => `${i.quantidade}x ${i.produto} (${reaisBR(i.subtotal)})`).join('; ') : 'vazio'}.`,
       }]
       : []),
     ...(daEquipe.length || r.retorno
