@@ -237,7 +237,7 @@ const CORE_TAIL: Section[] = [
         label: 'Contatos para passar ao cliente',
         importance: 'important',
         min: 1,
-        note: 'Se um cliente precisar falar direto com vocês fora do chat, o assistente passa estes contatos. Os avisos de chamado não vão para cá: eles chegam em Atendimentos, no painel. Se preferir que tudo fique no Helpy, pode dispensar.',
+        note: 'Opcional. Com chamados ligados, o cliente já fala com vocês na própria conversa. Estes contatos são só para quem pedir outro meio (ou se não der para abrir chamado). Se preferir tudo pelo Helpy, pode dispensar.',
         item_fields: [
           { key: 'tipo', label: 'Canal', type: 'select', options: ['WhatsApp', 'Telefone', 'E-mail', 'Instagram', 'Site', 'Outro'], required: true },
           { key: 'valor', label: 'Número, endereço ou perfil', type: 'text', required: true },

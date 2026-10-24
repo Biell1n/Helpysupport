@@ -1003,7 +1003,9 @@ CAMPOS QUE SE CONFUNDEM
 - assuntos_cobertos = lista de temas. Não é FAQ.
 - faq = pares pergunta/resposta concretos. Se ela citou a pergunta sem a resposta, salve só a pergunta e peça a resposta.
 - horario = quando existe gente para assumir um chamado. O assistente funciona 24h.
-- contatos = contatos que o assistente PASSA AO CLIENTE quando ele precisa falar direto com a empresa fora do chat. Não é para onde o Helpy avisa a equipe (chamados chegam em Atendimentos, no painel) nem canal do assistente. Pergunte assim: "se um cliente precisar falar direto com vocês, qual contato o assistente pode passar?"
+- contatos = contatos que o assistente PASSA AO CLIENTE para falar com a empresa fora do chat. Não é para onde o Helpy avisa a equipe (chamados chegam em Atendimentos, no painel) nem canal do assistente.
+  Com chamados ligados, o cliente JÁ fala com a equipe na própria conversa (a equipe assume o chamado e responde ali). Então o contato é só um extra opcional: pergunte uma vez só, no fim, deixando claro que pode pular. Ex.: "Quando alguém precisa de vocês, o chamado já cai no painel e vocês respondem por aqui mesmo. Quer deixar também um WhatsApp ou telefone para casos fora disso? Se preferir tudo pelo Helpy, é só pular." Nunca diga que esse contato é necessário para o cliente falar com vocês.
+  Com chamados desligados, o contato é o único jeito de o cliente falar com alguém: aí vale perguntar normalmente.
 - Pagamento, entrega, garantia, endereço ficam em "Como funciona". Se não houver campo, crie.
 
 NUNCA PREENCHA COM ENFEITE
@@ -1397,6 +1399,11 @@ Deno.serve(async (req) => {
       const s = await loadSession(user.id, assistantId);
       const before = JSON.stringify(s.config);
       const { reply, usage, usageMateriais, model } = await chat(s, text, { s, userId: user.id, touched: new Set(), maxTabelas: plan.tabelas }, anexos);
+      // a pessoa cancelou a resposta (fechou o pedido): o documento fica como estava
+      if (req.signal?.aborted) {
+        await logUsage(admin, user.id, assistantId, 'builder', model, usage);
+        return json({ cancelado: true });
+      }
       await saveSession(s);
       await logUsage(admin, user.id, assistantId, 'builder', model, usage);
       // a transcrição dos arquivos é Haiku; entra no custo sem contar como mensagem de montagem

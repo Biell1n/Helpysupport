@@ -14,8 +14,13 @@ export const supabase = configurado
  * Chama uma edge function e devolve o erro que ela escreveu, não o
  * genérico do cliente ("non-2xx status code").
  */
-export async function chamar(funcao, body) {
-  const { data, error } = await supabase.functions.invoke(funcao, { body });
+export async function chamar(funcao, body, { signal } = {}) {
+  const { data, error } = await supabase.functions.invoke(funcao, { body, signal });
+  if (signal?.aborted) {
+    const e = new Error('Cancelado');
+    e.cancelado = true;
+    throw e;
+  }
   if (error) {
     let msg = error.message || 'Falha na conexão';
     try {
