@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { diasDeTeste, planOf } from '@/lib/plans';
 import { numero, quando, STATUS } from '@/lib/format';
+import { CartaoRascunho, useRascunho } from '@/components/Rascunho';
 
 const saudacao = () => {
   const h = new Date().getHours();
@@ -61,6 +62,7 @@ export default function Painel() {
   const dias = diasDeTeste(profile);
 
   const [assistentes, setAssistentes] = useState(null);
+  const rascunho = useRascunho();
   const [fila, setFila] = useState([]);
   const [lacunas, setLacunas] = useState([]);
   const [proximos, setProximos] = useState([]);
@@ -174,7 +176,10 @@ export default function Painel() {
 
       {assistentes?.length > 0 && <PrimeirosPassos assistentes={assistentes} />}
 
-      {assistentes && assistentes.length === 0 ? <Comecar /> : null}
+      {/* montagem começada e não publicada: continua de onde parou */}
+      <CartaoRascunho rascunho={rascunho} />
+
+      {assistentes && assistentes.length === 0 && rascunho === null ? <Comecar /> : null}
 
       {/* conta nova: só o começo; números e listas aparecem com o primeiro assistente */}
       {assistentes?.length > 0 && (
