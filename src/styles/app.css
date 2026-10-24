@@ -387,8 +387,10 @@
   color: var(--tinta-2);
 }
 
-.msg .msg-body.pensando .bolinhas {
-  margin-left: -4px;
+/* as bolinhas ficam centralizadas embaixo do nome */
+.msg:has(> .msg-body.pensando) {
+  align-items: center;
+  width: fit-content;
 }
 
 .typing {
