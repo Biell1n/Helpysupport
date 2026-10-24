@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUp, Check, FileText, Loader2, Lock, Paperclip, RotateCcw, Undo2, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Check, FileText, Loader2, Lock, Paperclip, RotateCcw, Square, Undo2, X } from 'lucide-react';
 import { ANEXO_ACEITA, BuilderProvider, useBuilder } from './BuilderContext';
 import Documento, { EscolherModelo } from './Documento';
 import { Marca } from '@/components/Logo';
@@ -183,9 +183,16 @@ function Conversa() {
               }
             }}
           />
-          <button type="button" className="btn btn-primary btn-icon" disabled={(!texto.trim() && !arquivos.length) || b.sending || semCota} onClick={() => enviar()} aria-label="Enviar">
-            <ArrowUp />
-          </button>
+          {b.sending ? (
+            // parar: a resposta é descartada e o que você escreveu volta para a caixa
+            <button type="button" className="btn btn-primary btn-icon" onClick={() => setTexto(b.cancelar())} aria-label="Parar resposta" title="Parar resposta">
+              <Square size={14} fill="currentColor" />
+            </button>
+          ) : (
+            <button type="button" className="btn btn-primary btn-icon" disabled={(!texto.trim() && !arquivos.length) || semCota} onClick={() => enviar()} aria-label="Enviar">
+              <ArrowUp />
+            </button>
+          )}
         </div>
         <div className="composer-note">
           <span>Enter envia · Shift+Enter quebra linha · arraste arquivos aqui ·</span>

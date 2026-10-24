@@ -159,26 +159,43 @@ export function BuilderProvider({ assistantId = null, children }) {
   );
 
   // ---- conversa ----
+  // resposta em andamento: dá para parar (o texto volta para a caixa)
+  const emAndamento = useRef(null);
+  const cancelar = useCallback(() => {
+    const atual = emAndamento.current;
+    if (!atual) return '';
+    emAndamento.current = null;
+    atual.controle.abort();
+    setMessages((p) => p.filter((m) => m !== atual.msg));
+    setSending(false);
+    return atual.texto;
+  }, []);
+
   const sendMessage = useCallback(
     async (text, arquivos = []) => {
       const content = String(text || '').trim();
       if ((!content && !arquivos.length) || sending) return;
       const nomes = arquivos.map((a) => a.name);
-      setMessages((p) => [...p, { role: 'user', content: content || 'Segue o arquivo.', ...(nomes.length ? { anexos: nomes } : {}) }]);
+      const msg = { role: 'user', content: content || 'Segue o arquivo.', ...(nomes.length ? { anexos: nomes } : {}) };
+      const controle = new AbortController();
+      emAndamento.current = { controle, msg, texto: content };
+      setMessages((p) => [...p, msg]);
       setSending(true);
       try {
         const anexos = await Promise.all(arquivos.map(prepararAnexo));
         await flush();
-        const d = await chamar('assistant-builder-chat', { action: 'message', message: content, anexos, assistant_id: assistantId });
+        const d = await chamar('assistant-builder-chat', { action: 'message', message: content, anexos, assistant_id: assistantId }, { signal: controle.signal });
+        if (d?.cancelado) return;
         absorb(d);
         const keys = (d.ops ?? []).map((o) => o.key);
         setFresh(keys);
         setTimeout(() => setFresh([]), 2600);
         setMessages((p) => [...p, { role: 'assistant', content: d.message }]);
       } catch (e) {
-        setMessages((p) => [...p, { role: 'system', content: e.message }]);
+        if (!e.cancelado && !controle.signal.aborted) setMessages((p) => [...p, { role: 'system', content: e.message }]);
       } finally {
-        setSending(false);
+        if (emAndamento.current?.controle === controle) emAndamento.current = null;
+        if (!controle.signal.aborted) setSending(false);
       }
     },
     [sending, flush, absorb, assistantId],
@@ -338,6 +355,7 @@ export function BuilderProvider({ assistantId = null, children }) {
     ...estado,
     ...acoes,
     sendMessage,
+    cancelar,
     escolherModelo,
     criarCampo,
     publicar,
