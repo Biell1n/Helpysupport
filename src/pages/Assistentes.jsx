@@ -10,6 +10,7 @@ import { planOf } from '@/lib/plans';
 import { MODELOS } from '@/lib/documento';
 import QrAssistente from '@/components/QrAssistente';
 import TrocarFoto from '@/components/TrocarFoto';
+import { CartaoRascunho, useRascunho } from '@/components/Rascunho';
 
 export const linkPublico = (token) => `${window.location.origin}/c/${token}`;
 
@@ -69,6 +70,7 @@ export default function Assistentes() {
   };
 
   const podeCriar = (lista?.length ?? 0) < plano.assistentes;
+  const rascunho = useRascunho();
 
   return (
     <div className="page">
@@ -88,7 +90,9 @@ export default function Assistentes() {
 
       {lista === null && <div className="skeleton" style={{ height: 120 }} />}
 
-      {lista?.length === 0 && (
+      <CartaoRascunho rascunho={rascunho} />
+
+      {lista?.length === 0 && !rascunho && (
         <div className="empty">
           <Marca size={44} />
           <h3>Nenhum assistente ainda</h3>

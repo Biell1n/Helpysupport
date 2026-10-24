@@ -302,3 +302,27 @@
   border-color: var(--senha);
   box-shadow: 0 0 0 1px var(--senha);
 }
+
+/* exemplos por negócio: resposta do assistente em fundo noturno tingido */
+[data-tema='escuro'] .ghoriz-chat .ele {
+  background: color-mix(in srgb, var(--cor) 16%, var(--papel-2));
+  color: var(--tinta);
+}
+
+/* Mensal / Anual da página inicial */
+[data-tema='escuro'] .lp-ciclo {
+  background: rgba(18, 29, 42, 0.7);
+  border-color: var(--linha-forte);
+}
+
+[data-tema='escuro'] .lp-ciclo button {
+  color: var(--tinta-2);
+}
+
+[data-tema='escuro'] .lp-ciclo button[aria-pressed='true'] {
+  color: var(--sobre-tinta);
+}
+
+[data-tema='escuro'] .lp-ciclo button[aria-pressed='true'] small {
+  color: var(--senha);
+}

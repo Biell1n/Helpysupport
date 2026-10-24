@@ -811,7 +811,7 @@ export default function Landing() {
             <div className="lp-ciclo" role="group" aria-label="Forma de cobrança">
               <button type="button" aria-pressed={ciclo === 'mensal'} onClick={() => setCiclo('mensal')}>Mensal</button>
               <button type="button" aria-pressed={ciclo === 'anual'} onClick={() => setCiclo('anual')}>
-                Anual <small>até {Math.max(...pagos.map(descontoAnual))}% off</small>
+                Anual <small>até {Math.max(...pagos.map(descontoAnual))}% a menos</small>
               </button>
             </div>
           </Reveal>
