@@ -187,9 +187,9 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'virar_cliente') {
-      // só para conta recém-criada pelo Google por quem escolheu "Sou cliente"
+      // só para conta recém-criada pelo Google por quem escolheu "Sou cliente" (no cadastro ou na pergunta do primeiro acesso)
       const { data: p } = await admin.from('profiles').select('tipo, created_at').eq('id', user.id).maybeSingle();
-      if (p?.tipo !== 'empresa' || Date.now() - new Date(p.created_at).getTime() > 15 * 60_000) return json({ ok: false });
+      if (p?.tipo !== 'empresa' || Date.now() - new Date(p.created_at).getTime() > 30 * 60_000) return json({ ok: false });
       const { count } = await admin.from('assistants').select('id', { count: 'exact', head: true }).eq('owner_id', user.id);
       if ((count ?? 0) > 0) return json({ ok: false });
       await admin.from('profiles').update({ tipo: 'cliente', company_name: null }).eq('id', user.id);
