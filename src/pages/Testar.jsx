@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Copy, ExternalLink, Pencil } from 'lucide-react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { ArrowLeft, Copy, ExternalLink, Pencil, Wallet, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/Toasts';
 import { Conversa } from './ChatPublico';
@@ -10,6 +10,8 @@ export default function Testar() {
   const { id } = useParams();
   const avisar = useToast();
   const [a, setA] = useState(null);
+  // acabou de publicar uma loja que ainda não vende pelo chat: sugere a Carteira
+  const [dicaVenda, setDicaVenda] = useState(!!useLocation().state?.sugerirVenda);
 
   useEffect(() => {
     supabase.from('assistants').select('id, name, public_token, is_public').eq('id', id).maybeSingle().then(({ data }) => setA(data));
@@ -42,6 +44,17 @@ export default function Testar() {
           )}
         </div>
       </header>
+
+      {dicaVenda && (
+        <div className="alert" style={{ marginBottom: 16 }}>
+          <Wallet />
+          <span>
+            <b>Vi que você vende produtos.</b> Ativando a Carteira, o assistente fecha a venda aqui no chat: manda o link de Pix ou cartão,
+            o pedido aparece em Pedidos já pago e o estoque da tabela baixa sozinho. <Link to="/painel/carteira">Ver a Carteira</Link>
+          </span>
+          <button type="button" className="btn btn-quiet btn-icon" aria-label="Fechar dica" onClick={() => setDicaVenda(false)}><X size={16} /></button>
+        </div>
+      )}
       <div className="card" style={{ padding: 0, flex: 1, minHeight: 420, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <Conversa assistantId={id} modoTeste />
       </div>

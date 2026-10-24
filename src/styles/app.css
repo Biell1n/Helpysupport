@@ -3307,3 +3307,27 @@
 .texto-formatado strong {
   font-weight: 600;
 }
+
+/* Carteira: venda pelo chat por assistente */
+.venda-assistentes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.venda-assistentes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 12px 0;
+  border-top: 1px solid var(--linha);
+}
+
+.venda-assistentes li > b {
+  flex: 0 0 160px;
+}
+
+.venda-assistentes [data-desligado] {
+  opacity: 0.5;
+}

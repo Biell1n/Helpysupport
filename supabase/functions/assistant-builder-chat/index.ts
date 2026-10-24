@@ -338,23 +338,6 @@ function nextGoal(s: Session): Goal {
     }
   }
 
-  // loja com catálogo: perguntar se o assistente fecha a venda no chat (pedido + baixa de estoque)
-  const vende = meta.business_model === 'produto' || meta.business_model === 'assinatura';
-  const temCatalogo = (meta.tabelas_criadas?.length ?? 0) > 0 ||
-    allCollections(schema).some((x) => !['contatos', 'faq'].includes(x.key) && (config.collections[x.key]?.length ?? 0) > 0);
-  const vendaRespondida = !!valueOf(config, 'venda_no_chat') || config.fields.venda_no_chat?.status === 'ignorado';
-  if (vende && temCatalogo && F('venda_no_chat') && !vendaRespondida && (asks.venda_no_chat ?? 0) < 2) {
-    return {
-      key: 'venda_no_chat',
-      text: `Perguntar se a pessoa quer que o assistente feche a venda no chat. Explique o ganho concreto, em poucas frases:
-- quando o cliente decide, o assistente confirma itens e total e manda o link de Pix ou cartão na conversa
-- quando o pagamento cai, o pedido aparece em Pedidos já pago e o cliente recebe a confirmação
-- com a coluna de estoque na tabela, o estoque baixa sozinho e ele nunca vende o que não tem
-Diga que, para receber, é preciso ativar a Carteira no painel; até lá ele só informa preço e disponibilidade.
-Se disser sim, grave venda_no_chat = "${VENDA_SIM}" e venda_estoque = "Sim, baixa na tabela de Dados" (a não ser que ela não queira mexer no estoque). Se disser não, grave venda_no_chat = "${VENDA_NAO}". Uma pergunta só.${insist('venda_no_chat')}`,
-    };
-  }
-
   const kMais = escolher(state.askMore.map((k) => `more:${k}`));
   if (kMais) {
     const k = kMais.slice(5);
@@ -1540,6 +1523,28 @@ Deno.serve(async (req) => {
       return json(sessionPayload(s));
     }
 
+    if (action === 'definir_venda') {
+      // ligar/desligar a venda pelo chat direto da Carteira (sem IA)
+      if (!assistantId) throw new UserError('Escolha o assistente.');
+      const { data: a } = await admin.from('assistants').select('config').eq('id', assistantId).eq('owner_id', user.id).maybeSingle();
+      if (!a) throw new UserError('Assistente não encontrado.', 404);
+      const campos = {
+        venda_no_chat: { value: body.vender ? VENDA_SIM : VENDA_NAO, status: 'confirmado' },
+        venda_estoque: { value: body.estoque === false ? 'Não mexer no estoque' : 'Sim, baixa na tabela de Dados', status: 'confirmado' },
+      };
+      const config = normalizeConfig(a.config);
+      Object.assign(config.fields, campos);
+      await admin.from('assistants').update({ config }).eq('id', assistantId).eq('owner_id', user.id);
+      // a edição aberta no montador também passa a ter a mesma escolha
+      const { data: abertas } = await admin.from('builder_sessions').select('id, config').eq('owner_id', user.id).eq('assistant_id', assistantId).eq('status', 'active');
+      for (const sessao of abertas ?? []) {
+        const c = normalizeConfig(sessao.config);
+        Object.assign(c.fields, campos);
+        await admin.from('builder_sessions').update({ config: c }).eq('id', sessao.id);
+      }
+      return json({ ok: true, vender: !!body.vender, estoque: body.estoque !== false });
+    }
+
     if (action === 'undo') {
       const s = await loadSession(user.id, assistantId);
       const antes = { config: structuredClone(s.config), meta: structuredClone(s.meta), schema: s.schema };
@@ -1636,7 +1641,9 @@ Deno.serve(async (req) => {
       }
 
       await admin.from('builder_sessions').update({ status: 'done', assistant_id: assistant.id }).eq('id', s.id);
-      return json({ assistant });
+      // loja que ainda não vende pelo chat: a tela sugere a Carteira (sem gastar mensagem do montador)
+      const vendeProduto = s.meta.business_model === 'produto' || s.meta.business_model === 'assinatura';
+      return json({ assistant, sugerir_venda: vendeProduto && !/^sim/i.test(valueOf(s.config, 'venda_no_chat')) });
     }
 
     if (action === 'reset') {
