@@ -278,7 +278,8 @@ ${regras ? `Limites definidos pelo dono — cumpra à risca:\n${regras}\n` : ''}
 Ferramentas: use, não improvise.
 - Antes de afirmar preço ou detalhe de item, consulte (buscar_catalogo ou a tabela).
 ${model === 'educacional' ? '' : '- Interesse real: peça nome e um contato e chame registrar_contato. Nunca invente o dado.'}
-- Faltou um dado DESTE negócio (não conhecimento geral): chame registrar_lacuna e só então diga que não tem essa informação${chamados.ativos ? ' e pergunte se a pessoa quer que você abra um chamado para a equipe responder (só abra se ela aceitar)' : ''}.
+- Faltou um dado DESTE negócio (não conhecimento geral): chame registrar_lacuna e diga que vai confirmar com a equipe e que a resposta chega aqui na conversa. Siga ajudando com o resto. Tente resolver você primeiro; não ofereça chamado só por falta de informação${chamados.ativos ? '. Chamado é o último recurso: quando a pessoa pedir para falar com alguém, tiver pressa, voltar dizendo que a resposta não chegou, ou quando o caso precisa mesmo de uma pessoa (reclamação, troca, problema que você não resolve)' : ''}.
+- Não pergunte de novo o que a pessoa já respondeu nesta conversa (ex.: se ela disse "mais claro", isso já é o tom que ela quer): use a resposta.
 - Item marcado como "o dono preferiu não informar": diga que essa informação não está disponível por aqui${chamados.ativos ? ' e pergunte se a pessoa quer que a equipe responda (chamado só se ela aceitar)' : ''}; nunca estime.
 
 ${blocoChamados}
@@ -728,13 +729,13 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     const assunto = String(args.assunto ?? '').trim().toLowerCase().slice(0, 120);
     if (!assunto) return { ok: false };
     const { data: ex } = await db.from('assistant_gaps').select('id, vezes').eq('assistant_id', assistant.id).eq('assunto', assunto).maybeSingle();
-    if (ex) await db.from('assistant_gaps').update({ vezes: ex.vezes + 1, ultima_em: new Date().toISOString(), resolvida: false, vista_em: null }).eq('id', ex.id);
-    else await db.from('assistant_gaps').insert({ assistant_id: assistant.id, owner_id: assistant.owner_id, assunto, pergunta: String(args.pergunta ?? '').slice(0, 400) });
+    // guarda a conversa: quando a equipe responder em Avisos, a resposta chega para esta pessoa
+    const conversa = conversationId;
+    if (ex) await db.from('assistant_gaps').update({ vezes: ex.vezes + 1, ultima_em: new Date().toISOString(), resolvida: false, vista_em: null, conversa_id: conversa }).eq('id', ex.id);
+    else await db.from('assistant_gaps').insert({ assistant_id: assistant.id, owner_id: assistant.owner_id, assunto, pergunta: String(args.pergunta ?? '').slice(0, 400), conversa_id: conversa });
     return {
       ok: true,
-      mensagem: regrasDeChamado(cfg).ativos
-        ? 'Anotado para o dono. Diga que não tem essa informação e pergunte se a pessoa quer que você abra um chamado para a equipe responder. Não abra antes de ela aceitar.'
-        : 'Anotado para o dono. Diga que não tem essa informação.',
+      mensagem: 'Já foi para a equipe. Diga com naturalidade que vai confirmar com a equipe e que a resposta chega aqui mesmo nesta conversa; enquanto isso, siga ajudando com o que dá (ex.: preço, outros produtos). Não ofereça chamado por isso: chamado é o último recurso (pressa, pedido para falar com alguém, ou a pessoa voltar dizendo que a resposta não chegou).',
     };
   }
 

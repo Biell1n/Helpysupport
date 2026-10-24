@@ -9,3 +9,7 @@ alter table public.alertas add column if not exists respondido_em timestamptz;
 -- Pergunta sem resposta também chega como aviso: "visto" tira do topo do
 -- painel, mas ela continua na caixa de avisos até ser respondida.
 alter table public.assistant_gaps add column if not exists vista_em timestamptz;
+
+-- Conversa em que a pergunta sem resposta apareceu: quando a equipe responde
+-- em Avisos, a resposta chega para esse cliente.
+alter table public.assistant_gaps add column if not exists conversa_id uuid references public.conversations(id) on delete set null;

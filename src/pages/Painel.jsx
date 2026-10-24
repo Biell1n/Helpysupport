@@ -146,7 +146,7 @@ export default function Painel() {
   const ensinarLacuna = async (g, texto) => {
     setEnsinando(true);
     try {
-      await chamar('assistant-builder-chat', {
+      const r = await chamar('assistant-builder-chat', {
         action: 'ensinar',
         assistant_id: g.assistant_id,
         pergunta: g.pergunta || g.assunto,
@@ -156,7 +156,9 @@ export default function Painel() {
       setLacunas((p) => p.filter((x) => x.id !== g.id));
       setRespondendo(null);
       setResposta('');
-      avisar('O assistente aprendeu', { texto: 'A partir de agora ele responde isso sozinho.' });
+      avisar('O assistente aprendeu', {
+        texto: r?.entregue ? 'A resposta também foi para o cliente que perguntou.' : 'A partir de agora ele responde isso sozinho.',
+      });
     } catch (e) {
       avisar('Não deu para salvar', { erro: true, texto: e.message });
     } finally {
