@@ -332,13 +332,16 @@ async function oQueMontar(canal: Canal) {
     painel: (await existe(canal.config.painel_canal)) ? canal.config.painel_canal : null,
     equipe: (await existe(canal.config.canal_equipe)) ? canal.config.canal_equipe : null,
   };
-  const faltaCanais = !tem(p, PERM.GERENCIAR_CANAIS) && (!plano.painel || !plano.equipe);
-  const faltaCargos = !tem(p, PERM.GERENCIAR_CARGOS) && !plano.cargo;
   // as permissões que o bot dá a si mesmo no canal novo ele precisa ter no servidor
   const base = BigInt(PERMISSOES_BOT);
-  const faltaBase = p !== -1n && (p & base) !== base && (!plano.painel || !plano.equipe);
+  const podeCriarCanal = tem(p, PERM.GERENCIAR_CANAIS) && (p === -1n || (p & base) === base);
+  const faltaCanais = !tem(p, PERM.GERENCIAR_CANAIS) && !plano.painel;
+  const faltaCargos = !tem(p, PERM.GERENCIAR_CARGOS) && !plano.cargo;
+  const faltaBase = p !== -1n && (p & base) !== base && !plano.painel;
   return {
     ...plano,
+    // o canal de avisos é opcional: sem permissão para criar, fica de fora e o resto sai igual
+    pularEquipe: !plano.equipe && !podeCriarCanal,
     faltam: [faltaCanais && 'Gerenciar canais', faltaCargos && 'Gerenciar cargos', faltaBase && 'as permissões do atendimento'].filter(Boolean) as string[],
   };
 }
@@ -348,7 +351,9 @@ async function previaDaMontagem(canal: Canal) {
   const itens = [
     '📁 a categoria **Atendimento**',
     m.painel ? `💬 vou usar <#${m.painel}> para o botão (já está escolhido)` : '💬 o canal **#abrir-atendimento**: todo mundo vê e abre atendimento por ali, mas não escreve no canal (só dentro do próprio ticket)',
-    m.equipe ? `🔔 vou usar <#${m.equipe}> para os avisos (já está escolhido)` : '🔔 o canal **#equipe-atendimento**: só a equipe vê; chegam os avisos de novo atendimento e quando o cliente pede uma pessoa',
+    m.equipe ? `🔔 vou usar <#${m.equipe}> para os avisos (já está escolhido)`
+      : m.pularEquipe ? '🔔 sem canal de avisos (é opcional): quando o cliente pedir uma pessoa, chamo o cargo dentro do próprio ticket'
+      : '🔔 o canal **#equipe-atendimento**: só a equipe vê; chegam os avisos de novo atendimento e quando o cliente pede uma pessoa',
     m.cargo ? `👥 vou usar o cargo <@&${m.cargo}> (já está escolhido)` : '👥 o cargo **@Equipe de atendimento**: quem tiver esse cargo vê e responde todos os tickets',
     '📌 e publico o botão **Abrir atendimento**',
   ];
@@ -391,7 +396,7 @@ async function montarTudo(canal: Canal): Promise<string> {
   }
 
   let categoria: string | undefined;
-  if (!m.painel || !m.equipe) {
+  if (!m.painel || (!m.equipe && !m.pularEquipe)) {
     const r = await botHelpy(`/guilds/${servidor}/channels`, { method: 'POST', motivo, body: { name: 'Atendimento', type: 4 } }) as { id: string };
     categoria = r.id;
   }
@@ -416,7 +421,7 @@ async function montarTudo(canal: Canal): Promise<string> {
   }
 
   let equipe = m.equipe;
-  if (!equipe) {
+  if (!equipe && !m.pularEquipe) {
     const r = await botHelpy(`/guilds/${servidor}/channels`, {
       method: 'POST', motivo,
       body: {
@@ -437,13 +442,30 @@ async function montarTudo(canal: Canal): Promise<string> {
     ].join('\n'));
   }
 
-  await salvarConfig(canal, { painel_canal: painel, cargo_equipe: cargo, canal_equipe: equipe, ...(categoria ? { categoria } : {}) });
+  await salvarConfig(canal, { painel_canal: painel, cargo_equipe: cargo, canal_equipe: equipe ?? null, ...(categoria ? { categoria } : {}) });
   const publicado = await publicarPainel(canal);
+  if (!publicado.startsWith('Pronto!')) return `⚠️ ${criados.length ? `Criei ${criados.join(', ')}, mas o` : 'O'} botão não saiu: ${publicado}`;
   return [
     criados.length ? `✅ Pronto! Criei ${criados.join(', ')}${categoria ? ' (na categoria **Atendimento**)' : ''}.` : '✅ Pronto!',
     publicado.replace(/^Pronto! /, ''),
+    ...(equipe ? [] : ['➖ Ficou sem canal de avisos (é opcional). Se quiser um depois, escolha no menu.']),
     `👉 Agora é só dar o cargo <@&${cargo}> para quem atende.`,
   ].join('\n');
+}
+
+/** Deu tudo certo: o menu fecha e fica só o resumo (com um botão para abrir de novo). */
+function tudoPronto(canal: Canal, aviso: string) {
+  const painel = canal.config.painel_canal;
+  return {
+    content: '',
+    allowed_mentions: { parse: [] },
+    embeds: [{ color: AZUL, title: '✅ Atendimento pronto neste servidor', description: aviso }],
+    components: [{ type: 1, components: [
+      ...(painel ? [{ type: 2, style: 5, url: `https://discord.com/channels/${canal.externo_id}/${painel}`, label: 'Ver o botão' }] : []),
+      { type: 2, style: 5, url: `${SITE}/painel/atendimentos`, label: 'Abrir o painel' },
+      { type: 2, style: 2, custom_id: 'cfg:checar', label: 'Mudar a configuração', emoji: { name: '⚙️' } },
+    ] }],
+  };
 }
 
 /** Aviso no canal da equipe (se tiver um). Devolve se mandou. */
@@ -698,10 +720,13 @@ export function interacaoDoTicket(i: Interacao, canal: Canal): { resposta: unkno
         if (id === 'cfg:canal') await salvarConfig(canal, { painel_canal: i.data?.values?.[0] ?? null });
         else if (id === 'cfg:cargo') await salvarConfig(canal, { cargo_equipe: i.data?.values?.[0] ?? null });
         else if (id === 'cfg:equipe') await salvarConfig(canal, { canal_equipe: i.data?.values?.[0] ?? null });
-        else if (id === 'cfg:publicar') aviso = await publicarPainel(canal);
-        else if (id === 'cfg:montar_ok') {
+        else if (id === 'cfg:publicar') {
+          aviso = await publicarPainel(canal);
+          if (aviso.startsWith('Pronto!')) return await editarOriginal(i, tudoPronto(canal, `✅ ${aviso}`));
+        } else if (id === 'cfg:montar_ok') {
           try {
             aviso = await montarTudo(canal);
+            if (aviso.startsWith('✅')) return await editarOriginal(i, tudoPronto(canal, aviso));
           } catch (e) {
             console.error('[discord] montar', e);
             aviso = e instanceof ErroDoCanal && e.status === 403
