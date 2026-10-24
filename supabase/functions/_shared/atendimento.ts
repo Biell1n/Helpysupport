@@ -99,6 +99,8 @@ function missao(model: string, negocio: string, foraDaLoja = false) {
   }
   return `Você é VENDEDOR${negocio ? ` de ${negocio}` : ''} — e vendedor bom não é catálogo falante.
 - Pergunta antes de oferecer. Quem oferece antes de entender, oferece errado.
+- Primeiro entende, depois resolve, só então propõe fechar. Uma pergunta de cada vez sobre a necessidade (para que vai usar, como é, o que já tentou, orçamento).
+- Nunca ofereça fechar, reservar, separar ou perguntar quantidade enquanto houver dúvida aberta sobre o item (tom, tamanho, compatibilidade, disponibilidade) ou antes de a pessoa mostrar que quer levar. Se a dúvida foi para a equipe, ajude com outra coisa enquanto isso, sem empurrar a compra.
 - Fala do benefício para aquela pessoa, não da característica solta.
 - Recomenda pouco: duas ou três opções decidem, dez paralisam.
 - Ancora o preço no valor antes de dizer o número.
@@ -560,6 +562,8 @@ export interface Rodada {
   teste: boolean;
   /** recados da rodada para quem chamou (ex.: mostrar o botão de entrar) */
   sinais: { pedirLogin?: boolean; motivoLogin?: string };
+  /** a equipe acabou de responder uma dúvida desta conversa (o assistente retoma o atendimento) */
+  retorno?: { pergunta: string; resposta: string };
   /** venda no chat e horário pago: ligados no assistente e com o recebimento conectado (preenchido em responder) */
   vendas?: { loja: boolean; agendaPaga: boolean };
 }
@@ -914,8 +918,22 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const agora = new Intl.DateTimeFormat('pt-BR', { timeZone: fuso, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
   // o que esta conversa já marcou: as ferramentas de rodadas anteriores não ficam no histórico
   const marcados = agenda ? await agendamentosDaConversa(r.db, r.conversationId) : [];
+  // respostas que a equipe deu em Avisos: confirmadas, valem mais que tabela e ficha
+  const daEquipe = ((a.config.collections?.faq ?? []) as Array<Record<string, string>>)
+    .filter((f) => f?.equipe && f?.pergunta && f?.resposta)
+    .map((f) => `- ${f.pergunta}: ${f.resposta}`);
   const system: Anthropic.TextBlockParam[] = [
     { type: 'text', text: systemPrompt(a, tabelas, agenda, loja, rr.vendas.agendaPaga), cache_control: { type: 'ephemeral' } },
+    ...(daEquipe.length || r.retorno
+      ? [{
+        type: 'text' as const,
+        text: `${daEquipe.length ? `CONFIRMADO PELA EQUIPE (verdade; vale mais que tabela, ficha e o que você disse antes):\n${daEquipe.join('\n')}\nSe o cliente perguntar disso, responda com segurança. Ex.: "temos todos os tons" responde que existe o tom claro.` : ''}${
+          r.retorno
+            ? `\n\nRETORNO QUE ACABOU DE CHEGAR (o cliente não viu o texto da equipe): sobre "${r.retorno.pergunta}": ${r.retorno.resposta}\nSua próxima mensagem dá esse retorno ao cliente, aplicado ao caso dele, começando por "Recebi o retorno aqui:" e confirmando o que ele queria saber (ex.: "temos o tom claro sim"). Depois siga a conversa com uma pergunta útil. Não diga que não tem a confirmação: você tem.`
+            : ''
+        }`,
+      }]
+      : []),
     {
       type: 'text',
       text: `Agora: ${agora} (hoje é ${hojeNoFuso(fuso)}).\nVisitante: ${

@@ -209,11 +209,7 @@ export async function retomarComRetorno(
     .order('created_at', { ascending: false }).limit(24);
   const historico = [
     ...(hist ?? []).reverse(),
-    {
-      role: 'user',
-      content: `[Retorno interno da equipe — o cliente NÃO vê isto. Sobre "${retorno.pergunta}": ${retorno.resposta}]
-Continue o atendimento agora, como quem acabou de receber o retorno: responda a dúvida que o cliente deixou em aberto aplicando essa informação ao caso dele (ex.: "Recebi o retorno aqui: temos o tom claro sim") e siga para o próximo passo natural (ex.: oferecer fechar a compra). Não repita nem explique o texto da equipe e não diga que alguém escreveu algo.`,
-    },
+    { role: 'user', content: '[o cliente aguarda o retorno da equipe]' },
   ];
   const cfg = structuredClone((assistant as Assistant).config);
   if (!plan.chamadosAvancados) {
@@ -231,6 +227,7 @@ Continue o atendimento agora, como quem acabou de receber o retorno: responda a 
     canal: canal && tipo ? { tipo, contato: c.contato_externo, nome: c.lead_nome ?? null } : null,
     teste: !!c.teste,
     sinais: {},
+    retorno,
   }, historico);
   if (!r.texto) return false;
   await logUsage(db, dono, c.assistant_id, 'atendimento', r.model, r.usage);

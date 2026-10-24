@@ -1606,7 +1606,8 @@ Deno.serve(async (req) => {
       if (!pergunta || !resposta) throw new UserError('Escreva a resposta.');
       const { data: a } = await admin.from('assistants').select('config').eq('id', assistantId).eq('owner_id', user.id).maybeSingle();
       if (!a) throw new UserError('Assistente não encontrado.', 404);
-      const item = { pergunta, resposta };
+      // equipe: confirmada em Avisos, o atendimento dá prioridade a ela
+      const item = { pergunta, resposta, equipe: 'sim' };
       const juntar = (cfgIn: Partial<Config> | null) => {
         const c = normalizeConfig(cfgIn);
         const faq = (c.collections.faq ?? []).filter((x) => String(x.pergunta ?? '').trim().toLowerCase() !== pergunta.toLowerCase());
