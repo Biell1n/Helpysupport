@@ -9,6 +9,7 @@ import { planOf } from '@/lib/plans';
 import { quando } from '@/lib/format';
 import { IconeDoCanal as Icone } from '@/components/IconesCanais';
 import TutorialCanal from '@/components/TutorialCanal';
+import { origemDoSite } from '@/lib/site';
 
 // os avisos da Meta e do Discord chegam pelo mesmo endereço do chat público
 const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
@@ -77,7 +78,7 @@ function ConectarDiscord({ assistentes, onFechar }) {
     setIndo(true);
     setErro('');
     try {
-      const { url } = await chamar('canais', { action: 'discord_iniciar', assistant_id: assistente, volta: `${window.location.origin}/painel/canais/discord` });
+      const { url } = await chamar('canais', { action: 'discord_iniciar', assistant_id: assistente, volta: `${origemDoSite()}/painel/canais/discord` });
       window.location.href = url;
     } catch (e) {
       setErro(e.message);

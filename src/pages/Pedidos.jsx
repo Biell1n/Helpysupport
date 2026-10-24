@@ -34,7 +34,7 @@ export default function Pedidos() {
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
       .from('pedidos')
-      .select('id, numero, tipo, itens, total, status, cliente_nome, link_url, forma, pago_em, criado_em, conversation_id')
+      .select('id, numero, tipo, itens, total, status, cliente_nome, link_url, forma, pago_em, criado_em, conversation_id, entrega, endereco, frete')
       .order('criado_em', { ascending: false })
       .limit(200);
     // erro não vira "nenhum pedido ainda": mostra o aviso e deixa tentar de novo
@@ -166,6 +166,13 @@ export default function Pedidos() {
                       </li>
                     ))}
                   </ul>
+                  {(p.entrega || p.frete != null) && (
+                    <p className="faint pedido-entrega">
+                      {p.entrega === 'retirada' ? 'Retirada no local' : `Entrega${p.endereco ? `: ${p.endereco}` : ''}`}
+                      {p.frete != null && ` · frete ${reais(Number(p.frete))}`}
+                      {p.entrega === 'entrega' && p.frete == null && ' · frete a combinar'}
+                    </p>
+                  )}
                   <div className="pedido-pe">
                     <b>Total {reais(Number(p.total))}</b>
                     {p.status === 'pago' && <span className="faint">pago {quando(p.pago_em)}{p.forma ? ` · ${p.forma}` : ''}</span>}
@@ -203,7 +210,7 @@ export default function Pedidos() {
       <Confirmar
         aberto={!!devolvendo}
         titulo={`Estornar o pedido #${devolvendo?.numero ?? ''}?`}
-        texto={devolvendo ? `${Number(devolvendo.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} voltam para o cliente pelo Asaas, na mesma forma de pagamento.${devolvendo.tipo === 'agendamento' ? ' O horário é cancelado.' : ' O estoque não volta sozinho: ajuste em Dados se precisar.'}` : ''}
+        texto={devolvendo ? `${Number(devolvendo.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} voltam para o cliente pelo Asaas, na mesma forma de pagamento. O valor sai do seu saldo no Asaas, e a taxa dele nesse pagamento não volta.${devolvendo.tipo === 'agendamento' ? ' O horário é cancelado.' : ' O estoque não volta sozinho: ajuste em Dados se precisar.'}` : ''}
         acao="Estornar"
         voltar="Voltar"
         segurar

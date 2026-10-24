@@ -1,8 +1,10 @@
+import { comLinks } from './LinkNoTexto';
+
 // Formatação leve das respostas do montador: listas ("- " ou "1. ") e
 // **negrito**. Monta elementos React (nunca HTML cru), então é seguro.
 function negrito(texto, chave) {
-  return texto.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
-    p.startsWith('**') && p.endsWith('**') && p.length > 4 ? <strong key={`${chave}-${i}`}>{p.slice(2, -2)}</strong> : p,
+  return texto.split(/(\*\*[^*]+\*\*)/g).flatMap((p, i) =>
+    p.startsWith('**') && p.endsWith('**') && p.length > 4 ? [<strong key={`${chave}-${i}`}>{p.slice(2, -2)}</strong>] : comLinks(p, `${chave}-${i}`),
   );
 }
 

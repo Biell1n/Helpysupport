@@ -3533,3 +3533,59 @@
 .toast-acao:hover {
   background: rgba(255, 255, 255, 0.12);
 }
+
+/* link de pagamento dentro da conversa: botão */
+.link-pagar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 6px 0 2px;
+  padding: 10px 16px;
+  border-radius: var(--r);
+  background: var(--senha);
+  color: var(--sobre-senha) !important;
+  font-weight: 600;
+  text-decoration: none !important;
+  white-space: normal;
+}
+
+.link-pagar:hover {
+  background: var(--senha-escura);
+}
+
+.link-pagar small {
+  flex-basis: 100%;
+  font-weight: 400;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.msg-body a:not(.link-pagar) {
+  word-break: break-all;
+}
+
+/* Carteira: custos de vender, à vista */
+.carteira-custos {
+  padding: 12px 14px;
+  border: 1px solid var(--linha);
+  border-radius: var(--r);
+  background: var(--papel);
+  font-size: 13.5px;
+}
+
+.carteira-custos ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  color: var(--tinta-2);
+}
+
+.carteira-custos li span {
+  display: inline-block;
+  min-width: 78px;
+  color: var(--tinta);
+  font-weight: 600;
+}

@@ -270,7 +270,7 @@ ${blocoTabelas}
 ${blocoAgenda}
 ${loja ? `
 VENDA PELO CHAT
-Você fecha a compra aqui mesmo. Quando a pessoa decidir comprar: confirme os produtos, as quantidades e o total (e entrega/frete conforme a ficha). Com o "pode fechar", chame fechar_pedido com o nome exato de cada produto e mande o link exatamente como veio, dizendo que dá para pagar com Pix, cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
+Você fecha a compra aqui mesmo. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
 
 FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para preço e estoque dos itens, consulte as tabelas. As perguntas frequentes daqui são respostas da equipe e valem mais que observações das tabelas' : ' — sua fonte de verdade'}
 ${describeConfig(a.schema, semSenha(cfg)) || '(vazia)'}
@@ -405,6 +405,8 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
             },
           },
           cliente_nome: { type: 'string', description: 'Nome da pessoa, se ela disse' },
+          entrega: { type: 'string', enum: ['entrega', 'retirada'], description: 'Receber em casa ou retirar no local (pergunte antes)' },
+          endereco: { type: 'string', description: 'Endereço completo de entrega (rua, número, bairro, cidade), se for entrega' },
         },
         required: ['itens'],
       },
@@ -632,7 +634,8 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       ownerId: assistant.owner_id, assistantId: assistant.id, conversationId,
       negocio: valueOf(cfg, 'nome_negocio'), teste: r.teste,
       baixarEstoque: !/^n[aã]o/i.test(valueOf(cfg, 'venda_estoque')),
-    }, args as { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string }, tabelas, catalogo);
+      regraFrete: valueOf(cfg, 'frete_chat'),
+    }, args as { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; entrega?: string; endereco?: string }, tabelas, catalogo);
   }
 
   if (nome.startsWith('consultar_')) {

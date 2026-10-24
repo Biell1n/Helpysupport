@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import { chamar } from '@/lib/supabase';
 import { IconeDoCanal } from '@/components/IconesCanais';
+import { origemDoSite } from '@/lib/site';
 
 /** Volta do Discord depois de adicionar o bot do Helpy a um servidor. */
 export default function DiscordVolta() {
@@ -22,7 +23,7 @@ export default function DiscordVolta() {
       action: 'discord_concluir',
       code: params.get('code'),
       state: params.get('state'),
-      volta: `${window.location.origin}/painel/canais/discord`,
+      volta: `${origemDoSite()}/painel/canais/discord`,
     })
       .then((r) => setEstado({ ok: r }))
       .catch((e) => setEstado({ erro: e.message }));

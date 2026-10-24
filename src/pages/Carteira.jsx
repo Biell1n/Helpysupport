@@ -373,10 +373,19 @@ function Ativar({ onPronto }) {
         <div>
           <h2 className="card-title" style={{ margin: 0 }}>Ative a sua carteira</h2>
           <p className="muted" style={{ margin: '2px 0 0' }}>
-            Com ela, o assistente fecha a venda no chat com Pix, cartão ou boleto e o dinheiro cai aqui. Sem mensalidade: a taxa do
-            Asaas em cada pagamento{taxa ? ` e ${String(taxa).replace('.', ',')}% do Helpy sobre cada venda paga, cobrados no começo do mês seguinte` : ''}.
+            Com ela, o assistente fecha a venda no chat com Pix, cartão ou boleto e o dinheiro cai aqui. Sem mensalidade.
           </p>
         </div>
+      </div>
+
+      {/* quanto custa vender: sem letra miúda */}
+      <div className="carteira-custos">
+        <b>Quanto custa vender pelo chat</b>
+        <ul>
+          <li><span>Asaas</span> a taxa dele em cada pagamento (no Pix, cerca de R$ 1), descontada antes do dinheiro entrar. Veja a tabela no site do Asaas.</li>
+          {taxa > 0 && <li><span>Helpy</span> {String(taxa).replace('.', ',')}% sobre cada venda paga, somados no mês e cobrados no começo do mês seguinte.</li>}
+          <li><span>Devolução</span> o cliente recebe o valor cheio, que sai do seu saldo no Asaas. A taxa do Asaas daquele pagamento não volta, e a do Helpy sai da conta.</li>
+        </ul>
       </div>
 
       {precos.carteira ? (
