@@ -1596,6 +1596,31 @@ Deno.serve(async (req) => {
       return json({ ok: true, vender: !!body.vender, estoque: body.estoque !== false });
     }
 
+    if (action === 'ensinar') {
+      // resposta da equipe a um aviso ou a uma pergunta sem resposta: vira
+      // pergunta frequente do assistente, sem passar pelo montador (sem IA)
+      if (!assistantId) throw new UserError('Escolha o assistente.');
+      const pergunta = String(body.pergunta ?? '').trim().slice(0, 300);
+      const resposta = String(body.resposta ?? '').trim().slice(0, 2000);
+      if (!pergunta || !resposta) throw new UserError('Escreva a resposta.');
+      const { data: a } = await admin.from('assistants').select('config').eq('id', assistantId).eq('owner_id', user.id).maybeSingle();
+      if (!a) throw new UserError('Assistente não encontrado.', 404);
+      const item = { pergunta, resposta };
+      const juntar = (cfgIn: Partial<Config> | null) => {
+        const c = normalizeConfig(cfgIn);
+        const faq = (c.collections.faq ?? []).filter((x) => String(x.pergunta ?? '').trim().toLowerCase() !== pergunta.toLowerCase());
+        c.collections.faq = [...faq, item].slice(-200);
+        return c;
+      };
+      await admin.from('assistants').update({ config: juntar(a.config) }).eq('id', assistantId).eq('owner_id', user.id);
+      const { data: abertas } = await admin.from('builder_sessions').select('id, config').eq('owner_id', user.id).eq('assistant_id', assistantId).eq('status', 'active');
+      for (const sessao of abertas ?? []) await admin.from('builder_sessions').update({ config: juntar(sessao.config) }).eq('id', sessao.id);
+      const agora = new Date().toISOString();
+      if (body.alerta_id) await admin.from('alertas').update({ visto_em: agora }).eq('id', String(body.alerta_id)).eq('owner_id', user.id);
+      if (body.lacuna_id) await admin.from('assistant_gaps').update({ resolvida: true }).eq('id', String(body.lacuna_id)).eq('assistant_id', assistantId);
+      return json({ ok: true });
+    }
+
     if (action === 'undo') {
       const s = await loadSession(user.id, assistantId);
       const antes = { config: structuredClone(s.config), meta: structuredClone(s.meta), schema: s.schema };
