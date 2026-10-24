@@ -229,7 +229,32 @@ export function BuilderProvider({ assistantId = null, children }) {
     await flush();
     const d = await chamar('assistant-builder-chat', { action: 'undo', assistant_id: assistantId });
     absorb(d);
+    // o chat conta o que voltou
+    if (Array.isArray(d.messages)) setMessages(d.messages);
   }, [flush, absorb, assistantId]);
+
+  /** Volta documento e conversa para logo depois de uma resposta do Helpy. */
+  const desfazerAte = useCallback(
+    async (id) => {
+      await flush();
+      // as mensagens de depois somem com uma animação enquanto o servidor volta
+      let idx = -1;
+      setMessages((p) => {
+        idx = p.findIndex((m) => m.id === id);
+        return idx < 0 ? p : p.map((m, j) => (j > idx ? { ...m, saindo: true } : m));
+      });
+      const [d] = await Promise.all([
+        chamar('assistant-builder-chat', { action: 'undo_ate', mensagem: id, assistant_id: assistantId }).catch((e) => {
+          setMessages((p) => p.map((m) => (m.saindo ? { ...m, saindo: false } : m)));
+          throw e;
+        }),
+        new Promise((r) => setTimeout(r, 380)),
+      ]);
+      absorb(d);
+      if (Array.isArray(d.messages)) setMessages(d.messages);
+    },
+    [flush, absorb, assistantId],
+  );
 
   const removerMaterial = useCallback(
     async (id) => {
@@ -361,6 +386,7 @@ export function BuilderProvider({ assistantId = null, children }) {
     publicar,
     recomecar,
     desfazer,
+    desfazerAte,
     removerMaterial,
   };
 

@@ -75,6 +75,18 @@ function Conversa() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const semCota = b.plano && b.plano.builderRestantes <= 0;
+  // a última mensagem de conversa (avisos não contam): voltar até ela não muda nada
+  const ultimaConversa = b.messages.reduce((u, m, i) => (m.role === 'user' || m.role === 'assistant' ? i : u), -1);
+  const [voltarAte, setVoltarAte] = useState(null);
+  const confirmarVoltar = async () => {
+    const m = voltarAte;
+    setVoltarAte(null);
+    try {
+      await b.desfazerAte(m.id);
+    } catch (e) {
+      avisar('Não deu para voltar', { erro: true, texto: e.message });
+    }
+  };
 
   return (
     <div
@@ -112,19 +124,33 @@ function Conversa() {
             </div>
           </div>
         )}
-        {b.messages.map((m, i) => (
-          <div key={i} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`}>
-            {m.role === 'assistant' && <span className="msg-who">Helpy</span>}
-            {m.anexos?.length > 0 && (
-              <div className="msg-anexos">
-                {m.anexos.map((n) => (
-                  <span key={n}><FileText aria-hidden="true" /> {n}</span>
-                ))}
-              </div>
-            )}
-            <div className="msg-body">{m.content}</div>
-          </div>
-        ))}
+        {b.messages.map((m, i) =>
+          m.role === 'aviso' ? (
+            // o que o desfazer mudou, para saber onde a montagem está
+            <div key={i} className="msg-aviso" data-saindo={m.saindo || undefined}>
+              <Undo2 aria-hidden="true" />
+              <span>{m.content}</span>
+            </div>
+          ) : (
+            <div key={i} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`} data-saindo={m.saindo || undefined}>
+              {m.role === 'assistant' && <span className="msg-who">Helpy</span>}
+              {m.anexos?.length > 0 && (
+                <div className="msg-anexos">
+                  {m.anexos.map((n) => (
+                    <span key={n}><FileText aria-hidden="true" /> {n}</span>
+                  ))}
+                </div>
+              )}
+              <div className="msg-body">{m.content}</div>
+              {/* atalho: voltar a montagem para logo depois desta resposta */}
+              {m.role === 'assistant' && m.id && m.marco !== undefined && i < ultimaConversa && !b.sending && (
+                <button type="button" className="msg-voltar" onClick={() => setVoltarAte(m)}>
+                  <Undo2 aria-hidden="true" /> Desfazer até aqui
+                </button>
+              )}
+            </div>
+          ),
+        )}
         {b.sending && (
           <div className="msg msg-bot">
             <span className="msg-who">Helpy</span>
@@ -199,6 +225,14 @@ function Conversa() {
           {b.plano && <span className="num">{b.plano.builderRestantes} mensagens de montagem restantes no mês</span>}
         </div>
       </div>
+      <Confirmar
+        aberto={!!voltarAte}
+        titulo="Desfazer até esta resposta?"
+        texto="As mensagens que vieram depois somem e o documento volta a ficar como estava logo depois desta resposta. Tabelas criadas nesse trecho saem de Dados."
+        acao="Desfazer até aqui"
+        onConfirmar={confirmarVoltar}
+        onFechar={() => setVoltarAte(null)}
+      />
     </div>
   );
 }
