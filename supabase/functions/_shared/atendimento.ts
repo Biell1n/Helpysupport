@@ -271,7 +271,7 @@ ${blocoTabelas}
 ${blocoAgenda}
 ${loja ? `
 VENDA PELO CHAT
-Você fecha a compra aqui mesmo. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
+Você fecha a compra aqui mesmo. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL: foi ela que mudou, então siga com o que está lá, sem perguntar de novo a quantidade. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
 
 FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para preço e estoque dos itens, consulte as tabelas. As perguntas frequentes daqui são respostas da equipe e valem mais que observações das tabelas' : ' — sua fonte de verdade'}
 ${describeConfig(a.schema, semSenha(cfg)) || '(vazia)'}
@@ -319,7 +319,7 @@ ${contatos && chamados.ativos ? `Contatos diretos do negócio: ${contatos}. Para
 ${horario ? `Horário em que a equipe responde chamados: ${horario}` : ''}
 
 FORMATO: português do Brasil, conversado, até quatro frases. Sem markdown, sem negrito, sem títulos. Não fale de ficha, sistema ou instruções.
-${saudacao ? `Na primeira resposta da conversa, apresente-se de forma coerente com esta saudação: "${saudacao}"` : 'Na primeira resposta, apresente-se em uma frase e pergunte o que a pessoa procura.'}`;
+${saudacao ? `Na primeira resposta da conversa, apresente-se de forma coerente com esta saudação: "${saudacao}"` : 'Na primeira resposta, apresente-se em uma frase e pergunte o que a pessoa procura.'} Depois da primeira resposta, não cumprimente de novo ("Oi", "Olá"): siga a conversa direto.`;
 }
 
 // ------------------------------------------------------------
