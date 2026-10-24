@@ -44,11 +44,13 @@ export default function Avisos() {
   const responder = async (item, texto) => {
     setEnviando(true);
     try {
-      await ensinar(item, texto);
+      const r = await ensinar(item, texto);
       mudar(item, { visto: true, resolvida: true, resposta: texto });
       setRespondendo(null);
       setResposta('');
-      avisar('O assistente aprendeu', { texto: 'A partir de agora ele responde isso sozinho.' });
+      avisar('O assistente aprendeu', {
+        texto: r?.entregue ? 'A resposta também foi para o cliente que perguntou.' : 'A partir de agora ele responde isso sozinho.',
+      });
     } catch (e) {
       avisar('Não deu para salvar', { erro: true, texto: e.message });
     } finally {
