@@ -562,7 +562,21 @@ Deno.serve(async (req) => {
       if (ped.status !== 'pago' || !ped.pagamento_id) throw new UserError('Só dá para devolver um pedido pago.');
       const loja = await contaDaLoja(admin, conta);
       if (!loja) throw new UserError('Ligue de novo o recebimento na Carteira para devolver pelo Asaas.');
-      await loja.pedir(`/payments/${ped.pagamento_id}/refund`, { method: 'POST', body: {} });
+      try {
+        await loja.pedir(`/payments/${ped.pagamento_id}/refund`, { method: 'POST', body: {} });
+      } catch (e) {
+        // o Asaas devolve o valor cheio ao cliente, mas tira do saldo: a taxa dele no pagamento não volta
+        const saldo = await loja.pedir<{ balance?: number }>('/finance/balance').then((b) => Number(b.balance ?? 0)).catch(() => null);
+        const total = Number(ped.total);
+        if (saldo != null && saldo < total) {
+          const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+          throw new UserError(
+            `O Asaas devolve ${fmt(total)} ao cliente, mas tira do seu saldo, e hoje ele está em ${fmt(saldo)} (a taxa do Asaas nesse pagamento não volta). Coloque ${fmt(total - saldo)} no Asaas (um Pix para a sua própria conta) e tente de novo.`,
+            409,
+          );
+        }
+        throw e;
+      }
       const { data: devolvido } = await admin.from('pedidos').update({ status: 'estornado' }).eq('id', id).eq('status', 'pago').select('id');
       if (devolvido?.length) await tirarTaxa(admin, conta, Number(ped.taxa ?? 0));
       if (ped.agendamento_id) await admin.from('agendamentos').update({ status: 'cancelado' }).eq('id', ped.agendamento_id);

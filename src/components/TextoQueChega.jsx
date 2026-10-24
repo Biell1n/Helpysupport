@@ -1,4 +1,5 @@
 import './TextoQueChega.css';
+import { LinkNoTexto } from './LinkNoTexto';
 
 /**
  * Resposta nova do assistente: as palavras aparecem em sequência, saindo de
@@ -18,7 +19,14 @@ export default function TextoQueChega({ texto }) {
     <span className="texto-chega">
       {trechos.map((x, j) => {
         const partes = x.t.split(/(\s+)/).map((p, i) =>
-          !p || /^\s+$/.test(p) ? p : <span key={i} style={{ '--d': `${Math.round(n++ * passo)}ms` }}>{p}</span>,
+          !p || /^\s+$/.test(p) ? (
+            p
+          ) : /^https?:\/\//.test(p) ? (
+            // link (de pagamento ou não) entra inteiro, clicável
+            <span key={i} style={{ '--d': `${Math.round(n++ * passo)}ms` }}><LinkNoTexto url={p.replace(/[).,;:!?]+$/, '')} /></span>
+          ) : (
+            <span key={i} style={{ '--d': `${Math.round(n++ * passo)}ms` }}>{p}</span>
+          ),
         );
         return x.forte ? <strong key={j}>{partes}</strong> : <span key={j}>{partes}</span>;
       })}

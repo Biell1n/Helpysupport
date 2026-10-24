@@ -77,7 +77,9 @@ async function montarItens(
       const t = locais.find((x) => x.id === l.tabela_id)!;
       const principais = t.colunas.filter((c, i) => i === 0 || /nome|produto|servi|item|titulo|modelo/i.test(`${c.chave} ${c.rotulo}`));
       return {
-        nome: String(l.dados?.[t.colunas[0]?.chave] ?? ''),
+        // o nome que aparece no pedido e no link: a coluna de nome do produto (não o código/SKU)
+        nome: String(l.dados?.[(t.colunas.find((c) => /produto|nome|item|titulo|modelo|servi/i.test(`${c.chave} ${c.rotulo}`)) ?? t.colunas[0])?.chave] ?? '') ||
+          String(l.dados?.[t.colunas[0]?.chave] ?? ''),
         forte: principais.map((c) => String(l.dados?.[c.chave] ?? '')).join(' '),
         resto: Object.values(l.dados ?? {}).join(' '),
         preco: lerPreco(l.dados?.[precoChave(t.id) ?? '']),
@@ -140,6 +142,25 @@ async function criarLink(conta: ClienteAsaas, pedidoId: string, nome: string, de
     console.error('[pedido] link', (e as Error).message);
     return null;
   }
+}
+
+const numeroDe = (t: string) => Number(t.replace(/\./g, '').replace(',', '.'));
+
+/**
+ * Frete pela regra que a empresa escreveu ("R$ 12", "grátis acima de R$ 100,
+ * senão R$ 12", "só retirada", "grátis"). O Asaas não calcula frete; sem regra
+ * clara, o frete fica para a equipe combinar.
+ */
+export function freteDaRegra(regra: string, subtotal: number): { valor: number | null; soRetirada: boolean } {
+  const r = regra.toLowerCase();
+  if (!r.trim()) return { valor: null, soRetirada: false };
+  const soRetirada = /(s[oó]|apenas|somente)\s+retirada|n[aã]o\s+(fazemos|faz|temos)\s+entrega/.test(r);
+  const acima = /gr[aá]tis\s+(?:acima|a partir)\s+de\s+r?\$?\s*([\d.,]+)/.exec(r);
+  if (acima && subtotal >= numeroDe(acima[1])) return { valor: 0, soRetirada };
+  const valores = [...r.matchAll(/r\$\s*([\d.,]+)/g)].map((m) => numeroDe(m[1])).filter((v) => !acima || v !== numeroDe(acima[1]));
+  if (valores.length) return { valor: valores[0], soRetirada };
+  if (/gr[aá]tis/.test(r) && !acima) return { valor: 0, soRetirada };
+  return { valor: null, soRetirada };
 }
 
 /** O Asaas não gera cobrança abaixo de R$ 5. */
@@ -213,8 +234,8 @@ export async function cancelarPedido(db: SupabaseClient, ownerId: string, pedido
 
 export async function fecharPedido(
   db: SupabaseClient,
-  ctx: { ownerId: string; assistantId: string; conversationId: string; negocio: string; teste: boolean; baixarEstoque: boolean },
-  args: { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string },
+  ctx: { ownerId: string; assistantId: string; conversationId: string; negocio: string; teste: boolean; baixarEstoque: boolean; regraFrete?: string },
+  args: { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; entrega?: string; endereco?: string },
   tabelas: TabelaPedido[],
   catalogo: Record<string, string>[],
 ) {
@@ -227,7 +248,22 @@ export async function fecharPedido(
   if (problemas.length) return { erro: 'O pedido NÃO foi criado.', problemas };
   // sem baixa de estoque: o item não leva a coluna, e o pagamento não mexe na tabela
   const itens = ctx.baixarEstoque ? achados : achados.map(({ estoque_chave: _, ...i }) => i);
-  const total = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
+  const subtotal = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
+
+  // entrega ou retirada: o frete sai da regra da empresa, nunca da conversa
+  const regra = freteDaRegra(ctx.regraFrete ?? '', subtotal);
+  const entrega = args.entrega === 'retirada' || regra.soRetirada ? 'retirada' : args.entrega === 'entrega' ? 'entrega' : null;
+  const endereco = String(args.endereco ?? '').trim().slice(0, 300);
+  // com regra de frete, precisa saber se entrega ou retira (produto digital, sem regra, segue sem)
+  if (!entrega && (ctx.regraFrete ?? '').trim()) {
+    return { erro: 'O pedido NÃO foi criado: falta saber se é entrega ou retirada.', mensagem: 'Pergunte se a pessoa quer receber em casa ou retirar (conforme a ficha) antes de fechar.' };
+  }
+  if (entrega === 'entrega' && endereco.length < 8) {
+    return { erro: 'O pedido NÃO foi criado: falta o endereço de entrega.', mensagem: 'Peça o endereço completo (rua, número, bairro e cidade) antes de fechar.' };
+  }
+  const frete = entrega === 'entrega' && regra.valor != null ? regra.valor : null;
+  const freteCombinar = entrega === 'entrega' && regra.valor == null;
+  const total = Math.round((subtotal + (frete ?? 0)) * 100) / 100;
   // o Asaas não gera cobrança abaixo de R$ 5: nem cria o pedido (senão fica um pedido sem link)
   if (total < MINIMO_COBRANCA) {
     return {
@@ -240,10 +276,22 @@ export async function fecharPedido(
   const { data: ped, error } = await db.from('pedidos').insert({
     owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId,
     itens, total, cliente_nome: String(args.cliente_nome ?? '').trim().slice(0, 120) || null, numero: 0,
+    entrega, endereco: entrega === 'entrega' ? endereco : null, frete,
   }).select('id, numero').single();
   if (error || !ped) throw error ?? new Error('pedido não criado');
 
-  const descricao = itens.map((i) => `${i.quantidade}x ${i.produto}`).join(', ').slice(0, 450);
+  const descricao = [
+    itens.map((i) => `${i.quantidade}x ${i.produto}`).join(', '),
+    frete ? `frete ${reais(frete)}` : entrega === 'retirada' ? 'retirada no local' : '',
+  ].filter(Boolean).join(' + ').slice(0, 450);
+  // entrega sem regra de frete: a equipe combina (e fica sabendo)
+  if (freteCombinar) {
+    await db.from('alertas').insert({
+      owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId, origem: 'sistema',
+      chave: `frete:${ped.id}`, assunto: `Pedido ${ped.numero}: combinar o frete`,
+      detalhe: `Entregar em: ${endereco}. Defina uma regra de frete no assistente (valor fixo, grátis acima de tanto ou só retirada) para ele já incluir no link.`,
+    });
+  }
   const link = await criarLink(conta, ped.id, `Pedido ${ped.numero}${ctx.negocio ? ` — ${ctx.negocio}` : ''}`, descricao, total, 3);
   if (!link) {
     await db.from('pedidos').update({ status: 'cancelado' }).eq('id', ped.id);
@@ -255,9 +303,10 @@ export async function fecharPedido(
     ok: true,
     pedido: ped.numero,
     itens: itens.map((i) => `${i.quantidade}x ${i.produto} — ${reais(i.preco)}${i.quantidade > 1 ? ` (subtotal ${reais(i.subtotal)})` : ''}`),
+    frete: frete != null ? reais(frete) : entrega === 'retirada' ? 'retirada no local' : 'a combinar com a equipe',
     total: reais(total),
     link: link.url,
-    mensagem: `Mande o resumo (itens e total ${reais(total)}) e o link exatamente como veio. Diga que dá para pagar com Pix, cartão ou boleto e que você confirma aqui mesmo assim que o pagamento cair.${
+    mensagem: `Mande o resumo (itens${frete ? `, frete ${reais(frete)}` : entrega === 'retirada' ? ', retirada no local' : ''} e total ${reais(total)}) e o link exatamente como veio. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Diga que você confirma aqui mesmo assim que o pagamento cair.${freteCombinar ? ' Avise que o frete até o endereço a equipe combina com ela à parte.' : ''}${
       ctx.teste ? ' (É um teste do dono: o link é de verdade no ambiente configurado.)' : ''
     }`,
   };

@@ -351,6 +351,10 @@ const OPERACAO: Record<string, FieldDef[]> = {
   produto: [
     { key: 'entrega', label: 'Entrega e frete', type: 'textarea', importance: 'important', hint: 'Prazo, valor do frete, retirada no local, para onde entrega' },
     {
+      key: 'frete_chat', label: 'Frete na venda pelo chat', type: 'text', importance: 'important',
+      hint: 'O Helpy não calcula frete por distância: escreva a regra que ele aplica no link. Ex.: "R$ 12", "grátis acima de R$ 100, senão R$ 12", "só retirada" ou "grátis". Se preferir, embuta o frete no preço.',
+    },
+    {
       key: 'variacoes', label: 'Tons, cores e tamanhos', type: 'textarea', importance: 'important',
       hint: 'As opções de cada produto, para o assistente vender sem precisar confirmar. Ex.: Base Líquida em 8 tons (01 claro a 08 escuro); camisetas P, M, G e GG. Se nada tiver variação, dispense.',
     },
