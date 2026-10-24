@@ -5,7 +5,8 @@ import AlertasDaConta from '@/components/AlertasDaConta';
 import Faisca from '@/components/Faisca';
 import ListaViva from '@/components/ListaViva';
 import PrimeirosPassos from '@/components/PrimeirosPassos';
-import { supabase } from '@/lib/supabase';
+import { chamar, supabase } from '@/lib/supabase';
+import { useToast } from '@/components/Toasts';
 import { useAuth } from '@/contexts/AuthContext';
 import { diasDeTeste, planOf } from '@/lib/plans';
 import { numero, quando, STATUS } from '@/lib/format';
@@ -137,6 +138,32 @@ export default function Painel() {
     setLacunas((p) => p.filter((x) => x.id !== id));
   };
 
+  // responder a pergunta sem resposta aqui mesmo: vira pergunta frequente do assistente
+  const avisar = useToast();
+  const [respondendo, setRespondendo] = useState(null);
+  const [resposta, setResposta] = useState('');
+  const [ensinando, setEnsinando] = useState(false);
+  const ensinarLacuna = async (g, texto) => {
+    setEnsinando(true);
+    try {
+      await chamar('assistant-builder-chat', {
+        action: 'ensinar',
+        assistant_id: g.assistant_id,
+        pergunta: g.pergunta || g.assunto,
+        resposta: texto,
+        lacuna_id: g.id,
+      });
+      setLacunas((p) => p.filter((x) => x.id !== g.id));
+      setRespondendo(null);
+      setResposta('');
+      avisar('O assistente aprendeu', { texto: 'A partir de agora ele responde isso sozinho.' });
+    } catch (e) {
+      avisar('Não deu para salvar', { erro: true, texto: e.message });
+    } finally {
+      setEnsinando(false);
+    }
+  };
+
   const primeiroNome = (nome || '').split(' ')[0];
 
   return (
@@ -264,16 +291,34 @@ export default function Painel() {
                       {g.pergunta && <p className="faint" style={{ fontSize: 13 }}>“{g.pergunta}”</p>}
                     </div>
                     <span className="badge badge-plain">{g.vezes}×</span>
-                    <Link
-                      to={`/painel/assistentes/${g.assistant_id}/editar`}
-                      state={{ comeco: g.pergunta ? `Clientes perguntam: "${g.pergunta}". A resposta certa é: ` : `Sobre ${g.assunto}, a resposta certa é: ` }}
-                      className="btn btn-ghost btn-sm"
-                    >
-                      Ensinar
-                    </Link>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setRespondendo(respondendo === g.id ? null : g.id); setResposta(''); }}>
+                      Responder
+                    </button>
                     <button type="button" className="btn btn-quiet btn-sm btn-icon" title="Marcar como resolvida" aria-label="Marcar como resolvida" onClick={() => resolverLacuna(g.id)}>
                       <Check size={16} />
                     </button>
+                    {respondendo === g.id && (
+                      // a resposta vira pergunta frequente do assistente, sem abrir o montador
+                      <form
+                        className="lacuna-resposta"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (resposta.trim()) ensinarLacuna(g, resposta.trim());
+                        }}
+                      >
+                        <textarea className="textarea" rows={2} autoFocus value={resposta} onChange={(e) => setResposta(e.target.value)} placeholder="A resposta certa, do jeito que o assistente deve falar." />
+                        <div className="row" style={{ gap: 8 }}>
+                          <button type="submit" className="btn btn-primary btn-sm" disabled={ensinando || !resposta.trim()}>Ensinar ao assistente</button>
+                          <Link
+                            to={`/painel/assistentes/${g.assistant_id}/editar`}
+                            state={{ comeco: g.pergunta ? `Clientes perguntam: "${g.pergunta}". A resposta certa é: ` : `Sobre ${g.assunto}, a resposta certa é: ` }}
+                            className="btn btn-quiet btn-sm"
+                          >
+                            Explicar no montador
+                          </Link>
+                        </div>
+                      </form>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Check, CircleCheck, MessageSquareText } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { AlertTriangle, Check, CircleCheck, GraduationCap, MessageSquareText } from 'lucide-react';
+import { chamar, supabase } from '@/lib/supabase';
+import { useToast } from '@/components/Toasts';
 import { quando } from '@/lib/format';
 
 // Notícia boa (pagamento confirmado, pedido pago) não vem com cara de problema.
@@ -16,11 +17,15 @@ const ehBom = (a) => a.origem === 'sistema' && BOM_CHAVE.test(a.chave ?? '') && 
  */
 export default function AlertasDaConta() {
   const [lista, setLista] = useState([]);
+  const [respondendo, setRespondendo] = useState(null);
+  const [resposta, setResposta] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const avisar = useToast();
 
   const carregar = useCallback(async () => {
     const { data } = await supabase
       .from('alertas')
-      .select('id, origem, chave, assunto, detalhe, conversation_id, criado_em')
+      .select('id, origem, chave, assunto, detalhe, conversation_id, assistant_id, criado_em')
       .is('visto_em', null)
       .order('criado_em', { ascending: false })
       .limit(20);
@@ -36,6 +41,28 @@ export default function AlertasDaConta() {
   const visto = async (id) => {
     setLista((l) => l.filter((a) => a.id !== id));
     await supabase.from('alertas').update({ visto_em: new Date().toISOString() }).eq('id', id);
+  };
+
+  // a equipe responde e o assistente aprende (vira pergunta frequente dele)
+  const ensinar = async (a, texto) => {
+    setEnviando(true);
+    try {
+      await chamar('assistant-builder-chat', {
+        action: 'ensinar',
+        assistant_id: a.assistant_id,
+        pergunta: a.assunto,
+        resposta: texto,
+        alerta_id: a.id,
+      });
+      setLista((l) => l.filter((x) => x.id !== a.id));
+      setRespondendo(null);
+      setResposta('');
+      avisar('O assistente aprendeu', { texto: 'A partir de agora ele responde isso sozinho.' });
+    } catch (e) {
+      avisar('Não deu para salvar', { erro: true, texto: e.message });
+    } finally {
+      setEnviando(false);
+    }
   };
 
   if (!lista.length) return null;
@@ -65,7 +92,31 @@ export default function AlertasDaConta() {
                 )}
               </span>
             </div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => visto(a.id)}><Check size={15} /> Visto</button>
+            <div className="alertas-acoes">
+              {a.origem !== 'sistema' && a.assistant_id && (
+                <>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={enviando} onClick={() => ensinar(a, 'Conferido pela equipe: está certo.')}>
+                    <Check size={15} /> Está certo
+                  </button>
+                  <button type="button" className="btn btn-quiet btn-sm" onClick={() => { setRespondendo(respondendo === a.id ? null : a.id); setResposta(''); }}>
+                    <GraduationCap size={15} /> Responder
+                  </button>
+                </>
+              )}
+              <button type="button" className="btn btn-quiet btn-sm" onClick={() => visto(a.id)}>Dispensar</button>
+            </div>
+            {respondendo === a.id && (
+              <form
+                className="alertas-resposta"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (resposta.trim()) ensinar(a, resposta.trim());
+                }}
+              >
+                <textarea className="textarea" rows={2} autoFocus value={resposta} onChange={(e) => setResposta(e.target.value)} placeholder="Ex.: A Base Líquida tem 8 tons, do 01 (claro) ao 08 (escuro)." />
+                <button type="submit" className="btn btn-primary btn-sm" disabled={enviando || !resposta.trim()}>Ensinar ao assistente</button>
+              </form>
+            )}
           </li>
         ))}
       </ul>
