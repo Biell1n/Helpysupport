@@ -10,13 +10,21 @@ import '@/styles/landing.css';
 import '@/styles/tema-escuro.css';
 import { iniciarTema } from '@/lib/tema';
 import App from '@/App';
+import SemTelaBranca, { recarregarParaVersaoNova } from '@/components/SemTelaBranca';
 
 iniciarTema();
+
+// tela aberta antes de uma atualização do site: o arquivo antigo some, então recarrega
+window.addEventListener('vite:preloadError', (e) => {
+  if (recarregarParaVersaoNova()) e.preventDefault();
+});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <SemTelaBranca>
+        <App />
+      </SemTelaBranca>
     </BrowserRouter>
   </React.StrictMode>,
 );

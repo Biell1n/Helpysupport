@@ -355,6 +355,9 @@ export default function Dados() {
                 </button>
               </div>
 
+              {editavel && fonte !== 'api' && (
+                <p className="faint sheet-dica">Clique no nome de uma coluna para renomear, mudar o tipo ou excluir. O × no fim da linha apaga a linha.</p>
+              )}
               <div className="sheet-wrap">
                 <table className="sheet">
                   <thead>
@@ -362,7 +365,7 @@ export default function Dados() {
                       <th className="sheet-n">#</th>
                       {colunas.map((c) => (
                         <th key={c.id}>
-                          <button type="button" className="sheet-col" disabled={fonte === 'url'} onClick={() => setEditando(c)} title={fonte === 'url' ? 'O nome vem do cabeçalho da planilha' : 'Editar coluna'}>
+                          <button type="button" className="sheet-col" disabled={fonte === 'url'} onClick={() => setEditando(c)} title={fonte === 'url' ? 'O nome vem do cabeçalho da planilha' : 'Editar ou excluir a coluna'}>
                             <b>{c.rotulo}{c.obrigatoria && <span className="req">*</span>}</b>
                             <span>{TIPOS.find((t) => t.v === c.tipo)?.r ?? c.tipo} <Settings2 size={10} style={{ display: 'inline', verticalAlign: -1 }} /></span>
                           </button>

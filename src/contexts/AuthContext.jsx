@@ -32,18 +32,25 @@ export function AuthProvider({ children }) {
     recarregarNivel();
   }, [recarregarNivel]);
 
+  // a sessão renova sozinha ao voltar para a aba: o perfil só recarrega se a pessoa mudar
+  const userId = user?.id ?? null;
   const loadProfile = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setProfile(null);
       return;
     }
-    let { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    let { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+    // voltando para a aba a rede pode ainda estar acordando: mantém o perfil que já tinha
+    if (error) {
+      setProfile((p) => p ?? { id: userId, plan: 'trial' });
+      return;
+    }
     // volta do Google: grava o aceite dos termos e o tipo escolhidos antes de sair
     const aceitou = data && data.termos_versao !== TERMOS_VERSAO && (await gravarAceitePendente());
     const virou = data && (await aplicarTipoPendente(chamar));
-    if (aceitou || virou) ({ data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle());
-    setProfile(data ?? { id: user.id, plan: 'trial' });
-  }, [user]);
+    if (aceitou || virou) ({ data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle());
+    setProfile(data ?? { id: userId, plan: 'trial' });
+  }, [userId]);
 
   useEffect(() => {
     loadProfile();
