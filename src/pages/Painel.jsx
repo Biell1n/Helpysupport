@@ -149,7 +149,7 @@ export default function Painel() {
       const r = await chamar('assistant-builder-chat', {
         action: 'ensinar',
         assistant_id: g.assistant_id,
-        pergunta: g.pergunta || g.assunto,
+        pergunta: g.assunto ? g.assunto.charAt(0).toUpperCase() + g.assunto.slice(1) : g.pergunta,
         resposta: texto,
         lacuna_id: g.id,
       });

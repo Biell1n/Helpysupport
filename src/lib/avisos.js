@@ -25,7 +25,8 @@ const deLacuna = (g) => ({
   chave: `lacuna:${g.id}`,
   titulo: `Não soube responder: ${g.assunto}`,
   detalhe: g.pergunta ? `“${g.pergunta}”${g.vezes > 1 ? ` · perguntaram ${g.vezes} vezes` : ''}` : g.vezes > 1 ? `Perguntaram ${g.vezes} vezes` : null,
-  pergunta: g.pergunta || g.assunto,
+  // a pergunta frequente fica com o assunto ("tons da base líquida"), não com a frase solta do cliente
+  pergunta: g.assunto ? g.assunto.charAt(0).toUpperCase() + g.assunto.slice(1) : g.pergunta,
   quando: g.ultima_em,
   origem: 'assistente',
   bom: false,
