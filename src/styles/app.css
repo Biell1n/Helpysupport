@@ -1002,8 +1002,19 @@
 }
 
 .sheet-kill {
-  opacity: 0;
+  opacity: 0.35;
   transition: opacity 0.15s;
+}
+
+.sheet-kill:focus-visible {
+  opacity: 1;
+}
+
+/* no toque não existe "passar o mouse": o X fica sempre visível */
+@media (hover: none) {
+  .sheet-kill {
+    opacity: 1;
+  }
 }
 
 .tabelas-lista {
@@ -3330,4 +3341,34 @@
 
 .venda-assistentes [data-desligado] {
   opacity: 0.5;
+}
+
+/* erro numa tela: aviso com Recarregar em vez de página em branco */
+.sem-tela-branca {
+  display: grid;
+  place-content: center;
+  justify-items: start;
+  gap: 12px;
+  min-height: 100dvh;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 24px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.sem-tela-branca h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.sem-tela-branca p {
+  margin: 0;
+  color: var(--tinta-2);
+}
+
+/* dica de como editar/excluir colunas e linhas em Dados */
+.sheet-dica {
+  margin: 0 0 8px;
+  font-size: 12.5px;
 }
