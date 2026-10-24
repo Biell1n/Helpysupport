@@ -325,7 +325,7 @@ function Tela() {
     try {
       const a = await b.publicar();
       avisar(b.editando ? 'Alterações publicadas' : 'Assistente publicado', { texto: 'Teste como um cliente veria.' });
-      navigate(`/painel/assistentes/${a.id}/testar`);
+      navigate(`/painel/assistentes/${a.id}/testar`, { state: { sugerirVenda: a.sugerirVenda } });
     } catch (e) {
       avisar('Ainda não dá para publicar', { erro: true, texto: e.message });
     } finally {

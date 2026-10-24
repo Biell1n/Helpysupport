@@ -222,7 +222,7 @@ export function BuilderProvider({ assistantId = null, children }) {
   const publicar = useCallback(async () => {
     await flush();
     const d = await chamar('assistant-builder-chat', { action: 'finalize', assistant_id: assistantId });
-    return d.assistant;
+    return { ...d.assistant, sugerirVenda: !!d.sugerir_venda };
   }, [flush, assistantId]);
 
   const desfazer = useCallback(async () => {

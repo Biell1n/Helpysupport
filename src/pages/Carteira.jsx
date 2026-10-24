@@ -34,11 +34,32 @@ export default function Carteira() {
   const [dados, setDados] = useState(undefined);
   const [sacando, setSacando] = useState(false);
   const [pausar, setPausar] = useState(false);
-  // atalho direto para ligar a venda no assistente (o primeiro, se houver vários)
-  const [primeiroAssistente, setPrimeiroAssistente] = useState(null);
+  // venda pelo chat, por assistente: liga aqui mesmo, sem passar pelo montador
+  const [assistentes, setAssistentes] = useState([]);
+  const [mexendo, setMexendo] = useState(null);
   useEffect(() => {
-    supabase.from('assistants').select('id').order('created_at').limit(1).then(({ data }) => setPrimeiroAssistente(data?.[0]?.id ?? null));
+    supabase
+      .from('assistants')
+      .select('id, name, vende:config->fields->venda_no_chat->>value, estoque:config->fields->venda_estoque->>value')
+      .order('created_at')
+      .then(({ data }) => setAssistentes(data ?? []));
   }, []);
+  const definirVenda = async (a, mudanca) => {
+    const vender = mudanca.vender ?? /^sim/i.test(a.vende ?? '');
+    const estoque = mudanca.estoque ?? !/^n[aã]o/i.test(a.estoque ?? '');
+    setMexendo(a.id);
+    try {
+      await chamar('assistant-builder-chat', { action: 'definir_venda', assistant_id: a.id, vender, estoque });
+      setAssistentes((l) =>
+        l.map((x) => (x.id === a.id ? { ...x, vende: vender ? 'Sim' : 'Não', estoque: estoque ? 'Sim' : 'Não' } : x)),
+      );
+      avisar(vender ? `${a.name} vende pelo chat` : `${a.name} não fecha mais vendas`);
+    } catch (e) {
+      avisar('Não deu para salvar', { erro: true, texto: e.message });
+    } finally {
+      setMexendo(null);
+    }
+  };
 
   const carregar = useCallback(async () => {
     try {
@@ -130,13 +151,32 @@ export default function Carteira() {
             </div>
           </section>
 
-          {rec.ativo && (
-            <div className="row row-wrap" style={{ gap: 10 }}>
-              <span className="faint" style={{ fontSize: 13.5 }}>Falta só ligar a venda no assistente: ele confirma os itens e manda o link na conversa.</span>
-              <Link to={primeiroAssistente ? `/painel/assistentes/${primeiroAssistente}/editar` : '/painel/assistentes'} className="btn btn-ghost btn-sm">
-                Ligar vendas no assistente
-              </Link>
-            </div>
+          {rec.ativo && assistentes.length > 0 && (
+            <section className="card">
+              <h2 className="card-title">Vender pelo chat</h2>
+              <p className="muted" style={{ margin: '4px 0 12px', fontSize: 14 }}>
+                Ligado, o assistente confirma os itens e o total e manda o link de pagamento na conversa. Quando o pagamento cai, o pedido aparece em Pedidos já pago.
+              </p>
+              <ul className="venda-assistentes">
+                {assistentes.map((a) => {
+                  const vende = /^sim/i.test(a.vende ?? '');
+                  const baixa = !/^n[aã]o/i.test(a.estoque ?? '');
+                  return (
+                    <li key={a.id}>
+                      <b>{a.name}</b>
+                      <label className="check-linha">
+                        <input type="checkbox" checked={vende} disabled={mexendo === a.id} onChange={(e) => definirVenda(a, { vender: e.target.checked })} />
+                        <span>Fechar a venda no chat</span>
+                      </label>
+                      <label className="check-linha" data-desligado={!vende || undefined}>
+                        <input type="checkbox" checked={vende && baixa} disabled={!vende || mexendo === a.id} onChange={(e) => definirVenda(a, { estoque: e.target.checked })} />
+                        <span>Baixar o estoque da tabela quando o pagamento cair</span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           )}
 
           <section className="card">
