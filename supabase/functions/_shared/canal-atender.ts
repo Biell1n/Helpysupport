@@ -18,6 +18,18 @@ const PASSOU_PARA_EQUIPE =
   'Vou passar para alguém da equipe continuar daqui. É só aguardar: respondemos por aqui mesmo.';
 const RECADO =
   'Recebemos sua mensagem! No momento o atendimento automático está indisponível, mas ela já chegou para a equipe, que responde por aqui mesmo.';
+/**
+ * Cada app formata de um jeito: o WhatsApp usa *negrito*, o Discord entende
+ * **negrito** e o Instagram não tem formatação (os asteriscos apareceriam).
+ */
+function paraOCanal(tipo: string, texto: string | null): string | null {
+  if (!texto) return texto;
+  const lista = texto.replace(/^(\s*)[-*]\s+/gm, '$1• ');
+  if (tipo === 'discord') return texto;
+  if (tipo === 'whatsapp') return lista.replace(/\*\*([^*\n]+)\*\*/g, '*$1*');
+  return lista.replace(/\*\*([^*\n]+)\*\*/g, '$1');
+}
+
 /** Quanto esperar por mais mensagens do mesmo contato antes de responder. */
 const ESPERA_MS = 3500;
 /** Acima disso por minuto, o contato está disparando: não chama a IA. */
@@ -167,5 +179,5 @@ export async function atenderNoCanal(
   }, (hist ?? []).reverse());
   await logUsage(db, canal.owner_id, canal.assistant_id, 'atendimento', r.model, r.usage);
   await db.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: r.texto });
-  return r.texto;
+  return paraOCanal(canal.tipo, r.texto);
 }
