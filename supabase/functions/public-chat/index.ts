@@ -215,6 +215,9 @@ Deno.serve(async (req) => {
         })
         .filter((it) => it.quantidade > 0);
       await admin.from('conversations').update({ carrinho: novo }).eq('id', c.id);
+      // fica na conversa (o cliente não vê; a equipe e o assistente veem) que foi ele que mudou
+      const resumo = novo.length ? novo.map((it) => `${it.quantidade}x ${it.produto}`).join(', ') : 'carrinho vazio';
+      await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'system', author_name: 'carrinho', content: `O cliente mudou o carrinho na tela: ${resumo}.` });
       return json({ ...estado({ ...c, carrinho: novo }) });
     }
 
@@ -422,13 +425,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: hist } = await admin
+    const { data: brutas } = await admin
       .from('conversation_messages')
-      .select('role, content')
+      .select('role, content, author_name')
       .eq('conversation_id', c.id)
-      .in('role', ['user', 'assistant', 'agent'])
+      .or('role.in.(user,assistant,agent),and(role.eq.system,author_name.eq.carrinho)')
       .order('created_at', { ascending: false })
-      .limit(24);
+      .limit(30);
+    // mudança no carrinho pela tela: vira um recado no começo da mensagem seguinte do cliente
+    // (só a última mudança antes de cada mensagem vale)
+    const hist: { role: string; content: string }[] = [];
+    let nota: string | null = null;
+    for (const m of (brutas ?? []).slice().reverse()) {
+      if (m.role === 'system') {
+        nota = m.content;
+        continue;
+      }
+      hist.push(m.role === 'user' && nota ? { role: 'user', content: `[${nota}]\n${m.content}` } : { role: m.role, content: m.content });
+      if (m.role === 'user') nota = null;
+    }
+    hist.reverse();
 
     let resposta: string;
     const sinais: { pedirLogin?: boolean; motivoLogin?: string } = {};
