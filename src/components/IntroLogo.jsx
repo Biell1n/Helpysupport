@@ -227,13 +227,12 @@ function criarSom() {
     [T.pisca, (t) => tom(t, 1250, { dur: 0.09, vol: 0.05, ate: 1700 })],
     // letras
     ...LETRAS.map((_, j) => [T.nome + 0.1 + j * 0.055, (t) => chiado(t, { dur: 0.03, vol: 0.05, freq: 2400 + j * 260, tipo: 'highpass' })]),
-    // acorde final e o sopro do voo até o topo
+    // acorde final (o voo até o topo é em silêncio)
     [T.nome + 0.55, (t) => {
       tom(t, 659.25, { dur: 1.3, vol: 0.06, tipo: 'triangle' });
       tom(t + 0.06, 987.77, { dur: 1.2, vol: 0.045, tipo: 'triangle' });
       tom(t + 0.06, 1318.5, { dur: 0.8, vol: 0.015 });
     }],
-    [T.voa, (t) => chiado(t, { dur: 0.6, vol: 0.04, freq: 2600, ate: 300 })],
   ];
 
   return {
