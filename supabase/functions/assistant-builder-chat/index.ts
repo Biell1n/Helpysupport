@@ -166,6 +166,40 @@ function desfazer(s: Session, passos = 1): number {
   return n;
 }
 
+/** Só a conversa de verdade (sem os avisos de desfazer). */
+function conversaDe(msgs: MensagemBuilder[]) {
+  return msgs.filter((m) => m.role === 'user' || m.role === 'assistant');
+}
+
+/** Em uma frase, o que mudou no documento depois de desfazer. */
+function oQueVoltou(antes: { config: Config; schema: Schema }, depois: Session, tabelas: string[]): string {
+  const rotulo = new Map<string, string>();
+  for (const f of [...allFields(antes.schema), ...allFields(depois.schema)]) rotulo.set(f.key, f.label);
+  for (const c of [...allCollections(antes.schema), ...allCollections(depois.schema)]) rotulo.set(c.key, c.label);
+  const mudou: string[] = [];
+  const chaves = new Set([...Object.keys(antes.config.fields ?? {}), ...Object.keys(depois.config.fields ?? {})]);
+  for (const k of chaves) {
+    if (JSON.stringify(antes.config.fields?.[k] ?? null) !== JSON.stringify(depois.config.fields?.[k] ?? null)) mudou.push(rotulo.get(k) ?? k);
+  }
+  const listas = new Set([...Object.keys(antes.config.collections ?? {}), ...Object.keys(depois.config.collections ?? {})]);
+  for (const k of listas) {
+    if (JSON.stringify(antes.config.collections?.[k] ?? []) !== JSON.stringify(depois.config.collections?.[k] ?? [])) mudou.push(rotulo.get(k) ?? k);
+  }
+  const partes: string[] = [];
+  if (mudou.length) partes.push(`Voltou como estava: ${mudou.slice(0, 6).join(', ')}${mudou.length > 6 ? ` e mais ${mudou.length - 6}` : ''}.`);
+  if (tabelas.length) partes.push(`Apaguei de Dados ${tabelas.length === 1 ? 'a tabela' : 'as tabelas'} ${tabelas.map((t) => `"${t}"`).join(', ')}, ${tabelas.length === 1 ? 'criada' : 'criadas'} nesse trecho.`);
+  return partes.join(' ') || 'Nada visível mudou no documento.';
+}
+
+/** Tabelas que o montador criou no trecho desfeito saem de Dados junto. */
+async function apagarTabelasDesfeitas(dono: string, antes: Meta, depois: Meta): Promise<string[]> {
+  const ficam = new Set(depois.tabelas_criadas ?? []);
+  const sair = (antes.tabelas_criadas ?? []).filter((id) => typeof id === 'string' && !ficam.has(id));
+  if (!sair.length) return [];
+  const { data } = await admin.from('tabelas').delete().eq('owner_id', dono).in('id', sair).select('nome');
+  return (data ?? []).map((t: { nome: string }) => t.nome);
+}
+
 async function publicInfo(assistantId: string | null) {
   if (!assistantId) return null;
   const { data } = await admin.from('assistants').select('public_token, is_public, name').eq('id', assistantId).maybeSingle();
@@ -1227,8 +1261,8 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
     }
   }));
 
-  const history: Anthropic.Beta.BetaMessageParam[] = s.messages.slice(-30).map((m) => ({
-    role: m.role,
+  const history: Anthropic.Beta.BetaMessageParam[] = conversaDe(s.messages).slice(-30).map((m) => ({
+    role: m.role as 'user' | 'assistant',
     content: m.anexos?.length ? `${m.content}\n[anexou: ${m.anexos.join(', ')}]` : m.content,
   }));
   history.push({
@@ -1338,14 +1372,14 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
   s.messages = [
     ...s.messages,
     { role: 'user', content: userText, ...(anexos.length ? { anexos: anexos.map((a) => a.nome) } : {}) },
-    { role: 'assistant', content: reply },
+    { role: 'assistant', content: reply, id: crypto.randomUUID().slice(0, 8) },
   ];
   return { reply, usage, usageMateriais, model };
 }
 
 /** Resume a conversa de montagem no que o dono quer, para o assistente seguir. */
 async function resumirIntencao(s: Session): Promise<string> {
-  const conversa = s.messages.filter((m) => m.content?.trim()).slice(-60);
+  const conversa = conversaDe(s.messages).filter((m) => m.content?.trim()).slice(-60);
   if (conversa.length < 2) return s.meta.briefing ?? '';
   const texto = conversa
     .map((m) => `${m.role === 'user' ? 'DONO' : 'HELPY'}: ${m.content.slice(0, 1500)}${m.anexos?.length ? ` [anexou: ${m.anexos.join(', ')}]` : ''}`)
@@ -1415,6 +1449,13 @@ Deno.serve(async (req) => {
         return json({ cancelado: true });
       }
       await saveSession(s);
+      // a resposta guarda a versão mais nova do documento logo depois dela: é o
+      // ponto para onde "desfazer até aqui" volta
+      const ultima = s.messages[s.messages.length - 1];
+      if (ultima?.role === 'assistant') {
+        ultima.marco = s.historico[0]?.em ?? '';
+        await saveSession(s);
+      }
       await logUsage(admin, user.id, assistantId, 'builder', model, usage);
       // a transcrição dos arquivos é Haiku; entra no custo sem contar como mensagem de montagem
       if (usageMateriais.input) await logUsage(admin, user.id, assistantId, 'atendimento', MODELS.atendimento, usageMateriais);
@@ -1464,9 +1505,33 @@ Deno.serve(async (req) => {
 
     if (action === 'undo') {
       const s = await loadSession(user.id, assistantId);
+      const antes = { config: structuredClone(s.config), meta: structuredClone(s.meta), schema: s.schema };
       if (!desfazer(s, 1)) throw new UserError('Não há mais nada para desfazer.');
+      const removidas = await apagarTabelasDesfeitas(user.id, antes.meta, s.meta);
+      s.messages = [...s.messages, { role: 'aviso', content: `Desfiz um passo. ${oQueVoltou(antes, s, removidas)}` }];
       await saveSession(s);
-      return json(sessionPayload(s));
+      return json({ ...sessionPayload(s), messages: s.messages });
+    }
+
+    if (action === 'undo_ate') {
+      // volta o documento e a conversa para logo depois de uma resposta do Helpy
+      const s = await loadSession(user.id, assistantId);
+      const i = s.messages.findIndex((m) => m.role === 'assistant' && m.id && m.id === String(body.mensagem ?? ''));
+      const alvo = s.messages[i];
+      if (i < 0 || alvo.marco === undefined) throw new UserError('Não dá para voltar até essa mensagem.');
+      const antes = { config: structuredClone(s.config), meta: structuredClone(s.meta), schema: s.schema };
+      const limite = alvo.marco ? new Date(alvo.marco).getTime() : -Infinity;
+      let passos = 0;
+      while (s.historico.length && new Date(s.historico[0].em).getTime() > limite) passos += desfazer(s, 1);
+      const removidas = passos ? await apagarTabelasDesfeitas(user.id, antes.meta, s.meta) : [];
+      const sairam = s.messages.length - (i + 1);
+      s.messages = [
+        ...s.messages.slice(0, i + 1),
+        { role: 'aviso', content: `Voltei até aqui${sairam ? ` (${sairam} ${sairam === 1 ? 'mensagem saiu' : 'mensagens saíram'})` : ''}. ${passos ? oQueVoltou(antes, s, removidas) : 'O documento já estava assim.'}` },
+      ];
+      s.historicoMexido = true;
+      await saveSession(s);
+      return json({ ...sessionPayload(s), messages: s.messages });
     }
 
     if (action === 'remove_material') {
@@ -1491,7 +1556,7 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error('[briefing]', (e as Error).message);
       }
-      s.meta.conversa = s.messages.slice(-80);
+      s.meta.conversa = conversaDe(s.messages).slice(-80);
 
       const name = valueOf(s.config, 'nome_assistente') || valueOf(s.config, 'nome_negocio') || 'Assistente';
       const row = {

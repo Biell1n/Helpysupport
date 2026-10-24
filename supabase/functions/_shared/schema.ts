@@ -95,7 +95,15 @@ export interface Material {
   em: string;
 }
 
-export type MensagemBuilder = { role: 'user' | 'assistant'; content: string; anexos?: string[] };
+export type MensagemBuilder = {
+  role: 'user' | 'assistant' | 'aviso';
+  content: string;
+  anexos?: string[];
+  /** identifica a resposta (para "desfazer até aqui") */
+  id?: string;
+  /** data da versão do documento mais nova logo depois desta resposta ('' = nenhuma) */
+  marco?: string;
+};
 
 /** O que o builder lembra entre mensagens e não aparece na tela. */
 export interface Meta {

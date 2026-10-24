@@ -3210,3 +3210,76 @@
     flex-wrap: wrap;
   }
 }
+
+/* montador: aviso do desfazer no meio da conversa */
+.msg-aviso {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 92%;
+  padding: 7px 12px;
+  border: 1px dashed var(--linha-forte);
+  border-radius: var(--r);
+  color: var(--tinta-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+  animation: subir 0.25s ease;
+}
+
+.msg-aviso svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+/* "desfazer até aqui": discreto, aparece ao passar o mouse (sempre no toque) */
+.msg-voltar {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--tinta-3);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.msg-voltar svg {
+  width: 13px;
+  height: 13px;
+}
+
+.msg:hover .msg-voltar,
+.msg-voltar:focus-visible {
+  opacity: 1;
+}
+
+.msg-voltar:hover {
+  color: var(--tinta);
+}
+
+@media (hover: none) {
+  .msg-voltar {
+    opacity: 1;
+  }
+}
+
+/* mensagens desfeitas somem antes de sair da lista */
+[data-saindo] {
+  animation: sumir 0.36s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes sumir {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
