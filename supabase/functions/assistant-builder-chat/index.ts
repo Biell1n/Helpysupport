@@ -1616,7 +1616,9 @@ Deno.serve(async (req) => {
       const { data: abertas } = await admin.from('builder_sessions').select('id, config').eq('owner_id', user.id).eq('assistant_id', assistantId).eq('status', 'active');
       for (const sessao of abertas ?? []) await admin.from('builder_sessions').update({ config: juntar(sessao.config) }).eq('id', sessao.id);
       const agora = new Date().toISOString();
-      if (body.alerta_id) await admin.from('alertas').update({ visto_em: agora }).eq('id', String(body.alerta_id)).eq('owner_id', user.id);
+      if (body.alerta_id) {
+        await admin.from('alertas').update({ visto_em: agora, resposta, respondido_em: agora }).eq('id', String(body.alerta_id)).eq('owner_id', user.id);
+      }
       if (body.lacuna_id) await admin.from('assistant_gaps').update({ resolvida: true }).eq('id', String(body.lacuna_id)).eq('assistant_id', assistantId);
       return json({ ok: true });
     }
