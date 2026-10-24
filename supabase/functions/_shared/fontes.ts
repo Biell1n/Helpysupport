@@ -139,6 +139,27 @@ export function linkCsv(url: string): string {
   return url.trim();
 }
 
+/**
+ * Planilha "enfeitada" (título, subtítulo, linha em branco antes da tabela):
+ * acha a linha do cabeçalho de verdade. É a primeira linha, entre as 15 de
+ * cima, com quase todas as colunas preenchidas, só com texto e sem nomes
+ * repetidos. Sem isso, o título vira cabeçalho e as colunas viram "Coluna 6".
+ */
+export function inicioDosDados(todas: string[][]): number {
+  const cheias = (l: string[]) => l.filter((c) => String(c ?? '').trim()).length;
+  const largura = Math.max(0, ...todas.slice(0, 40).map(cheias));
+  if (largura < 2) return 0;
+  for (let i = 0; i < Math.min(15, todas.length - 1); i++) {
+    const textos = todas[i].map((c) => String(c ?? '').trim()).filter(Boolean);
+    if (textos.length < Math.max(2, Math.ceil(largura * 0.6))) continue;
+    const numeros = textos.filter((v) => /^-?(R\$\s?)?[\d.,]+$/.test(v)).length;
+    if (numeros > textos.length * 0.2) continue;
+    if (new Set(textos.map((t) => t.toLowerCase())).size < textos.length) continue;
+    return i;
+  }
+  return 0;
+}
+
 export function lerCsv(texto: string): string[][] {
   const t = texto.replace(/^\uFEFF/, '');
   const primeira = t.split(/\r?\n/, 1)[0] ?? '';
@@ -193,8 +214,9 @@ export async function baixarCsv(url: string): Promise<{ cabecalho: string[]; lin
       throw new UserError('Não conseguimos ler esse arquivo do Excel. Salve como .xlsx (não .xls antigo) e tente de novo.');
     }
     if (todas.length < 1) throw new UserError('A primeira aba da planilha está vazia.');
-    const cab = todas[0].map((c, i) => c.trim() || `Coluna ${i + 1}`);
-    return { cabecalho: cab, linhas: todas.slice(1, LIMITE_LINHAS + 1) };
+    const ini = inicioDosDados(todas);
+    const cab = todas[ini].map((c, i) => c.trim() || `Coluna ${i + 1}`);
+    return { cabecalho: cab, linhas: todas.slice(ini + 1, ini + LIMITE_LINHAS + 1) };
   }
   if (/ms-excel/.test(tipo)) throw new UserError('Esse arquivo é do Excel antigo (.xls). Abra no Excel e salve como .xlsx.');
   if (/text\/html/.test(tipo) || /^\s*<(!doctype|html)/i.test(texto)) {
@@ -204,8 +226,9 @@ export async function baixarCsv(url: string): Promise<{ cabecalho: string[]; lin
   }
   const todas = lerCsv(texto);
   if (todas.length < 1) throw new UserError('A planilha está vazia.');
-  const cabecalho = todas[0].map((c, i) => c.trim() || `Coluna ${i + 1}`);
-  return { cabecalho, linhas: todas.slice(1, LIMITE_LINHAS + 1) };
+  const ini = inicioDosDados(todas);
+  const cabecalho = todas[ini].map((c, i) => c.trim() || `Coluna ${i + 1}`);
+  return { cabecalho, linhas: todas.slice(ini + 1, ini + LIMITE_LINHAS + 1) };
 }
 
 /**

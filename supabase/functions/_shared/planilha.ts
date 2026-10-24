@@ -6,7 +6,7 @@
 // valores e a primeira coluna identifica o registro. Mude os dois juntos.
 // ============================================================
 
-import { lerCsv } from './fontes.ts';
+import { inicioDosDados, lerCsv } from './fontes.ts';
 
 export const LIMITE_LINHAS = 5000;
 
@@ -45,7 +45,9 @@ export function lerAbas(texto: string): Aba[] {
     : [{ nome: null, corpo: t }];
   const abas: Aba[] = [];
   for (const p of partes) {
-    const todas = lerCsv(p.corpo);
+    const lidas = lerCsv(p.corpo);
+    // título e enfeites acima da tabela ficam de fora
+    const todas = lidas.slice(inicioDosDados(lidas));
     if (todas.length < 2) continue; // só cabeçalho (ou nada)
     const largura = Math.max(...todas.map((l) => l.length));
     const cabecalho = Array.from({ length: largura }, (_, i) => String(todas[0][i] ?? '').trim() || `Coluna ${i + 1}`);
