@@ -728,7 +728,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     const assunto = String(args.assunto ?? '').trim().toLowerCase().slice(0, 120);
     if (!assunto) return { ok: false };
     const { data: ex } = await db.from('assistant_gaps').select('id, vezes').eq('assistant_id', assistant.id).eq('assunto', assunto).maybeSingle();
-    if (ex) await db.from('assistant_gaps').update({ vezes: ex.vezes + 1, ultima_em: new Date().toISOString(), resolvida: false }).eq('id', ex.id);
+    if (ex) await db.from('assistant_gaps').update({ vezes: ex.vezes + 1, ultima_em: new Date().toISOString(), resolvida: false, vista_em: null }).eq('id', ex.id);
     else await db.from('assistant_gaps').insert({ assistant_id: assistant.id, owner_id: assistant.owner_id, assunto, pergunta: String(args.pergunta ?? '').slice(0, 400) });
     return {
       ok: true,

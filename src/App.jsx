@@ -19,6 +19,7 @@ const Atendimentos = lazy(() => import('@/pages/Atendimentos'));
 const Dados = lazy(() => import('@/pages/Dados'));
 const Agenda = lazy(() => import('@/pages/Agenda'));
 const Relatorios = lazy(() => import('@/pages/Relatorios'));
+const Avisos = lazy(() => import('@/pages/Avisos'));
 const Plano = lazy(() => import('@/pages/Plano'));
 const Conta = lazy(() => import('@/pages/Conta'));
 const Equipe = lazy(() => import('@/pages/Equipe'));
@@ -76,6 +77,7 @@ export default function App() {
               <Route path="dados" element={<SoEmpresa><Dados /></SoEmpresa>} />
               <Route path="agenda" element={<EmpresaOuEquipe><Agenda /></EmpresaOuEquipe>} />
               <Route path="relatorios" element={<SoEmpresa><Relatorios /></SoEmpresa>} />
+              <Route path="avisos" element={<SoEmpresa><Avisos /></SoEmpresa>} />
               <Route path="equipe" element={<SoEmpresa><Equipe /></SoEmpresa>} />
               <Route path="plano" element={<SoEmpresa><Plano /></SoEmpresa>} />
               <Route path="conta" element={<Conta />} />

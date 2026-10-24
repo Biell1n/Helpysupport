@@ -2162,11 +2162,17 @@
 .alertas-icone {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  margin-top: -2px;
+  border-radius: var(--r-sm);
   background: var(--senha-clara);
   color: var(--senha);
+}
+
+.alertas-icone svg {
+  width: 14px;
+  height: 14px;
 }
 
 .alertas-icone[data-origem='sistema'] {
@@ -3414,4 +3420,97 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* notificações no topo do painel */
+.alertas-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.alertas-cab .card-title {
+  margin: 0;
+}
+
+.alertas-texto {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--r-sm);
+}
+
+.alertas-texto:hover b {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.alertas-mais {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+/* caixa de avisos */
+.avisos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.aviso {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 16px 18px;
+}
+
+.aviso[data-visto] {
+  background: var(--papel);
+}
+
+.aviso[data-visto] .aviso-corpo > b {
+  font-weight: 500;
+}
+
+.aviso[data-destaque] {
+  box-shadow: inset 3px 0 0 var(--senha);
+}
+
+.aviso-corpo p {
+  margin: 2px 0 4px;
+  font-size: 13.5px;
+  color: var(--tinta-2);
+}
+
+.aviso-corpo .faint {
+  font-size: 12.5px;
+}
+
+.aviso-resposta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px !important;
+  color: var(--folha) !important;
+}
+
+.aviso .alertas-resposta {
+  margin-top: 10px;
+}
+
+@media (max-width: 640px) {
+  .aviso {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .aviso .alertas-acoes {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
 }
