@@ -121,6 +121,8 @@ export interface Meta {
   tabela_oferecida: boolean;
   tabela_recusada: boolean;
   tabelas_criadas?: string[];
+  /** anotações pendentes achadas nas tabelas ("tons a confirmar"…), para perguntar ao dono */
+  pendencias_tabela?: { nota: string; produtos: string[] }[];
   /** documentos anexados, já em texto, que o assistente consulta ao atender */
   materiais?: Material[];
   /** o que o dono quer, resumido da conversa de montagem */
@@ -348,6 +350,10 @@ const OPERACAO: Record<string, FieldDef[]> = {
   ],
   produto: [
     { key: 'entrega', label: 'Entrega e frete', type: 'textarea', importance: 'important', hint: 'Prazo, valor do frete, retirada no local, para onde entrega' },
+    {
+      key: 'variacoes', label: 'Tons, cores e tamanhos', type: 'textarea', importance: 'important',
+      hint: 'As opções de cada produto, para o assistente vender sem precisar confirmar. Ex.: Base Líquida em 8 tons (01 claro a 08 escuro); camisetas P, M, G e GG. Se nada tiver variação, dispense.',
+    },
   ],
   agendamento: [
     { key: 'agendamento_como', label: 'Como marcar horário', type: 'textarea', importance: 'important', hint: 'Antecedência, remarcação, o que acontece se faltar' },
