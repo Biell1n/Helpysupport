@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { BarChart3, CalendarDays, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, UserRound, Users, Wallet } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
+import { chamar } from '@/lib/supabase';
 import { VerificarCodigo } from '@/components/DuasEtapas';
 import { aceitar, gravarAceitePendente, TERMOS_VERSAO } from '@/lib/termos';
 import { useUso } from '@/lib/useUso';
@@ -54,7 +55,70 @@ export function ExigeLogin({ children }) {
   if (loading) return <Carregando />;
   if (!user) return <Navigate to="/entrar" replace state={{ de: loc.pathname + loc.search }} />;
   if (precisaCodigo) return <VerificarCodigo />;
-  return <AceiteTermos>{children}</AceiteTermos>;
+  return (
+    <AceiteTermos>
+      <EscolherTipo>{children}</EscolherTipo>
+    </AceiteTermos>
+  );
+}
+
+/**
+ * Conta que acabou de nascer pelo Google na tela "Entrar" vira empresa sem
+ * ninguém ter escolhido: pergunta uma vez se é empresa ou cliente.
+ */
+const JANELA_TIPO_MS = 30 * 60 * 1000;
+function EscolherTipo({ children }) {
+  const { user, profile, reloadProfile } = useAuth();
+  const chave = `helpy_tipo_escolhido:${user?.id}`;
+  const [escolhido, setEscolhido] = useState(() => {
+    try {
+      return localStorage.getItem(chave) === '1';
+    } catch {
+      return true;
+    }
+  });
+  const [indo, setIndo] = useState(false);
+  const nova = profile?.created_at && Date.now() - new Date(profile.created_at).getTime() < JANELA_TIPO_MS;
+  const pelaGoogle = user?.app_metadata?.provider === 'google';
+  if (escolhido || !nova || !pelaGoogle || profile?.tipo !== 'empresa') return children;
+
+  const fechar = () => {
+    try {
+      localStorage.setItem(chave, '1');
+    } catch {
+      /* sem armazenamento: pergunta de novo só nesta janela de tempo */
+    }
+    setEscolhido(true);
+  };
+  const virarCliente = async () => {
+    setIndo(true);
+    try {
+      await chamar('conta', { action: 'virar_cliente' });
+      await reloadProfile();
+    } finally {
+      setIndo(false);
+      fechar();
+    }
+  };
+
+  return (
+    <div className="modal-fundo">
+      <div className="card stack" style={{ maxWidth: 520, margin: '12vh auto' }} role="dialog" aria-modal="true" aria-labelledby="tipo-tit">
+        <h2 id="tipo-tit" className="card-title">Como você vai usar o Helpy?</h2>
+        <div className="tipo-conta" role="radiogroup" aria-label="Tipo de conta">
+          <button type="button" role="radio" aria-checked="false" disabled={indo} onClick={fechar}>
+            <b>Sou empresa</b>
+            <span>Quero criar um assistente para atender meus clientes</span>
+          </button>
+          <button type="button" role="radio" aria-checked="false" disabled={indo} onClick={virarCliente}>
+            <b>Sou cliente</b>
+            <span>Quero falar com uma empresa e acompanhar minhas conversas</span>
+          </button>
+        </div>
+        <p className="faint" style={{ fontSize: 12.5, margin: 0 }}>Cliente não vê painel de empresa: só as conversas com as empresas.</p>
+      </div>
+    </div>
+  );
 }
 
 /** Conta criada pelo Google (ou termos novos): aceite antes de usar o painel. */
