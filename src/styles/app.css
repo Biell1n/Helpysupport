@@ -3514,3 +3514,22 @@
     justify-content: flex-start;
   }
 }
+
+/* botão dentro do aviso flutuante (ex.: Desfazer) */
+.toast-acao {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toast-acao:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
