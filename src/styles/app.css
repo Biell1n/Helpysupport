@@ -3283,3 +3283,27 @@
     transform: translateY(-6px);
   }
 }
+
+/* respostas do montador com lista e negrito */
+.texto-formatado p {
+  margin: 0;
+}
+
+.texto-formatado p + p,
+.texto-formatado p + :is(ul, ol),
+.texto-formatado :is(ul, ol) + p {
+  margin-top: 8px;
+}
+
+.texto-formatado :is(ul, ol) {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.texto-formatado li + li {
+  margin-top: 3px;
+}
+
+.texto-formatado strong {
+  font-weight: 600;
+}

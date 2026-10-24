@@ -7,6 +7,7 @@ import { Marca } from '@/components/Logo';
 import { Confirmar } from '@/components/Modal';
 import { useToast } from '@/components/Toasts';
 import BolinhasPensando from '@/components/BolinhasPensando';
+import TextoFormatado from '@/components/TextoFormatado';
 import { labelOf } from '@/lib/documento';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -141,7 +142,7 @@ function Conversa() {
                   ))}
                 </div>
               )}
-              <div className="msg-body">{m.content}</div>
+              <div className="msg-body">{m.role === 'assistant' ? <TextoFormatado texto={m.content} /> : m.content}</div>
               {/* atalho: voltar a montagem para logo depois desta resposta */}
               {m.role === 'assistant' && m.id && m.marco !== undefined && i < ultimaConversa && !b.sending && (
                 <button type="button" className="msg-voltar" onClick={() => setVoltarAte(m)}>
