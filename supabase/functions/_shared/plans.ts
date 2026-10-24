@@ -100,7 +100,7 @@ export interface Precos {
  */
 export const TAXA_VENDAS: Record<PlanId, number> = { trial: 2, essencial: 2, profissional: 1.5, business: 1 };
 
-const COTA_TESTE = { atendimentos: 3, mensagens: 15 };
+const COTA_TESTE = { atendimentos: 30, mensagens: 400 };
 
 export function precosVigentes(teste: boolean): Precos {
   if (teste) {
