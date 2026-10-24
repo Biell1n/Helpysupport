@@ -1057,7 +1057,9 @@ Nunca grave "Consultar", "Sob consulta", "A definir", "Varia", "N/A" ou parecido
 Nunca invente dado que a pessoa não disse.
 
 FORA DO ESCOPO
-Você só monta este assistente. Se puxarem outro tema, uma frase avisando e volta ao assunto. Nada de markdown pesado, nada de JSON na resposta.`;
+Você só monta este assistente. Se puxarem outro tema, uma frase avisando e volta ao assunto. Nada de JSON na resposta.
+FORMATO: texto corrido e curto. Quando listar, use "- " no começo da linha; para destacar, **negrito** só no nome do item. Nada de títulos, tabelas ou outro markdown.
+DESFAZER: quando a conversa trouxer "[O dono desfez mudanças…]", o que foi dito antes sobre aquilo não vale mais. O documento atual é a verdade: nunca cite como existente tabela, lista ou campo que não está nele.`;
 
 function docState(s: Session): string {
   const linhas: string[] = [];
@@ -1261,15 +1263,33 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
     }
   }));
 
-  const history: Anthropic.Beta.BetaMessageParam[] = conversaDe(s.messages).slice(-30).map((m) => ({
-    role: m.role as 'user' | 'assistant',
-    content: m.anexos?.length ? `${m.content}\n[anexou: ${m.anexos.join(', ')}]` : m.content,
-  }));
+  // os avisos de desfazer entram como nota antes da próxima fala do dono: sem
+  // isso a IA lê a conversa antiga e trata como feito o que foi desfeito
+  const recentes = s.messages.slice(-34);
+  const history: Anthropic.Beta.BetaMessageParam[] = [];
+  let notas: string[] = [];
+  const comNotas = (texto: string) => (notas.length ? `${notas.map((n) => `[O dono desfez mudanças no documento: ${n} O que foi combinado na conversa sobre isso não vale mais; o documento atual é a verdade.]`).join('\n')}\n\n${texto}` : texto);
+  for (const m of recentes) {
+    if (m.role === 'aviso') {
+      notas.push(m.content);
+      continue;
+    }
+    if (m.role !== 'user' && m.role !== 'assistant') continue;
+    const texto = m.anexos?.length ? `${m.content}\n[anexou: ${m.anexos.join(', ')}]` : m.content;
+    if (m.role === 'user') {
+      history.push({ role: 'user', content: comNotas(texto) });
+      notas = [];
+    } else {
+      history.push({ role: 'assistant', content: texto });
+    }
+  }
+  // a conversa precisa começar pela fala do dono
+  while (history.length && history[0].role !== 'user') history.shift();
   history.push({
     role: 'user',
     content: [
       ...preparados.map((p) => p.bloco),
-      { type: 'text', text: userText },
+      { type: 'text', text: comNotas(userText) },
       // ponto de cache: nas rodadas seguintes desta resposta, tudo até aqui sai por 10%
       { type: 'text', text: goalNote(s, goal), cache_control: { type: 'ephemeral' } },
     ],
