@@ -49,7 +49,7 @@ export default function Avisos() {
       setRespondendo(null);
       setResposta('');
       avisar('O assistente aprendeu', {
-        texto: r?.entregue ? 'A resposta também foi para o cliente que perguntou.' : 'A partir de agora ele responde isso sozinho.',
+        texto: r?.entregue ? 'O assistente já retomou o atendimento de quem perguntou.' : 'A partir de agora ele responde isso sozinho.',
       });
     } catch (e) {
       avisar('Não deu para salvar', { erro: true, texto: e.message });

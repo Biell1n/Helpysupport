@@ -189,7 +189,8 @@ Deno.serve(async (req) => {
         .from('conversation_messages')
         .select('role, content, author_name, created_at')
         .eq('conversation_id', c.id)
-        .in('role', ['agent', 'system'])
+        // equipe, eventos e o assistente retomando a conversa depois do retorno da equipe
+        .or('role.in.(agent,system),and(role.eq.assistant,author_name.eq.retorno)')
         .order('created_at', { ascending: true })
         .limit(30);
       if (body.desde) q = q.gt('created_at', String(body.desde));

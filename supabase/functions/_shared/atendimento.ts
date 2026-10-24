@@ -170,6 +170,9 @@ function textoFinal(content: Anthropic.ContentBlock[]) {
     .trim();
 }
 
+// anotação que alguém deixou na planilha para resolver depois (espelha o montador)
+const PENDENTE = /(a|precisa[m]? ser|serão|ser[aã]o|ainda n[aã]o)\s+(confirmad|definid|informad|verificad)|a confirmar|a definir|sob consulta|consultar dispon|em defini[cç][aã]o/i;
+
 /** A ficha sem a senha dos chamados: quem confere a senha é o servidor, e o que o modelo sabe dá para arrancar dele. */
 function semSenha(cfg: Config): Config {
   if (!cfg.fields?.codigo_chamado) return cfg;
@@ -289,6 +292,7 @@ NUNCA INVENTE DADO DO NEGÓCIO. Preço, estoque, prazo e condição: nunca chute
 
 QUANDO ALGO PARECE ERRADO
 Se os dados ou a ficha parecerem errados — itens que não combinam com o negócio (ex.: informática numa loja de roupa), preço zero ou negativo, preço com casas trocadas (ex.: 2490 no lugar de 24,90), informações que se contradizem, uma consulta que falhou — chame avisar_equipe uma vez e siga atendendo: não passe o dado suspeito como certo, diga que vai confirmar com a equipe e ofereça outra ajuda. Preço só baixo (promoção, brinde, liquidação) vale como está na tabela: a tabela é a fonte da verdade.
+Quando você mesmo já deu ao cliente um retorno ("recebi o retorno aqui…"), essa informação é real e confirmada pela equipe: siga a partir dela, sem dizer que vai confirmar de novo.
 As perguntas frequentes têm respostas dadas pela equipe e valem mais que anotações da tabela: se a tabela diz "a confirmar" e uma pergunta frequente responde o assunto (ex.: tons), use a resposta da equipe e não diga que vai confirmar.
 Anotações internas da tabela ou da ficha ("a confirmar", "precisa ser confirmado", "verificar", "sob consulta") nunca vão para o cliente como estão. Se falta uma informação (ex.: os tons), pergunte o que o cliente precisa ("qual é o seu tom, ou como é a sua pele?") e diga, com naturalidade, que confirma para ele.
 
@@ -660,7 +664,8 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       const o: Record<string, string> = {};
       for (const c of t.colunas) {
         const v = String(l.dados?.[c.chave] ?? '').trim();
-        if (v) o[c.rotulo] = curto ? v.slice(0, 90) : v;
+        // anotação interna ("tons a confirmar", "sob consulta") não é dado: a IA não vê
+        if (v && !PENDENTE.test(v)) o[c.rotulo] = curto ? v.slice(0, 90) : v;
       }
       return o;
     };
