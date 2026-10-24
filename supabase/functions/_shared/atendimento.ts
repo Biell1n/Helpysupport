@@ -927,7 +927,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     ...(daEquipe.length || r.retorno
       ? [{
         type: 'text' as const,
-        text: `${daEquipe.length ? `CONFIRMADO PELA EQUIPE (verdade; vale mais que tabela, ficha e o que você disse antes):\n${daEquipe.join('\n')}\nSe o cliente perguntar disso, responda com segurança. Ex.: "temos todos os tons" responde que existe o tom claro.` : ''}${
+        text: `${daEquipe.length ? `CONFIRMADO PELA EQUIPE (verdade; vale mais que tabela, ficha e o que você disse antes):\n${daEquipe.join('\n')}\nUse só quando o cliente tocar no assunto, com segurança e aplicado ao que ele perguntou. Não antecipe detalhes que ele não pediu.` : ''}${
           r.retorno
             ? `\n\nRETORNO QUE ACABOU DE CHEGAR (o cliente não viu o texto da equipe): sobre "${r.retorno.pergunta}": ${r.retorno.resposta}\nSua próxima mensagem dá esse retorno ao cliente, aplicado ao caso dele, começando por "Recebi o retorno aqui:" e confirmando o que ele queria saber (ex.: "temos o tom claro sim"). Depois siga a conversa com uma pergunta útil. Não diga que não tem a confirmação: você tem.`
             : ''
