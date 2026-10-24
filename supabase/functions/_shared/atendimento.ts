@@ -12,7 +12,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { buscar, categorias } from './busca.ts';
-import { cancelarPedido, cobrarHorario, fecharPedido, MINIMO_COBRANCA, valorDaReserva, vendeOnline } from './pedidos.ts';
+import { cancelarPedido, cobrarHorario, fecharPedido, MINIMO_COBRANCA, montarItens, valorDaReserva, vendeOnline } from './pedidos.ts';
 import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
 import {
   type AgendaConfig, agendamentosDaConversa, alterarAgendamento, carregarAgenda, descreverAgendamento, hojeNoFuso, horariosLivres, marcar,
@@ -136,6 +136,7 @@ function eixos(schema: Schema, cfg: Config) {
   return [...new Set(out)].slice(0, 6);
 }
 
+const reaisBR = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const catalogos = (schema: Schema, cfg: Config): CollectionDef[] =>
   allCollections(schema).filter((c) => !['contatos', 'faq'].includes(c.key) && (cfg.collections[c.key]?.length ?? 0) > 0);
 
@@ -270,7 +271,7 @@ ${blocoTabelas}
 ${blocoAgenda}
 ${loja ? `
 VENDA PELO CHAT
-Você fecha a compra aqui mesmo. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
+Você fecha a compra aqui mesmo. A pessoa vê um carrinho na tela: quando ela escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
 
 FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para preço e estoque dos itens, consulte as tabelas. As perguntas frequentes daqui são respostas da equipe e valem mais que observações das tabelas' : ' — sua fonte de verdade'}
 ${describeConfig(a.schema, semSenha(cfg)) || '(vazia)'}
@@ -390,6 +391,24 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
   }
 
   if (loja) {
+    tools.push({
+      name: 'atualizar_carrinho',
+      description: 'Atualiza o carrinho que o cliente vê na tela. Chame sempre que ele escolher, trocar, tirar um produto ou mudar a quantidade. Mande o carrinho INTEIRO como deve ficar (vazio para esvaziar). O preço vem do catálogo.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          itens: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: { produto: { type: 'string', description: 'Nome exato do produto no catálogo' }, quantidade: { type: 'integer', minimum: 1 } },
+              required: ['produto', 'quantidade'],
+            },
+          },
+        },
+        required: ['itens'],
+      },
+    });
     tools.push({
       name: 'fechar_pedido',
       description: 'Fecha a compra e gera o link de pagamento (Pix, cartão ou boleto) na conta da empresa. Só chame depois que a pessoa confirmar produtos, quantidades e total. Use o nome exato de cada produto do catálogo: o preço e o estoque vêm de lá.',
@@ -626,16 +645,38 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   const { db, assistant, conversationId } = r;
   const cfg = assistant.config;
 
+  if (nome === 'atualizar_carrinho' && r.vendas?.loja) {
+    const catalogo = catalogos(assistant.schema, cfg).flatMap((c) =>
+      (cfg.collections[c.key] ?? []).map((it) => Object.fromEntries(c.item_fields.map((f) => [f.key, String(it?.[f.key] ?? '')])))
+    );
+    const pedidos = (Array.isArray(args.itens) ? args.itens : []).slice(0, 30) as { produto: string; quantidade: number }[];
+    const { itens, problemas } = pedidos.length ? await montarItens(db, pedidos, tabelas, catalogo) : { itens: [], problemas: [] };
+    if (problemas.length) return { erro: 'O carrinho NÃO mudou.', problemas };
+    const carrinho = itens.map((i) => ({ produto: i.produto, quantidade: i.quantidade, preco: i.preco, subtotal: i.subtotal }));
+    await db.from('conversations').update({ carrinho }).eq('id', conversationId);
+    const total = carrinho.reduce((s2, i) => s2 + i.subtotal, 0);
+    return { ok: true, carrinho: carrinho.map((i) => `${i.quantidade}x ${i.produto}`), total: reaisBR(total), mensagem: 'O carrinho aparece na tela da pessoa: não precisa repetir a lista inteira, só confirme o que mudou.' };
+  }
+
   if (nome === 'fechar_pedido' && r.vendas?.loja) {
     const catalogo = catalogos(assistant.schema, cfg).flatMap((c) =>
       (cfg.collections[c.key] ?? []).map((it) => Object.fromEntries(c.item_fields.map((f) => [f.key, String(it?.[f.key] ?? '')])))
     );
-    return await fecharPedido(db, {
+    // sem itens na chamada, fecha o que está no carrinho
+    if (!Array.isArray(args.itens) || !args.itens.length) {
+      const { data: conv } = await db.from('conversations').select('carrinho').eq('id', conversationId).maybeSingle();
+      const doCarrinho = (Array.isArray(conv?.carrinho) ? conv.carrinho : []) as { produto: string; quantidade: number }[];
+      args = { ...args, itens: doCarrinho.map((i) => ({ produto: i.produto, quantidade: i.quantidade })) };
+    }
+    const resultado = await fecharPedido(db, {
       ownerId: assistant.owner_id, assistantId: assistant.id, conversationId,
       negocio: valueOf(cfg, 'nome_negocio'), teste: r.teste,
       baixarEstoque: !/^n[aã]o/i.test(valueOf(cfg, 'venda_estoque')),
       regraFrete: valueOf(cfg, 'frete_chat'),
     }, args as { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; entrega?: string; endereco?: string }, tabelas, catalogo);
+    // pedido criado: o carrinho vira o pedido
+    if ((resultado as { ok?: boolean }).ok) await db.from('conversations').update({ carrinho: [] }).eq('id', conversationId);
+    return resultado;
   }
 
   if (nome.startsWith('consultar_')) {
@@ -921,12 +962,22 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const agora = new Intl.DateTimeFormat('pt-BR', { timeZone: fuso, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
   // o que esta conversa já marcou: as ferramentas de rodadas anteriores não ficam no histórico
   const marcados = agenda ? await agendamentosDaConversa(r.db, r.conversationId) : [];
+  // o carrinho que o cliente vê (e pode ter mudado na tela)
+  const carrinho = loja
+    ? (((await r.db.from('conversations').select('carrinho').eq('id', r.conversationId).maybeSingle()).data?.carrinho ?? []) as { produto: string; quantidade: number; subtotal: number }[])
+    : [];
   // respostas que a equipe deu em Avisos: confirmadas, valem mais que tabela e ficha
   const daEquipe = ((a.config.collections?.faq ?? []) as Array<Record<string, string>>)
     .filter((f) => f?.equipe && f?.pergunta && f?.resposta)
     .map((f) => `- ${f.pergunta}: ${f.resposta}`);
   const system: Anthropic.TextBlockParam[] = [
     { type: 'text', text: systemPrompt(a, tabelas, agenda, loja, rr.vendas.agendaPaga), cache_control: { type: 'ephemeral' } },
+    ...(loja
+      ? [{
+        type: 'text' as const,
+        text: `CARRINHO ATUAL (o cliente vê na tela): ${carrinho.length ? carrinho.map((i) => `${i.quantidade}x ${i.produto} (${reaisBR(i.subtotal)})`).join('; ') : 'vazio'}.`,
+      }]
+      : []),
     ...(daEquipe.length || r.retorno
       ? [{
         type: 'text' as const,

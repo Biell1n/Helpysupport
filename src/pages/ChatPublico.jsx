@@ -7,6 +7,7 @@ import { useToast } from '@/components/Toasts';
 import BolinhasPensando from '@/components/BolinhasPensando';
 import TextoQueChega from '@/components/TextoQueChega';
 import TextoFormatado from '@/components/TextoFormatado';
+import CarrinhoDoChat from '@/components/CarrinhoDoChat';
 import { chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolverDesafio } from '@/lib/prova';
@@ -72,6 +73,8 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
   const fim = useRef(null);
   const area = useRef(null);
 
+  const [carrinho, setCarrinho] = useState([]);
+  const [mexendoCarrinho, setMexendoCarrinho] = useState(false);
   const absorver = (d) => {
     if (!d) return;
     // alguém da equipe acabou de assumir: aviso na conversa e notificação
@@ -82,6 +85,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
     if (d.status) statusAntes.current = d.status;
     setEstado((p) => ({ ...p, ...Object.fromEntries(Object.entries({ status: d.status, numero: d.numero, assumido: d.assumido, assumido_nome: d.assumido_nome }).filter(([, v]) => v !== undefined)) }));
     if (d.ja_avaliou) setAvaliou(true);
+    if (Array.isArray(d.carrinho)) setCarrinho(d.carrinho);
   };
 
   // ---- abertura ----
@@ -264,6 +268,22 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           </div>
         </header>
       )}
+
+      <CarrinhoDoChat
+        itens={carrinho}
+        ocupado={mexendoCarrinho || pensando}
+        onMudar={async (produto, quantidade) => {
+          setMexendoCarrinho(true);
+          try {
+            absorver(await chamar('public-chat', { ...base, action: 'carrinho', conversation_id: conversa, visitor_id: visitorId, itens: [{ produto, quantidade }] }));
+          } catch (e) {
+            notificar('Não deu para mudar o carrinho', { erro: true, texto: e.message });
+          } finally {
+            setMexendoCarrinho(false);
+          }
+        }}
+        onFechar={() => enviar('Pode fechar o pedido com o que está no carrinho.')}
+      />
 
       <div className="chat-scroll publico-in" aria-live="polite">
         {mensagens.length === 0 && info && (

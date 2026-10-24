@@ -41,7 +41,9 @@ const MUITA_PROCURA =
 const RECADO =
   'Obrigado pela mensagem! No momento o atendimento automático está indisponível, mas sua mensagem já chegou para a equipe. Se quiser, deixe aqui seu nome e um contato (WhatsApp ou e-mail) que respondemos por esta mesma conversa.';
 
+type ItemCarrinho = { produto: string; quantidade: number; preco: number; subtotal: number };
 type Conversa = {
+  carrinho?: ItemCarrinho[];
   id: string;
   assistant_id: string;
   visitor_id: string;
@@ -101,7 +103,7 @@ async function conversaDo(assistantId: string, visitorId: string, clienteId: str
   if (!id || !visitorId || !/^[0-9a-f-]{36}$/i.test(String(id))) return null;
   const { data } = await admin
     .from('conversations')
-    .select('id, assistant_id, visitor_id, cliente_id, status, numero, assumido_nome, assumido_em, escalado_em, nota, teste, last_message_at, motivo, ip_hash')
+    .select('id, assistant_id, visitor_id, cliente_id, status, numero, assumido_nome, assumido_em, escalado_em, nota, teste, last_message_at, motivo, ip_hash, carrinho')
     .eq('id', String(id))
     .maybeSingle();
   if (!data || data.assistant_id !== assistantId) return null;
@@ -118,6 +120,7 @@ const estado = (c: Conversa) => ({
   assumido: !!c.assumido_em,
   assumido_nome: c.assumido_nome,
   ja_avaliou: c.nota != null,
+  carrinho: Array.isArray(c.carrinho) ? c.carrinho : [],
 });
 
 /** O cliente vê a conversa e os avisos de agenda; avisos internos do sistema ficam só para a equipe. */
@@ -196,6 +199,23 @@ Deno.serve(async (req) => {
       if (body.desde) q = q.gt('created_at', String(body.desde));
       const { data: msgs } = await q;
       return json({ ...estado(c), messages: (msgs ?? []).filter(paraOCliente) });
+    }
+
+    if (action === 'carrinho') {
+      // o cliente muda a quantidade ou tira um item; o preço continua o que o assistente pegou da tabela
+      const c = await conversaDo(assistant.id, visitorId, clienteId, body.conversation_id);
+      if (!c) throw new UserError('Conversa não encontrada.', 404);
+      const atual = Array.isArray(c.carrinho) ? c.carrinho : [];
+      const pedido = Array.isArray(body.itens) ? (body.itens as { produto?: unknown; quantidade?: unknown }[]) : [];
+      const novo = atual
+        .map((it) => {
+          const mudou = pedido.find((p) => String(p?.produto ?? '') === it.produto);
+          const q = mudou ? Math.max(0, Math.min(99, Math.floor(Number(mudou.quantidade) || 0))) : it.quantidade;
+          return { ...it, quantidade: q, subtotal: Math.round(it.preco * q * 100) / 100 };
+        })
+        .filter((it) => it.quantidade > 0);
+      await admin.from('conversations').update({ carrinho: novo }).eq('id', c.id);
+      return json({ ...estado({ ...c, carrinho: novo }) });
     }
 
     if (action === 'feedback') {

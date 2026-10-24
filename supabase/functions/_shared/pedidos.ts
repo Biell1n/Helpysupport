@@ -55,7 +55,7 @@ type Item = { produto: string; quantidade: number; preco: number; subtotal: numb
  * Acha cada produto pedido nas tabelas do assistente (ou nas listas do
  * documento) e confere preço e estoque.
  */
-async function montarItens(
+export async function montarItens(
   db: SupabaseClient,
   pedidos: { produto: string; quantidade: number }[],
   tabelas: TabelaPedido[],
