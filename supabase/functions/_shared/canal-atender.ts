@@ -11,7 +11,7 @@ import { logUsage } from './ai.ts';
 import { alertar, type Assistant, responder } from './atendimento.ts';
 import { profileOf } from './db.ts';
 import { inicioDoMes, planOf, trialExpirado } from './plans.ts';
-import { type Canal, NOMES } from './canais.ts';
+import { type Canal, enviarPeloCanal, NOMES } from './canais.ts';
 import { MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from './extra.ts';
 
 const PASSOU_PARA_EQUIPE =
@@ -22,7 +22,7 @@ const RECADO =
  * Cada app formata de um jeito: o WhatsApp usa *negrito*, o Discord entende
  * **negrito** e o Instagram não tem formatação (os asteriscos apareceriam).
  */
-function paraOCanal(tipo: string, texto: string | null): string | null {
+export function paraOCanal(tipo: string, texto: string | null): string | null {
   if (!texto) return texto;
   const lista = texto.replace(/^(\s*)[-*]\s+/gm, '$1• ');
   if (tipo === 'discord') return texto;
@@ -180,4 +180,66 @@ export async function atenderNoCanal(
   await logUsage(db, canal.owner_id, canal.assistant_id, 'atendimento', r.model, r.usage);
   await db.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: r.texto });
   return paraOCanal(canal.tipo, r.texto);
+}
+
+/**
+ * A equipe respondeu em Avisos uma dúvida que o assistente não sabia. O
+ * assistente recebe a informação (o cliente não vê o texto da equipe) e
+ * continua o atendimento ele mesmo: responde a dúvida que estava aberta e
+ * segue para o próximo passo, pelo mesmo canal.
+ */
+export async function retomarComRetorno(
+  db: SupabaseClient,
+  conversaId: string,
+  dono: string,
+  retorno: { pergunta: string; resposta: string },
+): Promise<boolean> {
+  const { data: c } = await db.from('conversations')
+    .select('id, owner_id, assistant_id, status, canal_id, contato_externo, lead_nome, last_message_at, teste').eq('id', conversaId).maybeSingle();
+  if (!c || c.owner_id !== dono || c.status === 'closed' || c.status === 'human') return false;
+  // passou de um dia: a pessoa já foi embora (e o WhatsApp só deixa responder em 24 h)
+  if (Date.now() - new Date(c.last_message_at).getTime() > 24 * 3600e3) return false;
+  const { data: assistant } = await db.from('assistants').select('*').eq('id', c.assistant_id).maybeSingle();
+  if (!assistant) return false;
+  const plan = planOf(await profileOf(dono));
+  const canal = c.canal_id ? ((await db.from('canais').select('*').eq('id', c.canal_id).maybeSingle()).data as Canal | null) : null;
+
+  const { data: hist } = await db.from('conversation_messages').select('role, content')
+    .eq('conversation_id', c.id).in('role', ['user', 'assistant', 'agent'])
+    .order('created_at', { ascending: false }).limit(24);
+  const historico = [
+    ...(hist ?? []).reverse(),
+    {
+      role: 'user',
+      content: `[Retorno interno da equipe — o cliente NÃO vê isto. Sobre "${retorno.pergunta}": ${retorno.resposta}]
+Continue o atendimento agora, como quem acabou de receber o retorno: responda a dúvida que o cliente deixou em aberto aplicando essa informação ao caso dele (ex.: "Recebi o retorno aqui: temos o tom claro sim") e siga para o próximo passo natural (ex.: oferecer fechar a compra). Não repita nem explique o texto da equipe e não diga que alguém escreveu algo.`,
+    },
+  ];
+  const cfg = structuredClone((assistant as Assistant).config);
+  if (!plan.chamadosAvancados) {
+    delete cfg.fields.codigo_chamado;
+    delete cfg.fields.nunca_chamar_humano;
+  }
+  const tipo = canal?.tipo as 'whatsapp' | 'instagram' | 'discord' | undefined;
+  const r = await responder({
+    db,
+    assistant: { ...(assistant as Assistant), config: cfg },
+    conversationId: c.id,
+    maxTicketsAbertos: plan.ticketsAbertos,
+    integracoes: plan.integracoes,
+    cliente: null,
+    canal: canal && tipo ? { tipo, contato: c.contato_externo, nome: c.lead_nome ?? null } : null,
+    teste: !!c.teste,
+    sinais: {},
+  }, historico);
+  if (!r.texto) return false;
+  await logUsage(db, dono, c.assistant_id, 'atendimento', r.model, r.usage);
+  // "retorno": o chat do site busca e mostra mesmo sem ninguém da equipe atendendo
+  await db.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: r.texto, author_name: 'retorno' });
+  await db.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', c.id);
+  if (canal && c.contato_externo) {
+    const texto = paraOCanal(canal.tipo, r.texto);
+    if (texto) await enviarPeloCanal(db, canal, c.contato_externo, texto).catch((e) => console.warn('[retorno] canal', e?.message));
+  }
+  return true;
 }

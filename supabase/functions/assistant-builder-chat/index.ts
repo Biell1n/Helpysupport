@@ -29,7 +29,7 @@ import { admin, profileOf, requireUser } from '../_shared/db.ts';
 import { addUsage, anthropic, emptyUsage, logUsage, MODELS, textOf } from '../_shared/ai.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { colunasDe, lerAbas, registrosDe } from '../_shared/planilha.ts';
-import { type Canal, enviarPeloCanal } from '../_shared/canais.ts';
+import { retomarComRetorno } from '../_shared/canal-atender.ts';
 import {
   allCollections, allFields, buildSchema, type CollectionDef, computeState, type Config,
   EMPTY_CONFIG, type FieldDef, hardenCollection, limpo, type Material, type MensagemBuilder, type Meta, missingCritical,
@@ -204,27 +204,6 @@ async function pendenciasDasTabelas(s: Session): Promise<{ nota: string; produto
     }
   }
   return [...porNota.entries()].slice(0, 5).map(([nota, produtos]) => ({ nota, produtos: produtos.slice(0, 8) }));
-}
-
-/**
- * A equipe respondeu em Avisos o que o assistente não sabia: se a conversa de
- * quem perguntou ainda está aberta (e é recente), a resposta chega para ele,
- * pelo mesmo canal. Com alguém da equipe atendendo, não fala por cima.
- */
-async function entregarNaConversa(conversaId: string, dono: string, resposta: string): Promise<boolean> {
-  const { data: c } = await admin.from('conversations')
-    .select('id, owner_id, status, canal_id, contato_externo, last_message_at').eq('id', conversaId).maybeSingle();
-  if (!c || c.owner_id !== dono || c.status === 'closed' || c.status === 'human') return false;
-  // passou de um dia: a pessoa já foi embora (e o WhatsApp só deixa responder em 24 h)
-  if (Date.now() - new Date(c.last_message_at).getTime() > 24 * 3600e3) return false;
-  const texto = `Confirmei com a equipe: ${resposta}`;
-  await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'assistant', content: texto });
-  await admin.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', c.id);
-  if (c.canal_id && c.contato_externo) {
-    const { data: canal } = await admin.from('canais').select('*').eq('id', c.canal_id).maybeSingle();
-    if (canal) await enviarPeloCanal(admin, canal as Canal, c.contato_externo, texto).catch((e) => console.warn('[ensinar] canal', e?.message));
-  }
-  return true;
 }
 
 /** Só a conversa de verdade (sem os avisos de desfazer). */
@@ -1645,7 +1624,11 @@ Deno.serve(async (req) => {
       if (body.lacuna_id) {
         const { data: g } = await admin.from('assistant_gaps').update({ resolvida: true }).eq('id', String(body.lacuna_id)).eq('assistant_id', assistantId).select('conversa_id').maybeSingle();
         // quem perguntou ainda está na conversa: a resposta chega para ele também
-        if (g?.conversa_id) entregue = await entregarNaConversa(g.conversa_id, user.id, resposta);
+        // o assistente recebe a informação e continua o atendimento de quem perguntou
+        if (g?.conversa_id) entregue = await retomarComRetorno(admin, g.conversa_id, user.id, { pergunta, resposta }).catch((e) => {
+          console.error('[ensinar] retomar', e);
+          return false;
+        });
       }
       return json({ ok: true, entregue });
     }
