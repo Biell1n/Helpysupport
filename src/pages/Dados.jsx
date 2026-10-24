@@ -251,16 +251,51 @@ export default function Dados() {
     avisar(`${novas.length} linhas adicionadas`);
   };
 
+  // o que acabou de ser apagado (linha ou coluna): volta com Desfazer ou Ctrl+Z
+  const ultimoApagado = useRef(null);
+  const desfazerExclusao = useCallback(async () => {
+    const x = ultimoApagado.current;
+    if (!x) return;
+    ultimoApagado.current = null;
+    const { error } = await supabase.from(x.tipo === 'linha' ? 'tabela_linhas' : 'tabela_colunas').insert(x.registro);
+    if (error) return avisar('Não deu para desfazer', { erro: true, texto: error.message });
+    avisar(x.tipo === 'linha' ? 'Linha de volta' : 'Coluna de volta');
+    carregarConteudo(x.registro.tabela_id);
+  }, [avisar, carregarConteudo]);
+
+  useEffect(() => {
+    const tecla = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || !ultimoApagado.current) return;
+      // dentro de um campo, o Ctrl+Z é do próprio campo
+      if (e.target.closest?.('input, textarea, select, [contenteditable]')) return;
+      e.preventDefault();
+      desfazerExclusao();
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [desfazerExclusao]);
+
   const confirmarExclusao = async () => {
     const alvo = excluir;
     setExcluir(null);
     if (alvo.tipo === 'linha') {
+      const registro = linhas.find((l) => l.id === alvo.id);
       await supabase.from('tabela_linhas').delete().eq('id', alvo.id);
       setLinhas((p) => p.filter((l) => l.id !== alvo.id));
+      if (registro) {
+        ultimoApagado.current = { tipo: 'linha', registro };
+        avisar('Linha apagada', { texto: 'Ctrl+Z também desfaz.', acao: { rotulo: 'Desfazer', onClick: desfazerExclusao } });
+      }
     } else if (alvo.tipo === 'coluna') {
+      const registro = colunas.find((c) => c.id === alvo.id);
       await supabase.from('tabela_colunas').delete().eq('id', alvo.id);
       setEditando(null);
       carregarConteudo(ativaId);
+      // os valores continuam nas linhas: voltar a coluna traz tudo de volta
+      if (registro) {
+        ultimoApagado.current = { tipo: 'coluna', registro };
+        avisar(`Coluna ${registro.rotulo} apagada`, { texto: 'Ctrl+Z também desfaz.', acao: { rotulo: 'Desfazer', onClick: desfazerExclusao } });
+      }
     } else {
       await supabase.from('tabelas').delete().eq('id', alvo.id);
       setAtivaId(null);
