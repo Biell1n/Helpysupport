@@ -16,7 +16,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { asaas, type Ambiente, type ClienteAsaas, FORMA, pago } from './asaas.ts';
 import { buscar } from './busca.ts';
 import { linhasDasTabelas } from './fontes.ts';
-import { type Canal, enviarPeloCanal } from './canais.ts';
+import { type Canal, enviarPeloCanal, noPrivadoDoDiscord } from './canais.ts';
 import { horarioPago, RESERVA_MIN } from './agenda.ts';
 import { type PlanId, TAXA_VENDAS } from './plans.ts';
 
@@ -44,8 +44,12 @@ export async function contaDaLoja(db: SupabaseClient, ownerId: string): Promise<
 }
 
 export async function vendeOnline(db: SupabaseClient, ownerId: string): Promise<boolean> {
-  const { data } = await db.from('recebimentos').select('ativo').eq('owner_id', ownerId).maybeSingle();
-  return !!data?.ativo;
+  const [{ data }, { count: atrasadas }] = await Promise.all([
+    db.from('recebimentos').select('ativo').eq('owner_id', ownerId).maybeSingle(),
+    // fatura do Helpy (taxa de vendas / uso extra) vencida: a venda pelo chat para até ser paga
+    db.from('uso_extra').select('owner_id', { count: 'exact', head: true }).eq('owner_id', ownerId).eq('status', 'atrasado'),
+  ]);
+  return !!data?.ativo && !(atrasadas ?? 0);
 }
 
 type TabelaPedido = { id: string; nome: string; fonte: string; colunas: { chave: string; rotulo: string }[] };
@@ -107,7 +111,12 @@ export async function montarItens(
   const itens: Item[] = [];
   const problemas: string[] = [];
   for (const p of pedidos) {
-    const qtd = Math.max(1, Math.min(999, Math.floor(Number(p.quantidade) || 1)));
+    const pedida = Math.floor(Number(p.quantidade));
+    if (!Number.isFinite(pedida) || pedida < 1) {
+      problemas.push(`"${p.produto}": quantidade inválida (${p.quantidade}). Confirme quantas unidades a pessoa quer.`);
+      continue;
+    }
+    const qtd = Math.min(99, pedida);
     const resultado = buscar(registros, String(p.produto ?? ''), (r) => r);
     const achado = resultado[0]?.item;
     const empate = resultado[1] && resultado[1].pontos === resultado[0].pontos && resultado[1].item.nome !== achado?.nome;
@@ -270,7 +279,20 @@ export async function fecharPedido(
     return { erro: 'O pedido NÃO foi criado: falta o endereço de entrega.', mensagem: 'Peça o endereço completo (rua, número, bairro e cidade) antes de fechar.' };
   }
   const frete = entrega === 'entrega' && regra.valor != null ? regra.valor : null;
-  const freteCombinar = entrega === 'entrega' && regra.valor == null;
+  // entrega sem regra de frete: o cliente pagaria sem saber o frete (nem se entregam lá).
+  // Não gera o link; o dono fica sabendo para definir a regra
+  if (entrega === 'entrega' && regra.valor == null) {
+    await db.from('alertas').insert({
+      owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId, origem: 'sistema',
+      chave: `frete:sem-regra:${ctx.assistantId}:${new Date().toISOString().slice(0, 10)}`,
+      assunto: 'Venda com entrega parada: falta a regra de frete',
+      detalhe: `Um cliente quis receber em: ${endereco}. Sem regra de frete o assistente não gera o link de entrega. Preencha "Frete na venda pelo chat" no assistente (ex.: "R$ 12", "grátis acima de R$ 100, senão R$ 12" ou "só retirada").`,
+    }).then(() => {}, () => {});
+    return {
+      erro: 'O pedido NÃO foi criado: a loja ainda não definiu o frete para entrega pelo chat.',
+      mensagem: 'Explique que o frete para entrega ainda não está definido por aqui, então você não gera o link com entrega. Se a ficha permitir retirada, ofereça retirar. Se não, diga que a equipe combina a entrega e o pagamento com ela e ofereça chamar a equipe. Não invente valor de frete.',
+    };
+  }
   const total = Math.round((subtotal + (frete ?? 0)) * 100) / 100;
   // o Asaas não gera cobrança abaixo de R$ 5: nem cria o pedido (senão fica um pedido sem link)
   if (total < MINIMO_COBRANCA) {
@@ -292,29 +314,38 @@ export async function fecharPedido(
     itens.map((i) => `${i.quantidade}x ${i.produto}`).join(', '),
     frete ? `frete ${reais(frete)}` : entrega === 'retirada' ? 'retirada no local' : '',
   ].filter(Boolean).join(' + ').slice(0, 450);
-  // entrega sem regra de frete: a equipe combina (e fica sabendo)
-  if (freteCombinar) {
-    await db.from('alertas').insert({
-      owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId, origem: 'sistema',
-      chave: `frete:${ped.id}`, assunto: `Pedido ${ped.numero}: combinar o frete`,
-      detalhe: `Entregar em: ${endereco}. Defina uma regra de frete no assistente (valor fixo, grátis acima de tanto ou só retirada) para ele já incluir no link.`,
-    });
-  }
   const link = await criarLink(conta, ped.id, `Pedido ${ped.numero}${ctx.negocio ? ` — ${ctx.negocio}` : ''}`, descricao, total, 3);
   if (!link) {
     await db.from('pedidos').update({ status: 'cancelado' }).eq('id', ped.id);
     return { erro: 'Não consegui gerar o link de pagamento agora. Peça desculpas e ofereça a equipe para fechar a compra.' };
   }
   await db.from('pedidos').update({ link_id: link.id, link_url: link.url }).eq('id', ped.id);
+  // ticket do Discord: o link também vai no privado, para não se perder no servidor
+  if (ctx.conversationId) {
+    const { data: conv } = await db.from('conversations').select('canal_id, contato_externo').eq('id', ctx.conversationId).maybeSingle();
+    if (conv?.canal_id && String(conv.contato_externo ?? '').startsWith('ticket:')) {
+      const { data: canal } = await db.from('canais').select('*').eq('id', conv.canal_id).maybeSingle();
+      if (canal?.tipo === 'discord') {
+        await noPrivadoDoDiscord(db, canal as Canal, String(conv.contato_externo).slice(7), [
+          `🧾 **Pedido nº ${ped.numero}** — ${reais(total)}`,
+          ...itens.map((i) => `• ${i.quantidade}x ${i.produto} — ${reais(i.subtotal)}`),
+          frete ? `• Frete — ${reais(frete)}` : entrega === 'retirada' ? '• Retirada no local' : '',
+          '',
+          `Pagar (Pix, cartão ou boleto): ${link.url}`,
+          'Assim que o pagamento cair, a confirmação chega aqui e no atendimento.',
+        ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n'));
+      }
+    }
+  }
 
   return {
     ok: true,
     pedido: ped.numero,
     itens: itens.map((i) => `${i.quantidade}x ${i.produto} — ${reais(i.preco)}${i.quantidade > 1 ? ` (subtotal ${reais(i.subtotal)})` : ''}`),
-    frete: frete != null ? reais(frete) : entrega === 'retirada' ? 'retirada no local' : 'a combinar com a equipe',
+    frete: frete != null ? reais(frete) : entrega === 'retirada' ? 'retirada no local' : 'sem frete',
     total: reais(total),
     link: link.url,
-    mensagem: `Mande o resumo (itens${frete ? `, frete ${reais(frete)}` : entrega === 'retirada' ? ', retirada no local' : ''} e total ${reais(total)}) e o link exatamente como veio. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Diga que você confirma aqui mesmo assim que o pagamento cair.${freteCombinar ? ' Avise que o frete até o endereço a equipe combina com ela à parte.' : ''}${
+    mensagem: `Mande o resumo (itens${frete ? `, frete ${reais(frete)}` : entrega === 'retirada' ? ', retirada no local' : ''} e total ${reais(total)}) e o link exatamente como veio. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Diga que você confirma aqui mesmo assim que o pagamento cair.${
       ctx.teste ? ' (É um teste do dono: o link é de verdade no ambiente configurado.)' : ''
     }`,
   };
@@ -341,14 +372,22 @@ export async function tirarTaxa(db: SupabaseClient, ownerId: string, taxa: numbe
   if (error) console.error('[pedido] taxa', error.message);
 }
 
-/** Mensagem na conversa (e no canal de onde o cliente escreveu: WhatsApp, Instagram, Discord). */
-async function avisarCliente(db: SupabaseClient, conversationId: string | null, evento: string, texto: string) {
+/**
+ * Mensagem na conversa (e no canal de onde o cliente escreveu: WhatsApp, Instagram, Discord).
+ * No ticket do Discord vai também no privado do cliente (`privado`, se vier, é a versão completa).
+ */
+async function avisarCliente(db: SupabaseClient, conversationId: string | null, evento: string, texto: string, privado?: string) {
   if (!conversationId) return;
   await db.from('conversation_messages').insert({ conversation_id: conversationId, role: 'system', author_name: `evento:${evento}`, content: texto });
   const { data: conv } = await db.from('conversations').select('canal_id, contato_externo').eq('id', conversationId).maybeSingle();
   if (conv?.canal_id && conv.contato_externo) {
     const { data: canal } = await db.from('canais').select('*').eq('id', conv.canal_id).maybeSingle();
-    if (canal) await enviarPeloCanal(db, canal as Canal, conv.contato_externo, `✅ ${texto}`).catch((e) => console.warn('[pedido] canal', e?.message));
+    if (canal) {
+      await enviarPeloCanal(db, canal as Canal, conv.contato_externo, `✅ ${texto}`).catch((e) => console.warn('[pedido] canal', e?.message));
+      if (canal.tipo === 'discord' && conv.contato_externo.startsWith('ticket:')) {
+        await noPrivadoDoDiscord(db, canal as Canal, conv.contato_externo.slice(7), `✅ ${privado ?? texto}`);
+      }
+    }
   }
 }
 
@@ -362,7 +401,8 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   const linkId = String(pg.paymentLink ?? '');
   if (!linkId) return;
   // devolvido pelo próprio site do Asaas: o pedido vira estornado e a taxa do Helpy sai da conta
-  if (evento.event === 'PAYMENT_REFUNDED') {
+  // devolvido pelo Asaas ou contestado no cartão (chargeback): vale como estorno
+  if (['PAYMENT_REFUNDED', 'PAYMENT_PARTIALLY_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE'].includes(String(evento.event))) {
     const { data: dev } = await db.from('pedidos').update({ status: 'estornado' })
       .eq('owner_id', ownerId).eq('link_id', linkId).eq('pagamento_id', String(pg.id ?? '')).eq('status', 'pago')
       .select('taxa, agendamento_id, conversation_id, total, tipo');
@@ -378,6 +418,19 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   if (!pago(String(pg.status), evento.event)) return;
   const { data: ped } = await db.from('pedidos').select('*').eq('owner_id', ownerId).eq('link_id', linkId).maybeSingle();
   if (!ped) return;
+  // confere no próprio Asaas da loja: o pagamento existe, é deste link e tem o valor do pedido
+  const contaConferir = await contaDaLoja(db, ownerId);
+  const real = pg.id && contaConferir
+    ? await contaConferir.pedir<{ paymentLink?: string; value?: number; status?: string }>(`/payments/${String(pg.id)}`).catch(() => null)
+    : null;
+  if (real && (String(real.paymentLink ?? '') !== linkId || Number(real.value ?? 0) + 0.01 < Number(ped.total) || !pago(String(real.status), undefined))) {
+    await db.from('alertas').insert({
+      owner_id: ownerId, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',
+      chave: `pedido:conferir:${pg.id}`, assunto: `Pagamento do pedido nº ${ped.numero} não confere`.slice(0, 160),
+      detalhe: `O aviso de pagamento não bate com o Asaas (valor ${reais(Number(real.value ?? 0))} para um pedido de ${reais(Number(ped.total))}). O pedido não foi marcado como pago. Confira no Asaas.`,
+    });
+    return;
+  }
   if (ped.status === 'pago' || ped.status === 'estornado') {
     // o mesmo link pago de novo (outro Pix, cartão em outra aba): o dinheiro entrou sem pedido
     if (pg.id && String(pg.id) !== String(ped.pagamento_id ?? '')) {
@@ -449,7 +502,15 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
       detalhe: `Outra venda levou as últimas unidades antes deste pagamento cair. Combine com o cliente: esperar a reposição ou devolver o valor. ${faltou.join('; ')}`.slice(0, 1000),
     });
   }
+  const resumo = [
+    `**Pedido nº ${ped.numero} confirmado** — ${reais(Number(ped.total))} (${FORMA[String(pg.billingType)] ?? 'pago'})`,
+    ...((ped.itens ?? []) as Item[]).map((i) => `• ${i.quantidade}x ${i.produto} — ${reais(i.subtotal)}`),
+    ped.frete ? `• Frete — ${reais(Number(ped.frete))}` : '',
+    ped.entrega === 'entrega' && ped.endereco ? `Entrega em: ${ped.endereco}` : ped.entrega === 'retirada' ? 'Retirada no local.' : '',
+    '',
+    'Como funciona agora: a loja já foi avisada e separa o seu pedido. Se precisar de algo (prazo, troca, dúvida), é só escrever no seu atendimento.',
+  ].filter((l, i, a) => l !== '' || (i > 0 && a[i - 1] !== '')).join('\n');
   await avisarCliente(db, ped.conversation_id, 'pago',
-    `Pagamento do pedido nº ${ped.numero} confirmado (${reais(Number(ped.total))}). Obrigado pela compra! A equipe já foi avisada para seguir com o pedido.`);
+    `Pagamento do pedido nº ${ped.numero} confirmado (${reais(Number(ped.total))}). Obrigado pela compra! A equipe já foi avisada para seguir com o pedido.`, resumo);
   await alerta(`Pedido nº ${ped.numero} pago — ${reais(Number(ped.total))}`, lista);
 }

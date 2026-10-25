@@ -1487,6 +1487,9 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const action = String(body.action ?? 'load');
     const assistantId: string | null = body.assistant_id || null;
+    // montar assistente é da empresa: funcionário e cliente não gastam IA aqui
+    const { data: quem } = await admin.from('profiles').select('tipo').eq('id', user.id).maybeSingle();
+    if (quem?.tipo && quem.tipo !== 'empresa') throw new UserError('Só a conta da empresa monta assistentes.', 403);
 
     if (assistantId) {
       const { data } = await admin.from('assistants').select('id').eq('id', assistantId).eq('owner_id', user.id).maybeSingle();

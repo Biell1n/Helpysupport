@@ -650,7 +650,7 @@ button, input, select, textarea {
 .toasts {
   position: fixed;
   z-index: 100;
-  bottom: 20px;
+  top: 20px;
   right: 20px;
   display: flex;
   flex-direction: column;
@@ -728,6 +728,7 @@ button, input, select, textarea {
 
 .modal-foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 22px;

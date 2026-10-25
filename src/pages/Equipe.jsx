@@ -71,6 +71,7 @@ function VagasExtras({ vagas, onMudou }) {
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <span className="faint" style={{ fontSize: 14 }}>
             {quero ? `${quero} ${quero === 1 ? 'vaga extra' : 'vagas extras'}: ${reais(quero * vaga)}/mês` : 'Sem vagas extras'}
+            {quero > vagas.extra && ' · no plano anual, os meses que faltam até a renovação vêm numa fatura agora'}
           </span>
           <button type="button" className="btn btn-primary btn-sm" disabled={salvando} onClick={salvar}>
             {salvando ? 'Salvando…' : 'Confirmar'}

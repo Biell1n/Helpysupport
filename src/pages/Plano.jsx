@@ -46,7 +46,7 @@ const LINHAS = [
   ['Mensagens por mês', (p) => n(p.mensagens)],
   ['Assistentes', (p) => p.assistentes],
   ['Pessoas na equipe', (p) => p.funcionarios],
-  ['WhatsApp e Instagram', (p) => (p.canaisMeta ? `até ${p.canaisMeta} contas` : null)],
+  ['WhatsApp e Instagram', (p) => (p.canaisMeta ? `até ${p.canaisMeta} ${p.canaisMeta === 1 ? 'conta' : 'contas'}` : null)],
   ['Ligar ao seu sistema (estoque, ERP)', (p) => (p.integracoes ? 'Sim' : null)],
   ['Tabelas de dados', (p) => p.tabelas],
   ['Chamados abertos', (p) => p.ticketsAbertos ?? 'Sem limite'],
@@ -73,6 +73,11 @@ export default function Plano() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+  // quem já assina vê os preços no ciclo que paga hoje (conta nova começa no anual)
+  const cicloAtual = pagamentos?.assinatura?.ciclo;
+  useEffect(() => {
+    if (cicloAtual === 'mensal' || cicloAtual === 'anual') setCiclo(cicloAtual);
+  }, [cicloAtual]);
 
   // voltou do pagamento: confere até o aviso do Asaas chegar e o plano mudar
   const esperando = pagamentos?.assinatura?.status === 'pendente';

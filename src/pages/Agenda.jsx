@@ -422,14 +422,16 @@ export default function Agenda() {
       <Confirmar
         aberto={!!devolver}
         titulo="Este horário já foi pago"
-        texto={devolver ? `O cliente pagou ${reaisBr(devolver.pedido.total)}. Devolver o valor pelo Asaas ao cancelar? Se combinou outra coisa com ele, cancele sem devolver.` : ''}
-        acao="Cancelar e devolver"
+        texto={!devolver ? '' : tipo === 'empresa'
+          ? `O cliente pagou ${reaisBr(devolver.pedido.total)}. Devolver o valor pelo Asaas ao cancelar? Se combinou outra coisa com ele, cancele sem devolver.`
+          : `O cliente pagou ${reaisBr(devolver.pedido.total)}. Só o dono da conta devolve o valor: cancele aqui e avise o responsável para fazer a devolução em Pedidos.`}
+        acao={tipo === 'empresa' ? 'Cancelar e devolver' : 'Cancelar sem devolver'}
         segurar
         perigo
         onFechar={() => setDevolver(null)}
-        onConfirmar={() => cancelarPago(true)}
+        onConfirmar={() => cancelarPago(tipo === 'empresa')}
         voltar="Voltar"
-        secundaria={{ rotulo: 'Cancelar sem devolver', onClick: () => cancelarPago(false) }}
+        secundaria={tipo === 'empresa' ? { rotulo: 'Cancelar sem devolver', onClick: () => cancelarPago(false) } : undefined}
       />
     </div>
   );

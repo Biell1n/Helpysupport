@@ -29,6 +29,12 @@ export async function chamar(funcao, body, { signal } = {}) {
     } catch {
       /* mantém a mensagem genérica */
     }
+    // erros de rede chegam em inglês da biblioteca: a pessoa vê em português
+    if (/failed to send a request|failed to fetch|networkerror|load failed|non-2xx|relay error/i.test(msg)) {
+      msg = error.context?.status >= 500
+        ? 'O atendimento não respondeu agora. Tente de novo em instantes.'
+        : 'Sem conexão agora. Confira a internet e tente de novo.';
+    }
     const e = new Error(msg);
     e.status = error.context?.status;
     throw e;

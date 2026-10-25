@@ -144,7 +144,8 @@
   color: var(--folha);
 }
 
-[data-tema='escuro'] .chat-recibo {
+/* só o recibo sem tom próprio fica verde: remarcado e cancelado mantêm o azul e o vermelho */
+[data-tema='escuro'] .chat-recibo:not([data-tom]) {
   --tom: #3dbb84;
 }
 

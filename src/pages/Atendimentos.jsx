@@ -16,8 +16,8 @@ import { avisarNoCanal } from '@/lib/canais';
 const CELULAR = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 900px)').matches;
 const ABAS = [
   { id: 'waiting', rotulo: 'Na fila' },
-  { id: 'human', rotulo: 'Em atendimento' },
-  { id: 'bot', rotulo: 'Com o assistente' },
+  { id: 'human', rotulo: 'Com a equipe' },
+  { id: 'bot', rotulo: 'Assistente' },
   { id: 'closed', rotulo: 'Encerrados' },
 ];
 
@@ -34,7 +34,8 @@ export default function Atendimentos() {
   // quadro (Kanban) ou lista; lembra a escolha neste navegador
   const [modo, setModoEstado] = useState(() => {
     try {
-      return localStorage.getItem('helpy_atendimentos_modo') || 'quadro';
+      // no celular não dá para arrastar cartões: começa na lista
+      return localStorage.getItem('helpy_atendimentos_modo') || (window.matchMedia('(max-width: 900px)').matches ? 'lista' : 'quadro');
     } catch {
       return 'quadro';
     }

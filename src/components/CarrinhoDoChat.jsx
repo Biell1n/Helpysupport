@@ -36,7 +36,7 @@ export default function CarrinhoDoChat({ itens = [], onMudar, onFechar, ocupado 
         <span className="carrinho-resumo">
           {qtd} {qtd === 1 ? 'item' : 'itens'} no carrinho · <b>{reais(total)}</b>
         </span>
-        <span className="carrinho-ver">{aberto ? 'Fechar' : 'Ver carrinho'} <ChevronDown size={15} /></span>
+        <span className="carrinho-ver">{aberto ? 'Recolher' : 'Ver carrinho'} <ChevronDown size={15} /></span>
       </button>
       {aberto && (
         <div className="carrinho-corpo">

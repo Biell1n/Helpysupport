@@ -16,6 +16,7 @@ export default function TextoFormatado({ texto }) {
     lista = null;
   };
   String(texto ?? '')
+    .replace(/R\$\s+(?=\d)/g, 'R$\u00a0') // "R$" não fica sozinho no fim da linha
     .split('\n')
     .forEach((linha, n) => {
       const item = linha.match(/^\s*(?:[-*•]|(\d+)[.)])\s+(.*)$/);

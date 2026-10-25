@@ -509,7 +509,7 @@ export default function Canais() {
       <p className="faint" style={{ fontSize: 13, marginTop: 18, maxWidth: 680 }}>
         As conversas de todos os canais caem em Atendimentos, contam no mesmo limite do plano e seguem as mesmas regras de chamado.
         Quando alguém da equipe responde por lá, a resposta sai pelo canal de onde o cliente escreveu.
-        {plano.canaisMeta > 0 && ` Seu plano conecta até ${plano.canaisMeta} contas de WhatsApp e Instagram (${contasMeta} em uso).`}
+        {plano.canaisMeta > 0 && ` Seu plano conecta até ${plano.canaisMeta} ${plano.canaisMeta === 1 ? 'conta' : 'contas'} de WhatsApp e Instagram (${contasMeta} em uso).`}
       </p>
 
       {conectando?.tipo === 'discord' && <ConectarDiscord assistentes={assistentes} onFechar={() => setConectando(null)} />}

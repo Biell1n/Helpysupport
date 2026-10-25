@@ -35,7 +35,7 @@ export function recursosDoPlano(p) {
     p.integracoes ? 'Conecta com API e banco SQL' : null,
     `${p.funcionarios} ${p.funcionarios > 1 ? 'funcionários' : 'funcionário'} na equipe`,
     'Link, QR code, site e Discord',
-    p.canaisMeta ? `WhatsApp e Instagram: até ${p.canaisMeta} contas` : null,
+    p.canaisMeta ? `WhatsApp e Instagram: até ${p.canaisMeta} ${p.canaisMeta === 1 ? 'conta' : 'contas'}` : null,
   ].filter(Boolean);
 }
 

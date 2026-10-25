@@ -70,6 +70,9 @@ export function AssinarModal({ plano, ciclo: cicloInicial = 'mensal', precos, pr
             {ciclo === 'anual' ? 'Cobrança anual' : 'Cobrança mensal'}: a próxima vem em {umCicloDepois(ciclo)}.
           </span>
         </div>
+        {profile?.plan && profile.plan !== 'trial' && profile.plan !== plano && (
+          <div className="alert"><span><b>Troca de plano:</b> quando esta fatura for paga, o {PLANS[profile.plan]?.nome ?? 'plano atual'} é encerrado e o {p.nome} começa a contar do zero. O que falta do período já pago não é descontado.</span></div>
+        )}
         {ambiente === 'sandbox' && (
           <div className="alert"><span><b>Modo de teste:</b> nada é cobrado de verdade. Use o cartão de teste do Asaas ou simule o Pix no painel de teste.</span></div>
         )}
@@ -160,6 +163,7 @@ export function MinhaAssinatura({ dados, onMudou }) {
         titulo="Cancelar a assinatura?"
         texto="As próximas cobranças param. O plano continua até o fim do período já pago."
         acao="Cancelar assinatura"
+        voltar="Voltar"
         perigo
         onFechar={() => setCancelar(false)}
         onConfirmar={() => {

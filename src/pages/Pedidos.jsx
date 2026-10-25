@@ -20,6 +20,7 @@ const FILTROS = [
   { id: 'aguardando', rotulo: 'Aguardando' },
   { id: 'pago', rotulo: 'Pagos' },
   { id: 'cancelado', rotulo: 'Cancelados' },
+  { id: 'estornado', rotulo: 'Estornados' },
 ];
 
 /** O que o assistente vendeu no chat: itens, total e se o cliente já pagou. */
@@ -116,7 +117,9 @@ export default function Pedidos() {
         <div className="empty">
           <ShoppingBag size={32} />
           <h3>Nenhum pedido ainda</h3>
-          <p>Ative a Carteira e ligue a venda no assistente. Quando um cliente decidir comprar, ele confirma os itens e manda o link de pagamento na conversa.</p>
+          <p>{tipo === 'empresa'
+            ? 'Ative a Carteira e ligue a venda no assistente. Quando um cliente decidir comprar, ele confirma os itens e manda o link de pagamento na conversa.'
+            : 'Quando o assistente fechar uma venda no chat, o pedido aparece aqui com os itens e se o cliente já pagou.'}</p>
           {tipo === 'empresa' && <Link to="/painel/carteira" className="btn btn-senha">Ativar a Carteira</Link>}
         </div>
       )}
@@ -203,6 +206,7 @@ export default function Pedidos() {
         titulo={`Cancelar o pedido #${cancelando?.numero ?? ''}?`}
         texto="O link de pagamento para de funcionar (e o horário guardado, se for um, é liberado). O cliente não é avisado automaticamente."
         acao="Cancelar pedido"
+        voltar="Voltar"
         perigo
         onFechar={() => setCancelando(null)}
         onConfirmar={cancelar}
@@ -210,7 +214,7 @@ export default function Pedidos() {
       <Confirmar
         aberto={!!devolvendo}
         titulo={`Estornar o pedido #${devolvendo?.numero ?? ''}?`}
-        texto={devolvendo ? `${Number(devolvendo.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} voltam para o cliente pelo Asaas, na mesma forma de pagamento. O valor sai do seu saldo no Asaas, e a taxa dele nesse pagamento não volta.${devolvendo.tipo === 'agendamento' ? ' O horário é cancelado.' : ' O estoque não volta sozinho: ajuste em Dados se precisar.'}` : ''}
+        texto={devolvendo ? `${Number(devolvendo.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} voltam para o cliente pelo Asaas, na mesma forma de pagamento. O valor sai do seu saldo no Asaas, e a taxa dele nesse pagamento não volta. A taxa do Helpy dessa venda não é cobrada.${devolvendo.tipo === 'agendamento' ? ' O horário é cancelado.' : ' O estoque não volta sozinho: ajuste em Dados se precisar.'}` : ''}
         acao="Estornar"
         voltar="Voltar"
         segurar

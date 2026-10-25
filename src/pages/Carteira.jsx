@@ -36,6 +36,7 @@ export default function Carteira() {
   const [pausar, setPausar] = useState(false);
   // venda pelo chat, por assistente: liga aqui mesmo, sem passar pelo montador
   const [assistentes, setAssistentes] = useState([]);
+  const algumVende = assistentes.some((a) => /^sim/i.test(a.vende ?? ''));
   const [mexendo, setMexendo] = useState(null);
   useEffect(() => {
     supabase
@@ -144,7 +145,7 @@ export default function Carteira() {
                 <p className="faint" style={{ margin: '2px 0 0' }}>{rec.conta_nome}</p>
               </div>
               <div className="row" style={{ gap: 8 }}>
-                <span className={`badge ${rec.ativo ? 'badge-closed' : 'badge-bot'}`}>{rec.ativo ? 'Vendendo' : 'Vendas pausadas'}</span>
+                <span className={`badge ${rec.ativo && algumVende ? 'badge-closed' : 'badge-bot'}`}>{!rec.ativo ? 'Vendas pausadas' : algumVende ? 'Vendendo' : 'Pronta · venda desligada'}</span>
                 <Link to="/painel/pedidos" className="btn btn-ghost btn-sm">Pedidos</Link>
                 <button type="button" className="btn btn-quiet btn-sm" onClick={() => setPausar(true)}>{rec.ativo ? (carteira ? 'Pausar vendas' : 'Desligar') : 'Ligar vendas'}</button>
               </div>
@@ -300,7 +301,7 @@ function Sacar({ dados, onFechar, onPronto }) {
           <span className="label">Valor</span>
           <input className="input" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0,00" autoFocus required />
         </label>
-        <button type="button" className="link-btn" style={{ alignSelf: 'flex-start' }} onClick={() => setValor(String(dados.saldo ?? 0).replace('.', ','))}>Sacar tudo</button>
+        <button type="button" className="link-btn" style={{ alignSelf: 'flex-start' }} onClick={() => setValor(Number(dados.saldo ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}>Sacar tudo</button>
         <div className="alert">
           <ShieldCheck size={18} />
           <span>Por segurança, o dinheiro vai só para a chave Pix do <b>{dados.destino_saque}</b> da carteira. Cadastre essa chave no seu banco se ainda não tiver.</span>
@@ -331,7 +332,7 @@ function Ativar({ onPronto }) {
     nascimento: '', tipo_empresa: 'MEI', cep: '', endereco: '', numero: '', complemento: '', bairro: '', renda: '',
   });
   const [chave, setChave] = useState('');
-  const [ambiente, setAmbiente] = useState('sandbox');
+  const [ambiente, setAmbiente] = useState('producao');
   const [indo, setIndo] = useState(false);
   const [erro, setErro] = useState('');
   const muda = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
@@ -384,7 +385,7 @@ function Ativar({ onPronto }) {
         <ul>
           <li><span>Asaas</span> a taxa dele em cada pagamento (no Pix, cerca de R$ 1), descontada antes do dinheiro entrar. Veja a tabela no site do Asaas.</li>
           {taxa > 0 && <li><span>Helpy</span> {String(taxa).replace('.', ',')}% sobre cada venda paga, somados no mês e cobrados no começo do mês seguinte.</li>}
-          <li><span>Devolução</span> o cliente recebe o valor cheio, que sai do seu saldo no Asaas. A taxa do Asaas daquele pagamento não volta, e a do Helpy sai da conta.</li>
+          <li><span>Devolução</span> o cliente recebe o valor cheio, que sai do seu saldo no Asaas. A taxa do Asaas daquele pagamento não volta; a do Helpy dessa venda não é cobrada.</li>
         </ul>
       </div>
 
@@ -474,13 +475,22 @@ function Ativar({ onPronto }) {
             <div className="grid-2">
               <label className="field">
                 <span className="label">Chave de API do Asaas</span>
-                <input className="input" type="password" value={chave} onChange={(e) => setChave(e.target.value)} placeholder="$aact_…" autoComplete="off" required />
+                <input
+                  className="input" type="password" value={chave} placeholder="$aact_…" autoComplete="off" required
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setChave(v);
+                    // a própria chave diz de que ambiente ela é
+                    if (/^\$?aact_prod_/i.test(v.trim())) setAmbiente('producao');
+                    else if (/^\$?aact_hmlg_/i.test(v.trim())) setAmbiente('sandbox');
+                  }}
+                />
               </label>
               <label className="field">
                 <span className="label">Ambiente</span>
                 <select className="input" value={ambiente} onChange={(e) => setAmbiente(e.target.value)}>
-                  <option value="sandbox">Teste (sandbox)</option>
                   <option value="producao">Produção (dinheiro de verdade)</option>
+                  <option value="sandbox">Teste (sandbox)</option>
                 </select>
               </label>
             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, CalendarDays, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, UserRound, Users, Wallet } from 'lucide-react';
+import { BarChart3, Bell, CalendarDays, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, UserRound, Users, Wallet } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { chamar } from '@/lib/supabase';
@@ -16,6 +16,7 @@ import EscolherTema from '@/components/EscolherTema';
 const NAV = [
   { to: '/painel', label: 'Painel', icon: LayoutGrid, end: true, tipos: ['empresa'] },
   { to: '/painel', label: 'Minhas conversas', icon: MessagesSquare, end: true, tipos: ['cliente'] },
+  { to: '/painel/avisos', label: 'Avisos', icon: Bell, tipos: ['empresa'] },
   { to: '/painel/assistentes', label: 'Assistentes', icon: Headset, tipos: ['empresa'] },
   { to: '/painel/atendimentos', label: 'Atendimentos', icon: Ticket, contador: 'tickets_abertos', tipos: ['empresa', 'funcionario'] },
   { to: '/painel/canais', label: 'Canais', icon: Radio, tipos: ['empresa'] },
@@ -174,6 +175,18 @@ export default function AppShell() {
   const { user, profile, nome, signOut, tipo } = useAuth();
   const [uso, recarregarUso] = useUso();
   usePrecos(); // com os preços de teste, ajusta a cota do Essencial antes das telas lerem
+  const { pathname } = useLocation();
+  // chamados abertos no título da aba: quem atende vê de longe que tem gente esperando
+  const abertos = uso?.tickets_abertos ?? 0;
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\) /, '');
+    document.title = abertos > 0 && tipo !== 'cliente' ? `(${abertos}) ${base}` : base;
+  }, [abertos, tipo, pathname]);
+  // no celular o menu é uma faixa que rola de lado: a página atual fica à vista
+  useEffect(() => {
+    const ativo = document.querySelector('.side-nav .side-link.active');
+    if (ativo && window.matchMedia('(max-width: 900px)').matches) ativo.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [pathname]);
   const plano = planOf(profile);
   const dias = diasDeTeste(profile);
   const usados = uso?.atendimentos ?? 0;
@@ -224,7 +237,7 @@ export default function AppShell() {
                 : `${usados} de ${plano.atendimentos} atendimentos no mês`}
             </span>
             <span className="side-plan-rodape">
-              <span className="faint">renova em {renova} {renova === 1 ? 'dia' : 'dias'}</span>
+              <span className="faint">{dias != null ? 'teste grátis' : `renova em ${renova} ${renova === 1 ? 'dia' : 'dias'}`}</span>
               {(pct >= 80 || (dias != null && dias <= 2)) && <span className="side-plan-subir">Aumentar plano</span>}
             </span>
           </Link>
