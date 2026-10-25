@@ -2877,7 +2877,7 @@
 .pedidos-resumo .card { display: flex; flex-direction: column; gap: 2px; padding: 16px 18px; }
 .pedidos-resumo b { font-size: 24px; color: var(--tinta); }
 .pedidos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.pedido { padding: 16px 18px; display: grid; gap: 10px; }
+.pedido { padding: 16px 18px; display: grid; gap: 10px; min-width: 0; }
 .pedido-topo, .pedido-pe { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
 .pedido-itens { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
 .pedido-itens li { display: flex; justify-content: space-between; gap: 12px; }
@@ -3962,4 +3962,13 @@
   .nav-mais-rodape .btn {
     margin-left: auto;
   }
+}
+
+/* regra de entrega da venda pelo chat (Carteira) */
+.frete-venda {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--linha);
 }

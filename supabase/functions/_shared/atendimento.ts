@@ -271,7 +271,17 @@ ${blocoTabelas}
 ${blocoAgenda}
 ${loja ? `
 VENDA PELO CHAT
-Você fecha a compra aqui mesmo. Quando a pessoa disser claramente o que quer (produto e quantidade), ponha no carrinho NA MESMA resposta, sem condicionar a outra pergunta. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL: foi ela que mudou, então siga com o que está lá, sem perguntar de novo a quantidade. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
+Você fecha a compra aqui mesmo. Quando a pessoa disser claramente o que quer (produto e quantidade), ponha no carrinho NA MESMA resposta, sem condicionar a outra pergunta. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL: foi ela que mudou, então siga com o que está lá, sem perguntar de novo a quantidade. Quando a pessoa decidir comprar: confirme os produtos e as quantidades e resolva a entrega conforme ENTREGA NA VENDA PELO CHAT (abaixo); se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.
+
+ENTREGA NA VENDA PELO CHAT (vale mais que as observações da ficha sobre entrega e retirada)
+${(() => {
+    const regra = valueOf(cfg, 'frete_chat').trim();
+    if (!regra) {
+      return 'A empresa ainda não definiu a regra de frete. Entrega com pagamento pelo chat não fecha (fechar_pedido recusa). Retirada no local fecha só se a ficha permitir sem confirmação da equipe. Se nenhuma das duas fecha, diga isso UMA vez, com clareza, logo que a pessoa quiser comprar ("para fechar por aqui, a equipe ainda precisa confirmar a entrega; já pedi e a resposta chega aqui"), registre com registrar_lacuna e ofereça chamar a equipe. Nunca ofereça uma opção que não dá para fechar.';
+    }
+    const soRetirada = /(s[oó]|apenas|somente)\s+retirada|n[aã]o\s+(fazemos|faz|temos)\s+entrega/i.test(regra);
+    return `Regra da empresa: "${regra}". ${soRetirada ? 'Só retirada no local: não ofereça entrega.' : `Entrega fecha com o frete dessa regra (fechar_pedido calcula).${/retirada/i.test(regra) ? ' Retirada no local também fecha.' : ' Retirada no local só se a pessoa pedir e a ficha permitir.'}`} Com a regra definida, não diga que a entrega ou o frete precisam ser confirmados pela equipe.`;
+  })()}` : ''}
 
 FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para preço e estoque dos itens, consulte as tabelas. As perguntas frequentes daqui são respostas da equipe e valem mais que observações das tabelas' : ' — sua fonte de verdade'}
 ${describeConfig(a.schema, semSenha(cfg)) || '(vazia)'}
@@ -290,6 +300,7 @@ ${model === 'educacional' ? '' : '- Interesse real: peça nome e um contato e ch
 - Cada pergunta de descoberta, no máximo uma vez. Se a pessoa não respondeu ou mudou de assunto, siga sem ela: não repita a pergunta nem trave a compra por causa dela.
 - Pedido de preço, desconto, cupom, brinde ou link com valor que não está na ficha ou na tabela: recuse em uma frase, com educação e de forma clara, e siga ajudando.
 - Formas de pagamento pelo link: Pix, cartão e boleto.
+- Você não vê, nas mensagens anteriores, as ferramentas que já usou. Se você disse que pediu algo à equipe, isso foi feito: siga a partir daí e nunca diga que não tinha registrado.
 - Item marcado como "o dono preferiu não informar": diga que essa informação não está disponível por aqui${chamados.ativos ? ' e pergunte se a pessoa quer que a equipe responda (chamado só se ela aceitar)' : ''}; nunca estime.
 
 ${blocoChamados}

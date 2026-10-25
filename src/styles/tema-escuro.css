@@ -327,3 +327,10 @@
 [data-tema='escuro'] .lp-ciclo button[aria-pressed='true'] small {
   color: var(--senha);
 }
+
+/* desativado no escuro: superfície neutra (o botão principal claro não pode parecer ativo) */
+[data-tema='escuro'] :is(.btn-primary, .btn-senha):disabled {
+  background: var(--papel-2);
+  border-color: var(--linha);
+  color: var(--tinta-3);
+}
