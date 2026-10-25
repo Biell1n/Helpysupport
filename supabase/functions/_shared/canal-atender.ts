@@ -11,7 +11,7 @@ import { logUsage } from './ai.ts';
 import { alertar, type Assistant, responder } from './atendimento.ts';
 import { profileOf } from './db.ts';
 import { inicioDoMes, planOf, trialExpirado } from './plans.ts';
-import { type Canal, enviarPeloCanal, NOMES } from './canais.ts';
+import { type Canal, enviarPeloCanal, noPrivadoDoDiscord, NOMES } from './canais.ts';
 import { MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from './extra.ts';
 
 const PASSOU_PARA_EQUIPE =
@@ -237,6 +237,10 @@ export async function retomarComRetorno(
   if (canal && c.contato_externo) {
     const texto = paraOCanal(canal.tipo, r.texto);
     if (texto) await enviarPeloCanal(db, canal, c.contato_externo, texto).catch((e) => console.warn('[retorno] canal', e?.message));
+    // Discord: avisa no privado que a resposta chegou (a pessoa pode ter saído do servidor)
+    if (canal.tipo === 'discord' && c.contato_externo.startsWith('ticket:')) {
+      await noPrivadoDoDiscord(db, canal, c.contato_externo.slice(7), '💬 Chegou a resposta da sua dúvida. Veja no seu atendimento.');
+    }
   }
   return true;
 }

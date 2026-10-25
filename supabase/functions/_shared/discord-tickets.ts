@@ -31,6 +31,7 @@ import {
   pedacos,
   PERM,
   PERMISSOES_BOT,
+  noPrivadoDoDiscord,
   postarNoTopico,
   type Segredo,
   segredoDo,
@@ -630,16 +631,20 @@ export async function avisarStatus(t: Ticket, c: { status: string; assumido_nome
     await botHelpy(`/channels/${t.thread_id}`, { method: 'PATCH', body: { archived: false, locked: false } }).catch(() => {});
     await fala(t.thread_id, 'Atendimento reaberto.');
   }
-  const { data: dono } = await admin.from('canais').select('config').eq('id', t.canal_id).maybeSingle();
+  const { data: dono } = await admin.from('canais').select('*').eq('id', t.canal_id).maybeSingle();
   const config = (dono?.config ?? {}) as Record<string, string>;
   const cliente = t.cliente_nome ?? 'cliente';
+  // o cliente fica sabendo também no privado (pode não estar olhando o servidor)
+  const privado = (texto: string) => (dono ? noPrivadoDoDiscord(admin, dono as Canal, t.thread_id, texto) : Promise.resolve());
   if (c.status === 'human') {
     await fala(t.thread_id, `**${c.assumido_nome ?? 'Alguém da equipe'}** entrou no atendimento.`);
+    await privado(`✋ **${c.assumido_nome ?? 'Alguém da equipe'}** assumiu o seu atendimento e responde por lá.`);
     await avisarEquipe(config, `✋ **${c.assumido_nome ?? 'Alguém da equipe'}** assumiu o atendimento de **${cliente}**: <#${t.thread_id}>`).catch(() => {});
   } else if (c.status === 'bot' && antes && antes !== 'bot' && antes !== 'closed') {
     await fala(t.thread_id, 'O atendimento voltou para o assistente. Pode continuar escrevendo por aqui.');
   } else if (c.status === 'closed') {
     await fala(t.thread_id, 'Atendimento encerrado. Obrigado pelo contato! Se precisar de novo, é só abrir outro atendimento.');
+    await privado('✅ Seu atendimento foi encerrado. Obrigado pelo contato! Se precisar de novo, é só clicar em **Abrir atendimento** no servidor.');
     await avisarEquipe(config, `✅ Atendimento de **${cliente}** encerrado: <#${t.thread_id}>`).catch(() => {});
     await botHelpy(`/channels/${t.thread_id}`, { method: 'PATCH', body: { archived: true, locked: true }, motivo: 'Atendimento encerrado' }).catch(() => {});
   }

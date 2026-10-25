@@ -319,9 +319,16 @@ export default function Dados() {
           <h1>Dados</h1>
           <p>O que o assistente consulta na hora de responder: preços, estoque, cardápio. Digite aqui, importe do Excel, ligue uma planilha online ou conecte o seu sistema.</p>
         </div>
-        <button type="button" className="btn btn-primary" disabled={!podeCriar} title={podeCriar ? '' : `O plano ${plano.nome} permite ${plano.tabelas} tabelas`} onClick={() => setCriando(true)}>
-          <Plus /> Nova tabela
-        </button>
+        <div className="stack" style={{ gap: 4, alignItems: 'flex-end' }}>
+          <button type="button" className="btn btn-primary" disabled={!podeCriar} onClick={() => setCriando(true)}>
+            <Plus /> Nova tabela
+          </button>
+          {!podeCriar && (
+            <span className="faint" style={{ fontSize: 12.5 }}>
+              O {plano.nome} permite {plano.tabelas} {plano.tabelas === 1 ? 'tabela' : 'tabelas'}. <Link to="/painel/plano">Ver planos</Link>
+            </span>
+          )}
+        </div>
       </header>
 
       {tabelas === null && <div className="skeleton" style={{ height: 200 }} />}

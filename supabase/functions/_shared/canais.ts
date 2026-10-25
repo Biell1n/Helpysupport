@@ -215,6 +215,27 @@ export async function postarNoTopico(db: SupabaseClient, canal: Canal, topico: s
   }
 }
 
+/**
+ * Ticket do Discord: os avisos importantes (pagamento, equipe entrou, atendimento
+ * encerrado) também chegam no privado do cliente, com o link do atendimento. É uma
+ * mensagem direta do bot (sem custo). Quem fechou o privado para o servidor não recebe.
+ */
+export async function noPrivadoDoDiscord(db: SupabaseClient, canal: Canal, topico: string, texto: string) {
+  if (!ehBotDoHelpy(canal)) return;
+  const { data: t } = await db.from('discord_tickets').select('cliente_id').eq('thread_id', topico).maybeSingle();
+  if (!t?.cliente_id) return;
+  try {
+    const dm = await botHelpy('/users/@me/channels', { method: 'POST', body: { recipient_id: t.cliente_id } }) as { id: string };
+    const corpo = `**${canal.nome ?? 'Atendimento'}**\n${texto}\n\nSeu atendimento: https://discord.com/channels/${canal.externo_id}/${topico}`;
+    for (const parte of pedacos(corpo, 1900)) {
+      await botHelpy(`/channels/${dm.id}/messages`, { method: 'POST', body: { content: parte, allowed_mentions: { parse: [] } } });
+    }
+  } catch (e) {
+    // privado fechado (50007) ou pessoa saiu do servidor: o aviso já ficou no ticket
+    console.warn('[discord] privado', e instanceof ErroDoCanal ? e.status : (e as Error)?.message);
+  }
+}
+
 /** Nome que o Discord aceita num webhook (sem "discord" e "clyde"). */
 function nomeDeWebhook(nome: string) {
   const limpo = nome.replace(/discord|clyde/gi, '').replace(/\s+/g, ' ').trim().slice(0, 60);

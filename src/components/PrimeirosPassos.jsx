@@ -12,11 +12,13 @@ const CHAVE = 'helpy_primeiros_passos_fechado';
 /** Lê da conta o que já foi feito. Cada passo diz como e onde se resolve. */
 async function verificar(assistentes) {
   const um = (q) => q.then((r) => (r.count ?? 0) > 0).catch(() => false);
-  const [testou, conversou, canal, carteira, equipe] = await Promise.all([
+  const [testou, conversou, canal, carteira, vende, equipe] = await Promise.all([
     um(supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('teste', true)),
     um(supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('teste', false)),
     um(supabase.from('canais').select('id', { count: 'exact', head: true })),
     um(supabase.from('recebimentos').select('owner_id', { count: 'exact', head: true })),
+    // só conta como feito quando algum assistente fecha a venda (não basta ligar a conta)
+    um(supabase.from('assistants').select('id', { count: 'exact', head: true }).ilike('config->fields->venda_no_chat->>value', 'sim%')),
     um(supabase.from('equipe').select('user_id', { count: 'exact', head: true })),
   ]);
   const primeiro = assistentes[0];
@@ -24,7 +26,7 @@ async function verificar(assistentes) {
     { id: 'montar', texto: 'Montar o assistente', ajuda: 'Conte como o negócio funciona.', feito: assistentes.length > 0, para: '/painel/assistentes/novo', acao: 'Começar' },
     { id: 'testar', texto: 'Conversar com ele como cliente', ajuda: 'Veja as respostas antes de divulgar.', feito: testou, para: primeiro ? `/painel/assistentes/${primeiro.id}/testar` : '/painel/assistentes', acao: 'Testar' },
     { id: 'divulgar', texto: 'Pôr no ar', ajuda: 'Link, QR code, WhatsApp, Instagram ou Discord.', feito: canal || conversou, para: '/painel/canais', acao: 'Ver canais' },
-    { id: 'carteira', texto: 'Receber pelo chat', ajuda: 'Opcional: o assistente fecha a venda com Pix.', feito: carteira, para: '/painel/carteira', acao: 'Ativar' },
+    { id: 'carteira', texto: 'Receber pelo chat', ajuda: 'Opcional: o assistente fecha a venda com Pix.', feito: carteira && vende, para: '/painel/carteira', acao: 'Ativar' },
     { id: 'equipe', texto: 'Chamar a equipe', ajuda: 'Opcional: quem responde os chamados.', feito: equipe, para: '/painel/equipe', acao: 'Convidar' },
   ];
 }

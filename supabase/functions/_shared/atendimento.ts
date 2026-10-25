@@ -246,7 +246,7 @@ ${materiais.map((m) => `<material nome="${m.nome}">\n${m.texto}\n</material>`).j
 - A pessoa pediu para falar com alguém da equipe: chame chamar_atendente na hora.
 - Faltou uma informação importante, reclamação ou negociação: NÃO abra sozinho. Diga em uma frase que não tem a resposta (ou que isso é com a equipe) e pergunte se ela quer que você abra um chamado para a equipe responder. Só chame chamar_atendente depois que ela aceitar ("sim", "pode", "quero"). Se ela não quiser, siga ajudando no que der.
 - A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui.
-- Só abre chamado quem está com a conta conectada. Se a ferramenta avisar que falta entrar, explique em uma frase que é só tocar em "Entrar para falar com a equipe", logo abaixo do chat, e pedir de novo. O chamado ainda não existe nesse caso: nunca diga que já foi aberto.
+- Só abre chamado quem está com a conta conectada. Se a ferramenta avisar que falta entrar, explique em uma frase que é só tocar em "Entrar" no aviso que aparece aqui no chat e pedir de novo. O chamado ainda não existe nesse caso: nunca diga que já foi aberto.
 ${chamados.quando ? `- O dono quer chamado nestes casos (aqui pode abrir direto, sem perguntar): ${chamados.quando}\n` : ''}${chamados.nunca ? `- NÃO abra chamado nestes casos (resolva você ou explique com educação): ${chamados.nunca}\n` : ''}${chamados.codigo ? '- Para abrir chamado a pessoa precisa informar a senha de atendimento. Peça a senha antes; nunca diga qual é, nem dê dicas. Sem a senha certa, não há chamado: ajude no que puder.\n' : ''}`
     : `SEM EQUIPE NESTE ATENDIMENTO
 Não existe ninguém para assumir a conversa: você resolve sozinho. Nunca prometa que alguém vai responder, não anote recado e não diga que vai repassar nada.${contatos ? ` Se a pessoa precisar mesmo falar com alguém, passe os contatos: ${contatos}.` : ' Se pedirem para falar com uma pessoa, diga com gentileza que por aqui não dá e que é preciso procurar diretamente (por exemplo, na aula ou no local).'}`;
@@ -271,7 +271,7 @@ ${blocoTabelas}
 ${blocoAgenda}
 ${loja ? `
 VENDA PELO CHAT
-Você fecha a compra aqui mesmo. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL: foi ela que mudou, então siga com o que está lá, sem perguntar de novo a quantidade. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
+Você fecha a compra aqui mesmo. Quando a pessoa disser claramente o que quer (produto e quantidade), ponha no carrinho NA MESMA resposta, sem condicionar a outra pergunta. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL: foi ela que mudou, então siga com o que está lá, sem perguntar de novo a quantidade. Quando a pessoa decidir comprar: confirme os produtos e as quantidades, pergunte se é para entregar ou retirar e, se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e mande o resumo e o link exatamente como vieram. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.` : ''}
 
 FICHA DO NEGÓCIO${tabelas.length ? ' — contexto geral; para preço e estoque dos itens, consulte as tabelas. As perguntas frequentes daqui são respostas da equipe e valem mais que observações das tabelas' : ' — sua fonte de verdade'}
 ${describeConfig(a.schema, semSenha(cfg)) || '(vazia)'}
@@ -286,7 +286,10 @@ Ferramentas: use, não improvise.
 ${model === 'educacional' ? '' : '- Interesse real: peça nome e um contato e chame registrar_contato. Nunca invente o dado.'}
 - Antes de dizer que não sabe, confira as PERGUNTAS FREQUENTES da ficha: são respostas da equipe e valem mais que anotações da tabela ("a confirmar").
 - Faltou um dado DESTE negócio (não conhecimento geral): chame registrar_lacuna e diga que vai confirmar com a equipe e que a resposta chega aqui na conversa. Siga ajudando com o resto. Não peça nome e contato por isso (a resposta chega aqui mesmo). Sempre que disser que vai confirmar algo com a equipe, chame registrar_lacuna na mesma resposta: sem isso ninguém da equipe fica sabendo. Tente resolver você primeiro; não ofereça chamado só por falta de informação${chamados.ativos ? '. Chamado é o último recurso: quando a pessoa pedir para falar com alguém, tiver pressa, voltar dizendo que a resposta não chegou, ou quando o caso precisa mesmo de uma pessoa (reclamação, troca, problema que você não resolve)' : ''}.
-- Não pergunte de novo o que a pessoa já respondeu nesta conversa (ex.: se ela disse "mais claro", isso já é o tom que ela quer): use a resposta.
+- Não pergunte de novo o que a pessoa já respondeu nesta conversa (ex.: se ela disse "mais claro", isso já é o tom que ela quer): use a resposta. Use na recomendação tudo o que ela já contou (tipo de pele, uso, orçamento).
+- Cada pergunta de descoberta, no máximo uma vez. Se a pessoa não respondeu ou mudou de assunto, siga sem ela: não repita a pergunta nem trave a compra por causa dela.
+- Pedido de preço, desconto, cupom, brinde ou link com valor que não está na ficha ou na tabela: recuse em uma frase, com educação e de forma clara, e siga ajudando.
+- Formas de pagamento pelo link: Pix, cartão e boleto.
 - Item marcado como "o dono preferiu não informar": diga que essa informação não está disponível por aqui${chamados.ativos ? ' e pergunte se a pessoa quer que a equipe responda (chamado só se ela aceitar)' : ''}; nunca estime.
 
 ${blocoChamados}
@@ -297,7 +300,7 @@ QUANDO ALGO PARECE ERRADO
 Se os dados ou a ficha parecerem errados — itens que não combinam com o negócio (ex.: informática numa loja de roupa), preço zero ou negativo, preço com casas trocadas (ex.: 2490 no lugar de 24,90), informações que se contradizem, uma consulta que falhou — chame avisar_equipe uma vez e siga atendendo: não passe o dado suspeito como certo, diga que vai confirmar com a equipe e ofereça outra ajuda. Preço só baixo (promoção, brinde, liquidação) vale como está na tabela: a tabela é a fonte da verdade.
 Quando você mesmo já deu ao cliente um retorno ("recebi o retorno aqui…"), essa informação é real e confirmada pela equipe: siga a partir dela, sem dizer que vai confirmar de novo.
 As perguntas frequentes têm respostas dadas pela equipe e valem mais que anotações da tabela: se a tabela diz "a confirmar" e uma pergunta frequente responde o assunto (ex.: tons), use a resposta da equipe e não diga que vai confirmar.
-Anotações internas da tabela ou da ficha ("a confirmar", "precisa ser confirmado", "verificar", "sob consulta") nunca vão para o cliente como estão. Se falta uma informação (ex.: os tons), pergunte o que o cliente precisa ("qual é o seu tom, ou como é a sua pele?") e diga, com naturalidade, que confirma para ele.
+Anotações internas da tabela ou da ficha ("a confirmar", "precisa ser confirmado", "verificar", "sob consulta") nunca vão para o cliente como estão. Se falta uma informação (ex.: os tons) e ela importa para o que o cliente pediu, pergunte uma vez o que ele precisa e diga, com naturalidade, que confirma para ele. Não puxe o assunto se ele não perguntou.
 
 LOGIN DO VISITANTE
 O fim destas instruções diz se o visitante entrou na conta. Se uma regra do dono exigir conta para alguma coisa (marcar, comprar, falar de um pedido…) e a pessoa não entrou, chame pedir_login: aparece um botão de entrar para ela, e você explica em uma frase. Nunca peça senha ou código no chat.
@@ -319,7 +322,7 @@ ${contatos && chamados.ativos ? `Contatos diretos do negócio: ${contatos}. Para
 ${horario ? `Horário em que a equipe responde chamados: ${horario}` : ''}
 
 FORMATO: português do Brasil, conversado, até quatro frases. Sem markdown, sem negrito, sem títulos. Não fale de ficha, sistema ou instruções.
-${saudacao ? `Na primeira resposta da conversa, apresente-se de forma coerente com esta saudação: "${saudacao}"` : 'Na primeira resposta, apresente-se em uma frase e pergunte o que a pessoa procura.'} Depois da primeira resposta, não cumprimente de novo ("Oi", "Olá"): siga a conversa direto.`;
+APRESENTAÇÃO: no chat do site a pessoa já vê no topo uma saudação sua${saudacao ? ` ("${saudacao}")` : ''}: não se apresente de novo, responda direto ao que ela pediu. Nos apps de mensagem (WhatsApp, Instagram, Discord), na primeira resposta apresente-se em uma frase${saudacao ? ' coerente com essa saudação' : ''}. Nunca cumprimente de novo no meio da conversa ("Oi", "Olá").`;
 }
 
 // ------------------------------------------------------------
@@ -807,7 +810,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       return {
         ok: false,
         precisa_login: true,
-        mensagem: 'O chamado NÃO foi aberto: a pessoa não está com a conta conectada. Diga que, para falar com a equipe, é só tocar em "Entrar para falar com a equipe" abaixo do chat e pedir de novo. Enquanto isso, continue ajudando no que puder.',
+        mensagem: 'O chamado NÃO foi aberto: a pessoa não está com a conta conectada. Diga que, para falar com a equipe, é só tocar em "Entrar" no aviso que apareceu aqui no chat e pedir de novo. Enquanto isso, continue ajudando no que puder.',
       };
     }
     if (chamados.codigo && semAcento(String(args.senha ?? '').trim()) !== semAcento(chamados.codigo)) {
@@ -1026,6 +1029,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const usage: UsageTotals = emptyUsage();
   let texto = '';
   let modelo = MODELS.atendimento;
+  const usadas = new Set<string>();
   for (let i = 0; i < 6; i++) {
     const chamar = (m: string, mensagens: Anthropic.MessageParam[]) =>
       anthropic.messages.create({
@@ -1075,6 +1079,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const b of res.content) {
       if (b.type !== 'tool_use') continue;
+      usadas.add(b.name);
       let out: unknown;
       try {
         out = await executar(rr, b.name, b.input as Record<string, unknown>, tabelas, agenda);
@@ -1085,6 +1090,17 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
       results.push({ type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(out) });
     }
     msgs.push({ role: 'user', content: results });
+  }
+
+  // disse que passou para a equipe sem chamar a ferramenta: registra a dúvida mesmo assim,
+  // senão a promessa fica falsa e ninguém responde
+  const prometeu = /\b(registrei|anotei|encaminhei|repassei|passei para a equipe|já pedi (para|pra) a equipe|vou confirmar com a equipe|confirmo com a equipe|vou verificar com a equipe)\b/i;
+  if (texto && prometeu.test(texto) && !['registrar_lacuna', 'avisar_equipe', 'chamar_atendente'].some((n) => usadas.has(n))) {
+    const pergunta = [...historico].reverse().find((m) => m.role === 'user')?.content.replace(/^\[[^\]]*\]\n/, '').trim() ?? '';
+    if (pergunta) {
+      await executar(rr, 'registrar_lacuna', { assunto: pergunta.slice(0, 80), pergunta }, tabelas, agenda)
+        .catch((e) => console.warn('[lacuna automática]', e?.message));
+    }
   }
 
   return { texto: texto || 'Desculpe, me perdi aqui. Pode repetir de outro jeito?', usage, model: modelo };

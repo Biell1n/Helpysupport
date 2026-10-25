@@ -54,6 +54,9 @@ async function contaDe(userId: string) {
   return { conta: userId, dono: true, perfil: p };
 }
 
+/** Eventos do Asaas de dinheiro que voltou ao pagador (estorno ou contestação no cartão). */
+const DEVOLVIDO = ['PAYMENT_REFUNDED', 'PAYMENT_PARTIALLY_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE'];
+
 /** Próximo vencimento: um ciclo (mês ou ano) depois do que acabou de ser pago. */
 function proximoVencimento(data: string, ciclo: string) {
   if (ciclo !== 'anual') return maisUmMes(data);
@@ -89,7 +92,7 @@ async function avisoDoExtra(evento: { event?: string; payment?: Record<string, u
     await admin.from('alertas').insert({
       owner_id: dono, origem: 'sistema', chave: `extra:atrasada:${id}`,
       assunto: 'A fatura do uso extra venceu',
-      detalhe: 'Enquanto ela não for paga, o uso extra fica parado e as conversas além da cota vão para a equipe. Pague pela página Plano.',
+      detalhe: 'Enquanto ela não for paga, o uso extra e a venda pelo chat ficam parados (as conversas além da cota vão para a equipe). Pague pela página Plano.',
     });
   } else if (evento.event === 'PAYMENT_DELETED') {
     await admin.from('uso_extra').update({ status: 'perdoado' }).eq('fatura_id', id).in('status', ['cobrado', 'atrasado']);
@@ -105,9 +108,18 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
   if (pg && ref.startsWith('extra:')) return await avisoDoExtra(evento);
   // vagas extras pagas à parte no plano anual: só atualiza a fatura na tela
   if (pg && ref.startsWith('vagas:')) {
-    const dono = ref.slice(6);
+    const [, dono, vagasAntes] = ref.split(':');
     const { data: antes } = await admin.from('faturas').select('descricao').eq('id', String(pg.id)).eq('owner_id', dono).maybeSingle();
     if (antes) await guardarFatura(dono, pg, antes.descricao ?? undefined);
+    // vagas pedidas e não pagas (ou devolvidas): voltam ao que eram antes
+    if (antes && /^\d+$/.test(vagasAntes ?? '') && (evento.event === 'PAYMENT_OVERDUE' || DEVOLVIDO.includes(String(evento.event)))) {
+      await admin.from('profiles').update({ funcionarios_extra: Number(vagasAntes) }).eq('id', dono);
+      await admin.from('alertas').insert({
+        owner_id: dono, origem: 'sistema', chave: `vagas:atrasada:${pg.id}`,
+        assunto: 'As vagas extras não foram pagas',
+        detalhe: 'A fatura das vagas extras venceu, então elas voltaram ao que eram antes. Para ter mais vagas, peça de novo em Equipe.',
+      });
+    }
     return;
   }
   const subId = String(pg?.subscription ?? '');
@@ -121,8 +133,25 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
   const daAntiga = ass.asaas_anterior === subId && ass.asaas_assinatura !== subId;
   const agora = new Date().toISOString();
 
+  // fatura do plano devolvida ou contestada no cartão: o plano não fica de graça
+  if (DEVOLVIDO.includes(String(evento.event))) {
+    await guardarFatura(ass.owner_id, pg, `Plano ${PLANS[ass.plano as PlanId]?.nome ?? ass.plano}`);
+    if (ass.status === 'cancelada') return;
+    for (const id of [ass.asaas_assinatura, ass.asaas_anterior].filter(Boolean)) {
+      await contaHelpy().pedir(`/subscriptions/${id}`, { method: 'DELETE' }).catch(() => {});
+    }
+    const ontem = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    await admin.from('assinaturas').update({ status: 'cancelada', asaas_anterior: null, proximo_vencimento: ontem, atualizada_em: agora }).eq('owner_id', ass.owner_id);
+    await admin.from('alertas').insert({
+      owner_id: ass.owner_id, origem: 'sistema', chave: `fatura:devolvida:${pg.id}`,
+      assunto: 'Pagamento do plano devolvido',
+      detalhe: 'A fatura do plano foi estornada ou contestada no cartão, então a assinatura foi encerrada. Para continuar, assine de novo na página Plano.',
+    });
+    return;
+  }
+
   if (daAntiga) {
-    const plano = await planoDaAssinatura(subId);
+    const { plano, ciclo: cicloDaAntiga } = await dadosDaAssinatura(subId);
     await guardarFatura(ass.owner_id, pg, `Plano ${PLANS[plano ?? (ass.plano as PlanId)]?.nome ?? plano ?? ass.plano}`);
     if (pago(String(pg.status), evento.event)) {
       if (ass.status === 'cancelada') return;
@@ -130,7 +159,8 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
       if (plano) await admin.from('profiles').update({ plan: plano, trial_ends_at: null }).eq('id', ass.owner_id);
       await admin.from('assinaturas').update({
         status: 'ativa', atualizada_em: agora,
-        proximo_vencimento: pg.dueDate ? proximoVencimento(String(pg.dueDate), ass.ciclo) : ass.proximo_vencimento,
+        // o vencimento segue o ciclo da assinatura que foi paga (a antiga), não o da troca
+        proximo_vencimento: pg.dueDate ? proximoVencimento(String(pg.dueDate), cicloDaAntiga ?? 'mensal') : ass.proximo_vencimento,
       }).eq('owner_id', ass.owner_id);
     } else if (evento.event === 'PAYMENT_OVERDUE') {
       await admin.from('assinaturas').update({ status: 'atrasada', atualizada_em: agora }).eq('owner_id', ass.owner_id);
@@ -144,10 +174,12 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
   if (pago(String(pg.status), evento.event)) {
     // cobrança antiga que caiu depois do cancelamento: guarda a fatura, mas não reativa o plano
     if (ass.status === 'cancelada') return;
+    const { ciclo: cicloPago } = await dadosDaAssinatura(subId);
     await admin.from('profiles').update({ plan: ass.plano, trial_ends_at: null }).eq('id', ass.owner_id);
     await admin.from('assinaturas').update({
       status: 'ativa', asaas_anterior: null, atualizada_em: agora,
-      proximo_vencimento: pg.dueDate ? proximoVencimento(String(pg.dueDate), ass.ciclo) : null,
+      ...(cicloPago ? { ciclo: cicloPago } : {}),
+      proximo_vencimento: pg.dueDate ? proximoVencimento(String(pg.dueDate), cicloPago ?? ass.ciclo) : null,
     }).eq('owner_id', ass.owner_id);
     // troca de plano: a assinatura antiga só sai depois que a nova foi paga
     if (ass.asaas_anterior) await contaHelpy().pedir(`/subscriptions/${ass.asaas_anterior}`, { method: 'DELETE' }).catch(() => {});
@@ -161,12 +193,16 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
       // troca de plano que não foi paga: desfaz e volta para a assinatura de antes, sem mexer no acesso
       await contaHelpy().pedir(`/subscriptions/${subId}`, { method: 'DELETE' }).catch(() => {});
       const { data: perfil } = await admin.from('profiles').select('plan, funcionarios_extra').eq('id', ass.owner_id).maybeSingle();
-      const plano = (await planoDaAssinatura(ass.asaas_anterior)) ?? (perfil?.plan as PlanId | undefined);
+      const antiga = await dadosDaAssinatura(ass.asaas_anterior);
+      const plano = antiga.plano ?? (perfil?.plan as PlanId | undefined);
+      // volta também o ciclo da assinatura de antes (senão um mês pago valeria um ano)
+      const ciclo: Ciclo = antiga.ciclo ?? 'mensal';
       await admin.from('assinaturas').update({
         asaas_assinatura: ass.asaas_anterior, asaas_anterior: null, atualizada_em: agora,
         status: ass.status === 'ativa' ? 'ativa' : 'atrasada',
+        ciclo,
         ...(plano && PAGOS.includes(plano as PlanoPago)
-          ? { plano, valor: valorDaAssinatura(precosVigentes(await precosDeTeste()), plano as PlanoPago, ass.ciclo === 'anual' ? 'anual' : 'mensal', Number(perfil?.funcionarios_extra ?? 0)) }
+          ? { plano, valor: valorDaAssinatura(precosVigentes(await precosDeTeste()), plano as PlanoPago, ciclo, Number(perfil?.funcionarios_extra ?? 0)) }
           : {}),
       }).eq('owner_id', ass.owner_id);
       await admin.from('alertas').insert({
@@ -189,11 +225,23 @@ async function avisoDeAtraso(ownerId: string, pagamento: string) {
   });
 }
 
-// O plano de uma assinatura do Helpy vem no externalReference ("conta:plano").
+// O plano de uma assinatura do Helpy vem no externalReference ("conta:plano:ciclo").
 async function planoDaAssinatura(id: string): Promise<PlanId | null> {
-  const sub = await contaHelpy().pedir<{ externalReference?: string }>(`/subscriptions/${id}`).catch(() => null);
-  const plano = String(sub?.externalReference ?? '').split(':')[1] as PlanId;
-  return plano && plano !== 'trial' && PLANS[plano] ? plano : null;
+  return (await dadosDaAssinatura(id)).plano;
+}
+
+/**
+ * Plano e ciclo da própria assinatura no Asaas. O ciclo guardado na linha é o da
+ * assinatura mais nova: numa troca, a de antes pode ser de outro ciclo (pagar um
+ * mês dela não pode render um ano de plano).
+ */
+async function dadosDaAssinatura(id: string): Promise<{ plano: PlanId | null; ciclo: Ciclo | null }> {
+  const sub = await contaHelpy().pedir<{ externalReference?: string; cycle?: string }>(`/subscriptions/${id}`).catch(() => null);
+  const partes = String(sub?.externalReference ?? '').split(':');
+  const plano = partes[1] as PlanId;
+  const ciclo: Ciclo | null = sub?.cycle === 'YEARLY' ? 'anual' : sub?.cycle === 'MONTHLY' ? 'mensal'
+    : partes[2] === 'anual' || partes[2] === 'mensal' ? partes[2] as Ciclo : null;
+  return { plano: plano && plano !== 'trial' && PLANS[plano] ? plano : null, ciclo };
 }
 
 async function aviso(req: Request, url: URL): Promise<Response> {
@@ -267,8 +315,9 @@ Deno.serve(async (req) => {
       return json({
         cobranca: !!Deno.env.get('ASAAS_API_KEY'),
         ambiente: AMBIENTE,
-        assinatura,
-        faturas: faturas ?? [],
+        // a cobrança do Helpy é assunto do dono: a equipe não vê assinatura nem faturas
+        assinatura: dono ? assinatura : null,
+        faturas: dono ? faturas ?? [] : [],
         recebimento: rec ?? null,
         precos,
       });
@@ -285,11 +334,12 @@ Deno.serve(async (req) => {
       const nome = String(body.nome ?? '').trim().slice(0, 100) || perfil?.company_name || perfil?.full_name || user.email || 'Cliente Helpy';
       const c = contaHelpy();
 
-      const webhookOk = await admin.from('helpy_servicos').select('nome').eq('nome', `asaas-webhook-${AMBIENTE}`).maybeSingle();
+      // a marca muda de versão quando a lista de eventos muda: o aviso é recadastrado com os novos
+      const webhookOk = await admin.from('helpy_servicos').select('nome').eq('nome', `asaas-webhook-${AMBIENTE}-v2`).maybeSingle();
       if (!webhookOk.data) {
         if (!tokenAceito(Deno.env.get('ASAAS_WEBHOOK_TOKEN') ?? '')) throw new UserError('A cobrança dos planos está sendo configurada. Tente de novo em instantes.', 503);
         await garantirWebhook(c, `${FUNCAO()}?asaas=helpy`, Deno.env.get('ASAAS_WEBHOOK_TOKEN') ?? '', user.email ?? 'contato@helpysupport.com');
-        await admin.from('helpy_servicos').upsert({ nome: `asaas-webhook-${AMBIENTE}`, visto_em: new Date().toISOString() });
+        await admin.from('helpy_servicos').upsert({ nome: `asaas-webhook-${AMBIENTE}-v2`, visto_em: new Date().toISOString() });
       }
 
       const { data: guardada } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
@@ -398,7 +448,8 @@ Deno.serve(async (req) => {
               body: {
                 customer: ass.asaas_cliente, billingType: 'UNDEFINED', value: agora, dueDate: hojeBr(3),
                 description: `Helpy — ${novas} ${novas === 1 ? 'vaga extra' : 'vagas extras'} até a renovação (${meses} ${meses === 1 ? 'mês' : 'meses'})`,
-                externalReference: `vagas:${conta}`,
+                // guarda quantas vagas havia antes: se a fatura não for paga, elas voltam
+                externalReference: `vagas:${conta}:${Number(p.funcionarios_extra ?? 0)}`,
               },
             });
             await guardarFatura(conta, pg, `${novas} ${novas === 1 ? 'vaga extra' : 'vagas extras'} até a renovação`);

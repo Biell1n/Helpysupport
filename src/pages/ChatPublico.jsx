@@ -191,7 +191,13 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
       }
       if (d.message) setMensagens((p) => [...p, { role: d.modo === 'recado' || d.modo === 'login' ? 'system' : 'assistant', content: d.message, novo: true }]);
     } catch (e) {
-      setMensagens((p) => [...p, { role: 'system', content: e.message }]);
+      // não perde o que a pessoa escreveu: a mensagem volta para a caixa para tentar de novo
+      setMensagens((p) => {
+        const i = p.findLastIndex((m) => m.role === 'user' && m.content === content);
+        const sem = i >= 0 ? [...p.slice(0, i), ...p.slice(i + 1)] : p;
+        return [...sem, { role: 'system', content: `${e.message}${typeof forcado !== 'string' ? ' Sua mensagem voltou para a caixa.' : ''}` }];
+      });
+      if (typeof forcado !== 'string') setTexto(content);
     } finally {
       setPensando(false);
     }
@@ -222,7 +228,9 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
     }
   };
 
+  const [confirmandoFim, setConfirmandoFim] = useState(false);
   const encerrar = async () => {
+    setConfirmandoFim(false);
     const d = await acao('encerrar');
     if (d) setEstado((p) => ({ ...p, status: 'closed' }));
   };
@@ -243,6 +251,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           <Marca size={48} />
           <h1 style={{ fontSize: 24 }}>Atendimento indisponível</h1>
           <p className="muted">{fatal}</p>
+          <button type="button" className="btn btn-ghost" onClick={() => window.location.reload()}>Tentar de novo</button>
         </div>
       </div>
     );
@@ -286,7 +295,8 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
       />
 
       <div className="chat-scroll publico-in" aria-live="polite">
-        {mensagens.length === 0 && info && (
+        {/* a saudação fica no topo da conversa (o assistente não se reapresenta) */}
+        {info && (
           <div className="msg msg-bot">
             <span className="msg-who">{nome}</span>
             <div className="msg-body">{info.saudacao || `Oi! Sou ${nome}${info.negocio ? `, do atendimento de ${info.negocio}` : ''}. Como posso ajudar?`}</div>
@@ -379,7 +389,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
               ref={area}
               rows={1}
               value={texto}
-              disabled={pensando || fechado || !info}
+              disabled={fechado || !info}
               placeholder={fechado ? 'Atendimento encerrado' : humano ? 'Escreva para a equipe…' : 'Escreva sua mensagem…'}
               aria-label="Mensagem"
               onChange={(e) => setTexto(e.target.value)}
@@ -398,7 +408,11 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
             {modoTeste ? (
               <span>Modo teste: não conta na cota nem aparece nos atendimentos. <button type="button" className="link-btn" onClick={novaConversa}>Recomeçar</button></span>
             ) : mensagens.length > 1 && !fechado ? (
-              <span>Resolvido? <button type="button" className="link-btn" onClick={encerrar}>Encerrar atendimento</button></span>
+              confirmandoFim ? (
+                <span>Encerrar este atendimento? <button type="button" className="link-btn" onClick={encerrar}>Sim, encerrar</button> · <button type="button" className="link-btn" onClick={() => setConfirmandoFim(false)}>Não</button></span>
+              ) : (
+                <span>Resolvido? <button type="button" className="link-btn" onClick={() => setConfirmandoFim(true)}>Encerrar atendimento</button></span>
+              )
             ) : user ? (
               <span>Conectado como {user.email}. A equipe pode responder por aqui.</span>
             ) : (

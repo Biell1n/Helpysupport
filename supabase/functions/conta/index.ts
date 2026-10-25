@@ -91,6 +91,11 @@ Deno.serve(async (req) => {
       } else if (String(body.confirmacao ?? '').trim().toUpperCase() !== 'EXCLUIR') {
         throw new UserError('Digite EXCLUIR para confirmar.');
       }
+      // assinatura ainda cobrando: precisa cancelar antes, senão o Asaas segue cobrando depois da conta sumir
+      const { data: ass } = await admin.from('assinaturas').select('status').eq('owner_id', user.id).maybeSingle();
+      if (ass && ass.status !== 'cancelada') {
+        throw new UserError('Sua assinatura ainda está ativa. Cancele em Plano antes de excluir a conta, para não haver novas cobranças.', 409);
+      }
       // quem era da equipe volta a ser conta comum
       const { data: membros } = await admin.from('equipe').select('user_id').eq('owner_id', user.id);
       for (const m of membros ?? []) {
@@ -225,6 +230,8 @@ Deno.serve(async (req) => {
       if (tipo === 'empresa') {
         const { count } = await admin.from('assistants').select('id', { count: 'exact', head: true }).eq('owner_id', user.id);
         if ((count ?? 0) > 0) throw new UserError('Esta conta já tem assistentes de uma empresa. Entre com outra conta para ser funcionário.');
+        const { data: ass } = await admin.from('assinaturas').select('status').eq('owner_id', user.id).maybeSingle();
+        if (ass && ass.status !== 'cancelada') throw new UserError('Esta conta tem uma assinatura ativa do Helpy. Cancele em Plano ou entre com outra conta para ser funcionário.', 409);
       }
       const vagas = await vagasDaEquipe(c.owner_id);
       if (vagas.membros >= vagas.limite) throw new UserError('A equipe desta empresa está cheia no plano atual. Avise o responsável.', 409);
@@ -238,6 +245,14 @@ Deno.serve(async (req) => {
       });
       if (error) throw error;
       await admin.from('profiles').update({ tipo: 'funcionario', empresa_id: c.owner_id }).eq('id', user.id);
+      return json({ ok: true });
+    }
+
+    if (action === 'equipe_sair') {
+      // o funcionário sai da equipe por conta própria e volta a ser conta comum
+      if ((await tipoDe(user.id)) !== 'funcionario') throw new UserError('Esta conta não está na equipe de uma empresa.');
+      await admin.from('equipe').delete().eq('user_id', user.id);
+      await admin.from('profiles').update({ tipo: 'cliente', empresa_id: null }).eq('id', user.id);
       return json({ ok: true });
     }
 

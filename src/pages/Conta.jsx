@@ -127,10 +127,12 @@ export default function Conta() {
             <input className="input" maxLength={120} autoComplete="name" value={f.full_name} onChange={set('full_name')} />
             <span className="hint">É o nome que o cliente vê quando você responde um chamado.</span>
           </label>
+          {tipo === 'empresa' && (
           <label className="field">
             <span className="label">Empresa</span>
             <input className="input" maxLength={120} autoComplete="organization" value={f.company_name} onChange={set('company_name')} />
           </label>
+          )}
           <label className="field">
             <span className="label">Telefone</span>
             <input className="input" type="tel" maxLength={40} autoComplete="tel" value={f.phone} onChange={set('phone')} />
@@ -170,7 +172,7 @@ export default function Conta() {
           </label>
         </div>
         {temSenha && <Captcha {...capSenha.props} />}
-        <div><button className="btn btn-ghost" disabled={!senha || (temSenha && !atual)}>Trocar senha</button></div>
+        <div><button className="btn btn-ghost" disabled={!senha || (temSenha && !atual)}>{temSenha ? 'Trocar senha' : 'Criar senha'}</button></div>
       </form>
 
       <PainelDuasEtapas />
@@ -184,11 +186,30 @@ export default function Conta() {
         </div>
       </section>
 
+      {tipo === 'funcionario' && (
+        <section className="card stack" style={{ marginTop: 16 }}>
+          <h2 className="card-title">Equipe</h2>
+          <p className="muted" style={{ fontSize: 14 }}>Você faz parte da equipe de atendimento de uma empresa. Ao sair, você perde o acesso aos chamados, pedidos e agenda dela.</p>
+          <div>
+            <button type="button" className="btn btn-ghost" onClick={async () => {
+              if (!window.confirm('Sair da equipe desta empresa?')) return;
+              try {
+                await chamar('conta', { action: 'equipe_sair' });
+                await reloadProfile?.();
+                avisar('Você saiu da equipe');
+              } catch (err) {
+                avisar('Não deu para sair', { erro: true, texto: err.message });
+              }
+            }}>Sair da equipe</button>
+          </div>
+        </section>
+      )}
+
       <section className="card stack" style={{ marginTop: 16, borderColor: 'var(--brasa)' }}>
         <h2 className="card-title">Excluir minha conta</h2>
         <p className="muted" style={{ fontSize: 14 }}>
           {tipo === 'empresa'
-            ? 'Apaga para sempre a conta, os assistentes, as tabelas, as conversas, a agenda e as chaves de integração. Os funcionários perdem o acesso. Não dá para desfazer.'
+            ? 'Apaga para sempre a conta, os assistentes, as tabelas, as conversas, a agenda e as chaves de integração. Os funcionários perdem o acesso. Não dá para desfazer. Antes, cancele a assinatura em Plano e saque o saldo da Carteira.'
             : 'Apaga para sempre a sua conta e os seus dados. Não dá para desfazer.'}
         </p>
         {!excluir.aberto ? (
