@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, CalendarDays, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, UserRound, Users, Wallet } from 'lucide-react';
+import { BarChart3, Bell, CalendarDays, Menu, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, UserRound, Users, Wallet } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { chamar } from '@/lib/supabase';
@@ -28,6 +28,13 @@ const NAV = [
   { to: '/painel/equipe', label: 'Equipe', icon: Users, tipos: ['empresa'] },
   { to: '/painel/plano', label: 'Plano', icon: Gem, tipos: ['empresa'] },
 ];
+
+// no celular, os destinos do dia a dia ficam numa barra embaixo; o resto vai em "Mais"
+const ATALHOS = {
+  empresa: ['/painel', '/painel/atendimentos', '/painel/pedidos', '/painel/agenda'],
+  funcionario: ['/painel/atendimentos', '/painel/pedidos', '/painel/agenda'],
+  cliente: ['/painel'],
+};
 
 /** Telas só da empresa: cliente e funcionário voltam para o início deles. */
 export function SoEmpresa({ children }) {
@@ -175,7 +182,9 @@ export default function AppShell() {
   const { user, profile, nome, signOut, tipo } = useAuth();
   const [uso, recarregarUso] = useUso();
   usePrecos(); // com os preços de teste, ajusta a cota do Essencial antes das telas lerem
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const [mais, setMais] = useState(false);
+  useEffect(() => setMais(false), [pathname, search]);
   // chamados abertos no título da aba: quem atende vê de longe que tem gente esperando
   const abertos = uso?.tickets_abertos ?? 0;
   useEffect(() => {
@@ -263,6 +272,55 @@ export default function AppShell() {
       <main className="main">
         <Outlet context={{ uso, recarregarUso }} />
       </main>
+
+      {(() => {
+        const meus = NAV.filter((n) => n.tipos.includes(tipo));
+        const atalhos = ATALHOS[tipo] ?? ['/painel'];
+        const principais = meus.filter((n) => atalhos.includes(n.to));
+        const resto = meus.filter((n) => !atalhos.includes(n.to));
+        // numa conversa aberta a caixa de resposta fica embaixo: a barra sai da frente
+        const conversando = pathname.endsWith('/testar') || (pathname === '/painel/atendimentos' && new URLSearchParams(search).has('id'));
+        const noMais = resto.some((n) => pathname.startsWith(n.to)) || pathname === '/painel/conta';
+        return (
+          <>
+            <nav className="nav-celular" aria-label="Seções do painel" data-escondida={conversando || undefined}>
+              {principais.map(({ to, label, icon: Icon, end, contador }) => (
+                <NavLink key={to + label} to={to} end={end} className={({ isActive }) => `nav-celular-item${isActive ? ' active' : ''}`}>
+                  <span className="nav-celular-icone">
+                    <Icon aria-hidden="true" />
+                    {contador && uso?.[contador] > 0 && <b className="nav-celular-conta">{uso[contador]}</b>}
+                  </span>
+                  <span>{label === 'Minhas conversas' ? 'Conversas' : label}</span>
+                </NavLink>
+              ))}
+              <button type="button" className={`nav-celular-item${noMais || mais ? ' active' : ''}`} aria-expanded={mais} onClick={() => setMais((v) => !v)}>
+                <span className="nav-celular-icone"><Menu aria-hidden="true" /></span>
+                <span>Mais</span>
+              </button>
+            </nav>
+            {mais && (
+              <div className="nav-mais" role="dialog" aria-modal="true" aria-label="Mais seções">
+                <button type="button" className="nav-mais-fundo" aria-label="Fechar" onClick={() => setMais(false)} />
+                <div className="nav-mais-folha">
+                  {resto.map(({ to, label, icon: Icon, end }) => (
+                    <NavLink key={to + label} to={to} end={end} className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
+                      <Icon aria-hidden="true" /> <span>{label}</span>
+                    </NavLink>
+                  ))}
+                  <NavLink to="/painel/conta" className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
+                    <UserRound aria-hidden="true" /> <span>Conta</span>
+                  </NavLink>
+                  <div className="nav-mais-rodape">
+                    <span className="faint">Tema</span>
+                    <EscolherTema compacto />
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={signOut}><LogOut size={15} /> Sair</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
