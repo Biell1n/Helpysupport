@@ -1586,6 +1586,10 @@ Deno.serve(async (req) => {
       const campos = {
         venda_no_chat: { value: body.vender ? VENDA_SIM : VENDA_NAO, status: 'confirmado' },
         venda_estoque: { value: body.estoque === false ? 'Não mexer no estoque' : 'Sim, baixa na tabela de Dados', status: 'confirmado' },
+        // regra de frete escolhida na Carteira (texto livre: "R$ 12", "grátis acima de R$ 100, senão R$ 12", "só retirada")
+        ...(typeof body.frete === 'string'
+          ? { frete_chat: body.frete.trim() ? { value: body.frete.trim().slice(0, 200), status: 'confirmado' } : { value: '', status: 'vazio' } }
+          : {}),
       };
       const config = normalizeConfig(a.config);
       Object.assign(config.fields, campos);

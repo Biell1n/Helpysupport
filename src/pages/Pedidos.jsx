@@ -179,7 +179,7 @@ export default function Pedidos() {
                   <div className="pedido-pe">
                     <b>Total {reais(Number(p.total))}</b>
                     {p.status === 'pago' && <span className="faint">pago {quando(p.pago_em)}{p.forma ? ` · ${p.forma}` : ''}</span>}
-                    <div className="row" style={{ gap: 6, marginLeft: 'auto' }}>
+                    <div className="row" style={{ gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
                       {p.conversation_id && (
                         <Link to={`/painel/atendimentos?id=${p.conversation_id}`} className="btn btn-quiet btn-sm"><MessagesSquare size={14} /> Conversa</Link>
                       )}

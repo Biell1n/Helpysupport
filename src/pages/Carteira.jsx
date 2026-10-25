@@ -41,7 +41,7 @@ export default function Carteira() {
   useEffect(() => {
     supabase
       .from('assistants')
-      .select('id, name, vende:config->fields->venda_no_chat->>value, estoque:config->fields->venda_estoque->>value')
+      .select('id, name, vende:config->fields->venda_no_chat->>value, estoque:config->fields->venda_estoque->>value, frete:config->fields->frete_chat->>value')
       .order('created_at')
       .then(({ data }) => setAssistentes(data ?? []));
   }, []);
@@ -50,11 +50,12 @@ export default function Carteira() {
     const estoque = mudanca.estoque ?? !/^n[aã]o/i.test(a.estoque ?? '');
     setMexendo(a.id);
     try {
-      await chamar('assistant-builder-chat', { action: 'definir_venda', assistant_id: a.id, vender, estoque });
+      const frete = typeof mudanca.frete === 'string' ? mudanca.frete : undefined;
+      await chamar('assistant-builder-chat', { action: 'definir_venda', assistant_id: a.id, vender, estoque, ...(frete !== undefined ? { frete } : {}) });
       setAssistentes((l) =>
-        l.map((x) => (x.id === a.id ? { ...x, vende: vender ? 'Sim' : 'Não', estoque: estoque ? 'Sim' : 'Não' } : x)),
+        l.map((x) => (x.id === a.id ? { ...x, vende: vender ? 'Sim' : 'Não', estoque: estoque ? 'Sim' : 'Não', ...(frete !== undefined ? { frete } : {}) } : x)),
       );
-      avisar(vender ? `${a.name} vende pelo chat` : `${a.name} não fecha mais vendas`);
+      avisar(frete !== undefined ? 'Regra de entrega salva' : vender ? `${a.name} vende pelo chat` : `${a.name} não fecha mais vendas`);
     } catch (e) {
       avisar('Não deu para salvar', { erro: true, texto: e.message });
     } finally {
@@ -144,7 +145,7 @@ export default function Carteira() {
                 <h2 className="card-title" style={{ margin: 0 }}>{carteira ? 'Carteira Helpy' : 'Sua conta Asaas'}</h2>
                 <p className="faint" style={{ margin: '2px 0 0' }}>{rec.conta_nome}</p>
               </div>
-              <div className="row" style={{ gap: 8 }}>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 <span className={`badge ${rec.ativo && algumVende ? 'badge-closed' : 'badge-bot'}`}>{!rec.ativo ? 'Vendas pausadas' : algumVende ? 'Vendendo' : 'Pronta · venda desligada'}</span>
                 <Link to="/painel/pedidos" className="btn btn-ghost btn-sm">Pedidos</Link>
                 <button type="button" className="btn btn-quiet btn-sm" onClick={() => setPausar(true)}>{rec.ativo ? (carteira ? 'Pausar vendas' : 'Desligar') : 'Ligar vendas'}</button>
@@ -173,6 +174,7 @@ export default function Carteira() {
                         <input type="checkbox" checked={vende && baixa} disabled={!vende || mexendo === a.id} onChange={(e) => definirVenda(a, { estoque: e.target.checked })} />
                         <span>Baixar o estoque da tabela quando o pagamento cair</span>
                       </label>
+                      {vende && <FreteDaVenda a={a} ocupado={mexendo === a.id} onSalvar={(frete) => definirVenda(a, { frete })} />}
                     </li>
                   );
                 })}
@@ -502,5 +504,36 @@ function Ativar({ onPronto }) {
         </button>
       </form>
     </section>
+  );
+}
+
+const MODELOS_FRETE = ['Só retirada no local', 'R$ 12', 'Grátis acima de R$ 100, senão R$ 12', 'Grátis'];
+
+/**
+ * Como a venda pelo chat resolve a entrega. Sem regra, o assistente não fecha
+ * pedido com entrega (o cliente não paga sem saber o frete).
+ */
+function FreteDaVenda({ a, ocupado, onSalvar }) {
+  const [texto, setTexto] = useState(a.frete ?? '');
+  useEffect(() => setTexto(a.frete ?? ''), [a.frete]);
+  const mudou = texto.trim() !== (a.frete ?? '').trim();
+  return (
+    <div className="frete-venda">
+      <label className="field" style={{ margin: 0 }}>
+        <span className="label">Entrega e frete</span>
+        <input className="input" value={texto} maxLength={200} placeholder="Ex.: R$ 12 · ou só retirada no local" onChange={(e) => setTexto(e.target.value)} />
+        <span className="hint">
+          {texto.trim()
+            ? 'O assistente aplica essa regra no link. Para aceitar retirada também, escreva "retirada no local".'
+            : 'Sem regra, o assistente não fecha pedido com entrega: o cliente não paga sem saber o frete.'}
+        </span>
+      </label>
+      <div className="row row-wrap" style={{ gap: 6 }}>
+        {MODELOS_FRETE.map((m) => (
+          <button key={m} type="button" className="chip" aria-pressed={texto === m} onClick={() => setTexto(m)}>{m}</button>
+        ))}
+        {mudou && <button type="button" className="btn btn-primary btn-sm" disabled={ocupado} onClick={() => onSalvar(texto.trim())}>Salvar</button>}
+      </div>
+    </div>
   );
 }
