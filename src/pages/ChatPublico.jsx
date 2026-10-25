@@ -345,6 +345,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           <div className="card stack ticket-aviso">
             <b>Atendimento encerrado. Como foi?</b>
             <PeekRating
+              className="avaliacao-estrelas"
               value={nota}
               onChange={setNota}
               size={30}
@@ -384,6 +385,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
 
       <div className="composer">
         <div className="publico-in">
+          {!fechado && (
           <div className="composer-row" data-pensando={pensando || undefined}>
             <textarea
               ref={area}
@@ -404,10 +406,11 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
               <ArrowUp />
             </button>
           </div>
+          )}
           <div className="composer-note">
             {modoTeste ? (
               <span>Modo teste: não conta na cota nem aparece nos atendimentos. <button type="button" className="link-btn" onClick={novaConversa}>Recomeçar</button></span>
-            ) : mensagens.length > 1 && !fechado ? (
+            ) : fechado ? null : mensagens.length > 1 ? (
               confirmandoFim ? (
                 <span>Encerrar este atendimento? <button type="button" className="link-btn" onClick={encerrar}>Sim, encerrar</button> · <button type="button" className="link-btn" onClick={() => setConfirmandoFim(false)}>Não</button></span>
               ) : (

@@ -309,7 +309,7 @@ function Sacar({ dados, onFechar, onPronto }) {
         {erro && <div className="alert alert-erro"><span>{erro}</span></div>}
         <div className="modal-foot">
           <button type="button" className="btn btn-ghost" onClick={onFechar}>Voltar</button>
-          <HoldButton key={tentativa} size="md" radius={999} fillColor="#138a5e" disabled={indo || !(numero >= 1)} doneLabel="Pedindo o saque…" resetAfter={0} onHold={ir}>
+          <HoldButton key={tentativa} size="md" radius={6} fillColor="#138a5e" disabled={indo || !(numero >= 1)} doneLabel="Pedindo o saque…" resetAfter={0} onHold={ir}>
             {numero >= 1 ? `Segure para sacar ${reais(numero)}` : 'Digite o valor'}
           </HoldButton>
         </div>

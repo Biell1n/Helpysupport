@@ -348,10 +348,15 @@
   align-items: flex-end;
 }
 
+/* o que a pessoa escreveu fica bem diferente da resposta: balão cheio na cor da marca */
 .msg-user .msg-body {
-  background: var(--azul-claro);
-  color: var(--tinta);
+  background: var(--senha);
+  color: #ffffff;
   border-bottom-right-radius: var(--r-sm);
+}
+
+.msg-user .msg-body a {
+  color: inherit;
 }
 
 .msg-bot .msg-body {
@@ -1039,10 +1044,11 @@
   cursor: pointer;
 }
 
+/* filtro escolhido: marcado, mas sem disputar com o botão principal da página */
 .chip[aria-pressed='true'] {
-  background: var(--tinta);
-  border-color: var(--tinta);
-  color: var(--sobre-tinta);
+  background: var(--azul-claro);
+  border-color: var(--senha);
+  color: var(--tinta);
 }
 
 .chip small {
@@ -2119,14 +2125,13 @@
 /* avisos do assistente / do sistema no painel */
 .alertas {
   margin-bottom: 20px;
-  border-color: rgba(201, 73, 44, 0.3);
 }
 
+/* nem todo aviso é problema (pagamento confirmado também chega aqui): o cartão fica neutro */
 .alertas .card-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--brasa);
 }
 
 .alertas ul {
@@ -3825,4 +3830,136 @@
   opacity: 1;
   color: var(--tinta-3);
   border-color: var(--linha);
+}
+
+/* avaliação: a reserva do balãozinho das estrelas não deixa um vão sob o título */
+.avaliacao-estrelas {
+  margin-top: -22px;
+}
+
+/* ---------- celular: barra de navegação embaixo ---------- */
+.nav-celular,
+.nav-mais {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .side-nav {
+    display: none;
+  }
+
+  .main {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  }
+
+  .nav-celular {
+    position: fixed;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: var(--branco);
+    border-top: 1px solid var(--linha);
+    box-shadow: 0 -6px 18px rgba(12, 22, 38, 0.06);
+  }
+
+  .nav-celular[data-escondida] {
+    display: none;
+  }
+
+  .nav-celular-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    min-height: 52px;
+    justify-content: center;
+    border: 0;
+    border-radius: var(--r);
+    background: transparent;
+    color: var(--tinta-3);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .nav-celular-item svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .nav-celular-item.active {
+    color: var(--senha);
+  }
+
+  .nav-celular-icone {
+    position: relative;
+    display: grid;
+    place-items: center;
+  }
+
+  .nav-celular-conta {
+    position: absolute;
+    top: -6px;
+    right: -12px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--brasa);
+    color: #fff;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+  }
+
+  .nav-mais {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+  }
+
+  .nav-mais-fundo {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: rgba(12, 22, 38, 0.4);
+  }
+
+  .nav-mais-folha {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    gap: 2px;
+    padding: 14px 12px calc(76px + env(safe-area-inset-bottom));
+    background: var(--branco);
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    animation: subir 0.18s ease;
+  }
+
+  .nav-mais-folha .side-link {
+    height: 46px;
+  }
+
+  .nav-mais-rodape {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--linha);
+  }
+
+  .nav-mais-rodape .btn {
+    margin-left: auto;
+  }
 }
