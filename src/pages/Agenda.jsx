@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Marca } from '@/components/Logo';
 import { ChevronLeft, ChevronRight, Plus, Settings2 } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -292,6 +293,20 @@ export default function Agenda() {
         </div>
       </header>
 
+      {/* agenda desligada e sem nada marcado: um convite para ligar, no lugar da grade vazia */}
+      {cfg && !cfg.ativa && eventos.length === 0 ? (
+        <div className="card vazio-helpy">
+          <Marca size={64} />
+          <h2>A agenda está desligada</h2>
+          <p className="faint">
+            {tipo === 'empresa'
+              ? 'Ligue e defina os horários: o assistente passa a marcar sozinho, e os horários aparecem aqui.'
+              : 'Quando a empresa ligar a agenda, os horários marcados aparecem aqui.'}
+          </p>
+          {tipo === 'empresa' && <button type="button" className="btn btn-primary" onClick={() => setConfigurando(true)}>Ligar a agenda</button>}
+        </div>
+      ) : (
+      <>
       {cfg && !cfg.ativa && tipo === 'empresa' && (
         <div className="alert" style={{ marginBottom: 16 }}>
           <span>
@@ -365,10 +380,13 @@ export default function Agenda() {
         <span>Toque num horário vazio para agendar.</span>
         <span><i data-cor="assistente" /> marcado pelo assistente</span>
         <span><i data-cor="manual" /> marcado por você</span>
-        <span>⏳ esperando confirmação</span>
-        <span>💳 esperando pagamento</span>
+        <span><i data-cor="espera" /> esperando confirmação</span>
+        <span><i data-cor="pagamento" /> esperando pagamento</span>
         <span><i data-cor="fechado" /> fora do horário</span>
       </div>
+
+      </>
+      )}
 
       {configurando && cfg && <ConfigAgenda cfg={cfg} onSalvar={salvarCfg} onFechar={() => setConfigurando(false)} />}
       {novo && <NovoAgendamento inicial={novo} duracao={cfg?.duracao_min ?? 30} onSalvar={marcar} onFechar={() => setNovo(null)} />}

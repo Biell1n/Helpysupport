@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
-import { ArrowRight, Check, Plus, Sparkles } from 'lucide-react';
+import { ArrowRight, Plus, Sparkles } from 'lucide-react';
 import AlertasDaConta from '@/components/AlertasDaConta';
 import Faisca from '@/components/Faisca';
 import ListaViva from '@/components/ListaViva';
 import PrimeirosPassos from '@/components/PrimeirosPassos';
-import { chamar, supabase } from '@/lib/supabase';
-import { useToast } from '@/components/Toasts';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { diasDeTeste, planOf } from '@/lib/plans';
 import { numero, quando, STATUS } from '@/lib/format';
@@ -65,7 +64,6 @@ export default function Painel() {
   const [assistentes, setAssistentes] = useState(null);
   const rascunho = useRascunho();
   const [fila, setFila] = useState([]);
-  const [lacunas, setLacunas] = useState([]);
   const [proximos, setProximos] = useState([]);
   const [nota, setNota] = useState(null);
   const [porDia, setPorDia] = useState(null); // atendimentos dos últimos 14 dias
@@ -79,7 +77,7 @@ export default function Painel() {
       const desde14 = new Date(hoje.getTime() - 13 * 864e5);
       const iniMesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
       const mesmoDiaMesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, Math.min(hoje.getDate(), 28) + 1);
-      const [a, f, l, p, n, d, mp] = await Promise.all([
+      const [a, f, p, n, d, mp] = await Promise.all([
         supabase.from('assistants').select('id, name, business_type, is_public, public_token').order('created_at'),
         supabase
           .from('conversations')
@@ -88,7 +86,6 @@ export default function Painel() {
           .in('status', ['waiting', 'human'])
           .order('last_message_at', { ascending: false })
           .limit(5),
-        supabase.from('assistant_gaps').select('id, assunto, pergunta, vezes, assistant_id').eq('resolvida', false).order('vezes', { ascending: false }).limit(5),
         supabase
           .from('agendamentos')
           .select('id, cliente_nome, servico, inicio, origem')
@@ -110,7 +107,6 @@ export default function Painel() {
       setMesPassado(mp.count ?? null);
       setAssistentes(a.data ?? []);
       setFila(f.data ?? []);
-      setLacunas(l.data ?? []);
       setProximos(p.data ?? []);
       const notas = (n.data ?? []).map((x) => Number(x.nota)).filter((x) => x >= 1 && x <= 5);
       setNota(notas.length ? { media: notas.reduce((s, x) => s + x, 0) / notas.length, total: notas.length } : null);
@@ -132,39 +128,6 @@ export default function Painel() {
     }, 20000);
     return () => clearInterval(t);
   }, [user]);
-
-  const resolverLacuna = async (id) => {
-    await supabase.from('assistant_gaps').update({ resolvida: true }).eq('id', id);
-    setLacunas((p) => p.filter((x) => x.id !== id));
-  };
-
-  // responder a pergunta sem resposta aqui mesmo: vira pergunta frequente do assistente
-  const avisar = useToast();
-  const [respondendo, setRespondendo] = useState(null);
-  const [resposta, setResposta] = useState('');
-  const [ensinando, setEnsinando] = useState(false);
-  const ensinarLacuna = async (g, texto) => {
-    setEnsinando(true);
-    try {
-      const r = await chamar('assistant-builder-chat', {
-        action: 'ensinar',
-        assistant_id: g.assistant_id,
-        pergunta: g.assunto ? g.assunto.charAt(0).toUpperCase() + g.assunto.slice(1) : g.pergunta,
-        resposta: texto,
-        lacuna_id: g.id,
-      });
-      setLacunas((p) => p.filter((x) => x.id !== g.id));
-      setRespondendo(null);
-      setResposta('');
-      avisar('O assistente aprendeu', {
-        texto: r?.entregue ? 'O assistente já retomou o atendimento de quem perguntou.' : 'A partir de agora ele responde isso sozinho.',
-      });
-    } catch (e) {
-      avisar('Não deu para salvar', { erro: true, texto: e.message });
-    } finally {
-      setEnsinando(false);
-    }
-  };
 
   const primeiroNome = (nome || '').split(' ')[0];
 
@@ -191,7 +154,7 @@ export default function Painel() {
 
       <AlertasDaConta />
 
-      {dias != null && (
+      {dias != null && dias <= 2 && (
         <div className={`alert ${dias <= 0 ? 'alert-erro' : ''}`} style={{ marginBottom: 20 }}>
           <Sparkles />
           <span>
@@ -213,6 +176,13 @@ export default function Painel() {
       {/* conta nova: só o começo; números e listas aparecem com o primeiro assistente */}
       {assistentes?.length > 0 && (
       <>
+      {!(uso?.atendimentos > 0) && !(uso?.tickets_abertos > 0) && !nota ? (
+        <section className="card painel-calmo">
+          <b>Ainda sem atendimentos neste mês.</b>
+          <span className="faint">Divulgue o link do assistente (Canais) e os números aparecem aqui.</span>
+          <Link to="/painel/canais" className="btn btn-ghost btn-sm">Ver link e QR code</Link>
+        </section>
+      ) : (
       <section className="card kpi-faixa">
         <div className="kpi">
           <Faisca valores={porDia} className="kpi-faisca" />
@@ -247,8 +217,12 @@ export default function Painel() {
           </span>
         </div>
       </section>
+      )}
 
-      <section className="grid-2">
+      {/* fila e agenda só aparecem com conteúdo: o título da página já diz quando está tudo em dia */}
+      {(fila.length > 0 || proximos.length > 0) && (
+      <section className={fila.length > 0 && proximos.length > 0 ? 'grid-2' : undefined}>
+        {fila.length > 0 && (
         <div className="card">
           <div className="card-head">
             <h2 className="card-title">Na fila</h2>
@@ -277,56 +251,9 @@ export default function Painel() {
           )}
         </div>
 
-        <div className="stack">
-          <div className="card">
-            <div className="card-head">
-              <h2 className="card-title">O que perguntaram e ele não sabia</h2>
-            </div>
-            {lacunas.length === 0 ? (
-              <p className="faint">Nenhuma lacuna aberta. Quando um cliente perguntar algo que o assistente não sabe, aparece aqui.</p>
-            ) : (
-              <ul className="list-plain">
-                {lacunas.map((g) => (
-                  <li key={g.id} className="row" style={{ padding: '10px 0', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="list-title">{g.assunto}</div>
-                      {g.pergunta && <p className="faint" style={{ fontSize: 13 }}>“{g.pergunta}”</p>}
-                    </div>
-                    <span className="badge badge-plain">{g.vezes}×</span>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setRespondendo(respondendo === g.id ? null : g.id); setResposta(''); }}>
-                      Responder
-                    </button>
-                    <button type="button" className="btn btn-quiet btn-sm btn-icon" title="Marcar como resolvida" aria-label="Marcar como resolvida" onClick={() => resolverLacuna(g.id)}>
-                      <Check size={16} />
-                    </button>
-                    {respondendo === g.id && (
-                      // a resposta vira pergunta frequente do assistente, sem abrir o montador
-                      <form
-                        className="lacuna-resposta"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (resposta.trim()) ensinarLacuna(g, resposta.trim());
-                        }}
-                      >
-                        <textarea className="textarea" rows={2} autoFocus value={resposta} onChange={(e) => setResposta(e.target.value)} placeholder="A resposta certa, do jeito que o assistente deve falar." />
-                        <div className="row" style={{ gap: 8 }}>
-                          <button type="submit" className="btn btn-primary btn-sm" disabled={ensinando || !resposta.trim()}>Ensinar ao assistente</button>
-                          <Link
-                            to={`/painel/assistentes/${g.assistant_id}/editar`}
-                            state={{ comeco: g.pergunta ? `Clientes perguntam: "${g.pergunta}". A resposta certa é: ` : `Sobre ${g.assunto}, a resposta certa é: ` }}
-                            className="btn btn-quiet btn-sm"
-                          >
-                            Explicar no montador
-                          </Link>
-                        </div>
-                      </form>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+        )}
 
+        {proximos.length > 0 && (
           <div className="card">
             <div className="card-head">
               <h2 className="card-title">Próximos horários</h2>
@@ -338,7 +265,7 @@ export default function Painel() {
               <ul className="list-plain">
                 {proximos.map((p) => (
                   <li key={p.id} className="row" style={{ padding: '10px 0' }}>
-                    <span className="mono num" style={{ minWidth: 92 }}>
+                    <span className="num" style={{ minWidth: 92, color: 'var(--tinta-2)' }}>
                       {new Date(p.inicio).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <span style={{ flex: 1 }}>
@@ -351,8 +278,9 @@ export default function Painel() {
               </ul>
             )}
           </div>
-        </div>
+        )}
       </section>
+      )}
       </>
       )}
     </div>

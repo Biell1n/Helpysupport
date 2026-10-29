@@ -213,6 +213,15 @@ export default function AppShell() {
         <Link to="/painel" className="side-brand" aria-label="Helpy, início do painel">
           <Logo size={28} />
         </Link>
+        {/* celular: a faixa do topo diz onde a pessoa está e leva aos avisos */}
+        <span className="side-titulo-celular">
+          {pathname === '/painel/conta' ? 'Conta' : ([...NAV].reverse().find((n) => n.tipos.includes(tipo) && (n.end ? pathname === n.to : pathname.startsWith(n.to)))?.label ?? '')}
+        </span>
+        {tipo === 'empresa' && (
+          <Link to="/painel/avisos" className="side-sino-celular" aria-label="Avisos">
+            <Bell size={20} />
+          </Link>
+        )}
 
         <nav className="side-nav" aria-label="Seções do painel">
           {NAV.filter((n) => n.tipos.includes(tipo)).map(({ to, label, icon: Icon, end, contador }) => (

@@ -45,12 +45,13 @@
 
 /* cores que o tema claro escreve direto */
 /* botão principal claro, mas sem ofuscar */
-[data-tema='escuro'] .btn-primary {
-  background: #d6e1ed;
+[data-tema='escuro'] :is(.btn-primary, .btn-senha) {
+  background: var(--senha);
+  color: #ffffff;
 }
 
-[data-tema='escuro'] .btn-primary:hover:not(:disabled) {
-  background: #ffffff;
+[data-tema='escuro'] :is(.btn-primary, .btn-senha):hover:not(:disabled) {
+  background: #4a82f5;
 }
 
 [data-tema='escuro'] .textarea::placeholder,

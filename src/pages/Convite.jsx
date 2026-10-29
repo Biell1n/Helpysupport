@@ -34,7 +34,7 @@ export default function Convite() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout senha={{ num: 'Equipe', titulo: info?.empresa ? `Convite da ${info.empresa}` : 'Você foi convidado', texto: 'Atenda os clientes junto com o assistente' }}>
       <Users size={36} />
       {erro && !info ? (
         <>

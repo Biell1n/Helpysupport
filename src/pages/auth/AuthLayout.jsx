@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import Logo from '@/components/Logo';
 import FundoShader from '@/components/FundoShader';
 
-export default function AuthLayout({ children }) {
+/** senha: o canhoto ao lado do formulário (quem foi convidado vê o convite, não a oferta do teste grátis) */
+export default function AuthLayout({ children, senha = { num: 'Nº 0001', titulo: 'O seu primeiro assistente', texto: '7 dias para testar, sem cartão' } }) {
   return (
     <div className="auth">
       <div className="auth-arte">
@@ -19,11 +20,11 @@ export default function AuthLayout({ children }) {
           <div className="lp-senha">
             <div className="lp-senha-num">
               <small>Senha</small>
-              <b>Nº 0001</b>
+              <b>{senha.num}</b>
             </div>
             <div className="lp-senha-corpo">
-              <b>O seu primeiro assistente</b>
-              <span>7 dias para testar, sem cartão</span>
+              <b>{senha.titulo}</b>
+              <span>{senha.texto}</span>
             </div>
           </div>
         </div>

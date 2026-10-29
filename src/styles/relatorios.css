@@ -541,3 +541,10 @@
     animation: none;
   }
 }
+
+/* pouco movimento: um aviso no lugar de nove cartões quase vazios */
+.rel-pouco {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 16px;
+}

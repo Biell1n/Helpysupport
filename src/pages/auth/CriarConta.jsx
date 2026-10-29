@@ -98,11 +98,11 @@ export default function CriarConta() {
 
   if (confirmar) {
     return (
-      <AuthLayout>
+      <AuthLayout senha={funcionario ? { num: 'Equipe', titulo: 'Você foi convidado', texto: 'Crie a conta e entre na equipe' } : undefined}>
         <MailCheck size={36} />
         <h1>Confira seu e-mail</h1>
         <p className="muted">
-          Mandamos um link de confirmação para <b>{f.email}</b>. {visitante ? 'Clique nele e você volta para a conversa.' : 'Clique nele e você cai direto no painel.'}
+          Mandamos um link de confirmação para <b>{f.email}</b>. {funcionario ? 'Clique nele e você volta para o convite, para entrar na equipe.' : visitante ? 'Clique nele e você volta para a conversa.' : 'Clique nele e você cai direto no painel.'}
         </p>
         <ReenviarConfirmacao email={f.email.trim().toLowerCase()} destino={destino} />
         <Link to={`/entrar${deQuery}`} className="btn btn-ghost btn-block">Voltar para entrar</Link>
@@ -111,7 +111,7 @@ export default function CriarConta() {
   }
 
   return (
-    <AuthLayout>
+    <AuthLayout senha={funcionario ? { num: 'Equipe', titulo: 'Você foi convidado', texto: 'Crie a conta e entre na equipe' } : undefined}>
       <div>
         <h1>{funcionario ? 'Crie sua conta de funcionário' : visitante ? 'Crie sua conta' : 'Comece o teste grátis'}</h1>
         <p className="muted" style={{ marginTop: 6 }}>

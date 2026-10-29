@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowUp, CalendarCheck, CalendarClock, CalendarX, CircleCheckBig, LogIn, UserCheck } from 'lucide-react';
+import { ArrowUp, CalendarCheck, CalendarClock, CalendarX, CircleCheckBig, LogIn, ReceiptText, UserCheck } from 'lucide-react';
 import PeekRating from '@/components/PeekRating';
 import Sugestoes from '@/components/Sugestoes';
 import { useToast } from '@/components/Toasts';
@@ -203,7 +203,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
       setMensagens((p) => {
         const i = p.findLastIndex((m) => m.role === 'user' && m.content === content);
         const sem = i >= 0 ? [...p.slice(0, i), ...p.slice(i + 1)] : p;
-        return [...sem, { role: 'system', content: `${e.message}${typeof forcado !== 'string' ? ' Sua mensagem voltou para a caixa.' : ''}` }];
+        return [...sem, { role: 'system', erro: true, content: `${e.message}${typeof forcado !== 'string' ? ' Sua mensagem voltou para a caixa.' : ''}` }];
       });
       if (typeof forcado !== 'string') setTexto(content);
     } finally {
@@ -333,11 +333,17 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         )}
 
         {mensagens.map((m, i) => (
+          tipoDoEvento(m) === 'pedido' ? <Pedido key={i} m={m} pago={pedidoPago(mensagens, m)} /> :
           tipoDoEvento(m) ? <Evento key={i} m={m} /> :
-          <div key={i} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'agent' ? 'msg-agent' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`}>
+          <div key={i} data-erro={m.erro || undefined} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'agent' ? 'msg-agent' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`}>
             {m.role === 'assistant' && <span className="msg-who">{nome}</span>}
             {m.role === 'agent' && <span className="msg-who">{m.author_name || estado.assumido_nome || 'Equipe'} · equipe</span>}
-            <div className="msg-body">{m.novo && m.role === 'assistant' ? <TextoQueChega texto={m.content} /> : m.role === 'assistant' ? <TextoFormatado texto={m.content} /> : m.content}</div>
+            <div className="msg-body">
+              {m.novo && m.role === 'assistant' ? <TextoQueChega texto={m.content} /> : m.role === 'assistant' ? <TextoFormatado texto={m.content} /> : m.content}
+              {m.erro && i === mensagens.length - 1 && texto.trim() && (
+                <button type="button" className="link-btn" style={{ marginLeft: 6 }} disabled={pensando} onClick={() => enviar()}>Tentar de novo</button>
+              )}
+            </div>
           </div>
         ))}
 
@@ -350,7 +356,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
 
         {estado.status === 'waiting' && (
           <div className="stub stub-senha ticket-aviso">
-            <div className="stub-num"><small>Sua senha</small><b>{numero(estado.numero)}</b></div>
+            <div className="stub-num"><small>{estado.numero ? 'Sua senha' : 'Teste'}</small><b>{estado.numero ? numero(estado.numero) : '✓'}</b></div>
             <div className="stub-body">
               <b>Chamado aberto para a equipe</b>
               <p style={{ fontSize: 13 }}>Alguém vai responder por aqui. Pode deixar a página aberta ou voltar por este mesmo link.</p>
@@ -477,6 +483,54 @@ const tipoDoEvento = (m) => (m.role === 'system' && String(m.author_name ?? '').
 // "sábado, 10/10, 10:00 · Corte" (como a agenda escreve o horário)
 const DATA = /([a-zà-ú-]+),\s*(\d{2}\/\d{2}),?\s*(?:às\s*)?(\d{1,2}:\d{2})(?:\s*·\s*([^·.]+))?/i;
 const VALOR = /R\$\s?[\d.]+,\d{2}/;
+
+// "Pedido nº 7 · R$ 67,70" / itens / "Pagar: https://…" (como fechar_pedido escreve)
+const lerPedido = (texto) => {
+  const linhas = String(texto ?? '').split('\n');
+  const [, numero, total] = linhas[0].match(/nº\s*(\d+)\s*·\s*(R\$\s?[\d.,]+)/) ?? [];
+  const link = linhas.find((l) => l.startsWith('Pagar: '))?.slice(7).trim();
+  const itens = linhas.slice(1).filter((l) => !l.startsWith('Pagar: ')).map((l) => {
+    const [nome, valor] = l.split(' — ');
+    return { nome, valor };
+  });
+  return { numero, total, link: /^https:\/\//.test(link ?? '') ? link : null, itens };
+};
+// o pagamento desse pedido já chegou (aviso "pedido nº X confirmado" mais adiante na conversa)
+const pedidoPago = (lista, m) => {
+  const { numero } = lerPedido(m.content);
+  const depois = lista.slice(lista.indexOf(m) + 1);
+  return !!numero && depois.some((x) => tipoDoEvento(x) === 'pago' && new RegExp(`nº\\s*${numero}\\b`).test(x.content));
+};
+
+/** Pedido fechado pelo assistente: recibo com os itens, o total e o botão de pagar. */
+function Pedido({ m, pago }) {
+  const { numero, total, link, itens } = lerPedido(m.content);
+  return (
+    <div className="chat-recibo-sombra" role="status">
+      <div className="chat-recibo" data-tom={pago ? undefined : 'info'} data-tipo="pedido">
+        <div className="chat-recibo-lado">
+          <small>Pedido</small>
+          <b>{numero ? `nº ${numero}` : <ReceiptText size={22} />}</b>
+        </div>
+        <div className="chat-recibo-corpo">
+          <span className="chat-recibo-status">
+            {pago ? <CircleCheckBig size={14} aria-hidden="true" /> : <ReceiptText size={14} aria-hidden="true" />} {pago ? 'Pago' : 'Pedido fechado'}
+          </span>
+          <ul className="chat-recibo-itens">
+            {itens.map((it, i) => (
+              <li key={i}><span>{it.nome}</span>{it.valor && <span>{it.valor}</span>}</li>
+            ))}
+          </ul>
+          <div className="chat-recibo-total"><span>Total</span><b>{total}</b></div>
+          {link && !pago && (
+            <a className="btn btn-primary btn-sm chat-recibo-pagar" href={link} target="_blank" rel="noreferrer">Pagar agora</a>
+          )}
+          <p>{pago ? 'Pagamento recebido. A loja já está cuidando do pedido.' : 'Pix, cartão ou boleto. A confirmação aparece aqui.'}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Avisos na conversa: alguém da equipe entrou vira uma linha discreta; horário e pagamento viram um comprovante. */
 function Evento({ m }) {

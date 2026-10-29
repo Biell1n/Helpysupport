@@ -330,9 +330,23 @@ export async function fecharPedido(
     return { erro: 'Não consegui gerar o link de pagamento agora. Peça desculpas e ofereça a equipe para fechar a compra.' };
   }
   await db.from('pedidos').update({ link_id: link.id, link_url: link.url }).eq('id', ped.id);
+  // chat do site: o pedido vira um recibo na conversa, com o botão de pagar;
   // ticket do Discord: o link também vai no privado, para não se perder no servidor
+  let noSite = false;
   if (ctx.conversationId) {
     const { data: conv } = await db.from('conversations').select('canal_id, contato_externo').eq('id', ctx.conversationId).maybeSingle();
+    noSite = !!conv && !conv.canal_id;
+    if (noSite) {
+      await db.from('conversation_messages').insert({
+        conversation_id: ctx.conversationId, role: 'system', author_name: 'evento:pedido',
+        content: [
+          `Pedido nº ${ped.numero} · ${reais(total)}`,
+          ...itens.map((i) => `${i.quantidade}x ${i.produto} — ${reais(i.subtotal)}`),
+          frete ? `Frete — ${reais(frete)}` : entrega === 'retirada' ? 'Retirada no local' : '',
+          `Pagar: ${link.url}`,
+        ].filter(Boolean).join('\n'),
+      });
+    }
     if (conv?.canal_id && String(conv.contato_externo ?? '').startsWith('ticket:')) {
       const { data: canal } = await db.from('canais').select('*').eq('id', conv.canal_id).maybeSingle();
       if (canal?.tipo === 'discord') {
@@ -354,8 +368,10 @@ export async function fecharPedido(
     itens: itens.map((i) => `${i.quantidade}x ${i.produto} — ${reais(i.preco)}${i.quantidade > 1 ? ` (subtotal ${reais(i.subtotal)})` : ''}`),
     frete: frete != null ? reais(frete) : entrega === 'retirada' ? 'retirada no local' : 'sem frete',
     total: reais(total),
-    link: link.url,
-    mensagem: `Mande o resumo (itens${frete ? `, frete ${reais(frete)}` : entrega === 'retirada' ? ', retirada no local' : ''} e total ${reais(total)}) e o link exatamente como veio. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Diga em uma frase o que acontece depois: assim que o pagamento cair, a confirmação aparece aqui mesmo (com o número do pedido, ${ped.numero}), e a loja segue com ${entrega === 'retirada' ? 'a retirada' : 'a entrega'}. Não ofereça incluir itens neste pedido: o link já tem o valor fechado.${
+    link: noSite ? 'já está no recibo na tela (não repita)' : link.url,
+    mensagem: `${noSite
+      ? `O pedido já apareceu na tela como um recibo (itens, ${frete ? 'frete, ' : ''}total e o botão "Pagar agora"). NÃO repita a lista de itens nem o link: diga em uma frase curta que o pedido nº ${ped.numero} (${reais(total)}) está logo acima, pronto para pagar.`
+      : `Mande o resumo (itens${frete ? `, frete ${reais(frete)}` : entrega === 'retirada' ? ', retirada no local' : ''} e total ${reais(total)}) e o link exatamente como veio.`} Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Diga em uma frase o que acontece depois: assim que o pagamento cair, a confirmação aparece aqui mesmo (com o número do pedido, ${ped.numero}), e a loja segue com ${entrega === 'retirada' ? 'a retirada' : 'a entrega'}. Não ofereça incluir itens neste pedido: o link já tem o valor fechado.${
       ctx.teste ? ' (É um teste do dono: o link é de verdade no ambiente configurado.)' : ''
     }`,
   };
