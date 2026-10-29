@@ -68,8 +68,16 @@ export default function Entrar() {
           <input className="input" type="password" autoComplete="current-password" required value={senha} onChange={(e) => setSenha(e.target.value)} />
         </label>
         <Captcha {...cap.props} />
+        {params.get('link') && (
+          <div className="alert" role="status">
+            <span>
+              O link do e-mail {params.get('link') === 'expirado' ? 'expirou' : 'não vale mais'} (ele vale por 1 hora e só funciona uma vez).
+              Se era para trocar a senha, peça outro em <Link to="/recuperar-senha">Esqueci a senha</Link>. Se era para confirmar o e-mail, digite o e-mail acima e use “Reenviar e-mail de confirmação”.
+            </span>
+          </div>
+        )}
         {erro && <p className="error-text" role="alert">{erro}</p>}
-        {/confirme seu e-mail/i.test(erro) && <ReenviarConfirmacao email={email.trim().toLowerCase()} destino={destino} />}
+        {(/confirme seu e-mail/i.test(erro) || params.get('link')) && <ReenviarConfirmacao email={email.trim().toLowerCase()} destino={destino} />}
         <button className="btn btn-primary btn-lg btn-block" disabled={enviando}>
           {enviando ? 'Entrando…' : 'Entrar'}
         </button>
