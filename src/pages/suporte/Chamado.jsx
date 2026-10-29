@@ -11,11 +11,12 @@ import { BASE, SeloSituacao } from './Suporte';
 
 const hora = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-function Mensagem({ m }) {
+// "eu" fica à direita: a empresa na visão dela, a equipe Helpy na visão da equipe
+function Mensagem({ m, staff }) {
   if (m.autor === 'sistema') return <p className="suporte-marco">{m.texto} · {hora(m.criado_em)}</p>;
-  const daEmpresa = m.autor === 'cliente';
+  const minha = staff ? m.autor === 'equipe' : m.autor === 'cliente';
   return (
-    <div className={`suporte-msg${daEmpresa ? ' suporte-msg-eu' : ''}`} data-autor={m.autor}>
+    <div className={`suporte-msg${minha ? ' suporte-msg-eu' : ''}`} data-autor={m.autor}>
       <span className="suporte-msg-avatar" aria-hidden="true">
         {m.autor === 'ia' ? <Marca size={26} olhar={false} /> : m.autor === 'equipe' ? <Headset size={16} /> : <UserRound size={16} />}
       </span>
@@ -115,7 +116,7 @@ export default function Chamado() {
 
       <div className={staff ? 'suporte-chamado-grade' : ''}>
         <section className="card suporte-conversa" aria-label="Conversa do chamado">
-          {ch.mensagens.map((m) => <Mensagem key={m.id} m={m} />)}
+          {ch.mensagens.map((m) => <Mensagem key={m.id} m={m} staff={staff} />)}
 
           {ultimaIa && !staff && (
             <div className="suporte-resolveu" role="group" aria-label="A resposta resolveu?">

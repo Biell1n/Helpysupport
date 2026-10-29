@@ -137,7 +137,7 @@ export function ArtigoPagina({ base, abrirChamado }) {
       <div className="ajuda-ajudou" aria-live="polite">
         {ajudou === null ? (
           <>
-            <span>Isso resolveu?</span>
+            <span className="ajuda-ajudou-pergunta">Isso resolveu?</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAjudou(true)}><ThumbsUp size={15} /> Resolveu</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAjudou(false)}><ThumbsDown size={15} /> Não resolveu</button>
           </>

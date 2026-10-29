@@ -230,7 +230,10 @@ async function fecharParados(filtro: { empresa?: string }) {
   }
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function chamadoPara(id: string, user: { id: string }, eu: Awaited<ReturnType<typeof quem>>) {
+  if (!UUID.test(id)) throw new UserError('Chamado não encontrado.', 404);
   const { data: ch } = await admin.from('suporte_chamados').select(`${CAMPOS}, diagnostico`).eq('id', id).maybeSingle();
   if (!ch) throw new UserError('Chamado não encontrado.', 404);
   const dono = eu.tipo === 'funcionario' ? ch.autor_id === user.id : ch.empresa_id === eu.empresa;
@@ -313,7 +316,7 @@ Deno.serve(async (req) => {
       if (hoje >= MAX_POR_DIA) throw new UserError('Muitos chamados abertos hoje. Continue num dos que já estão abertos.', 429);
 
       let assistantId: string | null = null;
-      if (body.assistant_id) {
+      if (body.assistant_id && UUID.test(String(body.assistant_id))) {
         const { data: a } = await admin.from('assistants').select('id').eq('id', String(body.assistant_id)).eq('owner_id', eu.empresa).maybeSingle();
         assistantId = a?.id ?? null;
       }
