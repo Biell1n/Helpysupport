@@ -18,7 +18,8 @@ export function Avatar({ foto, nome, tamanho = 40, redondo = false, className = 
  * Foto com os botões de trocar e remover. A imagem é cortada quadrada, reduzida e
  * guardada na pasta do usuário; "onSalvar(url | null)" grava o endereço no lugar certo.
  */
-export default function TrocarFoto({ userId, nomeArquivo, foto, nome, onSalvar, tamanho = 72, redondo = false }) {
+/** compacto: só a foto (toque para trocar); remover fica a cargo de quem usa. */
+export default function TrocarFoto({ userId, nomeArquivo, foto, nome, onSalvar, tamanho = 72, redondo = false, compacto = false }) {
   const entrada = useRef(null);
   const [ocupado, setOcupado] = useState(false);
   const avisar = useToast();
@@ -54,11 +55,11 @@ export default function TrocarFoto({ userId, nomeArquivo, foto, nome, onSalvar, 
 
   return (
     <div className="row" style={{ gap: 14 }}>
-      <button type="button" className="foto-troca" onClick={() => entrada.current?.click()} disabled={ocupado} aria-label="Trocar foto">
+      <button type="button" className="foto-troca" onClick={() => entrada.current?.click()} disabled={ocupado} aria-label={foto ? 'Trocar foto' : 'Colocar foto'} title={foto ? 'Trocar foto' : 'Colocar foto'}>
         <Avatar foto={foto} nome={nome} tamanho={tamanho} redondo={redondo} />
         <span className="foto-troca-icone">{ocupado ? <Loader2 className="spin" /> : <Camera />}</span>
       </button>
-      <div className="stack stack-sm">
+      {!compacto && <div className="stack stack-sm">
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => entrada.current?.click()} disabled={ocupado}>
           <Camera /> {foto ? 'Trocar foto' : 'Colocar foto'}
         </button>
@@ -67,7 +68,7 @@ export default function TrocarFoto({ userId, nomeArquivo, foto, nome, onSalvar, 
             <Trash2 /> Remover
           </button>
         )}
-      </div>
+      </div>}
       <input ref={entrada} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={escolher} />
     </div>
   );

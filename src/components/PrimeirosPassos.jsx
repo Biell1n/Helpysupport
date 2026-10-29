@@ -34,6 +34,8 @@ async function verificar(assistentes) {
 export default function PrimeirosPassos({ assistentes }) {
   const parado = useReducedMotion();
   const [passos, setPassos] = useState(null);
+  // fechado mostra só o próximo passo; a lista inteira abre quando a pessoa pede
+  const [todos, setTodos] = useState(false);
   const [fechado, setFechado] = useState(() => {
     try { return localStorage.getItem(CHAVE) === '1'; } catch { return false; }
   });
@@ -66,7 +68,7 @@ export default function PrimeirosPassos({ assistentes }) {
         <h2 id="pp-titulo">Falta pouco para o seu assistente atender sozinho</h2>
         <div className="pp-barra" aria-hidden="true"><i style={{ width: `${(feitos / passos.length) * 100}%` }} /></div>
         <ul>
-          {passos.map((p) => (
+          {passos.filter((p) => todos || p === proximo).map((p) => (
             <motion.li key={p.id} variants={item} data-feito={p.feito} data-proximo={p === proximo}>
               {p.feito ? <CheckCircle2 size={20} className="pp-ok" /> : <Circle size={20} className="pp-falta" />}
               <div>
@@ -81,6 +83,9 @@ export default function PrimeirosPassos({ assistentes }) {
             </motion.li>
           ))}
         </ul>
+        <button type="button" className="link-btn pp-todos" onClick={() => setTodos((v) => !v)} aria-expanded={todos}>
+          {todos ? 'Mostrar só o próximo' : `Ver os ${passos.length} passos`}
+        </button>
       </div>
     </motion.section>
   );

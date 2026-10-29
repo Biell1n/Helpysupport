@@ -155,9 +155,9 @@
 }
 
 [data-tema='escuro'] .comecar-balao-cliente {
-  background: var(--azul-claro);
-  border-color: var(--linha-forte);
-  color: var(--tinta);
+  background: var(--senha);
+  border-color: var(--senha);
+  color: #ffffff;
 }
 
 [data-tema='escuro'] .cal-head.hoje span {
@@ -334,4 +334,9 @@
   background: var(--papel-2);
   border-color: var(--linha);
   color: var(--tinta-3);
+}
+
+[data-tema='escuro'] .menu-mais-lista {
+  background: var(--elevado);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
 }

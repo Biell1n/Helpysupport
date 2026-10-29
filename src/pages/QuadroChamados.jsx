@@ -131,7 +131,7 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
                   </div>
                   <b>{c.titulo || c.motivo || 'Atendimento'}</b>
                   <span className="faint" style={{ fontSize: 12.5 }}>
-                    {c.lead_nome || c.cliente_email || 'Visitante'} · {assistentes[c.assistant_id] ?? 'Assistente'}
+                    {c.lead_nome || c.cliente_email || 'Visitante'}{assistentes[c.assistant_id] ? ` · ${assistentes[c.assistant_id]}` : ''}
                   </span>
                   <span className="faint" style={{ fontSize: 12 }}>
                     {col.id === 'human' && c.assumido_nome ? `${c.assumido_nome} · ` : ''}

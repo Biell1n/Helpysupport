@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardPaste, FileSpreadsheet, Plus, Search, Settings2, Table2, Trash2, X } from 'lucide-react';
+import { ClipboardPaste, Columns3, FileSpreadsheet, Plus, Search, Settings2, Table2, Trash2, X } from 'lucide-react';
+import MenuMais from '@/components/MenuMais';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -386,20 +387,20 @@ export default function Dados() {
                 <span className="spacer" />
                 {editavel && (
                   <>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditando({})}><Plus /> Coluna</button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setImportando(true)}><FileSpreadsheet /> Importar arquivo</button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setColando(true)}><ClipboardPaste /> Colar</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setImportando(true)}><FileSpreadsheet /> Importar</button>
                     <button type="button" className="btn btn-primary btn-sm" onClick={novaLinha}><Plus /> Linha</button>
                   </>
                 )}
-                <button type="button" className="btn btn-quiet btn-sm btn-icon" aria-label={`Excluir tabela ${ativa.nome}`} onClick={() => setExcluir({ tipo: 'tabela', id: ativa.id, nome: ativa.nome })}>
-                  <Trash2 />
-                </button>
+                <MenuMais
+                  rotulo={`Mais ações da tabela ${ativa.nome}`}
+                  itens={[
+                    { rotulo: 'Nova coluna', Icone: Columns3, oculto: !editavel, onClick: () => setEditando({}) },
+                    { rotulo: 'Colar do Excel', Icone: ClipboardPaste, oculto: !editavel, onClick: () => setColando(true) },
+                    { rotulo: 'Excluir tabela', Icone: Trash2, perigo: true, onClick: () => setExcluir({ tipo: 'tabela', id: ativa.id, nome: ativa.nome }) },
+                  ]}
+                />
               </div>
 
-              {editavel && fonte !== 'api' && (
-                <p className="faint sheet-dica">Clique no nome de uma coluna para renomear, mudar o tipo ou excluir. O × no fim da linha apaga a linha.</p>
-              )}
               <div className="sheet-wrap">
                 <table className="sheet">
                   <thead>
@@ -421,7 +422,7 @@ export default function Dados() {
                       <tr key={l.id} data-linha={l.id}>
                         <td className="sheet-n">{i + 1}</td>
                         {colunas.map((c) => (
-                          <td key={c.id}>
+                          <td key={c.id} data-rotulo={c.rotulo}>
                             <Celula coluna={c} valor={l.dados?.[c.chave]} somenteLeitura={!editavel} onChange={(v) => editar(l.id, c.chave, v)} />
                           </td>
                         ))}

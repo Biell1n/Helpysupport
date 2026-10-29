@@ -334,6 +334,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
 
         {mensagens.map((m, i) => (
           tipoDoEvento(m) === 'pedido' ? <Pedido key={i} m={m} pago={pedidoPago(mensagens, m)} /> :
+          tipoDoEvento(m) === 'pago' && temRecibo(mensagens, m) ? <MarcoPago key={i} m={m} /> :
           tipoDoEvento(m) ? <Evento key={i} m={m} /> :
           <div key={i} data-erro={m.erro || undefined} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'agent' ? 'msg-agent' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`}>
             {m.role === 'assistant' && <span className="msg-who">{nome}</span>}
@@ -502,19 +503,37 @@ const pedidoPago = (lista, m) => {
   return !!numero && depois.some((x) => tipoDoEvento(x) === 'pago' && new RegExp(`nº\\s*${numero}\\b`).test(x.content));
 };
 
+// o aviso de pago é de um pedido que tem recibo na conversa: o recibo é que muda, o aviso vira só uma linha
+const temRecibo = (lista, m) => {
+  const n = String(m.content ?? '').match(/nº\s*(\d+)/)?.[1];
+  return !!n && lista.slice(0, lista.indexOf(m)).some((x) => tipoDoEvento(x) === 'pedido' && lerPedido(x.content).numero === n);
+};
+const horaDe = (iso) => (iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : null);
+
+function MarcoPago({ m }) {
+  const hora = horaDe(m.created_at);
+  return (
+    <div className="chat-marco" role="status">
+      <CircleCheckBig size={14} aria-hidden="true" className="chat-marco-ok" />
+      <span><b>Pagamento confirmado</b>{hora ? ` · ${hora}` : ''}</span>
+    </div>
+  );
+}
+
 /** Pedido fechado pelo assistente: recibo com os itens, o total e o botão de pagar. */
 function Pedido({ m, pago }) {
-  const { numero, total, link, itens } = lerPedido(m.content);
+  const { numero: n, total, link, itens } = lerPedido(m.content);
   return (
     <div className="chat-recibo-sombra" role="status">
-      <div className="chat-recibo" data-tom={pago ? undefined : 'info'} data-tipo="pedido">
+      <div className="chat-recibo" data-tom={pago ? undefined : 'info'} data-tipo="pedido" data-pago={pago || undefined}>
         <div className="chat-recibo-lado">
           <small>Pedido</small>
-          <b>{numero ? `nº ${numero}` : <ReceiptText size={22} />}</b>
+          <b>{n ? numero(n) : <ReceiptText size={22} />}</b>
         </div>
+        {pago && <span className="chat-recibo-carimbo" aria-hidden="true">Pago</span>}
         <div className="chat-recibo-corpo">
           <span className="chat-recibo-status">
-            {pago ? <CircleCheckBig size={14} aria-hidden="true" /> : <ReceiptText size={14} aria-hidden="true" />} {pago ? 'Pago' : 'Pedido fechado'}
+            {pago ? <CircleCheckBig size={14} aria-hidden="true" /> : <ReceiptText size={14} aria-hidden="true" />} {pago ? 'Pedido pago' : 'Pedido fechado'}
           </span>
           <ul className="chat-recibo-itens">
             {itens.map((it, i) => (
