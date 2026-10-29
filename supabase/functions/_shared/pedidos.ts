@@ -345,7 +345,7 @@ export async function fecharPedido(
     frete: frete != null ? reais(frete) : entrega === 'retirada' ? 'retirada no local' : 'sem frete',
     total: reais(total),
     link: link.url,
-    mensagem: `Mande o resumo (itens${frete ? `, frete ${reais(frete)}` : entrega === 'retirada' ? ', retirada no local' : ''} e total ${reais(total)}) e o link exatamente como veio. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Diga que você confirma aqui mesmo assim que o pagamento cair.${
+    mensagem: `Mande o resumo (itens${frete ? `, frete ${reais(frete)}` : entrega === 'retirada' ? ', retirada no local' : ''} e total ${reais(total)}) e o link exatamente como veio. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Diga em uma frase o que acontece depois: assim que o pagamento cair, a confirmação aparece aqui mesmo (com o número do pedido, ${ped.numero}), e a loja segue com ${entrega === 'retirada' ? 'a retirada' : 'a entrega'}. Não ofereça incluir itens neste pedido: o link já tem o valor fechado.${
       ctx.teste ? ' (É um teste do dono: o link é de verdade no ambiente configurado.)' : ''
     }`,
   };

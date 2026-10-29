@@ -332,7 +332,7 @@ Deno.serve(async (req) => {
       const minuto = new Date(Date.now() - 60_000).toISOString();
       const { count: recentes } = await admin.from('conversation_messages').select('id', { count: 'exact', head: true })
         .eq('conversation_id', c.id).eq('role', 'user').gte('created_at', minuto);
-      if ((recentes ?? 0) >= 6) throw new UserError('Calma aí, ainda estou respondendo as anteriores.', 429);
+      if ((recentes ?? 0) >= 12) throw new UserError('Muitas mensagens seguidas. Espere alguns segundos e envie de novo.', 429);
       // várias conversas abertas da mesma rede não somam mais que um teto de mensagens
       if (c.ip_hash && !teste) {
         const { count: daRede } = await admin.from('conversation_messages')
