@@ -165,7 +165,9 @@ ${artigos.map((a) => `### ${a.titulo}\n${a.texto}`).join('\n\n')}`;
   try {
     const r = await anthropic.messages.create({
       model: MODELS.atendimento,
-      max_tokens: 600,
+      // o modelo pode raciocinar antes de escrever: folga para o texto sair inteiro
+      max_tokens: 3000,
+      ...(MODELS.atendimento === 'claude-haiku-4-5' ? {} : { output_config: { effort: 'low' } }),
       system: sistema,
       messages: [{ role: 'user', content: `Categoria: ${CATEGORIAS.find((c) => c.id === cat)?.nome ?? cat}\nAssunto: ${assunto}\n\n${descricao}` }],
     });
