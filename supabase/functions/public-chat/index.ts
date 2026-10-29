@@ -30,6 +30,8 @@ import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
 const MAX_CHARS = 2000;
 const BITS_DESAFIO = 17;
 const TESTES_POR_DIA = 40;
+// mensagens de teste do painel por dia (não contam na cota, mas gastam IA)
+const MSGS_TESTE_POR_DIA = 300;
 const RAJADA_ANONIMA = 30;
 // mensagens em 10 minutos somando todas as conversas abertas da mesma rede
 const MSGS_POR_REDE = 60;
@@ -333,6 +335,15 @@ Deno.serve(async (req) => {
       const { count: recentes } = await admin.from('conversation_messages').select('id', { count: 'exact', head: true })
         .eq('conversation_id', c.id).eq('role', 'user').gte('created_at', minuto);
       if ((recentes ?? 0) >= 12) throw new UserError('Muitas mensagens seguidas. Espere alguns segundos e envie de novo.', 429);
+      if (teste) {
+        const { count: testadas } = await admin.from('conversation_messages')
+          .select('id, conversations!inner(owner_id, teste)', { count: 'exact', head: true })
+          .eq('role', 'user').eq('conversations.owner_id', assistant.owner_id).eq('conversations.teste', true)
+          .gte('created_at', new Date(Date.now() - 864e5).toISOString());
+        if ((testadas ?? 0) >= MSGS_TESTE_POR_DIA) {
+          throw new UserError(`Você já mandou ${MSGS_TESTE_POR_DIA} mensagens de teste nas últimas 24 horas. O teste volta amanhã; o atendimento dos clientes segue normal.`, 429);
+        }
+      }
       // várias conversas abertas da mesma rede não somam mais que um teto de mensagens
       if (c.ip_hash && !teste) {
         const { count: daRede } = await admin.from('conversation_messages')

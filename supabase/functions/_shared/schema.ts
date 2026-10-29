@@ -276,7 +276,7 @@ const CORE_TAIL: Section[] = [
       {
         key: 'agenda_pagamento', label: 'Cobrar para marcar?', type: 'select', importance: 'optional',
         options: [COBRA_NAO, COBRA_TOTAL, COBRA_SINAL],
-        hint: 'Com cobrança, o assistente manda um link de pagamento e o horário fica guardado por 2 horas. Pagou, confirma sozinho. Precisa ativar a Carteira.',
+        hint: 'Com cobrança, o assistente manda um link de pagamento e o horário fica guardado por 30 minutos. Pagou, confirma sozinho. Precisa ativar a Carteira.',
         depende: { campo: 'usar_agenda', valores: ['Sim, marca sozinho', 'Sim, mas eu confirmo'], estrito: true },
       },
       {
