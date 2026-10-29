@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient, type User } from 'npm:@supabase/supabase-js@2';
 import { UserError } from './cors.ts';
+import { PLANS, type PlanId } from './plans.ts';
 
 /** Cliente com a service role: ignora RLS. Só use depois de checar o dono. */
 export const admin: SupabaseClient = createClient(
@@ -57,7 +58,35 @@ async function planoEmDia<T extends { id: string; plan: string | null }>(p: T): 
   if (Date.now() <= limite.getTime()) return p;
   const agora = new Date().toISOString();
   await admin.from('profiles').update({ plan: 'trial', trial_ends_at: agora, funcionarios_extra: 0 }).eq('id', p.id);
+  await aparaEquipe(p.id);
   return { ...p, plan: 'trial', trial_ends_at: agora };
+}
+
+/**
+ * A equipe cabe no que a conta paga: quando o plano cai ou vagas extras não são
+ * pagas, os convites abertos somem e quem entrou por último sai da equipe (volta
+ * a ser conta comum) até caber no limite.
+ */
+export async function aparaEquipe(ownerId: string) {
+  const { data: p } = await admin.from('profiles').select('plan, funcionarios_extra').eq('id', ownerId).maybeSingle();
+  if (!p) return;
+  const plano = PLANS[(p.plan ?? 'trial') as PlanId] ?? PLANS.trial;
+  const limite = plano.funcionarios + (plano.id === 'trial' ? 0 : Number(p.funcionarios_extra ?? 0));
+  const { data: membros } = await admin.from('equipe').select('user_id').eq('owner_id', ownerId).order('criado_em', { ascending: true });
+  const sobra = (membros ?? []).slice(limite).map((m) => m.user_id as string);
+  if (sobra.length) {
+    await admin.from('equipe').delete().eq('owner_id', ownerId).in('user_id', sobra);
+    await admin.from('profiles').update({ tipo: 'cliente', empresa_id: null }).in('id', sobra);
+    await admin.from('alertas').insert({
+      owner_id: ownerId, origem: 'sistema', chave: `equipe:aparada:${new Date().toISOString().slice(0, 10)}`,
+      assunto: 'Equipe acima do limite do plano',
+      detalhe: `${sobra.length} ${sobra.length === 1 ? 'pessoa saiu' : 'pessoas saíram'} da equipe porque o plano ou as vagas extras deixaram de cobrir. Para trazer de volta, aumente as vagas em Equipe.`,
+    });
+  }
+  // convites ainda não usados que já não cabem
+  if ((membros ?? []).length >= limite) {
+    await admin.from('convites').update({ expira_em: new Date().toISOString() }).eq('owner_id', ownerId).is('usado_em', null);
+  }
 }
 
 // Chaves liga/desliga de helpy_config (guardadas por 30 s em cada servidor)

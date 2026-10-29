@@ -507,7 +507,7 @@ function Ativar({ onPronto }) {
   );
 }
 
-const MODELOS_FRETE = ['Só retirada no local', 'R$ 12', 'Grátis acima de R$ 100, senão R$ 12', 'Grátis'];
+const MODELOS_FRETE = ['R$ 12', 'Grátis acima de R$ 100, senão R$ 12', 'R$ 12 ou retirada na loja (Rua …, nº …, seg a sex 9h–18h)', 'Só retirada na loja (Rua …, nº …, seg a sex 9h–18h)'];
 
 /**
  * Como a venda pelo chat resolve a entrega. Sem regra, o assistente não fecha
@@ -524,7 +524,7 @@ function FreteDaVenda({ a, ocupado, onSalvar }) {
         <input className="input" value={texto} maxLength={200} placeholder="Ex.: R$ 12 · ou só retirada no local" onChange={(e) => setTexto(e.target.value)} />
         <span className="hint">
           {texto.trim()
-            ? 'O assistente aplica essa regra no link. Para aceitar retirada também, escreva "retirada no local".'
+            ? 'O assistente aplica essa regra no link. Se aceitar retirada, escreva o endereço e o horário: o cliente fica sabendo onde buscar.'
             : 'Sem regra, o assistente não fecha pedido com entrega: o cliente não paga sem saber o frete.'}
         </span>
       </label>

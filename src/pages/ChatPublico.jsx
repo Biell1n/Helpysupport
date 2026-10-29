@@ -179,7 +179,15 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         prova.current = resolverDesafio({ token, visitante: visitorId, agora: i.desafio.agora, bits: i.desafio.bits });
         d = await chamar('public-chat', { ...pedido, prova: await prova.current });
       }
-      if (d.precisa_login) setPedeLogin(d.motivo_login || true);
+      if (d.precisa_login) {
+        setPedeLogin(d.motivo_login || true);
+        // pediu uma pessoa sem estar logado: ao voltar do login, o pedido segue sozinho
+        try {
+          sessionStorage.setItem(`helpy_quer_equipe_${token}`, '1');
+        } catch {
+          /* sem armazenamento: a pessoa pede de novo */
+        }
+      }
       if (d.conversation_id && d.conversation_id !== conversa) {
         setConversa(d.conversation_id);
         lembrar(chaveConversa, d.conversation_id);
@@ -203,6 +211,20 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texto, pensando, conversa]);
+
+  // voltou do login depois de pedir uma pessoa: refaz o pedido uma vez, sem a pessoa repetir
+  useEffect(() => {
+    if (!user || !conversa || !info || pensando || modoTeste) return;
+    let quer = false;
+    try {
+      quer = sessionStorage.getItem(`helpy_quer_equipe_${token}`) === '1';
+      if (quer) sessionStorage.removeItem(`helpy_quer_equipe_${token}`);
+    } catch {
+      /* sem armazenamento */
+    }
+    if (quer) enviar('Entrei na minha conta. Quero falar com alguém da equipe, por favor.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, conversa, info]);
 
   const acao = async (action, extra = {}) => {
     try {
@@ -279,7 +301,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
       )}
 
       <CarrinhoDoChat
-        itens={carrinho}
+        itens={fechado ? [] : carrinho}
         ocupado={mexendoCarrinho || pensando}
         onMudar={async (produto, quantidade) => {
           setMexendoCarrinho(true);

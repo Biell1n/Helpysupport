@@ -20,7 +20,7 @@
 // ============================================================
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
-import { admin, configLigada, precosDeTeste, requireUser } from '../_shared/db.ts';
+import { admin, aparaEquipe, configLigada, precosDeTeste, requireUser } from '../_shared/db.ts';
 import { type Ciclo, PAGOS, PLANS, type PlanId, type PlanoPago, precosVigentes, valorDaAssinatura } from '../_shared/plans.ts';
 import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, garantirWebhook, hojeBr, novoToken, pago, tokenAceito } from '../_shared/asaas.ts';
 import { AMBIENTE, contaHelpy, desteAmbiente, fecharUsoExtra, guardarFatura, MINIMO_FATURA } from '../_shared/cobranca.ts';
@@ -54,8 +54,36 @@ async function contaDe(userId: string) {
   return { conta: userId, dono: true, perfil: p };
 }
 
+// A marca muda de versão quando a lista de eventos do aviso muda: aí ele é recadastrado.
+const VERSAO_AVISO = 'v2';
+
+/** Aviso de pagamento da conta do Helpy cadastrado com os eventos atuais. */
+async function avisoDoHelpyEmDia(email?: string | null): Promise<boolean> {
+  const marca = `asaas-webhook-${AMBIENTE}-${VERSAO_AVISO}`;
+  const { data } = await admin.from('helpy_servicos').select('nome').eq('nome', marca).maybeSingle();
+  if (data) return true;
+  const token = Deno.env.get('ASAAS_WEBHOOK_TOKEN') ?? '';
+  if (!tokenAceito(token)) return false;
+  await garantirWebhook(contaHelpy(), `${FUNCAO()}?asaas=helpy`, token, email ?? 'contato@helpysupport.com');
+  await admin.from('helpy_servicos').upsert({ nome: marca, visto_em: new Date().toISOString() });
+  return true;
+}
+
+/** Aviso de pagamento da conta da loja com os eventos atuais (estorno, contestação). */
+async function avisoDaLojaEmDia(c: ReturnType<typeof asaas>, conta: string, email?: string | null) {
+  const marca = `asaas-loja-${VERSAO_AVISO}:${conta}`;
+  const { data } = await admin.from('helpy_servicos').select('nome').eq('nome', marca).maybeSingle();
+  if (data) return;
+  const { data: rec } = await admin.from('recebimentos').select('webhook_token').eq('owner_id', conta).maybeSingle();
+  const token = String(rec?.webhook_token ?? '');
+  if (!tokenAceito(token)) return;
+  await garantirWebhook(c, `${FUNCAO()}?asaas=loja&conta=${conta}`, token, email ?? 'contato@helpysupport.com')
+    .then(() => admin.from('helpy_servicos').upsert({ nome: marca, visto_em: new Date().toISOString() }))
+    .catch((e) => console.warn('[asaas loja] recadastrar aviso', (e as Error).message));
+}
+
 /** Eventos do Asaas de dinheiro que voltou ao pagador (estorno ou contestação no cartão). */
-const DEVOLVIDO = ['PAYMENT_REFUNDED', 'PAYMENT_PARTIALLY_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE'];
+const DEVOLVIDO = ['PAYMENT_REFUNDED', 'PAYMENT_PARTIALLY_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED'];
 
 /** Próximo vencimento: um ciclo (mês ou ano) depois do que acabou de ser pago. */
 function proximoVencimento(data: string, ciclo: string) {
@@ -112,8 +140,10 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
     const { data: antes } = await admin.from('faturas').select('descricao').eq('id', String(pg.id)).eq('owner_id', dono).maybeSingle();
     if (antes) await guardarFatura(dono, pg, antes.descricao ?? undefined);
     // vagas pedidas e não pagas (ou devolvidas): voltam ao que eram antes
-    if (antes && /^\d+$/.test(vagasAntes ?? '') && (evento.event === 'PAYMENT_OVERDUE' || DEVOLVIDO.includes(String(evento.event)))) {
+    if (antes && /^\d+$/.test(vagasAntes ?? '') && (evento.event === 'PAYMENT_OVERDUE' || (DEVOLVIDO.includes(String(evento.event)) && evento.event !== 'PAYMENT_PARTIALLY_REFUNDED'))) {
       await admin.from('profiles').update({ funcionarios_extra: Number(vagasAntes) }).eq('id', dono);
+      // quem entrou pelas vagas que não foram pagas sai da equipe
+      await aparaEquipe(dono);
       await admin.from('alertas').insert({
         owner_id: dono, origem: 'sistema', chave: `vagas:atrasada:${pg.id}`,
         assunto: 'As vagas extras não foram pagas',
@@ -127,28 +157,43 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
   // a cobrança pode ser da assinatura nova ou da antiga, que segue valendo até a troca ser paga
   const { data: ass } = await admin.from('assinaturas').select('*')
     .or(`asaas_assinatura.eq.${subId},asaas_anterior.eq.${subId}`).maybeSingle();
+
+  // fatura do plano devolvida inteira ou contestada no cartão: o plano não fica de graça,
+  // nem se a assinatura já tinha sido cancelada ou trocada (o dono vem da própria fatura)
+  if (DEVOLVIDO.includes(String(evento.event))) {
+    const dono = ass?.owner_id ?? (await admin.from('faturas').select('owner_id').eq('id', String(pg.id)).maybeSingle()).data?.owner_id;
+    if (!dono) return;
+    await guardarFatura(dono, pg, ass ? `Plano ${PLANS[ass.plano as PlanId]?.nome ?? ass.plano}` : undefined);
+    if (evento.event === 'PAYMENT_PARTIALLY_REFUNDED') {
+      // devolução parcial (cortesia, ajuste): não encerra nada, só avisa
+      await admin.from('alertas').insert({
+        owner_id: dono, origem: 'sistema', chave: `fatura:parcial:${pg.id}`,
+        assunto: 'Parte de uma fatura do plano foi devolvida', detalhe: 'O plano continua normalmente.',
+      });
+      return;
+    }
+    const { data: atual } = await admin.from('assinaturas').select('asaas_assinatura, asaas_anterior').eq('owner_id', dono).maybeSingle();
+    for (const id of [atual?.asaas_assinatura, atual?.asaas_anterior].filter(Boolean)) {
+      await contaHelpy().pedir(`/subscriptions/${id}`, { method: 'DELETE' }).catch(() => {});
+    }
+    const agoraIso = new Date().toISOString();
+    const ontem = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+    await admin.from('assinaturas').update({ status: 'cancelada', asaas_anterior: null, proximo_vencimento: ontem, atualizada_em: agoraIso }).eq('owner_id', dono);
+    await admin.from('profiles').update({ plan: 'trial', trial_ends_at: agoraIso, funcionarios_extra: 0 }).eq('id', dono);
+    await aparaEquipe(dono);
+    await admin.from('alertas').insert({
+      owner_id: dono, origem: 'sistema', chave: `fatura:devolvida:${pg.id}`,
+      assunto: 'Pagamento do plano devolvido',
+      detalhe: 'A fatura do plano foi estornada ou contestada no cartão, então a assinatura foi encerrada. Para continuar, assine de novo na página Plano.',
+    });
+    return;
+  }
   if (!ass) return;
   // a mensalidade chega todo mês: aproveita para fechar o uso extra do mês que acabou
   depois(fecharUsoExtra(ass.owner_id));
   const daAntiga = ass.asaas_anterior === subId && ass.asaas_assinatura !== subId;
   const agora = new Date().toISOString();
 
-  // fatura do plano devolvida ou contestada no cartão: o plano não fica de graça
-  if (DEVOLVIDO.includes(String(evento.event))) {
-    await guardarFatura(ass.owner_id, pg, `Plano ${PLANS[ass.plano as PlanId]?.nome ?? ass.plano}`);
-    if (ass.status === 'cancelada') return;
-    for (const id of [ass.asaas_assinatura, ass.asaas_anterior].filter(Boolean)) {
-      await contaHelpy().pedir(`/subscriptions/${id}`, { method: 'DELETE' }).catch(() => {});
-    }
-    const ontem = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-    await admin.from('assinaturas').update({ status: 'cancelada', asaas_anterior: null, proximo_vencimento: ontem, atualizada_em: agora }).eq('owner_id', ass.owner_id);
-    await admin.from('alertas').insert({
-      owner_id: ass.owner_id, origem: 'sistema', chave: `fatura:devolvida:${pg.id}`,
-      assunto: 'Pagamento do plano devolvido',
-      detalhe: 'A fatura do plano foi estornada ou contestada no cartão, então a assinatura foi encerrada. Para continuar, assine de novo na página Plano.',
-    });
-    return;
-  }
 
   if (daAntiga) {
     const { plano, ciclo: cicloDaAntiga } = await dadosDaAssinatura(subId);
@@ -312,6 +357,7 @@ Deno.serve(async (req) => {
       const assinatura = bruta && (bruta.ambiente ?? 'sandbox') === AMBIENTE ? bruta : null;
       // abriu a página Plano: fecha o uso extra de mês que já acabou, se ainda estiver em aberto
       if (dono && Deno.env.get('ASAAS_API_KEY')) depois(fecharUsoExtra(conta));
+      if (dono && Deno.env.get('ASAAS_API_KEY')) depois(avisoDoHelpyEmDia(user.email).then(() => {}));
       return json({
         cobranca: !!Deno.env.get('ASAAS_API_KEY'),
         ambiente: AMBIENTE,
@@ -334,13 +380,7 @@ Deno.serve(async (req) => {
       const nome = String(body.nome ?? '').trim().slice(0, 100) || perfil?.company_name || perfil?.full_name || user.email || 'Cliente Helpy';
       const c = contaHelpy();
 
-      // a marca muda de versão quando a lista de eventos muda: o aviso é recadastrado com os novos
-      const webhookOk = await admin.from('helpy_servicos').select('nome').eq('nome', `asaas-webhook-${AMBIENTE}-v2`).maybeSingle();
-      if (!webhookOk.data) {
-        if (!tokenAceito(Deno.env.get('ASAAS_WEBHOOK_TOKEN') ?? '')) throw new UserError('A cobrança dos planos está sendo configurada. Tente de novo em instantes.', 503);
-        await garantirWebhook(c, `${FUNCAO()}?asaas=helpy`, Deno.env.get('ASAAS_WEBHOOK_TOKEN') ?? '', user.email ?? 'contato@helpysupport.com');
-        await admin.from('helpy_servicos').upsert({ nome: `asaas-webhook-${AMBIENTE}-v2`, visto_em: new Date().toISOString() });
-      }
+      if (!(await avisoDoHelpyEmDia(user.email))) throw new UserError('A cobrança dos planos está sendo configurada. Tente de novo em instantes.', 503);
 
       const { data: guardada } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
       const atual = desteAmbiente(guardada);
@@ -552,6 +592,7 @@ Deno.serve(async (req) => {
       const { data: chave } = await admin.rpc('helpy_recebimento_segredo', { p_conta: conta });
       if (!chave) return json({ recebimento: { ...rec, documento: undefined }, erro: 'A conta perdeu a ligação. Fale com o suporte.' });
       const c = asaas(String(chave), rec.ambiente as Ambiente);
+      depois(avisoDaLojaEmDia(c, conta, user.email));
       const carteira = rec.modo === 'carteira';
       const [saldo, extrato, confirmados, status, docs, { data: saques }] = await Promise.all([
         c.pedir<{ balance?: number }>('/finance/balance').catch(() => null),

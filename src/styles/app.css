@@ -3972,3 +3972,18 @@
   padding-top: 10px;
   border-top: 1px dashed var(--linha);
 }
+
+/* toque: links do rodapé do chat e o botão de enviar no tamanho do dedo */
+@media (pointer: coarse) {
+  .composer-note .link-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 4px;
+  }
+
+  .composer .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+}

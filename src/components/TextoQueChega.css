@@ -1,4 +1,4 @@
-.texto-chega > span {
+.texto-chega span[style] {
   display: inline-block;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -11,5 +11,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .texto-chega > span { animation: none; }
+  .texto-chega span[style] { animation: none; }
 }
