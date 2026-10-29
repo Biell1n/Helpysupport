@@ -7,6 +7,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { alertar } from './atendimento.ts';
 import { inicioDoMes, type Plan, type PlanId, precosVigentes, trialExpirado } from './plans.ts';
 import { fecharUsoExtra } from './cobranca.ts';
+import { usoDoMes } from './db.ts';
 
 type PerfilExtra = { id: string; plan: string; extra_ativo?: boolean | null; extra_limite?: number | string | null; precos_teste?: boolean };
 
@@ -78,9 +79,8 @@ export async function recadoPodeSeguir(
 ): Promise<boolean> {
   let pode = false;
   if (!trialExpirado({ plan: p.plan as PlanId, trial_ends_at: p.trial_ends_at })) {
-    const { count: mes } = await db.from('conversations').select('id', { count: 'exact', head: true })
-      .eq('owner_id', p.id).eq('teste', false).gte('created_at', inicioDoMes());
-    pode = (mes ?? 0) <= plan.atendimentos;
+    const { atendimentos: mes } = await usoDoMes(db, p.id);
+    pode = mes <= plan.atendimentos;
     if (!pode && p.creditos_extra > 0) pode = !!(await db.rpc('helpy_gastar_credito', { p_dono: p.id })).data;
     if (!pode) pode = await usarExtra(db, p, 'atendimento');
   }

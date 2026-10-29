@@ -124,3 +124,14 @@ async function lerPerfil(userId: string) {
   if (e2) throw e2;
   return novo;
 }
+
+/**
+ * Uso do mês para as cotas: o maior entre o contador (que não volta a zero quando
+ * a conversa ou o assistente é apagado) e a contagem ao vivo.
+ */
+export async function usoDoMes(db: SupabaseClient, ownerId: string): Promise<{ atendimentos: number; mensagens: number }> {
+  const { data, error } = await db.rpc('helpy_uso_mes', { p_owner: ownerId });
+  if (error) throw error;
+  const linha = (Array.isArray(data) ? data[0] : data) ?? {};
+  return { atendimentos: Number(linha.atendimentos ?? 0), mensagens: Number(linha.mensagens ?? 0) };
+}
