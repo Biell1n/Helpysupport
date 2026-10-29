@@ -384,7 +384,7 @@ export default function Dados() {
               </details>
 
               <div className="row row-wrap">
-                {fonte !== 'api' && <label className="row" style={{ position: 'relative', flex: '1 1 240px', maxWidth: 320 }}>
+                {fonte !== 'api' && <label className="row dados-busca" style={{ position: 'relative' }}>
                   <Search size={16} style={{ position: 'absolute', left: 12, color: 'var(--tinta-3)' }} aria-hidden="true" />
                   <input className="input" style={{ paddingLeft: 36 }} placeholder="Buscar nas linhas" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar nas linhas" />
                 </label>}
