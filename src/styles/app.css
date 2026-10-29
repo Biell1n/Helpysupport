@@ -3051,16 +3051,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px 24px;
-  margin-bottom: 20px;
 }
-.plano-resumo h2 { margin: 2px 0 2px; font-size: 26px; letter-spacing: -0.02em; }
+.plano-resumo h2 { margin: 0 0 2px; font-size: 22px; letter-spacing: -0.01em; }
+.plano-resumo-preco { font-size: 16px; font-weight: 400; letter-spacing: 0; }
 .plano-resumo p { margin: 0; }
 .plano-alerta { flex-basis: 100%; margin: 0; }
 .uso-grande { display: grid; gap: 6px; }
 .uso-grande p { margin: 0; }
 .uso-grande b { font-family: var(--f-display); font-stretch: 125%; font-weight: 400; font-size: 30px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .uso-grande .meter { height: 8px; }
-.uso-grande .meter:not([data-nivel]) > span { background: var(--tinta); }
+.uso-grande .meter:not([data-nivel]) > span { background: var(--senha); }
 .uso-menor { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0 32px; }
 .uso-menor li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--linha); font-size: 14px; }
 .uso-menor li b { font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -4591,3 +4591,11 @@
 }
 .chamado-agenda-acoes { display: flex; gap: 14px; font-size: 13px; }
 .link-perigo { color: var(--brasa); }
+
+.flag-aviso { color: #a86a00; }
+.dados-busca { flex: 1 1 240px; max-width: 320px; }
+@media (max-width: 640px) {
+  .dados-busca { flex-basis: 100%; max-width: none; }
+  /* as fichas de coluna rolam de lado: a ponta esmaece para mostrar que tem mais */
+  .sheet thead tr { mask-image: linear-gradient(90deg, #000 85%, transparent); }
+}

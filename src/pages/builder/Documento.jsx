@@ -96,15 +96,14 @@ function Lista({ def }) {
         {tabela && <a className="flag flag-mute" href="/painel/dados" target="_blank" rel="noreferrer">na tabela {tabela}, em Dados</a>}
         {!dispensada && itens.length > 0 && <span className="flag flag-mute">{itens.length} {itens.length === 1 ? 'item' : 'itens'}</span>}
         <span className="spacer" />
-        <button
-          type="button"
-          className="btn btn-quiet btn-icon"
-          onClick={() => (dispensada ? b.restoreCollection(def.key) : b.skipCollection(def.key))}
-          title={dispensada ? 'Voltar a listar' : 'Não se aplica'}
-          aria-label={dispensada ? `Voltar a listar ${def.label}` : `${def.label} não se aplica`}
-        >
-          {dispensada ? <RotateCcw size={16} /> : <X size={16} />}
-        </button>
+        {/* a lista toda sai pelo ⋯ (o × de cada item apaga só aquele item) */}
+        {dispensada ? (
+          <button type="button" className="btn btn-quiet btn-icon btn-sm" onClick={() => b.restoreCollection(def.key)} title="Voltar a listar" aria-label={`Voltar a listar ${def.label}`}>
+            <RotateCcw size={15} />
+          </button>
+        ) : (
+          <MenuMais rotulo={`Opções de ${def.label}`} itens={[{ rotulo: 'Não se aplica', Icone: Ban, onClick: () => b.skipCollection(def.key) }]} />
+        )}
       </div>
       {def.note && <span className="hint">{def.note}</span>}
 
@@ -138,6 +137,9 @@ function Lista({ def }) {
                     {resumo.length > 1 && <span>{resumo.slice(1, 3).join(' · ')}</span>}
                   </button>
                   {faltam && <span className="flag">falta {faltam.join(', ').toLowerCase()}</span>}
+                  {!faltam && semAqui.length > 0 && (
+                    <span className="flag flag-aviso">sem {def.item_fields.filter((f) => semAqui.includes(f.key)).map((f) => f.label.toLowerCase()).join(', ')}</span>
+                  )}
                   <button type="button" className="btn btn-quiet btn-sm" onClick={() => alternarItem(i)}>{aberto ? 'Fechar' : 'Editar'}</button>
                   <button type="button" className="btn btn-quiet btn-icon btn-sm" aria-label={`Remover item ${i + 1}`} onClick={() => b.removeItem(def.key, i)}>
                     <X size={15} />

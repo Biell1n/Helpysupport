@@ -104,19 +104,25 @@ export default function Plano() {
         </div>
       </header>
 
-      <section className="card plano-resumo">
-        <div>
-          <span className="eyebrow">Seu plano</span>
-          <h2>{atual.nome}</h2>
-          <p className="muted">
-            {teste
-              ? dias != null && (dias > 0 ? `Termina em ${dias} ${dias === 1 ? 'dia' : 'dias'}.` : 'Já terminou.')
-              : pagamentos?.assinatura?.ciclo === 'anual'
-                ? `Anual · ${reais(Number(pagamentos.assinatura.valor))}/ano.`
-                : `${reais(Number(pagamentos?.assinatura?.valor ?? atual.precoMensal))}/mês.`}
-          </p>
+      {/* plano e uso num cartão só: o plano é o cabeçalho, o uso vem embaixo */}
+      <section className="card stack" style={{ marginBottom: 28 }}>
+        <div className="plano-resumo">
+          <div>
+            <h2 className="card-title">
+              {atual.nome}
+              <span className="muted plano-resumo-preco">
+                {' · '}
+                {teste
+                  ? dias != null && (dias > 0 ? `termina em ${dias} ${dias === 1 ? 'dia' : 'dias'}` : 'já terminou')
+                  : pagamentos?.assinatura?.ciclo === 'anual'
+                    ? `anual · ${reais(Number(pagamentos.assinatura.valor))}/ano`
+                    : `${reais(Number(pagamentos?.assinatura?.valor ?? atual.precoMensal))}/mês`}
+              </span>
+            </h2>
+            <p className="faint" style={{ fontSize: 13 }}>Uso deste mês · as cotas renovam todo dia 1º</p>
+          </div>
+          {teste && <a href="#planos" className="btn btn-senha">Escolher um plano</a>}
         </div>
-        {teste && <a href="#planos" className="btn btn-senha">Escolher um plano</a>}
         {acabou && (
           <div className="alert plano-alerta">
             <span>
@@ -127,10 +133,6 @@ export default function Plano() {
             </span>
           </div>
         )}
-      </section>
-
-      <section className="card stack" style={{ marginBottom: 28 }}>
-        <h2 className="card-title">Uso deste mês</h2>
         <div className="grid-2">
           <UsoGrande rotulo="Atendimentos" usado={uso?.atendimentos} limite={atual.atendimentos} />
           <UsoGrande rotulo="Mensagens de clientes" usado={uso?.mensagens} limite={atual.mensagens} />
