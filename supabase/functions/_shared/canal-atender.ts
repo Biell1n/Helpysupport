@@ -9,8 +9,8 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { logUsage } from './ai.ts';
 import { alertar, type Assistant, responder } from './atendimento.ts';
-import { profileOf } from './db.ts';
-import { inicioDoMes, planOf, trialExpirado } from './plans.ts';
+import { profileOf, usoDoMes } from './db.ts';
+import { planOf, trialExpirado } from './plans.ts';
 import { type Canal, enviarPeloCanal, noPrivadoDoDiscord, NOMES } from './canais.ts';
 import { MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from './extra.ts';
 
@@ -81,10 +81,9 @@ export async function atenderNoCanal(
   let recado = false;
 
   if (!c || velha) {
-    const { count: mes } = await db.from('conversations').select('id', { count: 'exact', head: true })
-      .eq('owner_id', canal.owner_id).eq('teste', false).gte('created_at', inicioDoMes());
+    const { atendimentos: mes } = await usoDoMes(db, canal.owner_id);
     if (trialExpirado(profile)) recado = true;
-    else if ((mes ?? 0) >= plan.atendimentos) {
+    else if (mes >= plan.atendimentos) {
       const { data: gastou } = profile.creditos_extra > 0 ? await db.rpc('helpy_gastar_credito', { p_dono: profile.id }) : { data: false };
       if (!gastou && !(await usarExtra(db, profile, 'atendimento'))) recado = true;
     }
@@ -141,13 +140,10 @@ export async function atenderNoCanal(
   // teto por conversa e total de mensagens do mês: passa para a equipe
   const { count: daConversa } = await db.from('conversation_messages').select('id', { count: 'exact', head: true })
     .eq('conversation_id', c.id).eq('role', 'user');
-  const { count: doMes } = await db.from('conversation_messages')
-    .select('id, conversations!inner(owner_id, teste)', { count: 'exact', head: true })
-    .eq('role', 'user').eq('conversations.owner_id', canal.owner_id).eq('conversations.teste', false)
-    .gte('created_at', inicioDoMes());
+  const doMes = (await usoDoMes(db, canal.owner_id)).mensagens;
   // além das mensagens do plano, o uso extra pode cobrir (se estiver ligado e couber no limite)
   const passouConversa = (daConversa ?? 0) > plan.msgsPorAtendimento;
-  const semMensagens = !passouConversa && (doMes ?? 0) > plan.mensagens && !(await usarExtra(db, profile, 'mensagem'));
+  const semMensagens = !passouConversa && doMes > plan.mensagens && !(await usarExtra(db, profile, 'mensagem'));
   if (passouConversa || semMensagens) {
     await db.from('conversations').update({
       status: 'waiting', titulo: 'Conversa longa', escalado_em: new Date().toISOString(),

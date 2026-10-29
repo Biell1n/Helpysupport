@@ -19,7 +19,7 @@
 // ============================================================
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
-import { admin, profileOf, requireUser, userFrom } from '../_shared/db.ts';
+import { admin, profileOf, requireUser, userFrom, usoDoMes } from '../_shared/db.ts';
 import { logUsage } from '../_shared/ai.ts';
 import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
@@ -293,10 +293,9 @@ Deno.serve(async (req) => {
           if ((doIp ?? 0) >= 20) throw new UserError('Muitas conversas novas a partir desta rede. Tente de novo mais tarde.', 429);
         }
 
-        const { count: mes } = await admin.from('conversations').select('id', { count: 'exact', head: true })
-          .eq('owner_id', assistant.owner_id).eq('teste', false).gte('created_at', inicioDoMes());
+        const { atendimentos: mes } = await usoDoMes(admin, assistant.owner_id);
         if (trialExpirado(profile)) recado = true;
-        else if ((mes ?? 0) >= plan.atendimentos) {
+        else if (mes >= plan.atendimentos) {
           // crédito avulso gasto de um em um no banco: dois atendimentos ao mesmo tempo não usam o mesmo
           const { data: gastou } = profile.creditos_extra > 0 ? await admin.rpc('helpy_gastar_credito', { p_dono: profile.id }) : { data: false };
           if (!gastou && !(await usarExtra(admin, profile, 'atendimento'))) recado = true;
@@ -404,11 +403,7 @@ Deno.serve(async (req) => {
 
     // total de mensagens do mês, somando todas as conversas: passou do plano, a equipe assume
     if (!teste) {
-      const { count: doMes } = await admin.from('conversation_messages')
-        .select('id, conversations!inner(owner_id, teste)', { count: 'exact', head: true })
-        .eq('role', 'user').eq('conversations.owner_id', assistant.owner_id).eq('conversations.teste', false)
-        .gte('created_at', inicioDoMes());
-      const n = doMes ?? 0;
+      const n = (await usoDoMes(admin, assistant.owner_id)).mensagens;
       const mes = inicioDoMes().slice(0, 7);
       if (n === Math.ceil(plan.mensagens * 0.8)) {
         await alertar(admin, assistant.owner_id, {
