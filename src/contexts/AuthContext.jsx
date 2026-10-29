@@ -11,8 +11,19 @@ export function AuthProvider({ children }) {
   const [nivel, setNivel] = useState(null);
 
   useEffect(() => {
+    // link do e-mail vencido ou já usado: o Supabase volta com o erro no endereço
+    const erroDoLink = new URLSearchParams(window.location.hash.slice(1)).get('error_code')
+      || new URLSearchParams(window.location.search).get('error_code');
+    if (erroDoLink && window.location.pathname !== '/entrar') {
+      window.location.replace(`/entrar?link=${erroDoLink === 'otp_expired' ? 'expirado' : 'invalido'}`);
+      return undefined;
+    }
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => setSession(s ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((evt, s) => {
+      setSession(s ?? null);
+      // link de "esqueci a senha": vai para a tela de senha nova, mesmo que o e-mail tenha mandado para outra página
+      if (evt === 'PASSWORD_RECOVERY' && window.location.pathname !== '/nova-senha') window.location.replace('/nova-senha');
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 

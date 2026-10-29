@@ -279,17 +279,19 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'status') {
-      const [{ data: aviso }, discord, asaas] = await Promise.all([
+      const [{ data: aviso }, discord, asaas, usaDiscord] = await Promise.all([
         admin.from('helpy_config').select('valor').eq('chave', 'suporte_aviso').maybeSingle(),
         gatewayLigado(),
         fetch('https://api.asaas.com/v3/', { signal: AbortSignal.timeout(3000) }).then(() => true, () => false),
+        // o bot do Discord só importa para quem tem Discord conectado
+        admin.from('canais').select('id', { count: 'exact', head: true }).eq('owner_id', eu.empresa).eq('tipo', 'discord').eq('status', 'ativo').then((r) => (r.count ?? 0) > 0),
       ]);
       const v = aviso?.valor as { texto?: string; nivel?: string; em?: string } | null;
       return json({
         aviso: v?.texto ? v : null,
         servicos: [
           { id: 'chat', nome: 'Chat e atendimento automático', ok: true },
-          { id: 'discord', nome: 'Bot do Discord', ok: discord },
+          ...(usaDiscord || eu.staff ? [{ id: 'discord', nome: 'Bot do Discord', ok: discord }] : []),
           { id: 'pagamentos', nome: 'Pagamentos (Pix, cartão e boleto)', ok: asaas },
         ],
       });

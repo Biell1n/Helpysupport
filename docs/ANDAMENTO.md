@@ -100,13 +100,29 @@ Notas de trabalho para quem continuar o desenvolvimento.
 - Falta o dono configurar: segredo `ANTHROPIC_API_KEY`, URLs de
   redirecionamento do Auth e, se quiser, o provedor Google.
 
-## Ainda não feito
+## Pendências para lançar (feitas junto com o dono)
 
-- Pagamento recorrente (sugestão: Asaas ou Mercado Pago, por Pix e
-  cartão). Hoje o plano muda por SQL e o botão "Assinar" leva ao
-  contato de vendas (`VITE_CONTATO_VENDAS`).
-- E-mails do Auth em português (Authentication → Email Templates).
-- Proteção contra senhas vazadas (Authentication → Policies).
+- [ ] **Publicar o servidor do bot do Discord.** Hoje o bot roda só no PC do
+      dono (o .bat de teste). No servidor (Oracle ou outro Linux):
+      `sudo bash gateway/instalar-oracle.sh`. O serviço `helpy-gateway` já
+      religa sozinho se cair (`Restart=always`) e se atualiza pelo timer.
+      Depois de publicado, o vigia do banco (`helpy_vigiar_servicos`, a cada
+      5 min pelo pg_cron) avisa a equipe Helpy no sino se ele parar.
+- [ ] CNPJ e nota fiscal (NFS-e) nas mensalidades; conta Asaas da empresa
+      (hoje a conta PF mostra o CPF na página de pagamento).
+- [ ] Captcha também no servidor do Auth (Supabase → Authentication → Bot
+      protection, com a chave secreta do Turnstile). Hoje só a tela tem.
+- [ ] Proteção contra senhas vazadas no Auth (Authentication → Policies;
+      plano Pro). A tela já confere, o servidor ainda não.
+- [ ] Plano Pro do Supabase (backup diário e sem pausa por inatividade).
+- [ ] Monitoramento: Sentry (erros) e UptimeRobot (site fora do ar).
+- [ ] Testes automáticos da parte de dinheiro e CI (lint + build).
+- [ ] Contrato de operador de dados (LGPD) para as empresas clientes.
+
+Já resolvido: e-mails do Auth em português pelo domínio próprio
+(`nao-responda@helpysupport.com`), assinatura recorrente pelo Asaas, cota
+pelo contador do mês (`uso_mensal`), suporte para as empresas (`/ajuda` e
+`/painel/suporte`).
 
 ## Próximos canais (estudo)
 
