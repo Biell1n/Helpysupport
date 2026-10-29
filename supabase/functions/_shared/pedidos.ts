@@ -36,9 +36,10 @@ export function lerPreco(v: unknown): number | null {
 }
 
 /** A conta Asaas da empresa, se ela ligou o recebimento. */
-export async function contaDaLoja(db: SupabaseClient, ownerId: string): Promise<ClienteAsaas | null> {
+export async function contaDaLoja(db: SupabaseClient, ownerId: string, mesmoPausada = false): Promise<ClienteAsaas | null> {
   const { data: rec } = await db.from('recebimentos').select('ambiente, ativo').eq('owner_id', ownerId).maybeSingle();
-  if (!rec?.ativo) return null;
+  // pausar as vendas não impede conferir um pagamento que já estava a caminho
+  if (!rec || (!rec.ativo && !mesmoPausada)) return null;
   const { data: chave } = await db.rpc('helpy_recebimento_segredo', { p_conta: ownerId });
   return chave ? asaas(String(chave), rec.ambiente as Ambiente) : null;
 }
@@ -96,7 +97,10 @@ export async function montarItens(
         resto: Object.values(l.dados ?? {}).join(' '),
         preco: lerPreco(l.dados?.[precoChave(t.id) ?? '']),
         estoqueChave: estoqueChave(t.id),
-        estoque: estoqueChave(t.id) ? Number(String(l.dados?.[estoqueChave(t.id)!] ?? '').replace(',', '.')) : null,
+        // célula de estoque vazia = não controla estoque (não é "zero")
+        estoque: estoqueChave(t.id) && String(l.dados?.[estoqueChave(t.id)!] ?? '').trim() !== ''
+          ? Number(String(l.dados?.[estoqueChave(t.id)!]).replace(',', '.'))
+          : null,
         tabela_id: t.id,
         linha_id: l.id as string,
       };
@@ -161,22 +165,28 @@ async function criarLink(conta: ClienteAsaas, pedidoId: string, nome: string, de
   }
 }
 
-const numeroDe = (t: string) => Number(t.replace(/\./g, '').replace(',', '.'));
-
 /**
  * Frete pela regra que a empresa escreveu ("R$ 12", "grátis acima de R$ 100,
- * senão R$ 12", "só retirada", "grátis"). O Asaas não calcula frete; sem regra
- * clara, o frete fica para a equipe combinar.
+ * senão R$ 12", "só retirada", "grátis"). O Asaas não calcula frete. Regra que
+ * não dá para ler com segurança (vários valores sem um padrão conhecido) vale
+ * como "sem frete definido": o pedido com entrega não fecha e a empresa é avisada.
  */
 export function freteDaRegra(regra: string, subtotal: number): { valor: number | null; soRetirada: boolean } {
   const r = regra.toLowerCase();
   if (!r.trim()) return { valor: null, soRetirada: false };
-  const soRetirada = /(s[oó]|apenas|somente)\s+retirada|n[aã]o\s+(fazemos|faz|temos)\s+entrega/.test(r);
-  const acima = /gr[aá]tis\s+(?:acima|a partir)\s+de\s+r?\$?\s*([\d.,]+)/.exec(r);
-  if (acima && subtotal >= numeroDe(acima[1])) return { valor: 0, soRetirada };
-  const valores = [...r.matchAll(/r\$\s*([\d.,]+)/g)].map((m) => numeroDe(m[1])).filter((v) => !acima || v !== numeroDe(acima[1]));
-  if (valores.length) return { valor: valores[0], soRetirada };
-  if (/gr[aá]tis/.test(r) && !acima) return { valor: 0, soRetirada };
+  const soRetirada = /(s[oó]|apenas|somente)\s+(a\s+)?retirada|retirada\s+(apenas|somente)|n[aã]o\s+(fazemos|faz|temos)\s+entrega/.test(r);
+  const gratis = /gr[aá]tis/.test(r);
+  // "acima de R$ 100" / "a partir de 100 reais" em qualquer lugar do texto, quando há "grátis"
+  const marco = gratis ? /(?:acima|a partir|mais)\s+de\s+(?:r\$\s*)?([\d.,]+)/.exec(r) : null;
+  const limite = marco ? lerPreco(marco[1]) : null;
+  const valores = [...r.matchAll(/r\$\s*([\d.,]+)|([\d.,]+)\s*reais/g)]
+    .map((m, _i, _a) => ({ v: lerPreco(m[1] ?? m[2]), em: m.index ?? 0 }))
+    .filter((x) => x.v != null && !(marco && x.em >= (marco.index ?? 0) && x.em <= (marco.index ?? 0) + marco[0].length))
+    .map((x) => x.v as number);
+  const distintos = [...new Set(valores)];
+  if (limite != null && subtotal >= limite) return { valor: 0, soRetirada };
+  if (distintos.length === 1) return { valor: distintos[0], soRetirada };
+  if (distintos.length === 0 && gratis && limite == null) return { valor: 0, soRetirada };
   return { valor: null, soRetirada };
 }
 
@@ -400,9 +410,20 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   const pg = evento.payment ?? {};
   const linkId = String(pg.paymentLink ?? '');
   if (!linkId) return;
-  // devolvido pelo próprio site do Asaas: o pedido vira estornado e a taxa do Helpy sai da conta
-  // devolvido pelo Asaas ou contestado no cartão (chargeback): vale como estorno
-  if (['PAYMENT_REFUNDED', 'PAYMENT_PARTIALLY_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE'].includes(String(evento.event))) {
+  // devolução parcial: o pedido segue pago e a taxa do Helpy continua (só a equipe fica sabendo)
+  if (evento.event === 'PAYMENT_PARTIALLY_REFUNDED') {
+    const { data: ped } = await db.from('pedidos').select('numero, assistant_id, conversation_id').eq('owner_id', ownerId).eq('link_id', linkId).maybeSingle();
+    if (ped) {
+      await db.from('alertas').insert({
+        owner_id: ownerId, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',
+        chave: `pedido:parcial:${pg.id}`, assunto: `Parte do pedido nº ${ped.numero} foi devolvida`.slice(0, 160),
+        detalhe: 'O pedido continua como pago. Se foi engano, confira no Asaas.',
+      });
+    }
+    return;
+  }
+  // devolvido inteiro pelo Asaas ou contestado no cartão (chargeback): vale como estorno
+  if (['PAYMENT_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED'].includes(String(evento.event))) {
     const { data: dev } = await db.from('pedidos').update({ status: 'estornado' })
       .eq('owner_id', ownerId).eq('link_id', linkId).eq('pagamento_id', String(pg.id ?? '')).eq('status', 'pago')
       .select('taxa, agendamento_id, conversation_id, total, tipo');
@@ -418,11 +439,11 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   if (!pago(String(pg.status), evento.event)) return;
   const { data: ped } = await db.from('pedidos').select('*').eq('owner_id', ownerId).eq('link_id', linkId).maybeSingle();
   if (!ped) return;
-  // confere no próprio Asaas da loja: o pagamento existe, é deste link e tem o valor do pedido
-  const contaConferir = await contaDaLoja(db, ownerId);
-  const real = pg.id && contaConferir
-    ? await contaConferir.pedir<{ paymentLink?: string; value?: number; status?: string }>(`/payments/${String(pg.id)}`).catch(() => null)
-    : null;
+  // confere no próprio Asaas da loja: o pagamento existe, é deste link e tem o valor do pedido.
+  // Sem conseguir conferir (Asaas fora do ar), não marca como pago: o erro faz o Asaas avisar de novo
+  const contaConferir = await contaDaLoja(db, ownerId, true);
+  if (!contaConferir || !pg.id) throw new Error('pagamento da loja sem como conferir no Asaas');
+  const real = await contaConferir.pedir<{ paymentLink?: string; value?: number; status?: string }>(`/payments/${String(pg.id)}`);
   if (real && (String(real.paymentLink ?? '') !== linkId || Number(real.value ?? 0) + 0.01 < Number(ped.total) || !pago(String(real.status), undefined))) {
     await db.from('alertas').insert({
       owner_id: ownerId, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',
