@@ -247,24 +247,24 @@ button, input, select, textarea {
   flex-shrink: 0;
 }
 
+/* a cor da marca é a cor da ação: azul = o que você faz; navy = o que você lê */
 .btn-primary {
-  background: var(--tinta);
-  color: var(--sobre-tinta);
+  background: var(--senha);
+  color: #ffffff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1c3450;
+  background: var(--senha-escura);
 }
 
-/* chamada principal: mesmo peso do primário, para o azul elétrico ficar com a senha */
 .btn-senha {
-  background: var(--tinta);
-  color: var(--sobre-tinta);
+  background: var(--senha);
+  color: #ffffff;
   font-weight: 600;
 }
 
 .btn-senha:hover:not(:disabled) {
-  background: #1c3450;
+  background: var(--senha-escura);
 }
 
 .btn-ghost {

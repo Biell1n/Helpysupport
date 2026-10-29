@@ -565,6 +565,9 @@ function Numero({ rotulo, valor, detalhe, variacao }) {
   );
 }
 
+// abaixo disso, os gráficos de detalhe ficam escondidos (poucos dados enganam)
+const POUCO = 20;
+
 export default function Relatorios() {
   const { user } = useAuth();
   const [dias, setDias] = useState(30);
@@ -661,6 +664,18 @@ export default function Relatorios() {
 
           <ConversasPorDia serie={dados.por_dia ?? []} />
 
+          {/* com pouco movimento, gráfico de horário e de assunto só confunde: mostra o essencial */}
+          {r.conversas > 0 && r.conversas < POUCO && (
+            <div className="card rel-pouco">
+              <b>Ainda pouco movimento para tirar conclusões.</b>
+              <span className="faint">
+                Com umas {POUCO} conversas no período aparecem aqui os horários de pico, os assuntos mais perguntados, as notas e o desempenho da equipe.
+              </span>
+            </div>
+          )}
+
+          {r.conversas >= POUCO && (
+          <>
           <section className="rel-duas">
             <Funil r={r} />
             <PorCanal porCanal={dados.por_canal} />
@@ -749,6 +764,8 @@ export default function Relatorios() {
           </section>
 
           <PorPessoa dias={dias} />
+          </>
+          )}
         </>
       ) : null}
     </div>

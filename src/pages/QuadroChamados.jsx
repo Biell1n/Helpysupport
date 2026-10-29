@@ -6,6 +6,7 @@ import { useToast } from '@/components/Toasts';
 import { numero, quando } from '@/lib/format';
 import { canalDe, SeloCanal } from '@/components/IconesCanais';
 import { avisarNoCanal } from '@/lib/canais';
+import { Marca } from '@/components/Logo';
 
 const COLUNAS = [
   { id: 'waiting', titulo: 'Na fila', vazio: 'Nenhum chamado esperando.' },
@@ -77,6 +78,14 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
         <button type="button" className="btn btn-ghost" onClick={onLista}><List size={16} /> Ver em lista</button>
       </header>
 
+      {/* nenhum chamado: um estado só, com o Helpy, em vez de colunas vazias */}
+      {cards && cards.length === 0 ? (
+        <div className="card vazio-helpy">
+          <Marca size={64} />
+          <h2>Nenhum chamado por enquanto</h2>
+          <p className="faint">Quando o assistente precisar de alguém da equipe, o chamado aparece aqui e no número do menu.</p>
+        </div>
+      ) : (
       <div className="quadro">
         {COLUNAS.map((col) => {
           const lista = (cards ?? []).filter((c) => c.status === col.id);
@@ -144,6 +153,7 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
           );
         })}
       </div>
+      )}
     </div>
   );
 }

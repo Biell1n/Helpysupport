@@ -377,17 +377,18 @@ export default function Atendimentos() {
                   {aberta.assumido_nome && aberta.status === 'human' && <span className="faint" style={{ fontSize: 13 }}>com {aberta.assumido_nome}</span>}
                 </div>
               </div>
-              <div className="row row-wrap">
-                {aberta.status === 'waiting' && (
+              {/* uma ação principal por vez; as outras ficam pequenas ao lado */}
+              <div className="row row-wrap detail-acoes">
+                {(aberta.status === 'waiting' || aberta.status === 'bot') && (
                   <button type="button" className="btn btn-senha" onClick={assumir}><Hand /> Assumir</button>
                 )}
                 {(aberta.status === 'waiting' || aberta.status === 'human') && (
-                  <button type="button" className="btn btn-ghost" onClick={() => setConfirmar('devolver')}><Headset /> Devolver ao assistente</button>
+                  <button type="button" className="btn btn-ghost btn-sm" title="Devolver ao assistente" onClick={() => setConfirmar('devolver')}><Headset /> Devolver</button>
                 )}
                 {/* devolvida ao assistente, a conversa deixa de ser chamado: não há o que encerrar */}
                 {(aberta.status === 'waiting' || aberta.status === 'human') && (
                   // na fila, a ação da vez é assumir; encerrar só ganha destaque depois
-                  <button type="button" className={`btn ${aberta.status === 'human' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setConfirmar('encerrar')}><CheckCircle2 /> Encerrar</button>
+                  <button type="button" className={`btn ${aberta.status === 'human' ? 'btn-primary' : 'btn-ghost btn-sm'}`} onClick={() => setConfirmar('encerrar')}><CheckCircle2 /> Encerrar</button>
                 )}
                 {aberta.status === 'closed' && (
                   <button type="button" className="btn btn-ghost" onClick={reabrir}><RotateCcw /> Reabrir</button>
@@ -444,7 +445,7 @@ export default function Atendimentos() {
                     <textarea
                       rows={1}
                       value={resposta}
-                      placeholder={aberta.status === 'human' ? 'Responder ao cliente…' : 'Responder assume o chamado e pausa o assistente…'}
+                      placeholder={aberta.status === 'human' ? 'Responder ao cliente…' : 'Responder…'}
                       disabled={enviando}
                       aria-label="Resposta"
                       onChange={(e) => setResposta(e.target.value)}
@@ -459,7 +460,9 @@ export default function Atendimentos() {
                       <ArrowUp />
                     </button>
                   </div>
-                  <div className="composer-note">O cliente vê como {atendente}, na mesma conversa.</div>
+                  <div className="composer-note">
+                    O cliente vê como {atendente}, na mesma conversa.{aberta.status !== 'human' && ' Responder assume o chamado e pausa o assistente.'}
+                  </div>
                 </>
               )}
             </div>

@@ -2016,6 +2016,36 @@
   line-height: 1.4;
   color: var(--tinta-3);
 }
+/* pedido fechado: itens, total e o botão de pagar */
+.chat-recibo-itens {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+.chat-recibo-itens li,
+.chat-recibo-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.chat-recibo-itens li span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.chat-recibo-itens li span:last-child,
+.chat-recibo-total b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chat-recibo-total {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--linha);
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+.chat-recibo-corpo .chat-recibo-total b { font-size: 15px; white-space: nowrap; }
+.chat-recibo-pagar { margin: 8px 0 4px; align-self: stretch; justify-content: center; }
+.chat-recibo[data-tipo='pedido'] .chat-recibo-lado b { font-size: 17px; }
+
 .chat-recibo[data-tipo='cancelado'] .chat-recibo-lado b,
 .chat-recibo[data-tipo='cancelado'] .chat-recibo-corpo b {
   text-decoration: line-through;
@@ -3045,13 +3075,11 @@
   border-radius: var(--r-lg);
 }
 
-/* rótulos dos números como ficha técnica: mono, caixa-alta pequena */
+/* rótulos dos números: texto de apoio, em caixa normal (mono fica só para a senha) */
 .kpi .eyebrow {
-  font-family: var(--f-mono);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--tinta-3);
 }
 
 /* um número manda na faixa: atendimentos do mês */
@@ -3986,4 +4014,87 @@
     width: 44px;
     height: 44px;
   }
+}
+
+/* painel sem movimento ainda: uma linha só, em vez de três números zerados */
+.painel-calmo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-bottom: 16px;
+}
+
+.painel-calmo .btn {
+  margin-left: auto;
+}
+
+/* estado vazio com o Helpy (mascote): no lugar de colunas e cartões vazios */
+.vazio-helpy {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.vazio-helpy h2 {
+  margin: 8px 0 0;
+  font-size: 18px;
+}
+
+.vazio-helpy p {
+  max-width: 420px;
+  margin: 0;
+}
+
+/* legenda da agenda: marcas no lugar de emoji */
+.cal-legenda i[data-cor='espera'] {
+  background: repeating-linear-gradient(135deg, #fff4d6 0 4px, var(--branco) 4px 8px);
+  border: 1px dashed #b7791f;
+}
+
+.cal-legenda i[data-cor='pagamento'] {
+  background: var(--senha-clara);
+  border: 1px dashed var(--senha);
+}
+
+/* erro no chat: tom de erro de verdade (não a nota neutra tracejada) */
+.msg-system[data-erro] .msg-body {
+  border: 1px solid rgba(201, 73, 44, 0.35);
+  background: var(--brasa-clara);
+  color: var(--tinta);
+}
+
+/* faixa do topo no celular: nome da página e sino dos avisos */
+.side-titulo-celular,
+.side-sino-celular {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .side-titulo-celular {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  .side-sino-celular {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--r);
+    color: var(--tinta-2);
+  }
+}
+
+.detail-acoes {
+  align-items: center;
+  gap: 8px;
 }
