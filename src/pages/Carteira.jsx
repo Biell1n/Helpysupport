@@ -417,7 +417,7 @@ function Ativar({ onPronto }) {
               {pj ? (
                 <label className="field">
                   <span className="label">Tipo de empresa</span>
-                  <select className="input" value={f.tipo_empresa} onChange={muda('tipo_empresa')}>
+                  <select className="select" value={f.tipo_empresa} onChange={muda('tipo_empresa')}>
                     <option value="MEI">MEI</option>
                     <option value="LIMITED">Limitada (LTDA)</option>
                     <option value="INDIVIDUAL">Individual (EI)</option>
@@ -490,7 +490,7 @@ function Ativar({ onPronto }) {
               </label>
               <label className="field">
                 <span className="label">Ambiente</span>
-                <select className="input" value={ambiente} onChange={(e) => setAmbiente(e.target.value)}>
+                <select className="select" value={ambiente} onChange={(e) => setAmbiente(e.target.value)}>
                   <option value="producao">Produção (dinheiro de verdade)</option>
                   <option value="sandbox">Teste (sandbox)</option>
                 </select>

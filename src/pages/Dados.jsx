@@ -10,6 +10,8 @@ import { planOf } from '@/lib/plans';
 import { chavear } from '@/lib/planilha';
 import { FaixaFonte, ImportarParaTabela, NovaTabela } from '@/components/FontesDados';
 
+const CELULAR = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
+
 const TIPOS = [
   { v: 'texto', r: 'Texto', d: 'Nome, categoria, cor.' },
   { v: 'texto_longo', r: 'Texto longo', d: 'Descrição, observação.' },
@@ -320,16 +322,16 @@ export default function Dados() {
           <h1>Dados</h1>
           <p>O que o assistente consulta na hora de responder: preços, estoque, cardápio. Digite aqui, importe do Excel, ligue uma planilha online ou conecte o seu sistema.</p>
         </div>
-        <div className="stack" style={{ gap: 4, alignItems: 'flex-end' }}>
-          <button type="button" className="btn btn-primary" disabled={!podeCriar} onClick={() => setCriando(true)}>
+        {/* no limite do plano, no lugar do botão desligado vai a frase com o caminho */}
+        {podeCriar ? (
+          <button type="button" className="btn btn-primary" onClick={() => setCriando(true)}>
             <Plus /> Nova tabela
           </button>
-          {!podeCriar && (
-            <span className="faint" style={{ fontSize: 12.5 }}>
-              O {plano.nome} permite {plano.tabelas} {plano.tabelas === 1 ? 'tabela' : 'tabelas'}. <Link to="/painel/plano">Ver planos</Link>
-            </span>
-          )}
-        </div>
+        ) : (
+          <span className="faint dados-limite">
+            O {plano.nome} permite {plano.tabelas} {plano.tabelas === 1 ? 'tabela' : 'tabelas'} · <Link to="/painel/plano">Ver planos</Link>
+          </span>
+        )}
       </header>
 
       {tabelas === null && <div className="skeleton" style={{ height: 200 }} />}
@@ -356,7 +358,9 @@ export default function Dados() {
           {ativa && (
             <div className="stack">
               {!editavel && <FaixaFonte key={ativa.id} tabela={ativa} avisar={avisar} onAtualizou={() => { carregarTabelas(); carregarConteudo(ativa.id); }} />}
-              <div className="card card-tight stack stack-sm">
+              {/* celular: começa fechado, a tabela fica com a tela */}
+              <details className="card card-tight stack stack-sm tabela-config" open={!CELULAR} key={`cfg-${ativa.id}`}>
+                <summary>Configurar tabela{ativa.proposito ? <span className="faint"> · {ativa.proposito}</span> : ''}</summary>
                 <label className="field">
                   <span className="label">Para que serve esta tabela</span>
                   <input
@@ -377,7 +381,7 @@ export default function Dados() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </details>
 
               <div className="row row-wrap">
                 {fonte !== 'api' && <label className="row" style={{ position: 'relative', flex: '1 1 240px', maxWidth: 320 }}>

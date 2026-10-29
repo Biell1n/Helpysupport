@@ -336,7 +336,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           tipoDoEvento(m) === 'pedido' ? <Pedido key={i} m={m} pago={pedidoPago(mensagens, m)} /> :
           tipoDoEvento(m) === 'pago' && temRecibo(mensagens, m) ? <MarcoPago key={i} m={m} /> :
           tipoDoEvento(m) ? <Evento key={i} m={m} /> :
-          <div key={i} data-erro={m.erro || undefined} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'agent' ? 'msg-agent' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`}>
+          <div key={i} data-erro={m.erro || undefined} data-passou={(m.role === 'assistant' && tipoDoEvento(mensagens[i - 1] ?? {}) === 'pedido' && pedidoPago(mensagens, mensagens[i - 1])) || undefined} className={`msg ${m.role === 'user' ? 'msg-user' : m.role === 'agent' ? 'msg-agent' : m.role === 'system' ? 'msg-system' : 'msg-bot'}`}>
             {m.role === 'assistant' && <span className="msg-who">{nome}</span>}
             {m.role === 'agent' && <span className="msg-who">{m.author_name || estado.assumido_nome || 'Equipe'} · equipe</span>}
             <div className="msg-body">
@@ -533,7 +533,7 @@ function Pedido({ m, pago }) {
         {pago && <span className="chat-recibo-carimbo" aria-hidden="true">Pago</span>}
         <div className="chat-recibo-corpo">
           <span className="chat-recibo-status">
-            {pago ? <CircleCheckBig size={14} aria-hidden="true" /> : <ReceiptText size={14} aria-hidden="true" />} {pago ? 'Pedido pago' : 'Pedido fechado'}
+            <ReceiptText size={14} aria-hidden="true" /> {pago ? 'Seu pedido' : 'Pedido fechado'}
           </span>
           <ul className="chat-recibo-itens">
             {itens.map((it, i) => (
@@ -544,7 +544,7 @@ function Pedido({ m, pago }) {
           {link && !pago && (
             <a className="btn btn-primary btn-sm chat-recibo-pagar" href={link} target="_blank" rel="noreferrer">Pagar agora</a>
           )}
-          <p>{pago ? 'Pagamento recebido. A loja já está cuidando do pedido.' : 'Pix, cartão ou boleto. A confirmação aparece aqui.'}</p>
+          {!pago && <p>Pix, cartão ou boleto. A confirmação aparece aqui.</p>}
         </div>
       </div>
     </div>

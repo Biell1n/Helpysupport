@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { CreditCard, MessageCircle } from 'lucide-react';
+import { Check, CreditCard, MessageCircle } from 'lucide-react';
+import Abas from '@/components/Abas';
 import { useAuth } from '@/contexts/AuthContext';
 import { chamar } from '@/lib/supabase';
 import UsoExtra from '@/components/UsoExtra';
@@ -153,12 +154,16 @@ export default function Plano() {
         <p className="muted">
           Todos têm link, QR code, site, Discord, agenda e relatórios. No anual você paga menos por mês.
         </p>
-        <div className="row" role="group" aria-label="Forma de cobrança" style={{ gap: 6, marginTop: 10 }}>
-          <button type="button" className="chip" aria-pressed={ciclo === 'mensal'} onClick={() => setCiclo('mensal')}>Mensal</button>
-          <button type="button" className="chip" aria-pressed={ciclo === 'anual'} onClick={() => setCiclo('anual')}>
-            Anual <small>até {Math.max(...[PLANS.essencial, PLANS.profissional, PLANS.business].map(descontoAnual))}% a menos</small>
-          </button>
-        </div>
+        <Abas
+          className="plano-ciclo"
+          rotulo="Forma de cobrança"
+          ativa={ciclo}
+          onMudar={setCiclo}
+          abas={[
+            { id: 'mensal', rotulo: 'Mensal' },
+            { id: 'anual', rotulo: 'Anual', extra: <small className="plano-ciclo-desconto">−{Math.max(...[PLANS.essencial, PLANS.profissional, PLANS.business].map(descontoAnual))}%</small> },
+          ]}
+        />
         {precos.teste && (
           <div className="alert" style={{ marginTop: 12 }}>
             <span><b>Preços de teste ligados:</b> os planos custam o mínimo do Asaas (R$ 5 a R$ 7) e o Essencial tem cota pequena, para testar a cobrança de verdade.</span>
@@ -172,7 +177,7 @@ export default function Plano() {
             <article key={p.id} className={`lp-plano${p.destaque ? ' lp-plano-destaque' : ''}`}>
               <div className="lp-plano-topo">
                 <h3>{p.nome}</h3>
-                {ehAtual ? <span className="badge badge-plain lp-plano-tag">Seu plano</span> : p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
+                {ehAtual ? <span className="badge badge-plain">Seu plano</span> : p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
               </div>
               <PrecoDoPlano p={p} ciclo={ciclo} precos={precos} simples />
               <dl className="plano-linhas">
@@ -187,7 +192,7 @@ export default function Plano() {
                 })}
               </dl>
               {ehAtual ? (
-                <button type="button" className="btn btn-ghost btn-block" disabled>Plano atual</button>
+                <p className="plano-atual"><Check size={16} aria-hidden="true" /> Seu plano atual</p>
               ) : pagamentos?.cobranca ? (
                 <button type="button" className={`btn btn-block ${p.destaque ? 'btn-senha' : 'btn-ghost'}`} onClick={() => setAssinar(p.id)}>
                   <CreditCard /> {!teste && p.precoMensal < atual.precoMensal ? `Mudar para o ${p.nome}` : `Assinar ${p.nome}`}
