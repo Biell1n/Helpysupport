@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { BarChart3, Bell, CalendarDays, Menu, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, UserRound, Users, Wallet } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { chamar } from '@/lib/supabase';
+import { chamar, supabase } from '@/lib/supabase';
 import { VerificarCodigo } from '@/components/DuasEtapas';
 import { aceitar, gravarAceitePendente, TERMOS_VERSAO } from '@/lib/termos';
 import { useUso } from '@/lib/useUso';
@@ -16,17 +16,18 @@ import EscolherTema from '@/components/EscolherTema';
 const NAV = [
   { to: '/painel', label: 'Painel', icon: LayoutGrid, end: true, tipos: ['empresa'] },
   { to: '/painel', label: 'Minhas conversas', icon: MessagesSquare, end: true, tipos: ['cliente'] },
-  { to: '/painel/avisos', label: 'Avisos', icon: Bell, tipos: ['empresa'] },
-  { to: '/painel/assistentes', label: 'Assistentes', icon: Headset, tipos: ['empresa'] },
-  { to: '/painel/atendimentos', label: 'Atendimentos', icon: Ticket, contador: 'tickets_abertos', tipos: ['empresa', 'funcionario'] },
-  { to: '/painel/canais', label: 'Canais', icon: Radio, tipos: ['empresa'] },
-  { to: '/painel/pedidos', label: 'Pedidos', icon: ShoppingBag, tipos: ['empresa', 'funcionario'] },
-  { to: '/painel/carteira', label: 'Carteira', icon: Wallet, tipos: ['empresa'] },
-  { to: '/painel/dados', label: 'Dados', icon: Table2, tipos: ['empresa'] },
-  { to: '/painel/agenda', label: 'Agenda', icon: CalendarDays, tipos: ['empresa', 'funcionario'] },
-  { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart3, tipos: ['empresa'] },
-  { to: '/painel/equipe', label: 'Equipe', icon: Users, tipos: ['empresa'] },
-  { to: '/painel/plano', label: 'Plano', icon: Gem, tipos: ['empresa'] },
+  { to: '/painel/atendimentos', label: 'Atendimentos', icon: Ticket, contador: 'tickets_abertos', tipos: ['empresa', 'funcionario'], grupo: 'Atender' },
+  { to: '/painel/pedidos', label: 'Pedidos', icon: ShoppingBag, tipos: ['empresa', 'funcionario'], grupo: 'Atender' },
+  { to: '/painel/agenda', label: 'Agenda', icon: CalendarDays, tipos: ['empresa', 'funcionario'], grupo: 'Atender' },
+  { to: '/painel/assistentes', label: 'Assistentes', icon: Headset, tipos: ['empresa'], grupo: 'Assistente' },
+  { to: '/painel/dados', label: 'Dados', icon: Table2, tipos: ['empresa'], grupo: 'Assistente' },
+  { to: '/painel/canais', label: 'Canais', icon: Radio, tipos: ['empresa'], grupo: 'Assistente' },
+  { to: '/painel/relatorios', label: 'Relatórios', icon: BarChart3, tipos: ['empresa'], grupo: 'Negócio' },
+  { to: '/painel/carteira', label: 'Carteira', icon: Wallet, tipos: ['empresa'], grupo: 'Negócio' },
+  { to: '/painel/equipe', label: 'Equipe', icon: Users, tipos: ['empresa'], grupo: 'Negócio' },
+  // fora da barra: Avisos é o sino e Plano é o cartão do plano no rodapé (no celular, os dois ficam no "Mais")
+  { to: '/painel/avisos', label: 'Avisos', icon: Bell, tipos: ['empresa'], fora: true },
+  { to: '/painel/plano', label: 'Plano', icon: Gem, tipos: ['empresa'], fora: true },
 ];
 
 // no celular, os destinos do dia a dia ficam numa barra embaixo; o resto vai em "Mais"
@@ -196,6 +197,19 @@ export default function AppShell() {
     const ativo = document.querySelector('.side-nav .side-link.active');
     if (ativo && window.matchMedia('(max-width: 900px)').matches) ativo.scrollIntoView({ inline: 'center', block: 'nearest' });
   }, [pathname]);
+  // avisos ainda não vistos: a contagem vai no sino
+  const [naoVistos, setNaoVistos] = useState(0);
+  useEffect(() => {
+    if (tipo !== 'empresa') return;
+    let vivo = true;
+    Promise.all([
+      supabase.from('alertas').select('id', { count: 'exact', head: true }).is('visto_em', null),
+      supabase.from('assistant_gaps').select('id', { count: 'exact', head: true }).eq('resolvida', false).is('vista_em', null),
+    ]).then(([a, g]) => vivo && setNaoVistos((a.count ?? 0) + (g.count ?? 0)));
+    return () => {
+      vivo = false;
+    };
+  }, [tipo, pathname, uso]);
   const plano = planOf(profile);
   const dias = diasDeTeste(profile);
   const usados = uso?.atendimentos ?? 0;
@@ -210,26 +224,38 @@ export default function AppShell() {
   return (
     <div className="shell">
       <aside className="side">
-        <Link to="/painel" className="side-brand" aria-label="Helpy, início do painel">
-          <Logo size={28} />
-        </Link>
+        <div className="side-topo">
+          <Link to="/painel" className="side-brand" aria-label="Helpy, início do painel">
+            <Logo size={28} />
+          </Link>
+          {tipo === 'empresa' && (
+            <NavLink to="/painel/avisos" className={({ isActive }) => `side-sino${isActive ? ' active' : ''}`} aria-label={naoVistos ? `Avisos, ${naoVistos} novos` : 'Avisos'}>
+              <Bell size={18} />
+              {naoVistos > 0 && <b className="side-sino-conta">{naoVistos > 9 ? '9+' : naoVistos}</b>}
+            </NavLink>
+          )}
+        </div>
         {/* celular: a faixa do topo diz onde a pessoa está e leva aos avisos */}
         <span className="side-titulo-celular">
           {pathname === '/painel/conta' ? 'Conta' : ([...NAV].reverse().find((n) => n.tipos.includes(tipo) && (n.end ? pathname === n.to : pathname.startsWith(n.to)))?.label ?? '')}
         </span>
         {tipo === 'empresa' && (
-          <Link to="/painel/avisos" className="side-sino-celular" aria-label="Avisos">
+          <Link to="/painel/avisos" className="side-sino-celular" aria-label={naoVistos ? `Avisos, ${naoVistos} novos` : 'Avisos'}>
             <Bell size={20} />
+            {naoVistos > 0 && <b className="side-sino-conta">{naoVistos > 9 ? '9+' : naoVistos}</b>}
           </Link>
         )}
 
         <nav className="side-nav" aria-label="Seções do painel">
-          {NAV.filter((n) => n.tipos.includes(tipo)).map(({ to, label, icon: Icon, end, contador }) => (
-            <NavLink key={to + label} to={to} end={end} aria-label={label} className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
-              <Icon aria-hidden="true" />
-              <span className="side-label">{label}</span>
-              {contador && uso?.[contador] > 0 && <span className="side-count">{uso[contador]}</span>}
-            </NavLink>
+          {NAV.filter((n) => n.tipos.includes(tipo) && !n.fora).map(({ to, label, icon: Icon, end, contador, grupo }, i, lista) => (
+            <Fragment key={to + label}>
+              {grupo && grupo !== lista[i - 1]?.grupo && tipo === 'empresa' && <span className="side-grupo" aria-hidden="true">{grupo}</span>}
+              <NavLink to={to} end={end} aria-label={label} className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
+                <Icon aria-hidden="true" />
+                <span className="side-label">{label}</span>
+                {contador && uso?.[contador] > 0 && <span className="side-count">{uso[contador]}</span>}
+              </NavLink>
+            </Fragment>
           ))}
           {/* no celular o rodapé some: a conta (e o Sair) entra no menu */}
           <NavLink to="/painel/conta" aria-label="Sua conta" className={({ isActive }) => `side-link side-so-celular${isActive ? ' active' : ''}`}>

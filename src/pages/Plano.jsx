@@ -61,6 +61,7 @@ export default function Plano() {
   const [pagamentos, setPagamentos] = useState(null);
   const [assinar, setAssinar] = useState(null);
   const [ciclo, setCiclo] = useState('anual');
+  const [tudo, setTudo] = useState(false);
   const precos = usePrecos();
 
   const carregar = useCallback(async () => {
@@ -173,9 +174,9 @@ export default function Plano() {
                 <h3>{p.nome}</h3>
                 {ehAtual ? <span className="badge badge-plain lp-plano-tag">Seu plano</span> : p.destaque && <span className="lp-plano-tag">Mais escolhido</span>}
               </div>
-              <PrecoDoPlano p={p} ciclo={ciclo} precos={precos} />
+              <PrecoDoPlano p={p} ciclo={ciclo} precos={precos} simples />
               <dl className="plano-linhas">
-                {LINHAS.map(([rotulo, valor]) => {
+                {(tudo ? LINHAS : LINHAS.slice(0, 5)).map(([rotulo, valor]) => {
                   const v = valor(p);
                   return (
                     <div key={rotulo} data-falta={v == null || undefined}>
@@ -202,6 +203,9 @@ export default function Plano() {
           );
         })}
       </div>
+      <button type="button" className="link-btn" style={{ marginTop: 12 }} onClick={() => setTudo((v) => !v)} aria-expanded={tudo}>
+        {tudo ? 'Mostrar só o principal' : `Comparar tudo (${LINHAS.length} itens)`}
+      </button>
       <section className="card lp-sob-medida" style={{ marginTop: 20 }}>
         <div>
           <h3>Plano personalizado</h3>

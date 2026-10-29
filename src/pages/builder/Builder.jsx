@@ -266,6 +266,8 @@ function Tela() {
   const [publicando, setPublicando] = useState(false);
   const [recomecar, setRecomecar] = useState(false);
   const [desfazendo, setDesfazendo] = useState(false);
+  // celular: uma coisa por vez, a conversa ou a ficha
+  const [aba, setAba] = useState('conversa');
 
   const desfazer = async () => {
     if (desfazendo) return;
@@ -336,7 +338,14 @@ function Tela() {
   const salvo = { saving: 'Salvando…', saved: 'Salvo', error: 'Não salvou — confira a conexão', idle: '' }[b.saveState];
 
   return (
-    <div className="builder">
+    <div className="builder" data-aba={aba}>
+      <div className="builder-abas" role="tablist" aria-label="Montador">
+        <button type="button" role="tab" aria-selected={aba === 'conversa'} onClick={() => setAba('conversa')}>Conversa</button>
+        <button type="button" role="tab" aria-selected={aba === 'ficha'} onClick={() => setAba('ficha')}>
+          Ficha <span className="builder-abas-pct">{b.progress}%</span>
+          {aba !== 'ficha' && b.fresh.length > 0 && <i className="builder-abas-novo" aria-label="mudou" />}
+        </button>
+      </div>
       <aside className="builder-chat">
         <div className="builder-chat-head">
           <Link to="/painel/assistentes" className="btn btn-quiet btn-icon" aria-label="Voltar aos assistentes">

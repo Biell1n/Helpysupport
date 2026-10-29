@@ -369,11 +369,11 @@ export async function fecharPedido(
     frete: frete != null ? reais(frete) : entrega === 'retirada' ? 'retirada no local' : 'sem frete',
     total: reais(total),
     link: noSite ? 'já está no recibo na tela (não repita)' : link.url,
-    mensagem: `${noSite
-      ? `O pedido já apareceu na tela como um recibo (itens, ${frete ? 'frete, ' : ''}total e o botão "Pagar agora"). NÃO repita a lista de itens nem o link: diga em uma frase curta que o pedido nº ${ped.numero} (${reais(total)}) está logo acima, pronto para pagar.`
-      : `Mande o resumo (itens${frete ? `, frete ${reais(frete)}` : entrega === 'retirada' ? ', retirada no local' : ''} e total ${reais(total)}) e o link exatamente como veio.`} Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Diga em uma frase o que acontece depois: assim que o pagamento cair, a confirmação aparece aqui mesmo (com o número do pedido, ${ped.numero}), e a loja segue com ${entrega === 'retirada' ? 'a retirada' : 'a entrega'}. Não ofereça incluir itens neste pedido: o link já tem o valor fechado.${
-      ctx.teste ? ' (É um teste do dono: o link é de verdade no ambiente configurado.)' : ''
-    }`,
+    mensagem: noSite
+      ? `O pedido já apareceu na tela como um recibo (itens, ${frete ? 'frete, ' : ''}total, botão "Pagar agora" e o aviso de que a confirmação chega aqui). Responda só uma frase curta, sem repetir itens, valores nem link, algo como "Fechei! É só pagar pelo recibo acima." Não pergunte a forma de pagamento. Não ofereça incluir itens neste pedido.${ctx.teste ? ' (É um teste do dono: o link é de verdade no ambiente configurado.)' : ''}`
+      : `Mande o resumo (itens${frete ? `, frete ${reais(frete)}` : entrega === 'retirada' ? ', retirada no local' : ''} e total ${reais(total)}) e o link exatamente como veio. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Diga em uma frase o que acontece depois: assim que o pagamento cair, a confirmação aparece aqui mesmo (com o número do pedido, ${ped.numero}), e a loja segue com ${entrega === 'retirada' ? 'a retirada' : 'a entrega'}. Não ofereça incluir itens neste pedido: o link já tem o valor fechado.${
+        ctx.teste ? ' (É um teste do dono: o link é de verdade no ambiente configurado.)' : ''
+      }`,
   };
 }
 

@@ -16,9 +16,9 @@ import { avisarNoCanal } from '@/lib/canais';
 const CELULAR = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 900px)').matches;
 const ABAS = [
   { id: 'waiting', rotulo: 'Na fila' },
-  { id: 'human', rotulo: 'Com a equipe' },
+  { id: 'human', rotulo: 'Equipe' },
   { id: 'bot', rotulo: 'Assistente' },
-  { id: 'closed', rotulo: 'Encerrados' },
+  { id: 'closed', rotulo: 'Fechados' },
 ];
 
 const nomeCliente = (c) => c.lead_nome?.trim() || 'Visitante';
@@ -336,7 +336,7 @@ export default function Atendimentos() {
                     {c.titulo || c.motivo || 'Conversa com o assistente'}
                   </div>
                   <div className="ticket-sub">
-                    {nomeCliente(c)} · {assistentes[c.assistant_id] ?? 'Assistente'}
+                    {nomeCliente(c)}{assistentes[c.assistant_id] ? ` · ${assistentes[c.assistant_id]}` : ''}
                   </div>
                   <div className="ticket-meta">
                     {!c.lido_em && c.status === 'waiting' && <span className="badge badge-waiting">novo</span>}
@@ -369,7 +369,7 @@ export default function Atendimentos() {
                 <ArrowLeft />
               </button>
               <div style={{ flex: 1, minWidth: 200 }}>
-                <p className="eyebrow">{numero(aberta.numero)} · {assistentes[aberta.assistant_id] ?? 'Assistente'}</p>
+                <p className="eyebrow">{numero(aberta.numero)}{assistentes[aberta.assistant_id] ? ` · ${assistentes[aberta.assistant_id]}` : ''}</p>
                 <h2 style={{ marginTop: 4 }}>{aberta.titulo || aberta.motivo || 'Conversa com o assistente'}</h2>
                 <div className="row" style={{ marginTop: 8 }}>
                   <span className={`badge ${STATUS[aberta.status].classe}`}>{STATUS[aberta.status].rotulo}</span>
@@ -420,7 +420,7 @@ export default function Atendimentos() {
               {mensagens.map((m) => (
                 <div
                   key={m.id}
-                  className={`msg ${m.role === 'user' ? 'msg-bot' : m.role === 'agent' ? 'msg-user' : m.role === 'system' ? 'msg-system' : 'msg-agent'}`}
+                  className={`msg ${m.role === 'user' ? 'msg-bot' : m.role === 'agent' ? 'msg-user' : m.role === 'system' ? 'msg-system' : 'msg-agent msg-do-lado'}`}
                 >
                   <span className="msg-who">
                     {m.role === 'user' ? nomeCliente(aberta) : m.role === 'agent' ? m.author_name || 'Equipe' : m.role === 'assistant' ? assistentes[aberta.assistant_id] ?? 'Assistente' : 'Aviso'}

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { CalendarDays, ChevronDown, FileText, Lock, Plus, RotateCcw, Ticket, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Ban, CalendarDays, ChevronDown, FileText, Lock, Plus, RotateCcw, Ticket, X } from 'lucide-react';
+import MenuMais from '@/components/MenuMais';
 import { Link } from 'react-router-dom';
 import { PLANS } from '@/lib/plans';
 import { useBuilder } from './BuilderContext';
@@ -25,6 +26,9 @@ function Controle({ def, value, onChange, id }) {
   return <input id={id} className="input" value={value || ''} placeholder={def.hint || ''} onChange={(e) => onChange(e.target.value)} />;
 }
 
+// rótulo com inicial maiúscula, venha o schema como vier
+const cap = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+
 function Campo({ def }) {
   const b = useBuilder();
   const entry = b.config.fields[def.key];
@@ -33,34 +37,25 @@ function Campo({ def }) {
   const id = `f-${def.key}`;
 
   return (
-    <div className="doc-field" data-off={pulado ? 'true' : undefined} data-fresh={b.fresh.includes(def.key) ? 'true' : 'false'}>
+    <div className="doc-field" data-chave={def.key} data-off={pulado ? 'true' : undefined} data-fresh={b.fresh.includes(def.key) ? 'true' : 'false'}>
       <div className="doc-field-top">
         <label className="label" htmlFor={id}>
-          {def.label}
+          {cap(def.label)}
           {def.importance === 'critical' && <span className="req" aria-label="obrigatório">*</span>}
         </label>
         {falta && def.importance === 'critical' && <span className="flag">falta</span>}
-        {pulado && <span className="flag flag-mute">dispensado</span>}
-      </div>
-      <div className="doc-control">
-        {pulado ? (
-          <div className="doc-skipped">Não vai ser informado. Clique em ↺ para voltar a preencher.</div>
-        ) : (
-          <Controle def={def} id={id} value={entry?.value} onChange={(v) => b.setField(def.key, v)} />
-        )}
+        {pulado && <span className="flag flag-mute">não se aplica</span>}
+        <span className="spacer" />
         {/* campo obrigatório não pode ser dispensado: sem ele não dá para publicar */}
-        {(pulado || def.importance !== 'critical') && (
-          <button
-            type="button"
-            className={`btn btn-quiet ${pulado ? 'btn-icon' : 'btn-sm doc-nao-se-aplica'}`}
-            onClick={() => (pulado ? b.restoreField(def.key) : b.skipField(def.key))}
-            title={pulado ? 'Voltar a preencher' : undefined}
-            aria-label={pulado ? `Voltar a preencher ${def.label}` : `${def.label} não se aplica`}
-          >
-            {pulado ? <RotateCcw size={16} /> : 'Não se aplica'}
+        {pulado ? (
+          <button type="button" className="btn btn-quiet btn-icon btn-sm" onClick={() => b.restoreField(def.key)} title="Voltar a preencher" aria-label={`Voltar a preencher ${def.label}`}>
+            <RotateCcw size={15} />
           </button>
+        ) : def.importance !== 'critical' && (
+          <MenuMais rotulo={`Opções de ${def.label}`} itens={[{ rotulo: 'Não se aplica', Icone: Ban, onClick: () => b.skipField(def.key) }]} />
         )}
       </div>
+      {!pulado && <Controle def={def} id={id} value={entry?.value} onChange={(v) => b.setField(def.key, v)} />}
       {def.hint && def.type === 'select' && !pulado && <span className="hint">{def.hint}</span>}
     </div>
   );
@@ -69,6 +64,19 @@ function Campo({ def }) {
 function Lista({ def }) {
   const b = useBuilder();
   const itens = b.config.collections[def.key] || [];
+  // itens fechados numa linha (nome · preço · …); abre para editar. Item novo já vem aberto
+  const [abertos, setAbertos] = useState(() => new Set());
+  const antes = useRef(itens.length);
+  useEffect(() => {
+    if (itens.length > antes.current) setAbertos((a) => new Set(a).add(itens.length - 1));
+    antes.current = itens.length;
+  }, [itens.length]);
+  const alternarItem = (i) => setAbertos((a) => {
+    const n = new Set(a);
+    if (n.has(i)) n.delete(i);
+    else n.add(i);
+    return n;
+  });
   const dispensada = b.config.declined.collections.includes(def.key);
   // a lista virou tabela em Dados: não é "não se aplica", ela mora lá agora
   const tabela = dispensada ? b.emTabela?.[def.key] : null;
@@ -77,10 +85,10 @@ function Lista({ def }) {
   const falta = !dispensada && itens.length < (def.min ?? 1);
 
   return (
-    <div className="doc-field" data-fresh={b.fresh.includes(def.key) ? 'true' : 'false'}>
+    <div className="doc-field" data-chave={def.key} data-fresh={b.fresh.includes(def.key) ? 'true' : 'false'}>
       <div className="doc-field-top">
         <span className="label">
-          {def.label}
+          {cap(def.label)}
           {def.importance === 'critical' && <span className="req" aria-label="obrigatório">*</span>}
         </span>
         {falta && def.importance === 'critical' && <span className="flag">falta</span>}
@@ -120,17 +128,22 @@ function Lista({ def }) {
           {itens.map((item, i) => {
             const faltam = b.incomplete[`${def.key}:${i}`];
             const semAqui = semNoItem(item);
+            const aberto = abertos.has(i);
+            const resumo = atributos.map((f) => String(item[f.key] ?? '').trim()).filter(Boolean);
             return (
-              <div className="item" key={i}>
+              <div className="item" key={i} data-aberto={aberto || undefined}>
                 <div className="item-head">
-                  <span className="mono faint">{String(i + 1).padStart(2, '0')}</span>
+                  <button type="button" className="item-linha" onClick={() => alternarItem(i)} aria-expanded={aberto}>
+                    <b>{resumo[0] || `Item ${i + 1}`}</b>
+                    {resumo.length > 1 && <span>{resumo.slice(1, 3).join(' · ')}</span>}
+                  </button>
                   {faltam && <span className="flag">falta {faltam.join(', ').toLowerCase()}</span>}
-                  <span className="spacer" />
+                  <button type="button" className="btn btn-quiet btn-sm" onClick={() => alternarItem(i)}>{aberto ? 'Fechar' : 'Editar'}</button>
                   <button type="button" className="btn btn-quiet btn-icon btn-sm" aria-label={`Remover item ${i + 1}`} onClick={() => b.removeItem(def.key, i)}>
                     <X size={15} />
                   </button>
                 </div>
-                <div className="item-fields">
+                {aberto && <div className="item-fields">
                   {atributos.map((f, j) => {
                     const id = `i-${def.key}-${i}-${f.key}`;
                     const off = semAqui.includes(f.key);
@@ -138,7 +151,7 @@ function Lista({ def }) {
                       <div key={f.key} className={`field item-attr${f.type === 'textarea' ? ' wide' : ''}`} data-off={off ? 'true' : undefined}>
                         <span className="label item-attr-top" style={{ fontSize: 12.5 }}>
                           <label htmlFor={id}>
-                            {f.label}
+                            {cap(f.label)}
                             {f.required && !off && <span className="req">*</span>}
                           </label>
                           {j > 0 && (
@@ -161,7 +174,7 @@ function Lista({ def }) {
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </div>
             );
           })}
@@ -174,16 +187,19 @@ function Lista({ def }) {
   );
 }
 
-function NovoCampo({ secao }) {
+/** Um "+ Campo" só, no fim da ficha: a pessoa escolhe em que parte ele entra. */
+function NovoCampo({ secoes }) {
   const b = useBuilder();
   const avisar = useToast();
   const [aberto, setAberto] = useState(false);
   const [rotulo, setRotulo] = useState('');
   const [longo, setLongo] = useState(false);
+  const [secao, setSecao] = useState(secoes[0]?.key ?? '');
 
+  if (!secoes.length) return null;
   if (!aberto) {
     return (
-      <button type="button" className="btn btn-quiet btn-sm" onClick={() => setAberto(true)}>
+      <button type="button" className="btn btn-quiet btn-sm doc-campo-novo" onClick={() => setAberto(true)}>
         <Plus /> Campo
       </button>
     );
@@ -200,8 +216,11 @@ function NovoCampo({ secao }) {
     }
   };
   return (
-    <form className="row row-wrap" onSubmit={salvar}>
-      <input className="input" style={{ width: 220 }} autoFocus placeholder="Nome do campo" value={rotulo} onChange={(e) => setRotulo(e.target.value)} />
+    <form className="row row-wrap doc-campo-novo" onSubmit={salvar}>
+      <input className="input" style={{ width: 220 }} autoFocus placeholder="Nome do campo" aria-label="Nome do campo" value={rotulo} onChange={(e) => setRotulo(e.target.value)} />
+      <select className="select" style={{ width: 'auto' }} aria-label="Em que parte da ficha" value={secao} onChange={(e) => setSecao(e.target.value)}>
+        {secoes.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+      </select>
       <label className="check" style={{ fontSize: 13 }}>
         <input type="checkbox" checked={longo} onChange={(e) => setLongo(e.target.checked)} /> texto longo
       </label>
@@ -500,6 +519,58 @@ function Materiais() {
   );
 }
 
+/**
+ * Seção da ficha: à vista só o que já tem conteúdo, o obrigatório e o que a IA acabou de mexer.
+ * O resto (opcional vazio, "não se aplica") fica em "Mais detalhes".
+ */
+function Secao({ sec }) {
+  const b = useBuilder();
+  const [mais, setMais] = useState(false);
+  // o que a pessoa começou a preencher em "Mais detalhes" fica lá (senão o campo pularia de lugar no meio da digitação)
+  const [ficam, setFicam] = useState(() => new Set());
+  const temValor = (k) => String(b.config.fields[k]?.value ?? '').trim() !== '' && b.config.fields[k]?.status !== 'ignorado';
+  const campoAVista = (f) => !ficam.has(f.key) && (f.importance === 'critical' || f.custom || temValor(f.key) || b.fresh.includes(f.key));
+  const listaAVista = (c) =>
+    !ficam.has(c.key) && (c.importance === 'critical' || (b.config.collections[c.key]?.length ?? 0) > 0 || !!b.emTabela?.[c.key] || b.fresh.includes(c.key));
+  const campos = sec.fields.filter(campoAVista);
+  const listas = sec.collections.filter(listaAVista);
+  const escondidos = [...sec.fields.filter((f) => !campoAVista(f)), ...sec.collections.filter((c) => !listaAVista(c))];
+  const ids = new Set(escondidos.map((x) => x.key));
+
+  return (
+    <section className="doc-section" aria-labelledby={`sec-${sec.key}`}>
+      <div className="doc-section-head">
+        <div>
+          <h2 id={`sec-${sec.key}`}>{sec.label}</h2>
+          {sec.note && <p>{sec.note}</p>}
+        </div>
+      </div>
+      {campos.map((f) => <Campo key={f.key} def={f} />)}
+      {listas.map((c) => <Lista key={c.key} def={c} />)}
+      {escondidos.length > 0 && (
+        <>
+          <button type="button" className="doc-mais" onClick={() => setMais((v) => !v)} aria-expanded={mais}>
+            <ChevronDown size={16} aria-hidden="true" />
+            {mais ? 'Menos detalhes' : `Mais detalhes (${escondidos.length})`}
+          </button>
+          {mais && (
+            <div
+              className="doc-mais-lista"
+              onFocusCapture={(e) => {
+                const k = e.target.closest?.('[data-chave]')?.dataset.chave;
+                if (k && !ficam.has(k)) setFicam((x) => new Set(x).add(k));
+              }}
+            >
+              {sec.fields.filter((f) => ids.has(f.key)).map((f) => <Campo key={f.key} def={f} />)}
+              {sec.collections.filter((c) => ids.has(c.key)).map((c) => <Lista key={c.key} def={c} />)}
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function Documento() {
   const b = useBuilder();
 
@@ -523,23 +594,10 @@ export default function Documento() {
         ) : sec.key === 'agenda' ? (
           <PainelAgenda key={sec.key} />
         ) : (
-        <section key={sec.key} className="doc-section" aria-labelledby={`sec-${sec.key}`}>
-          <div className="doc-section-head">
-            <div>
-              <h2 id={`sec-${sec.key}`}>{sec.label}</h2>
-              {sec.note && <p>{sec.note}</p>}
-            </div>
-            {SECOES_COM_CAMPO_NOVO.includes(sec.key) && <NovoCampo secao={sec.key} />}
-          </div>
-          {sec.fields.map((f) => (
-            <Campo key={f.key} def={f} />
-          ))}
-          {sec.collections.map((c) => (
-            <Lista key={c.key} def={c} />
-          ))}
-        </section>
+        <Secao key={sec.key} sec={sec} />
         ),
       )}
+      <NovoCampo secoes={b.schema.sections.filter((x) => SECOES_COM_CAMPO_NOVO.includes(x.key))} />
     </div>
   );
 }

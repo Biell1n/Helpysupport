@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Copy, ExternalLink, MessageCircle, Pencil, Plus, QrCode, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, ImageOff, MessageCircle, Pencil, Plus, Power, QrCode, RefreshCw, Trash2 } from 'lucide-react';
+import MenuMais from '@/components/MenuMais';
+import { apagarFoto } from '@/lib/fotos';
 import { supabase, chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -48,6 +50,14 @@ export default function Assistentes() {
     } catch (e) {
       avisar('Não deu para mudar o link', { erro: true, texto: e.message });
     }
+  };
+
+  const tirarFoto = async (a) => {
+    const { error } = await supabase.from('assistants').update({ foto_url: null }).eq('id', a.id);
+    if (error) return avisar('Não deu para remover a foto', { erro: true, texto: error.message });
+    await apagarFoto(a.foto_url).catch(() => {});
+    avisar('Foto removida');
+    carregar();
   };
 
   const trocarLink = async (a) => {
@@ -103,47 +113,48 @@ export default function Assistentes() {
 
       <div className="stack">
         {lista?.map((a) => (
-          <article key={a.id} className="card">
-            <div className="row row-wrap" style={{ alignItems: 'flex-start' }}>
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <h2 style={{ fontSize: 22 }}>{a.name}</h2>
-                <p className="muted" style={{ fontSize: 14, marginBottom: 12 }}>
+          <article key={a.id} className="card assistente-cartao">
+            <div className="assistente-topo">
+              <TrocarFoto
+                compacto
+                userId={user.id}
+                nomeArquivo={`assistente-${a.id}`}
+                foto={a.foto_url}
+                nome={a.name}
+                tamanho={52}
+                onSalvar={async (url) => {
+                  const { error } = await supabase.from('assistants').update({ foto_url: url }).eq('id', a.id);
+                  if (error) throw new Error(error.message);
+                  carregar();
+                }}
+              />
+              <div className="assistente-nome">
+                <h2>{a.name}</h2>
+                <p className="muted">
                   {[a.business_type, MODELOS.find((m) => m.id === a.business_model)?.nome].filter(Boolean).join(' · ')}
                 </p>
-                <TrocarFoto
-                  userId={user.id}
-                  nomeArquivo={`assistente-${a.id}`}
-                  foto={a.foto_url}
-                  nome={a.name}
-                  tamanho={56}
-                  onSalvar={async (url) => {
-                    const { error } = await supabase.from('assistants').update({ foto_url: url }).eq('id', a.id);
-                    if (error) throw new Error(error.message);
-                    carregar();
-                  }}
-                />
               </div>
-              <div className="row row-wrap">
+              <div className="assistente-acoes">
                 <Link to={`/painel/assistentes/${a.id}/testar`} className="btn btn-ghost btn-sm"><MessageCircle /> Testar</Link>
                 <Link to={`/painel/assistentes/${a.id}/editar`} className="btn btn-ghost btn-sm"><Pencil /> Editar</Link>
-                <button type="button" className="btn btn-quiet btn-sm btn-icon" aria-label={`Excluir ${a.name}`} onClick={() => setExcluir(a)}>
-                  <Trash2 />
-                </button>
+                <MenuMais
+                  rotulo={`Mais ações de ${a.name}`}
+                  itens={[
+                    { rotulo: 'Abrir o chat', Icone: ExternalLink, href: linkPublico(a.public_token) },
+                    { rotulo: 'QR code', Icone: QrCode, onClick: () => setQr(a) },
+                    { rotulo: a.is_public ? 'Desligar o link' : 'Ligar o link', Icone: Power, onClick: () => alternar(a) },
+                    { rotulo: 'Trocar link', Icone: RefreshCw, onClick: () => setTrocando(a) },
+                    { rotulo: 'Remover foto', Icone: ImageOff, oculto: !a.foto_url, onClick: () => tirarFoto(a) },
+                    { rotulo: 'Excluir assistente', Icone: Trash2, perigo: true, onClick: () => setExcluir(a) },
+                  ]}
+                />
               </div>
             </div>
 
-            <hr className="divider" style={{ margin: '18px 0 14px' }} />
-
-            <div className="row row-wrap">
+            <div className="assistente-link">
               <span className={`badge ${a.is_public ? 'badge-closed' : 'badge-bot'}`}>{a.is_public ? 'Link no ar' : 'Link desligado'}</span>
-              <code className="mono" style={{ flex: 1, minWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {linkPublico(a.public_token)}
-              </code>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => copiar(a.public_token)}><Copy /> Copiar</button>
-              <a href={linkPublico(a.public_token)} target="_blank" rel="noreferrer" className="btn btn-quiet btn-sm"><ExternalLink /> Abrir</a>
-              <button type="button" className="btn btn-quiet btn-sm" onClick={() => setQr(a)}><QrCode /> QR code</button>
-              <button type="button" className="btn btn-quiet btn-sm" onClick={() => alternar(a)}>{a.is_public ? 'Desligar' : 'Ligar'}</button>
-              <button type="button" className="btn btn-quiet btn-sm" title="Gera um endereço novo e desativa o antigo" onClick={() => setTrocando(a)}><RefreshCw /> Trocar link</button>
+              <code className="mono">{linkPublico(a.public_token)}</code>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => copiar(a.public_token)}><Copy /> Copiar link</button>
             </div>
           </article>
         ))}
