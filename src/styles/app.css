@@ -177,7 +177,7 @@
 }
 
 .side-plan .meter > span {
-  background: var(--tinta-2);
+  background: var(--senha);
 }
 
 .side-plan .meter[data-nivel='alto'] > span { background: #d98a00; }
@@ -1269,6 +1269,38 @@
   flex-wrap: wrap;
 }
 
+.dados-limite { font-size: 13px; align-self: flex-end; }
+.tabela-config > summary { display: none; }
+
+@media (max-width: 640px) {
+  /* uma linha de tabelas que rola de lado */
+  .tabelas-lista {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: -16px;
+    padding-inline: 16px;
+    scrollbar-width: none;
+  }
+  .tabelas-lista .chip { flex: none; }
+  .dados-limite { align-self: flex-start; }
+  .tabela-config > summary {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tabela-config:not([open]) { padding-top: 12px; padding-bottom: 12px; }
+  /* escolha nos cartões parece texto; tocando, abre a lista */
+  .sheet tbody select.sheet-cell {
+    appearance: none;
+    background: none;
+    color: var(--tinta);
+  }
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
@@ -2056,7 +2088,7 @@
 }
 
 .interruptor input:checked + .interruptor-trilho {
-  background: var(--azul-forte);
+  background: var(--senha);
 }
 
 .interruptor input:checked + .interruptor-trilho::after {
@@ -2106,7 +2138,21 @@
 .quadro-card:hover { border-color: var(--linha-forte); }
 .quadro-card:focus-visible { outline: 2px solid var(--azul-forte); outline-offset: 2px; }
 .quadro-card[data-prioridade='alta'] { border-left: 4px solid var(--brasa); }
-.quadro-mover { margin-top: 6px; font: inherit; font-size: 12px; border: 1px solid var(--linha); border-radius: 8px; padding: 4px 6px; background: var(--papel); color: var(--tinta-2); justify-self: start; }
+.quadro-mover {
+  margin-top: 6px;
+  justify-self: start;
+  appearance: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--linha);
+  border-radius: 99px;
+  padding: 4px 26px 4px 10px;
+  color: var(--tinta-2);
+  background: var(--papel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%23A4AAB7' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 8px center;
+  cursor: pointer;
+}
+.quadro-mover:hover { border-color: var(--linha-forte); color: var(--tinta); }
 @media (max-width: 760px) { .quadro { grid-template-columns: repeat(3, 82vw); scroll-snap-type: x mandatory; } .quadro-col { scroll-snap-align: start; } }
 
 /* serviços da agenda no documento do builder: nome, duração e valor */
@@ -4515,3 +4561,33 @@
 @media (prefers-reduced-motion: reduce) {
   .doc-mais svg { transition: none; }
 }
+
+/* Plano: mensal/anual no mesmo controle dos períodos de Relatórios; o plano atual é texto, não botão */
+.plano-ciclo { margin-top: 10px; align-self: flex-start; width: fit-content; }
+.plano-ciclo-desconto { margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--folha, #0e8a44); }
+.plano-atual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+.plano-atual svg { color: #0e8a44; }
+
+/* fala que já passou (o pedido do recibo acima foi pago): fica mais apagada */
+.msg[data-passou] .msg-body { opacity: 0.55; }
+
+/* agenda na ficha do chamado: texto em cima, ações em texto embaixo */
+.chamado-agenda-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.chamado-agenda-acoes { display: flex; gap: 14px; font-size: 13px; }
+.link-perigo { color: var(--brasa); }

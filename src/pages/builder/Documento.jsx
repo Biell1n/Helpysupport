@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Ban, CalendarDays, ChevronDown, FileText, Lock, Plus, RotateCcw, Ticket, X } from 'lucide-react';
+import { Ban, ChevronDown, FileText, Lock, Plus, RotateCcw, X } from 'lucide-react';
 import MenuMais from '@/components/MenuMais';
 import { Link } from 'react-router-dom';
 import { PLANS } from '@/lib/plans';
@@ -304,16 +304,13 @@ function PainelAgenda() {
     : [];
 
   return (
-    <details className="doc-section chamados" open aria-labelledby="sec-agenda">
-      <summary className="doc-section-head">
+    <section className="doc-section chamados" aria-labelledby="sec-agenda">
+      <div className="doc-section-head">
         <div>
-          <h2 id="sec-agenda">
-            <CalendarDays aria-hidden="true" /> Agenda
-          </h2>
+          <h2 id="sec-agenda">Agenda</h2>
           <p>{usa ? (confirma ? 'Ele anota o pedido e você confirma.' : 'Ele marca sozinho nos horários livres.') : 'Desligada: ele não marca horários.'}</p>
         </div>
-        <ChevronDown className="chamados-seta" aria-hidden="true" />
-      </summary>
+      </div>
       <div className="chamados-corpo">
         <label className="interruptor">
           <input type="checkbox" checked={usa} onChange={(e) => b.setField('usar_agenda', e.target.checked ? 'Sim, marca sozinho' : SEM_AGENDA)} />
@@ -361,7 +358,7 @@ function PainelAgenda() {
           </>
         )}
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -383,18 +380,18 @@ function PainelChamados({ sec }) {
   const [exigeSenha, setExigeSenha] = useState(!!codigo);
   const campo = (k) => sec.fields.find((f) => f.key === k);
   const contatos = sec.collections.find((c) => c.key === 'contatos');
+  // ligado e sem nada ajustado: só o interruptor à vista, os detalhes ficam recolhidos
+  const ajustado = !!(valor('quando_chamar_humano') || valor('nunca_chamar_humano') || codigo || valor('horario') || (b.config.collections.contatos?.length ?? 0));
+  const [detalhes, setDetalhes] = useState(ajustado);
 
   return (
-    <details className="doc-section chamados" open aria-labelledby="sec-chamados">
-      <summary className="doc-section-head">
+    <section className="doc-section chamados" aria-labelledby="sec-chamados">
+      <div className="doc-section-head">
         <div>
-          <h2 id="sec-chamados">
-            <Ticket aria-hidden="true" /> Chamados e equipe
-          </h2>
+          <h2 id="sec-chamados">Chamados e equipe</h2>
           <p>{ativos ? 'Ligado: quando precisar, ele passa a conversa para a sua equipe.' : 'Desligado: ele resolve tudo sozinho.'}</p>
         </div>
-        <ChevronDown className="chamados-seta" aria-hidden="true" />
-      </summary>
+      </div>
 
       {!plano.chamados ? (
         <div className="alert">
@@ -416,7 +413,12 @@ function PainelChamados({ sec }) {
             </span>
           </label>
 
-          {ativos && (
+          {ativos && !detalhes && (
+            <button type="button" className="doc-mais" onClick={() => setDetalhes(true)} aria-expanded="false">
+              <ChevronDown size={16} aria-hidden="true" /> Ajustar quando ele chama a equipe
+            </button>
+          )}
+          {ativos && detalhes && (
             <>
               <label className="field">
                 <span className="label">Quando abrir chamado</span>
@@ -476,10 +478,10 @@ function PainelChamados({ sec }) {
               {campo('horario') && <Campo def={campo('horario')} />}
             </>
           )}
-          {contatos && <Lista def={contatos} />}
+          {contatos && (!ativos || detalhes) && <Lista def={contatos} />}
         </div>
       )}
-    </details>
+    </section>
   );
 }
 

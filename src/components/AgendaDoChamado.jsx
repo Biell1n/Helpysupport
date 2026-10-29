@@ -85,17 +85,19 @@ export default function AgendaDoChamado({ conversa, onMudou }) {
         {info.marcados.map((m) => (
           <div key={m.id} className="chamado-agenda-item">
             <span>{m.texto}</span>
-            <button type="button" className="btn btn-quiet btn-sm" disabled={ocupado} onClick={() => setForm({ modo: 'remarcar', id: m.id, dia: new Date(m.inicio).toLocaleDateString('en-CA'), hora: '' })}>
-              Remarcar
-            </button>
-            <button
-              type="button"
-              className="btn btn-quiet btn-sm"
-              disabled={ocupado}
-              onClick={() => window.confirm('Cancelar este horário? O cliente recebe o aviso na conversa.') && enviar({ cancelar: true, id: m.id })}
-            >
-              Cancelar
-            </button>
+            <span className="chamado-agenda-acoes">
+              <button type="button" className="link-btn" disabled={ocupado} onClick={() => setForm({ modo: 'remarcar', id: m.id, dia: new Date(m.inicio).toLocaleDateString('en-CA'), hora: '' })}>
+                Remarcar
+              </button>
+              <button
+                type="button"
+                className="link-btn link-perigo"
+                disabled={ocupado}
+                onClick={() => window.confirm('Cancelar este horário? O cliente recebe o aviso na conversa.') && enviar({ cancelar: true, id: m.id })}
+              >
+                Cancelar
+              </button>
+            </span>
           </div>
         ))}
         <button type="button" className="btn btn-ghost btn-sm" onClick={abrirNovo} style={{ marginTop: 6 }}>
@@ -110,7 +112,7 @@ export default function AgendaDoChamado({ conversa, onMudou }) {
             {form.modo === 'novo' && info.servicos.length > 0 && (
               <label className="field">
                 <span className="label">Serviço</span>
-                <select className="input" value={form.servico} onChange={set('servico')}>
+                <select className="select" value={form.servico} onChange={set('servico')}>
                   {info.servicos.map((s) => (
                     <option key={s.nome} value={s.nome}>
                       {s.nome}{s.duracao_min ? ` · ${s.duracao_min} min` : ''}{s.valor != null ? ` · R$ ${Number(s.valor).toFixed(2).replace('.', ',')}` : ''}

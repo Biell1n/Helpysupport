@@ -102,7 +102,7 @@ function ConectarDiscord({ assistentes, onFechar }) {
       </ol>
       <label className="field">
         <span className="label">Assistente que vai atender</span>
-        <select id="discord-assistente" className="input" value={assistente} onChange={(e) => setAssistente(e.target.value)}>
+        <select id="discord-assistente" className="select" value={assistente} onChange={(e) => setAssistente(e.target.value)}>
           {assistentes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </label>
@@ -171,7 +171,7 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
       <form className="stack conectar-form" onSubmit={enviar}>
         <label className="field">
           <span className="label">Assistente que vai responder</span>
-          <select className="input" value={f.assistant_id} onChange={set('assistant_id')} required>
+          <select className="select" value={f.assistant_id} onChange={set('assistant_id')} required>
             {assistentes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         </label>
@@ -317,7 +317,7 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
       <Atividade dias={atividade} />
       <label className="field" style={{ marginTop: 12 }}>
         <span className="label">Assistente</span>
-        <select className="input" value={canal.assistant_id} disabled={ocupado} onChange={(e) => onAcao('trocar_assistente', { assistant_id: e.target.value })}>
+        <select className="select" value={canal.assistant_id} disabled={ocupado} onChange={(e) => onAcao('trocar_assistente', { assistant_id: e.target.value })}>
           {assistentes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </label>
