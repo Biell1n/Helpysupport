@@ -70,6 +70,8 @@ function Lista({ def }) {
   const b = useBuilder();
   const itens = b.config.collections[def.key] || [];
   const dispensada = b.config.declined.collections.includes(def.key);
+  // a lista virou tabela em Dados: não é "não se aplica", ela mora lá agora
+  const tabela = dispensada ? b.emTabela?.[def.key] : null;
   const pulados = b.config.declined.item_fields[def.key] || [];
   const atributos = def.item_fields.filter((f) => !pulados.includes(f.key));
   const falta = !dispensada && itens.length < (def.min ?? 1);
@@ -82,7 +84,8 @@ function Lista({ def }) {
           {def.importance === 'critical' && <span className="req" aria-label="obrigatório">*</span>}
         </span>
         {falta && def.importance === 'critical' && <span className="flag">falta</span>}
-        {dispensada && <span className="flag flag-mute">não se aplica</span>}
+        {dispensada && !tabela && <span className="flag flag-mute">não se aplica</span>}
+        {tabela && <a className="flag flag-mute" href="/painel/dados" target="_blank" rel="noreferrer">na tabela {tabela}, em Dados</a>}
         {!dispensada && itens.length > 0 && <span className="flag flag-mute">{itens.length} {itens.length === 1 ? 'item' : 'itens'}</span>}
         <span className="spacer" />
         <button

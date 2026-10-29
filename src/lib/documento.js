@@ -65,13 +65,13 @@ export function computeState(schema, rawConfig) {
     else missing[bucket(c.importance)].push(c.key);
     if (declined) continue;
 
+    // cada item incompleto aparece na ficha, mas não pesa no progresso: senão, levar a
+    // lista para uma tabela em Dados faria a barra "andar para trás"
     const skip = cfg.declined.item_fields[c.key] || [];
     const reqs = (c.item_fields || []).filter((f) => f.required && !skip.includes(f.key));
     list.forEach((item, idx) => {
       const sem = semNoItem(item);
       const faltam = reqs.filter((f) => !sem.includes(f.key) && !String(item?.[f.key] ?? '').trim());
-      total += reqs.length;
-      done += reqs.length - faltam.length;
       if (faltam.length) incomplete[`${c.key}:${idx}`] = faltam.map((f) => f.label);
     });
   }

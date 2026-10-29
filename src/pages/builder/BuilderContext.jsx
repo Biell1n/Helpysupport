@@ -58,6 +58,7 @@ export function BuilderProvider({ assistantId = null, children }) {
   const [saveState, setSaveState] = useState('idle');
   const [fresh, setFresh] = useState([]);
   const [materiais, setMateriais] = useState([]);
+  const [emTabela, setEmTabela] = useState({});
   const [podeDesfazer, setPodeDesfazer] = useState(0);
 
   const sessionRef = useRef(null);
@@ -82,6 +83,7 @@ export function BuilderProvider({ assistantId = null, children }) {
     if (d.plano) setPlano(d.plano);
     if (d.publico !== undefined) setPublico(d.publico);
     if (Array.isArray(d.materiais)) setMateriais(d.materiais);
+    if (d.listas_em_tabela && typeof d.listas_em_tabela === 'object') setEmTabela(d.listas_em_tabela);
     if (typeof d.desfazer === 'number') setPodeDesfazer(d.desfazer);
   }, []);
 
@@ -376,6 +378,7 @@ export function BuilderProvider({ assistantId = null, children }) {
     saveState,
     fresh,
     materiais,
+    emTabela,
     podeDesfazer,
     ...estado,
     ...acoes,

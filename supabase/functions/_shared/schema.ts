@@ -121,6 +121,8 @@ export interface Meta {
   tabela_oferecida: boolean;
   tabela_recusada: boolean;
   tabelas_criadas?: string[];
+  /** lista do documento que virou tabela em Dados: chave da lista → nome da tabela */
+  listas_em_tabela?: Record<string, string>;
   /** anotações pendentes achadas nas tabelas ("tons a confirmar"…), para perguntar ao dono */
   pendencias_tabela?: { nota: string; produtos: string[] }[];
   /** documentos anexados, já em texto, que o assistente consulta ao atender */

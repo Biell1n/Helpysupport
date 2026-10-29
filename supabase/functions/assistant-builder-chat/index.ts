@@ -146,6 +146,7 @@ const sessionPayload = (s: Session) => ({
   schema: s.schema,
   config: s.config,
   materiais: (s.meta.materiais ?? []).map((m) => ({ id: m.id, nome: m.nome, tipo: m.tipo, caracteres: m.texto.length })),
+  listas_em_tabela: s.meta.listas_em_tabela ?? {},
   desfazer: s.historico.length,
 });
 
@@ -907,18 +908,34 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
         tipo: PRICE_RE.test(f.key) ? 'moeda' : f.type === 'textarea' ? 'texto_longo' : 'texto',
         obrigatoria: !!f.required, identifica: i === 0, chave_primaria: i === 0, unica: i === 0,
       }));
-      if (s.meta.business_model === 'produto') {
+      // estoque: a quantidade que a pessoa contou ("12 em estoque", "esgotado") vai para uma coluna de número,
+      // que é a que a venda pelo chat consulta e baixa
+      const campoQtd = c.item_fields.find((f) => /estoque|quantidade|qtd|stock|dispon/i.test(`${f.key} ${f.label}`));
+      const qtdDe = (v: unknown) => {
+        const t = String(v ?? '').toLowerCase();
+        if (/esgotad|sem estoque|acabou|indispon|em falta/.test(t)) return '0';
+        const n = /(\d+)/.exec(t);
+        return n ? n[1] : '';
+      };
+      const comEstoque = s.meta.business_model === 'produto';
+      if (comEstoque) {
         colunas.push({ tabela_id: tab.id, chave: 'estoque', rotulo: 'Estoque', ordem: colunas.length, tipo: 'numero', obrigatoria: false, identifica: false, chave_primaria: false, unica: false });
       }
       await admin.from('tabela_colunas').insert(colunas);
       const itens = cfg.collections[c.key] ?? [];
-      if (itens.length) await admin.from('tabela_linhas').insert(itens.map((dados) => ({ tabela_id: tab.id, dados })));
+      if (itens.length) {
+        await admin.from('tabela_linhas').insert(itens.map((dados) => ({
+          tabela_id: tab.id,
+          dados: comEstoque && campoQtd ? { ...dados, estoque: qtdDe(dados?.[campoQtd.key]) } : dados,
+        })));
+      }
 
       // a lista sai do documento: a fonte passa a ser a tabela
       cfg.collections[c.key] = [];
       if (!cfg.declined.collections.includes(c.key)) cfg.declined.collections.push(c.key);
       s.meta.tabela_oferecida = true;
       s.meta.tabelas_criadas = [...(s.meta.tabelas_criadas ?? []), tab.id];
+      s.meta.listas_em_tabela = { ...(s.meta.listas_em_tabela ?? {}), [c.key]: tab.nome };
       if (ctx.s.assistant_id) await admin.from('assistente_tabelas').upsert({ assistant_id: ctx.s.assistant_id, tabela_id: tab.id });
       touched.add(c.key);
       return { ok: true, tabela: tab.nome, itens_levados: itens.length, mensagem: 'Diga que a tabela está em Dados e que ela pode atualizar lá quando quiser.' };
@@ -1471,7 +1488,8 @@ async function resumirIntencao(s: Session): Promise<string> {
     }],
   });
   addUsage(usage, res.usage);
-  await logUsage(admin, s.owner_id, s.assistant_id, 'builder', MODELS.atendimento, usage);
+  // o resumo ao publicar é custo do Helpy, não uma "mensagem de montagem" do dono: não entra na cota do montador
+  await logUsage(admin, s.owner_id, s.assistant_id, 'atendimento', MODELS.atendimento, usage);
   return textOf(res.content as Array<{ type: string; text?: string }>).slice(0, 2500);
 }
 
