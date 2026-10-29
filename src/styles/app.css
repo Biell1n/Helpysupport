@@ -4599,3 +4599,21 @@
   /* as fichas de coluna rolam de lado: a ponta esmaece para mostrar que tem mais */
   .sheet thead tr { mask-image: linear-gradient(90deg, #000 85%, transparent); }
 }
+
+/* rodapé da barra lateral: o caminho para a ajuda */
+.side-ajuda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r);
+  color: var(--tinta-2);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.side-ajuda:hover,
+.side-ajuda.active {
+  color: var(--tinta);
+  background: var(--papel-2);
+}

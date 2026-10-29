@@ -29,6 +29,12 @@ const Carteira = lazy(() => import('@/pages/Carteira'));
 const DiscordVolta = lazy(() => import('@/pages/DiscordVolta'));
 const Convite = lazy(() => import('@/pages/Convite'));
 const MinhasConversas = lazy(() => import('@/pages/MinhasConversas'));
+const Suporte = lazy(() => import('@/pages/suporte/Suporte'));
+const NovoChamado = lazy(() => import('@/pages/suporte/NovoChamado'));
+const Chamado = lazy(() => import('@/pages/suporte/Chamado'));
+const FilaSuporte = lazy(() => import('@/pages/suporte/FilaSuporte'));
+const AjudaPublica = lazy(() => import('@/pages/suporte/AjudaPublica'));
+const AjudaNoPainel = lazy(() => import('@/pages/suporte/AjudaNoPainel'));
 
 /** O início do painel depende de quem entrou. */
 function Inicio() {
@@ -57,6 +63,7 @@ export default function App() {
             <Route path="/termos" element={<Legal tipo="termos" />} />
             <Route path="/privacidade" element={<Legal tipo="privacidade" />} />
             <Route path="/c/:token" element={<ChatPublico />} />
+            <Route path="/ajuda/*" element={<AjudaPublica />} />
 
             <Route
               path="/painel"
@@ -78,6 +85,12 @@ export default function App() {
               <Route path="agenda" element={<EmpresaOuEquipe><Agenda /></EmpresaOuEquipe>} />
               <Route path="relatorios" element={<SoEmpresa><Relatorios /></SoEmpresa>} />
               <Route path="avisos" element={<SoEmpresa><Avisos /></SoEmpresa>} />
+              <Route path="suporte" element={<EmpresaOuEquipe><Suporte /></EmpresaOuEquipe>} />
+              <Route path="suporte/novo" element={<EmpresaOuEquipe><NovoChamado /></EmpresaOuEquipe>} />
+              <Route path="suporte/chamado/:id" element={<EmpresaOuEquipe><Chamado /></EmpresaOuEquipe>} />
+              <Route path="suporte/fila" element={<EmpresaOuEquipe><FilaSuporte /></EmpresaOuEquipe>} />
+              <Route path="suporte/artigo/:id" element={<EmpresaOuEquipe><AjudaNoPainel tipo="artigo" /></EmpresaOuEquipe>} />
+              <Route path="suporte/categoria/:cat" element={<EmpresaOuEquipe><AjudaNoPainel tipo="categoria" /></EmpresaOuEquipe>} />
               <Route path="equipe" element={<SoEmpresa><Equipe /></SoEmpresa>} />
               <Route path="plano" element={<SoEmpresa><Plano /></SoEmpresa>} />
               <Route path="conta" element={<Conta />} />
