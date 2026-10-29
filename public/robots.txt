@@ -1,0 +1,11 @@
+# o site e a ajuda são públicos; painel, login e conversas não entram na busca
+User-agent: *
+Allow: /
+Disallow: /painel
+Disallow: /c/
+Disallow: /entrar
+Disallow: /criar-conta
+Disallow: /recuperar-senha
+Disallow: /nova-senha
+
+Sitemap: https://helpysupport.com/sitemap.xml
