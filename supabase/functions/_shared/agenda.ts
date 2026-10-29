@@ -55,8 +55,10 @@ export async function carregarAgenda(db: SupabaseClient, ownerId: string): Promi
   return data?.ativa ? (data as AgendaConfig) : null;
 }
 
-/** Minutos que um horário fica guardado esperando o pagamento. */
-export const RESERVA_MIN = 120;
+/** Minutos que um horário fica guardado esperando o pagamento (Pix cai na hora). */
+export const RESERVA_MIN = 30;
+/** Horários guardados sem pagar ao mesmo tempo na empresa: acima disso, quem não paga trava a agenda. */
+const MAX_GUARDADOS = 8;
 
 /** Filtro dos horários de pé: confirmados, pendentes e os guardados que ainda não venceram. */
 const DE_PE = () => `status.in.(confirmado,pendente),and(status.eq.aguardando_pagamento,reserva_ate.gt.${new Date().toISOString()})`;
@@ -169,6 +171,25 @@ export async function marcar(
   }
   if (!DIA_RE.test(input.dia) || !HORA_RE.test(input.hora)) return { erro: 'Data ou hora inválida.' };
   if (!input.nome?.trim()) return { erro: 'Preciso do nome do cliente para marcar.' };
+
+  // horário pago: ninguém segura a agenda sem pagar (um guardado por conversa, poucos na empresa)
+  if (input.aguardarPagamento) {
+    const agora = new Date().toISOString();
+    const { data: guardados } = await db.from('agendamentos').select('conversation_id')
+      .eq('owner_id', cfg.owner_id).eq('status', 'aguardando_pagamento').gt('reserva_ate', agora);
+    if (input.conversation_id && (guardados ?? []).some((g) => g.conversation_id === input.conversation_id)) {
+      return { erro: 'Esta conversa já tem um horário guardado esperando pagamento. Peça para pagar aquele primeiro (o link já foi enviado); depois marca o próximo.' };
+    }
+    if ((guardados ?? []).length >= MAX_GUARDADOS) {
+      await db.from('alertas').insert({
+        owner_id: cfg.owner_id, assistant_id: input.assistant_id, conversation_id: input.conversation_id, origem: 'sistema',
+        chave: `agenda:guardados:${agora.slice(0, 13)}`,
+        assunto: 'Muitos horários guardados sem pagamento',
+        detalhe: `Há ${guardados!.length} horários esperando pagamento ao mesmo tempo. O assistente parou de guardar novos até eles vencerem (${RESERVA_MIN} minutos) ou serem pagos.`,
+      }).then(() => {}, () => {});
+      return { erro: 'Agora não dá para guardar mais horários pelo chat. O horário NÃO foi marcado: ofereça chamar a equipe ou tentar daqui a pouco.' };
+    }
+  }
 
   const { livres } = await horariosLivres(db, cfg, input.dia, input.duracao_min);
   const hora = input.hora.padStart(5, '0');

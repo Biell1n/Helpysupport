@@ -241,7 +241,7 @@ export async function cobrarHorario(
     quando: ag.quando,
     valor: reais(ag.cobrar),
     link: link.url,
-    mensagem: `Diga que o horário (${ag.quando}) está guardado por ${RESERVA_MIN / 60} horas e só confirma com o pagamento de ${reais(ag.cobrar)}${
+    mensagem: `Diga que o horário (${ag.quando}) está guardado por ${RESERVA_MIN} minutos e só confirma com o pagamento de ${reais(ag.cobrar)}${
       ag.sinal ? ` (sinal${resto ? `; o resto, ${reais(resto)}, é pago no dia` : ''})` : ''
     }. Mande o link exatamente como veio (Pix, cartão ou boleto) e diga que você confirma aqui mesmo quando o pagamento cair.${
       ctx.teste ? ' (É um teste do dono: o link é de verdade no ambiente configurado.)' : ''
