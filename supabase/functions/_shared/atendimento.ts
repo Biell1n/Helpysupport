@@ -994,6 +994,13 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     .map((f) => `- ${f.pergunta}: ${f.resposta}`);
   const system: Anthropic.TextBlockParam[] = [
     { type: 'text', text: systemPrompt(a, tabelas, agenda, loja, rr.vendas.agendaPaga), cache_control: { type: 'ephemeral' } },
+    // o dono ligou "vender no chat", mas a conta de recebimento não está pronta: nada de prometer link
+    ...(querVenda && !recebe
+      ? [{
+        type: 'text' as const,
+        text: 'VENDA PELO CHAT AINDA NÃO ESTÁ ATIVA: aqui você não gera link de pagamento nem fecha pedido. Nunca prometa link ("já gero o link", "te mando o link"). Para comprar, explique o caminho que a ficha indica (forma de pagamento, retirada, contato) ou ofereça a equipe para finalizar.',
+      }]
+      : []),
     ...(loja
       ? [{
         type: 'text' as const,

@@ -139,10 +139,18 @@ export default function Atendimentos() {
 
   const abrir = (id) => setParams(id ? { id } : {});
 
-  const atualizar = async (patch, msgOk) => {
-    const { error } = await supabase.from('conversations').update(patch).eq('id', aberta.id);
+  // soOseLivre: assumir só vale se ninguém mais assumiu nesse meio-tempo (duas pessoas no mesmo chamado)
+  const atualizar = async (patch, msgOk, soSeLivre = false) => {
+    let q = supabase.from('conversations').update(patch).eq('id', aberta.id);
+    if (soSeLivre) q = q.or(`status.neq.human,assumido_por.eq.${user.id}`);
+    const { data: mudou, error } = await q.select('id');
     if (error) {
       avisar('Não deu para atualizar o chamado', { erro: true, texto: error.message });
+      return false;
+    }
+    if (soSeLivre && !mudou?.length) {
+      await Promise.all([carregarAberta(aberta.id), carregar()]);
+      avisar('Outra pessoa já assumiu este chamado', { erro: true, texto: 'A tela foi atualizada com quem está atendendo.' });
       return false;
     }
     avisarNoCanal(aberta);
@@ -156,6 +164,7 @@ export default function Atendimentos() {
     atualizar(
       { status: 'human', assumido_por: user.id, assumido_nome: atendente, assumido_em: new Date().toISOString() },
       { titulo: 'Chamado assumido', texto: 'O cliente vê que você está no atendimento.' },
+      true,
     );
 
   const encerrar = () =>
@@ -179,8 +188,15 @@ export default function Atendimentos() {
   // ações rápidas pela lista (deslizando a linha no celular)
   const mudarDaLista = async (c, patch, titulo) => {
     setDeslizada(null);
-    const { error } = await supabase.from('conversations').update(patch).eq('id', c.id);
+    let q = supabase.from('conversations').update(patch).eq('id', c.id);
+    // assumir pela lista também não passa por cima de quem já assumiu
+    if (patch.status === 'human') q = q.or(`status.neq.human,assumido_por.eq.${user.id}`);
+    const { data: mudou, error } = await q.select('id');
     if (error) return avisar('Não deu para atualizar o chamado', { erro: true, texto: error.message });
+    if (!mudou?.length) {
+      await carregar();
+      return avisar('Outra pessoa já assumiu este chamado', { erro: true });
+    }
     avisarNoCanal(c);
     avisar(titulo);
     await Promise.all([carregar(), aberta?.id === c.id ? carregarAberta(c.id) : null]);
