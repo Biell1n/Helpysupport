@@ -883,6 +883,7 @@ export default function Landing() {
           <nav aria-label="Rodapé">
             <a href="#como" onClick={deslizar}>Como funciona</a>
             <a href="#planos" onClick={deslizar}>Planos</a>
+            <Link to="/ajuda">Ajuda</Link>
             <Link to="/termos">Termos</Link>
             <Link to="/privacidade">Privacidade</Link>
           </nav>

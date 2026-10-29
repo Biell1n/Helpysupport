@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, CalendarDays, Menu, Headset, Gem, LayoutGrid, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, UserRound, Users, Wallet } from 'lucide-react';
+import { BarChart3, Bell, CalendarDays, Menu, Headset, Gem, LayoutGrid, LifeBuoy, LogOut, MessagesSquare, Radio, ShoppingBag, Table2, Ticket, UserRound, Users, Wallet } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { chamar, supabase } from '@/lib/supabase';
@@ -28,6 +28,7 @@ const NAV = [
   // fora da barra: Avisos é o sino e Plano é o cartão do plano no rodapé (no celular, os dois ficam no "Mais")
   { to: '/painel/avisos', label: 'Avisos', icon: Bell, tipos: ['empresa'], fora: true },
   { to: '/painel/plano', label: 'Plano', icon: Gem, tipos: ['empresa'], fora: true },
+  { to: '/painel/suporte', label: 'Ajuda', icon: LifeBuoy, tipos: ['empresa', 'funcionario'], fora: true },
 ];
 
 // no celular, os destinos do dia a dia ficam numa barra embaixo; o resto vai em "Mais"
@@ -285,6 +286,12 @@ export default function AppShell() {
               {(pct >= 80 || (dias != null && dias <= 2)) && <span className="side-plan-subir">Aumentar plano</span>}
             </span>
           </Link>
+          )}
+
+          {tipo !== 'cliente' && (
+            <NavLink to="/painel/suporte" className={({ isActive }) => `side-ajuda${isActive ? ' active' : ''}`}>
+              <LifeBuoy size={16} aria-hidden="true" /> Ajuda e suporte
+            </NavLink>
           )}
 
           <div className="side-tema">
