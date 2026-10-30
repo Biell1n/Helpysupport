@@ -255,7 +255,7 @@
   z-index: -2;
   background: url('/img/ceu.webp') center / cover no-repeat;
   transform:
-    translate(calc(var(--mx) * -10px), calc(var(--my) * -8px + var(--p, 0) * 12vh))
+    translate(calc(var(--mx, 0) * -10px), calc(var(--my, 0) * -8px + var(--p, 0) * 12vh))
     scale(calc(1.04 + var(--p, 0) * 0.08));
   animation: lp-ceu 24s ease-in-out infinite alternate;
 }
@@ -307,7 +307,7 @@
   z-index: 1; /* atrás do robô */
   left: max(40px, calc((100vw - 1320px) / 2 + 40px));
   top: 15vh;
-  transform: translate(calc(var(--mx) * 10px + var(--p, 0) * -30vw), calc(var(--my) * 6px));
+  transform: translate(calc(var(--mx, 0) * 10px + var(--p, 0) * -30vw), calc(var(--my, 0) * 6px));
 }
 
 .lp-robo-b {
@@ -315,7 +315,7 @@
   right: max(40px, calc((100vw - 1320px) / 2 + 40px));
   top: 64vh;
   color: var(--azul-forte);
-  transform: translate(calc(var(--mx) * 10px + var(--p, 0) * 30vw), calc(var(--my) * 6px));
+  transform: translate(calc(var(--mx, 0) * 10px + var(--p, 0) * 30vw), calc(var(--my, 0) * 6px));
 }
 
 .lp-robo-figura {
@@ -324,10 +324,10 @@
   left: 47%;
   top: 48%;
   width: min(58vh, 40vw, 600px);
-  aspect-ratio: 1328 / 1184;
+  aspect-ratio: 1.12;
   transform:
     translate(-50%, -50%)
-    translate(calc(var(--mx) * 22px), calc(var(--my) * 16px + var(--p, 0) * -14vh))
+    translate(calc(var(--mx, 0) * 22px), calc(var(--my, 0) * 16px + var(--p, 0) * -14vh))
     scale(calc(1 + var(--p, 0) * 0.12));
 }
 
@@ -336,7 +336,7 @@
   height: 100%;
 }
 
-.lp-robo-flutua img {
+.lp-robo-flutua > img {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -1567,7 +1567,7 @@
   }
 
   .lp-fontes::before,
-  .lp-robo-flutua img,
+  .lp-robo-flutua > img,
   .lp-robo-ceu {
     animation: none;
   }
@@ -2345,4 +2345,139 @@
 @media (max-width: 860px) {
   .lp-noite { padding: 18px 14px 0; border-radius: 24px; }
   .lp-noite-lista { height: 360px; }
+}
+
+/* ---------- mascote em camadas (o balão-senha em 3D) ---------- */
+.mascote {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.12;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mascote img { position: absolute; display: block; user-select: none; -webkit-user-drag: none; }
+
+.mascote-sombra {
+  left: 18%;
+  bottom: 0;
+  width: 66%;
+  opacity: 0.9;
+  animation: mascote-sombra 5.2s ease-in-out infinite;
+}
+.mascote-flutua {
+  position: absolute;
+  inset: 0;
+  animation: mascote-flutua 5.2s ease-in-out infinite;
+}
+.mascote-pula { position: absolute; inset: 0; }
+.mascote-pula[data-pulou] { animation: mascote-pulo 0.7s cubic-bezier(0.3, 1.6, 0.5, 1); }
+
+.mascote-corpo {
+  position: absolute;
+  left: 12%;
+  top: 12%;
+  width: 76%;
+  aspect-ratio: 760 / 584;
+  transform-origin: 50% 90%;
+  animation: mascote-respira 5.2s ease-in-out infinite;
+  filter: drop-shadow(0 30px 34px rgba(22, 64, 160, 0.22));
+}
+.mascote-corpo img { inset: 0; width: 100%; height: 100%; }
+
+/* os olhos: as pílulas do logo, no rosto do corpo; seguem o mouse e piscam */
+.mascote-olhos {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  display: flex;
+  gap: 15%;
+  width: 24%;
+  justify-content: center;
+  transform: translate(-50%, -50%) translate(calc(var(--mx, 0) * 9%), calc(var(--my, 0) * 10%));
+  transition: transform 0.25s ease-out;
+}
+.mascote-olhos i {
+  display: block;
+  width: 26%;
+  aspect-ratio: 0.42;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: inset 0 -3px 5px rgba(31, 102, 244, 0.18), 0 2px 6px rgba(10, 40, 120, 0.25);
+  transform-origin: 50% 60%;
+  animation: mascote-pisca 4.6s infinite;
+}
+
+.mascote-braco-acena {
+  left: -2%;
+  top: 13%;
+  width: 21%;
+  transform-origin: 82% 92%;
+  animation: mascote-acena 2.6s ease-in-out infinite;
+}
+.mascote-braco-parado {
+  right: 4.5%;
+  top: 50%;
+  width: 15%;
+  transform-origin: 30% 6%;
+  animation: mascote-balanca 5.2s ease-in-out infinite;
+}
+
+.mascote-ticket {
+  right: -2%;
+  top: 0;
+  width: 21%;
+  filter: drop-shadow(0 14px 16px rgba(22, 64, 160, 0.16));
+  translate: calc(var(--mx, 0) * -18px) calc(var(--my, 0) * -12px);
+  animation: mascote-orbita 7s ease-in-out infinite;
+}
+.mascote-balao {
+  left: -4%;
+  bottom: 14%;
+  width: 19%;
+  filter: drop-shadow(0 12px 14px rgba(22, 64, 160, 0.14)) blur(0.3px);
+  translate: calc(var(--mx, 0) * 12px) calc(var(--my, 0) * 8px);
+  animation: mascote-orbita 8.5s ease-in-out -3s infinite reverse;
+}
+
+@keyframes mascote-flutua {
+  0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+  50% { transform: translateY(-4.5%) rotate(1.2deg); }
+}
+@keyframes mascote-sombra {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(0.82); opacity: 0.6; }
+}
+@keyframes mascote-respira {
+  0%, 100% { transform: scale(1, 1); }
+  25% { transform: scale(1.012, 0.988); }
+  50% { transform: scale(0.992, 1.012); }
+}
+@keyframes mascote-acena {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-16deg); }
+  40% { transform: rotate(6deg); }
+  60% { transform: rotate(-12deg); }
+  80% { transform: rotate(2deg); }
+}
+@keyframes mascote-balanca {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-5deg); }
+}
+@keyframes mascote-pisca {
+  0%, 46%, 50%, 100% { transform: scaleY(1); }
+  48% { transform: scaleY(0.12); }
+}
+@keyframes mascote-orbita {
+  0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+  50% { transform: translate(-6%, 10%) rotate(6deg); }
+}
+@keyframes mascote-pulo {
+  0% { transform: translateY(0) scale(1, 1); }
+  20% { transform: translateY(2%) scale(1.06, 0.92); }
+  50% { transform: translateY(-9%) scale(0.95, 1.06); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascote *, .mascote { animation: none !important; transition: none !important; }
 }
