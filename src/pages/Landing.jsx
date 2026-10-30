@@ -5,6 +5,7 @@ import { ArrowRight, CalendarCheck, Check, Cloud, Database, FileSpreadsheet, Lin
 import { IconeDoCanal } from '@/components/IconesCanais';
 import Logo, { Marca } from '@/components/Logo';
 import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
+import MascoteHelpy from '@/components/MascoteHelpy';
 import SkylineHorarios from '@/components/SkylineHorarios';
 import Contador from '@/components/Contador';
 import { EMPRESA } from '@/lib/empresa';
@@ -168,7 +169,7 @@ function Topo({ user, deslizar }) {
 }
 
 // ------------------------------------------------------------
-// Hero: o título se abre em volta do robô, que acompanha o mouse
+// Hero: o título se abre em volta do mascote, que acompanha o mouse
 // ------------------------------------------------------------
 function Hero({ user, deslizar }) {
   const ref = useRef(null);
@@ -186,7 +187,7 @@ function Hero({ user, deslizar }) {
 
       <div className="lp-robo-figura">
         <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
-          <img src="/img/robo.webp" alt="O Helpy, um robozinho branco com fones de ouvido, acenando" width="1328" height="1184" />
+          <MascoteHelpy />
         </div>
       </div>
 
