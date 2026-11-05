@@ -9,6 +9,7 @@ import TrocarFoto from '@/components/TrocarFoto';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import EscolherTema from '@/components/EscolherTema';
+import ForcaSenha from '@/components/ForcaSenha';
 
 export default function Conta() {
   const { user, profile, reloadProfile, signOut, tipo } = useAuth();
@@ -16,8 +17,16 @@ export default function Conta() {
   const [f, setF] = useState({ full_name: '', company_name: '', phone: '' });
   const [senha, setSenha] = useState('');
   const [atual, setAtual] = useState('');
-  // conta criada só pelo Google não tem senha para conferir
-  const temSenha = (user?.app_metadata?.providers ?? [user?.app_metadata?.provider]).includes('email');
+  // conta do Google pode ter criado senha depois (os provedores continuam só "google"): pergunta ao banco
+  const [temSenha, setTemSenha] = useState(() => (user?.app_metadata?.providers ?? [user?.app_metadata?.provider]).includes('email'));
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+  const [senhaCriada, setSenhaCriada] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.rpc('helpy_tem_senha', { p_user: user.id }).then(({ data, error }) => {
+      if (!error && typeof data === 'boolean') setTemSenha(data);
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     if (profile) setF({ full_name: profile.full_name ?? '', company_name: profile.company_name ?? '', phone: profile.phone ?? '' });
@@ -42,9 +51,19 @@ export default function Conta() {
   const capExcluir = useCaptcha();
   const trocarSenha = async (e) => {
     e.preventDefault();
+    if (salvandoSenha) return;
     if (senha.length < 8) return avisar('Senha curta', { erro: true, texto: 'Use pelo menos 8 caracteres.' });
-    if (await vezesVazada(senha)) return avisar('Senha vazada', { erro: true, texto: AVISO_VAZADA });
     if (temSenha && capSenha.falta) return avisar('Confirme a verificação "não sou um robô"', { erro: true });
+    setSalvandoSenha(true);
+    try {
+      await gravarSenha();
+    } finally {
+      setSalvandoSenha(false);
+    }
+  };
+  const gravarSenha = async () => {
+    if (await vezesVazada(senha)) return avisar('Senha vazada', { erro: true, texto: AVISO_VAZADA });
+    const criando = !temSenha;
     if (temSenha) {
       // confere a senha atual num cliente à parte, sem mexer na sessão aberta
       const teste = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
@@ -56,10 +75,12 @@ export default function Conta() {
       await teste.auth.signOut({ scope: 'local' });
     }
     const { error } = await supabase.auth.updateUser({ password: senha });
-    if (error) return avisar('Não deu para trocar a senha', { erro: true, texto: erroAuth(error.message) });
+    if (error) return avisar(criando ? 'Não deu para criar a senha' : 'Não deu para trocar a senha', { erro: true, texto: erroAuth(error.message) });
     setSenha('');
     setAtual('');
-    avisar('Senha trocada');
+    setTemSenha(true);
+    setSenhaCriada(criando);
+    avisar(criando ? 'Senha criada' : 'Senha trocada', { texto: criando ? `Agora você também entra com ${user.email} e essa senha.` : undefined });
   };
 
   const [excluir, setExcluir] = useState({ aberto: false, senha: '', texto: '', ocupado: false });
@@ -158,6 +179,12 @@ export default function Conta() {
 
       <form className="card stack" onSubmit={trocarSenha} style={{ marginBottom: 16 }}>
         <h2 className="card-title">{temSenha ? 'Senha' : 'Criar uma senha'}</h2>
+        {senhaCriada && (
+          <p className="alert alert-ok" role="status" style={{ margin: 0 }}>
+            Senha criada. Agora você entra com o Google ou com <b>{user?.email}</b> e essa senha.
+          </p>
+        )}
+        {!temSenha && <p className="muted" style={{ fontSize: 14, margin: 0 }}>Você entra com o Google. Crie uma senha para entrar também com o e-mail.</p>}
         <div className="grid-2">
           {temSenha && (
             <label className="field">
@@ -168,11 +195,11 @@ export default function Conta() {
           <label className="field">
             <span className="label">Senha nova</span>
             <input className="input" type="password" autoComplete="new-password" minLength={8} value={senha} onChange={(e) => setSenha(e.target.value)} />
-            <span className="hint">Pelo menos 8 caracteres. Evite senhas que você usa em outros sites.</span>
+            <ForcaSenha senha={senha} evitar={[profile?.full_name, profile?.company_name, user?.email]} />
           </label>
         </div>
         {temSenha && <Captcha {...capSenha.props} />}
-        <div><button className="btn btn-ghost" disabled={!senha || (temSenha && !atual)}>{temSenha ? 'Trocar senha' : 'Criar senha'}</button></div>
+        <div><button className="btn btn-ghost" disabled={salvandoSenha || !senha || (temSenha && !atual)}>{salvandoSenha ? 'Salvando…' : temSenha ? 'Trocar senha' : 'Criar senha'}</button></div>
       </form>
 
       <PainelDuasEtapas />

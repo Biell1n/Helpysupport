@@ -4,6 +4,7 @@ import { MailCheck } from 'lucide-react';
 import { lembrarAceite, TERMOS_VERSAO } from '@/lib/termos';
 import { resolverProva } from '@/lib/prova';
 import { AVISO_VAZADA, vezesVazada } from '@/lib/senhaVazada';
+import ForcaSenha from '@/components/ForcaSenha';
 import Captcha, { captchaLigado, useCaptcha } from '@/components/Captcha';
 import { erroAuth } from '@/lib/erroAuth';
 import { supabase } from '@/lib/supabase';
@@ -164,7 +165,7 @@ export default function CriarConta() {
         <label className="field">
           <span className="label">Senha</span>
           <input className="input" type="password" autoComplete="new-password" required minLength={8} value={f.senha} onChange={set('senha')} />
-          <span className="hint">Pelo menos 8 caracteres.</span>
+          <ForcaSenha senha={f.senha} evitar={[f.nome, f.empresa, f.email]} />
         </label>
         <label className="check-linha">
           <input type="checkbox" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />

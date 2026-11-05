@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AVISO_VAZADA, vezesVazada } from '@/lib/senhaVazada';
+import ForcaSenha from '@/components/ForcaSenha';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,7 +51,7 @@ export default function NovaSenha() {
           <label className="field">
             <span className="label">Senha nova</span>
             <input className="input" type="password" autoComplete="new-password" minLength={8} required value={senha} onChange={(e) => setSenha(e.target.value)} />
-            <span className="hint">Pelo menos 8 caracteres. Evite senhas que você usa em outros sites.</span>
+            <ForcaSenha senha={senha} />
           </label>
           <label className="field">
             <span className="label">Repita a senha nova</span>
