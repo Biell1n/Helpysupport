@@ -26,8 +26,11 @@ const mola = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : 1 + 2.2 * Math.pow(x - 1, 3) + 1.
 const sino = (x) => Math.sin(Math.PI * x); // sobe e volta
 
 /** Mostra a abertura uma vez por visita, e nunca para quem pediu menos movimento. */
+// desligada: a abertura volta quando houver uma versão feita por motion designer
+const ABERTURA_LIGADA = false;
+
 export function deveMostrarAbertura() {
-  if (typeof window === 'undefined') return false;
+  if (!ABERTURA_LIGADA || typeof window === 'undefined') return false;
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
   if (/[?&]sem-abertura\b/.test(window.location.search)) return false;
   try {
