@@ -5,7 +5,6 @@ import { ArrowRight, CalendarCheck, Check, Cloud, Database, FileSpreadsheet, Lin
 import { IconeDoCanal } from '@/components/IconesCanais';
 import Logo, { Marca } from '@/components/Logo';
 import IntroLogo, { deveMostrarAbertura } from '@/components/IntroLogo';
-import MascoteHelpy from '@/components/MascoteHelpy';
 import SkylineHorarios from '@/components/SkylineHorarios';
 import Contador from '@/components/Contador';
 import { EMPRESA } from '@/lib/empresa';
@@ -185,11 +184,6 @@ function Hero({ user, deslizar }) {
         <span className="lp-robo-b" aria-hidden="true"><span className="lp-entra" style={{ '--d': '0.3s' }}>nunca fecha.</span></span>
       </h1>
 
-      <div className="lp-robo-figura">
-        <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
-          <MascoteHelpy />
-        </div>
-      </div>
 
       <p className="lp-robo-lado">
         <span className="lp-entra" style={{ '--d': '0.6s' }}>
