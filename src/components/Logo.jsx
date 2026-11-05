@@ -1,3 +1,4 @@
+import { Assinatura } from '@/components/MarcaHelpy';
 import { useEffect, useRef } from 'react';
 import { CONJUNTO, CORES, LETRAS, NOME, OLHOS, senha } from '@/components/marcaDesenho';
 
@@ -93,16 +94,11 @@ export function Nome({ size = 30, tom = 'escuro', className = 'logo-word' }) {
   );
 }
 
-export default function Logo({ size = 30, tom = 'escuro', olhar = true }) {
-  const { escala, vao, linhaBase } = CONJUNTO;
-  // o nome fica alinhado pela linha de base do conjunto, não pelo centro
-  const topoNome = ((linhaBase - NOME.topo * escala) * size) / 200;
-  return (
-    <span className="row" style={{ gap: (vao * size) / 200, alignItems: 'flex-start' }} role="img" aria-label="helpy">
-      <Marca size={size} olhar={olhar} />
-      <span style={{ display: 'block', marginTop: topoNome, lineHeight: 0 }}>
-        <Nome size={size} tom={tom} />
-      </span>
-    </span>
-  );
+/**
+ * O logo do Helpy: o nome desenhado à mão, com o "y" de braços levantados.
+ * size é a altura do símbolo antigo (mantido para não mexer nas telas);
+ * tom "claro" é para fundo escuro.
+ */
+export default function Logo({ size = 30, tom = 'escuro' }) {
+  return <Assinatura size={Math.round(size * 1.15)} className="logo-helpy" cor={tom === 'claro' ? '#fff' : 'var(--logo-cor, #1E4FE6)'} />;
 }
