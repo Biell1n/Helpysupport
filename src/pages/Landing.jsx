@@ -17,10 +17,6 @@ import PrecoDoPlano from '@/components/PrecoDoPlano';
 import Perto from '@/components/efeitos/Perto';
 import { MARCAS } from '@/components/efeitos/marcas';
 import Grifo from '@/components/efeitos/Grifo';
-import Ponto from '@/components/Ponto';
-
-// prévia do mascote novo: aparece no lugar do robô com ?mascote no endereço
-const PREVIA_PONTO = typeof window !== 'undefined' && /[?&]mascote\b/.test(window.location.search);
 import FeixeNaBorda from '@/components/efeitos/FeixeNaBorda';
 
 // efeitos pesados (WebGL e animações) só carregam quando chegam perto da tela
@@ -190,9 +186,7 @@ function Hero({ user, deslizar }) {
 
       <div className="lp-robo-figura">
         <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
-          {PREVIA_PONTO ? <Ponto /> : (
-            <img src="/img/robo.webp" alt="O Helpy, um robozinho branco com fones de ouvido, acenando" width="1328" height="1184" />
-          )}
+          <img src="/img/robo.webp" alt="O Helpy, um robozinho branco com fones de ouvido, acenando" width="1328" height="1184" />
         </div>
       </div>
 
