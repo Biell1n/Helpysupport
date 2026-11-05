@@ -18,16 +18,16 @@ export const PESSOA = { corpo: 'M422 -104L466 -38M510 -104L466 -38C456 -2 448 40
 // caixa do desenho inteiro (com a espessura do traço)
 const CAIXA = { x: -6, y: -160, w: 534, h: 236 };
 
-/** O nome inteiro. size = altura desejada em px. */
-export function Assinatura({ size = 36, cor = 'currentColor', className = '', titulo = 'helpy' }) {
+/** O nome inteiro. size = altura em px; traco = espessura (o logo pequeno, no topo, fica mais fino). */
+export function Assinatura({ size = 36, cor = 'currentColor', className = '', titulo = 'helpy', traco = TRACO }) {
   const largura = (size * CAIXA.w) / CAIXA.h;
   return (
     <svg className={className} width={largura} height={size} viewBox={`${CAIXA.x} ${CAIXA.y} ${CAIXA.w} ${CAIXA.h}`} role="img" aria-label={titulo}>
-      <g fill="none" stroke={cor} strokeWidth={TRACO} strokeLinecap="round" strokeLinejoin="round">
+      <g fill="none" stroke={cor} strokeWidth={traco} strokeLinecap="round" strokeLinejoin="round">
         {LETRAS_HELPY.map((d) => <path key={d} d={d} />)}
         <path d={PESSOA.corpo} />
       </g>
-      <circle {...PESSOA.cabeca} fill={cor} />
+      <circle {...PESSOA.cabeca} r={PESSOA.cabeca.r * (traco / TRACO) ** 0.6} fill={cor} />
     </svg>
   );
 }
