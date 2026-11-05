@@ -84,7 +84,10 @@ Deno.serve(async (req) => {
     const user = await requireUser(req);
 
     if (action === 'excluir') {
-      const temSenha = (user.app_metadata?.providers ?? [user.app_metadata?.provider]).includes('email');
+      // quem entrou pelo Google e criou senha depois segue com providers = ["google"]: pergunta ao banco
+      const { data: senhaCriada, error: errSenha } = await admin.rpc('helpy_tem_senha', { p_user: user.id });
+      if (errSenha) throw errSenha;
+      const temSenha = senhaCriada === true;
       if (temSenha) {
         const captcha = typeof body.captcha === 'string' ? body.captcha.slice(0, 4096) : undefined;
         if (!(await senhaConfere(user.email!, String(body.senha ?? ''), captcha))) throw new UserError('Senha incorreta (ou a verificação "não sou um robô" expirou).', 403);

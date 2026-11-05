@@ -341,6 +341,31 @@ button, input, select, textarea {
   line-height: 1.45;
 }
 
+.forca-senha {
+  display: grid;
+  gap: 6px;
+}
+.forca-barras {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.forca-barras span {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--linha);
+  transition: background-color 0.2s ease;
+}
+.forca-senha { --forca: var(--brasa); }
+.forca-senha[data-nivel='2'] { --forca: var(--ambar, #b7791f); }
+.forca-senha[data-nivel='3'] { --forca: var(--senha); }
+.forca-senha[data-nivel='4'] { --forca: var(--folha); }
+.forca-barras span.cheia { background: var(--forca); }
+.forca-rotulo {
+  color: var(--forca);
+  font-weight: 600;
+}
+
 .error-text {
   font-size: 13px;
   color: var(--brasa);
