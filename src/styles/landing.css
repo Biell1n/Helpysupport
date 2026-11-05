@@ -2445,3 +2445,54 @@
 @media (prefers-reduced-motion: reduce) {
   .mascote *, .mascote { animation: none !important; transition: none !important; }
 }
+
+/* ---------- abertura da marca: o nome se escreve e o y diz "aqui!" ---------- */
+.abertura-assina .abertura-svg { width: min(70vw, 520px); }
+.abertura-assina .ab-letra {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ab-escreve 0.5s cubic-bezier(0.45, 0, 0.25, 1) both;
+  animation-delay: calc(0.15s + var(--i, 0) * 0.2s);
+}
+.abertura-assina .ab-y { animation-duration: 0.45s; animation-delay: 1s; }
+.abertura-assina .ab-cabeca {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  animation: ab-cabeca 0.5s cubic-bezier(0.3, 1.8, 0.5, 1) 1.35s forwards;
+}
+.abertura-assina .ab-pessoa {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ab-aqui 0.55s cubic-bezier(0.3, 1.5, 0.5, 1) 1.75s;
+}
+.abertura-assina[data-fase='sai'] .abertura-fundo { animation: ab-sai 0.6s ease forwards; }
+.abertura-assina[data-fase='sai'] { animation: none; }
+/* escondido até começar: senão a ponta redonda do traço aparece como um pontinho */
+@keyframes ab-escreve {
+  0% { stroke-dashoffset: 1; opacity: 0; }
+  1% { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+@keyframes ab-cabeca { to { transform: scale(1); } }
+@keyframes ab-aqui {
+  0% { transform: translateY(0) scale(1, 1); }
+  30% { transform: translateY(2%) scale(1.04, 0.94); }
+  60% { transform: translateY(-9%) scale(0.97, 1.05); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* o y-pessoa como personagem: acena balançando a partir do pé, a cabeça segue o mouse */
+.mascote-pessoa {
+  filter: drop-shadow(0 22px 26px rgba(20, 70, 180, 0.22));
+  transform-origin: 30% 95%;
+  animation: mascote-acena-corpo 3.2s ease-in-out infinite;
+}
+.mascote-cabeca {
+  transform: translate(calc(var(--mx, 0) * 6px), calc(var(--my, 0) * 4px));
+  transition: transform 0.3s ease-out;
+}
+@keyframes mascote-acena-corpo {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(4deg); }
+}
