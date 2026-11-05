@@ -100,5 +100,5 @@ export function Nome({ size = 30, tom = 'escuro', className = 'logo-word' }) {
  * tom "claro" é para fundo escuro.
  */
 export default function Logo({ size = 30, tom = 'escuro' }) {
-  return <Assinatura size={Math.round(size * 1.15)} traco={20} className="logo-helpy" cor={tom === 'claro' ? '#fff' : 'var(--logo-cor, #1E4FE6)'} />;
+  return <Assinatura size={Math.round(size * 1.15)} className="logo-helpy" cor={tom === 'claro' ? '#fff' : 'var(--logo-cor, #1E4FE6)'} />;
 }

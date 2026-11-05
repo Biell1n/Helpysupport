@@ -1762,8 +1762,9 @@
 }
 
 /* a logo do topo espera a da abertura chegar voando */
+.lp-top-marca { transition: opacity 0.35s ease; }
 .lp[data-logo-voando='sim'] .lp-top-marca {
-  visibility: hidden;
+  opacity: 0;
 }
 
 /* enquanto a abertura está na tela, o topo da página espera para entrar */
@@ -2446,61 +2447,9 @@
   .mascote *, .mascote { animation: none !important; transition: none !important; }
 }
 
-/* ---------- abertura da marca: alguém chama "aqui!" e o help chega ---------- */
+/* ---------- abertura da marca (a coreografia está no IntroLogo.jsx, quadro a quadro) ---------- */
 .abertura-assina .abertura-svg { width: min(70vw, 520px); }
-
-/* 1. a pessoinha aparece sozinha no centro do nome (o y fica 205 unidades à esquerda) */
-.abertura-assina .ab-pessoa {
-  transform: translateX(-205px);
-  animation: ab-encosta 1.25s cubic-bezier(0.65, 0, 0.35, 1) 1.15s forwards;
-}
-.abertura-assina .ab-y {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: ab-escreve 0.55s cubic-bezier(0.33, 0, 0.2, 1) 0.1s both;
-}
-.abertura-assina .ab-cabeca {
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: scale(0);
-  animation: ab-cabeca 0.5s cubic-bezier(0.3, 1.8, 0.5, 1) 0.5s forwards;
-}
-/* 2. ela chama: balança os braços, como quem acena "aqui!" (e pula de alegria no fim) */
-.abertura-assina .ab-chama {
-  transform-box: fill-box;
-  transform-origin: 40% 100%;
-  animation:
-    ab-acena 0.7s ease-in-out 0.75s 2,
-    ab-alegria 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) 2.45s;
-}
-/* 3. o help se escreve até ela, num gesto contínuo (cada letra começa antes da outra acabar) */
-.abertura-assina .ab-letra {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: ab-escreve 0.62s cubic-bezier(0.45, 0.05, 0.25, 1) both;
-  animation-delay: calc(1.2s + var(--i, 0) * 0.27s);
-}
-.abertura-assina[data-fase='sai'] .abertura-fundo { animation: ab-sai 0.7s ease forwards; }
-
-/* escondido até começar: senão a ponta redonda do traço aparece como um pontinho */
-@keyframes ab-escreve {
-  0% { stroke-dashoffset: 1; opacity: 0; }
-  1% { opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 1; }
-}
-@keyframes ab-cabeca { to { transform: scale(1); } }
-@keyframes ab-encosta { to { transform: translateX(0); } }
-@keyframes ab-acena {
-  0%, 100% { transform: rotate(0deg); }
-  30% { transform: rotate(-7deg); }
-  70% { transform: rotate(6deg); }
-}
-@keyframes ab-alegria {
-  0% { transform: translateY(0) scale(1, 1); }
-  30% { transform: translateY(3%) scale(1.05, 0.93); }
-  60% { transform: translateY(-10%) scale(0.96, 1.06); }
-  100% { transform: translateY(0) scale(1, 1); }
-}
+.abertura-assina[data-fase='sai'] .abertura-fundo { animation: ab-sai 0.75s ease forwards; }
 
 /* o y-pessoa como personagem: acena balançando a partir do pé, a cabeça segue o mouse */
 .mascote-pessoa {
