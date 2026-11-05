@@ -3,26 +3,10 @@ import { LETRAS_HELPY, PESSOA, TRACO, TRACO_PESSOA } from '@/components/MarcaHel
 
 const CHAVE = 'helpy-abertura';
 
-// Uma ideia só, em menos de dois segundos e meio: a pessoinha se levanta, abre
-// os braços ("aqui!"), a cabeça pousa e o nome se escreve ao lado. Tudo parado no centro:
-// nada desliza nem voa, só traço sendo desenhado e uma saída em esmaecer.
-// Cada movimento é uma animação do navegador (WAAPI), sem cálculo quadro a quadro.
-const CURVA = 'cubic-bezier(0.65, 0, 0.35, 1)'; // acelera e assenta
-const CAI = 'cubic-bezier(0.34, 1.4, 0.64, 1)'; // um tiquinho de sobra no pouso
-
-const TEMPO = {
-  corpo: { delay: 60, duration: 340 }, // a pessoa se levanta
-  bracos: { delay: 330, duration: 380 }, // e abre os braços: "aqui!"
-  cabeca: { delay: 520, duration: 480 }, // a cabeça pousa
-  letras: { delay: 780, duration: 620, intervalo: 90 },
-  segura: 2150, // quando começa a sair
-  sai: 520,
-};
-
-// o y desenhado como gesto: do pé até o peito, depois os dois braços para cima ao mesmo tempo
-const [PE, PEITO] = [[466, -2], [466, -52]];
-const Y_CORPO = `M${PE} L${PEITO}`;
-const Y_BRACOS = [`M${PEITO} L424 -100`, `M${PEITO} L508 -100`];
+// A história, com um elemento só que vai mudando de forma:
+// uma gota cai, amassa no chão, estica para cima e o topo se abre em dois braços
+// (como uma flor); a cabeça brota entre eles, a pessoinha dá um tchauzinho e o
+// "help" sobe do chão ao lado dela. Tudo com molas, nada surge pronto.
 
 /** Liga a abertura para todos. Enquanto estiver desligada, dá para ver com ?abertura no endereço. */
 const ABERTURA_LIGADA = false;
@@ -40,17 +24,103 @@ export function deveMostrarAbertura() {
   }
 }
 
-// traço escondido: o pedaço visível começa "antes" do caminho, então nem a ponta redonda aparece
-const ESCONDIDO = 1.02;
+// ---- tempo (ms) ----
+const T = {
+  cai: [0, 400],
+  amassa: [400, 540],
+  sobe: [540, 900],
+  abre: [820, 1220],
+  cabeca: [980, 1460],
+  tchau: [1420, 2050],
+  letras: { inicio: 1250, duracao: 720, intervalo: 75 },
+  sai: 2550,
+  saida: 500,
+};
+
+// ---- forma final do y (a mesma da marca) ----
+const PE = { x: 466, y: -2 };
+const PEITO = { x: 466, y: -52 };
+const PONTA_Y = -100;
+const BRACO = Math.hypot(42, 48); // do peito até a ponta da mão
+const ANGULO = Math.atan2(42, 48); // abertura de cada braço, a partir da vertical
+const CAB = PESSOA.cabeca;
+
+// ---- curvas ----
+const cl = (x) => Math.max(0, Math.min(1, x));
+const fase = (t, [a, b]) => cl((t - a) / (b - a));
+const mix = (a, b, k) => a + (b - a) * k;
+const entra = (x) => x * x; // cai acelerando
+const assenta = (x) => 1 - Math.pow(1 - x, 3);
+/** mola: chega no 1 passando um pouco e voltando. z = amortecimento (menor = mais balanço). */
+const mola = (x, z = 0.5) => {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const w = 6.5 / z;
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-6.5 * x) * (Math.cos(wd * x) + (6.5 / wd) * Math.sin(wd * x));
+};
+/** A mesma mola, como curva do navegador para as letras. */
+const molaCss = (() => {
+  const pts = Array.from({ length: 41 }, (_, i) => mola(i / 40, 0.62).toFixed(4));
+  return typeof CSS !== 'undefined' && CSS.supports?.('animation-timing-function', 'linear(0, 1)')
+    ? `linear(${pts.join(', ')})`
+    : 'cubic-bezier(0.34, 1.4, 0.64, 1)';
+})();
+
+const seg = (a, b) => `M${a.x.toFixed(2)} ${a.y.toFixed(2)}L${b.x.toFixed(2)} ${b.y.toFixed(2)}`;
+const ponta = (ang, len) => ({ x: PEITO.x + Math.sin(ang) * len, y: PEITO.y - Math.cos(ang) * len });
+
+/** A forma do y no instante t (ms): corpo, braço esquerdo, braço direito e a cabeça. */
+function quadro(t) {
+  let corpo;
+  if (t < T.cai[1]) {
+    // a gota cai esticada pela velocidade
+    const k = entra(fase(t, T.cai));
+    const base = mix(-320, PE.y, k);
+    corpo = [{ x: PE.x, y: base - 6 - 26 * k }, { x: PE.x, y: base }];
+  } else if (t < T.amassa[1]) {
+    // bate no chão e amassa para os lados
+    const k = Math.sin(Math.PI * fase(t, T.amassa));
+    corpo = [{ x: PE.x - 17 * k, y: PE.y }, { x: PE.x + 17 * k, y: PE.y }];
+  } else {
+    // estica para cima, passa um pouco e volta; depois o topo recolhe até o peito enquanto os braços abrem
+    const topo = mix(PE.y, PONTA_Y, mola(fase(t, T.sobe), 0.45));
+    corpo = [{ x: PE.x, y: mix(topo, PEITO.y, assenta(fase(t, T.abre))) }, PE];
+  }
+
+  // os braços nascem colados no corpo e abrem como uma flor
+  const ka = fase(t, T.abre);
+  let esq = null;
+  let dir = null;
+  if (ka > 0) {
+    const abre = mola(ka, 0.42);
+    const len = mix(PEITO.y - PONTA_Y, BRACO, assenta(ka));
+    // tchauzinho: a mão direita balança duas vezes e para
+    const kt = fase(t, T.tchau);
+    const aceno = kt > 0 && kt < 1 ? 0.2 * Math.sin(kt * Math.PI * 4) * (1 - kt) : 0;
+    esq = seg(PEITO, ponta(-ANGULO * abre, len));
+    dir = seg(PEITO, ponta(ANGULO * abre + aceno, len));
+  }
+
+  // a cabeça brota entre os braços, sobe com uma mola e estica/amassa no caminho
+  const kc = fase(t, T.cabeca);
+  const sobe = mola(kc, 0.5);
+  const forma = 0.22 * Math.sin(kc * Math.PI * 2) * (1 - kc);
+  const r = CAB.r * assenta(cl(kc * 2.2));
+  const cabeca = { cx: CAB.cx, cy: mix(PEITO.y - 18, CAB.cy, sobe), rx: r * (1 - forma), ry: r * (1 + forma) };
+
+  return { corpo: seg(...corpo), esq, dir, cabeca };
+}
 
 export default function IntroLogo({ onSaindo, onFim }) {
   const raiz = useRef(null);
   const logo = useRef(null);
-  const letras = useRef([]);
   const corpo = useRef(null);
-  const bracos = useRef([]);
+  const esq = useRef(null);
+  const dir = useRef(null);
   const cabeca = useRef(null);
-  const [fase, setFase] = useState('entra');
+  const letras = useRef([]);
+  const [estado, setEstado] = useState('entra');
   const saiu = useRef(false);
 
   const sair = useCallback((pulou) => {
@@ -61,78 +131,71 @@ export default function IntroLogo({ onSaindo, onFim }) {
     } catch {
       /* sem armazenamento: só aparece de novo na próxima visita */
     }
-    setFase('sai');
+    setEstado('sai');
     onSaindo?.();
-    const dur = pulou ? 280 : TEMPO.sai;
-    logo.current?.animate(
-      [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.97)' }],
-      { duration: dur, easing: CURVA, fill: 'forwards' },
-    );
+    const dur = pulou ? 280 : T.saida;
+    const curva = 'cubic-bezier(0.65, 0, 0.35, 1)';
+    logo.current?.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.97)' }], { duration: dur, easing: curva, fill: 'forwards' });
     raiz.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, delay: pulou ? 0 : 120, easing: 'ease', fill: 'forwards' });
     setTimeout(() => onFim?.(), dur + (pulou ? 0 : 120));
   }, [onSaindo, onFim]);
 
   useEffect(() => {
-    const anims = [];
-    // a ponta redonda só aparece quando a caneta encosta
-    const desenha = (el, { delay, duration, easing = CURVA }) => {
-      if (!el) return;
-      anims.push(el.animate(
-        [
-          { strokeDashoffset: ESCONDIDO, opacity: 0 },
-          { strokeDashoffset: ESCONDIDO * 0.995, opacity: 1, offset: 0.01 },
-          { strokeDashoffset: 0, opacity: 1 },
-        ],
-        { delay, duration, easing, fill: 'both' },
-      ));
-    };
-    // a cabeça cai de leve e pousa entre os braços
-    anims.push(cabeca.current.animate(
-      [{ opacity: 0, transform: 'translateY(-34px)' }, { opacity: 1, transform: 'translateY(0)' }],
-      { ...TEMPO.cabeca, easing: CAI, fill: 'both' },
+    // as letras sobem do chão, da mais perto da pessoinha (p) para a mais longe (h)
+    const anims = letras.current.map((el, i, todas) => el?.animate(
+      [{ transform: 'translateY(250px)' }, { transform: 'translateY(0)' }],
+      { delay: T.letras.inicio + (todas.length - 1 - i) * T.letras.intervalo, duration: T.letras.duracao, easing: molaCss, fill: 'both' },
     ));
-    // a pessoa se levanta e abre os braços
-    desenha(corpo.current, { ...TEMPO.corpo, easing: 'cubic-bezier(0.5, 0, 0.2, 1)' });
-    bracos.current.forEach((el) => desenha(el, { ...TEMPO.bracos, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' }));
-    // o nome se escreve, letra por letra; dentro da letra, um traço depois do outro, na mesma velocidade
-    letras.current.forEach((tracos, i) => {
-      const tam = tracos.map((el) => el?.getTotalLength() ?? 1);
-      const total = tam.reduce((a, b) => a + b, 0);
-      let inicio = TEMPO.letras.delay + i * TEMPO.letras.intervalo;
-      tracos.forEach((el, j) => {
-        const duration = (TEMPO.letras.duration * tam[j]) / total;
-        const ultimo = j === tracos.length - 1;
-        desenha(el, { delay: inicio, duration, easing: tracos.length === 1 ? CURVA : j === 0 ? 'cubic-bezier(0.65, 0, 1, 1)' : ultimo ? 'cubic-bezier(0, 0, 0.35, 1)' : 'linear' });
-        inicio += duration;
-      });
-    });
-    const t = setTimeout(() => sair(false), TEMPO.segura);
+
+    let id = 0;
+    const t0 = performance.now();
+    const passo = (agora) => {
+      const t = agora - t0;
+      const q = quadro(t);
+      corpo.current.setAttribute('d', q.corpo);
+      for (const [ref, d] of [[esq, q.esq], [dir, q.dir]]) {
+        if (d) ref.current.setAttribute('d', d);
+        ref.current.style.visibility = d ? 'visible' : 'hidden';
+      }
+      const c = cabeca.current;
+      c.setAttribute('cy', q.cabeca.cy.toFixed(2));
+      c.setAttribute('rx', Math.max(0, q.cabeca.rx).toFixed(2));
+      c.setAttribute('ry', Math.max(0, q.cabeca.ry).toFixed(2));
+      if (t < T.sai) id = requestAnimationFrame(passo);
+      else sair(false);
+    };
+    id = requestAnimationFrame(passo);
     return () => {
-      clearTimeout(t);
-      anims.forEach((a) => a.cancel());
+      cancelAnimationFrame(id);
+      anims.forEach((a) => a?.cancel());
     };
   }, [sair]);
 
-  const traco = { pathLength: 1, strokeDasharray: '1 2', strokeDashoffset: ESCONDIDO, style: { opacity: 0 } };
-
+  const inicio = quadro(0);
   return (
-    <div className="abertura abertura-assina" ref={raiz} data-fase={fase} aria-hidden="true">
+    <div className="abertura abertura-assina" ref={raiz} data-fase={estado} aria-hidden="true">
       <div className="abertura-fundo" />
       <div className="abertura-logo" ref={logo}>
         <svg className="abertura-svg" viewBox="-6 -160 534 236">
+          <defs>
+            {/* o "chão" de onde as letras sobem: abaixo dele nada aparece */}
+            <clipPath id="abertura-chao">
+              <rect x="-20" y="-400" width="420" height="476" />
+            </clipPath>
+          </defs>
           <g fill="none" stroke="#1E4FE6" strokeLinecap="round" strokeLinejoin="round">
-            {LETRAS_HELPY.map((d, i) => (
-              <g key={d}>
-                {/* cada subtraço é um caminho: a caneta faz um, levanta e faz o outro */}
-                {d.split(/(?=M)/).map((parte, j) => (
-                  <path key={parte} d={parte} strokeWidth={TRACO} ref={(el) => ((letras.current[i] ??= [])[j] = el)} {...traco} />
-                ))}
-              </g>
-            ))}
-            <path d={Y_CORPO} strokeWidth={TRACO_PESSOA} ref={corpo} {...traco} />
-            {Y_BRACOS.map((d, i) => <path key={d} d={d} strokeWidth={TRACO_PESSOA} ref={(el) => (bracos.current[i] = el)} {...traco} />)}
+            <g strokeWidth={TRACO} clipPath="url(#abertura-chao)">
+              {LETRAS_HELPY.map((d, i) => (
+                <path key={d} d={d} ref={(el) => (letras.current[i] = el)} style={{ transform: 'translateY(250px)' }} />
+              ))}
+            </g>
+            <g strokeWidth={TRACO_PESSOA}>
+              <path ref={esq} style={{ visibility: 'hidden' }} />
+              <path ref={dir} style={{ visibility: 'hidden' }} />
+              <path ref={corpo} d={inicio.corpo} />
+            </g>
           </g>
-          <circle ref={cabeca} {...PESSOA.cabeca} fill="#1E4FE6" style={{ opacity: 0, transformBox: 'fill-box', transformOrigin: 'center' }} />
+          <ellipse ref={cabeca} cx={CAB.cx} cy={inicio.cabeca.cy} rx="0" ry="0" fill="#1E4FE6" />
         </svg>
       </div>
       <button type="button" className="abertura-pular" onClick={() => sair(true)} aria-hidden="false">Pular</button>
