@@ -851,6 +851,3 @@ button, input, select, textarea {
   border: 0;
 }
 
-/* logo do Helpy: azul da marca; no escuro, branco */
-:root { --logo-cor: #1E4FE6; }
-[data-tema='escuro'] { --logo-cor: #ffffff; }

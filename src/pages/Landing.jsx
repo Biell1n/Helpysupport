@@ -168,7 +168,7 @@ function Topo({ user, deslizar }) {
 }
 
 // ------------------------------------------------------------
-// Hero: o título se abre em volta do mascote, que acompanha o mouse
+// Hero: o título se abre em volta do robô, que acompanha o mouse
 // ------------------------------------------------------------
 function Hero({ user, deslizar }) {
   const ref = useRef(null);
@@ -184,6 +184,11 @@ function Hero({ user, deslizar }) {
         <span className="lp-robo-b" aria-hidden="true"><span className="lp-entra" style={{ '--d': '0.3s' }}>nunca fecha.</span></span>
       </h1>
 
+      <div className="lp-robo-figura">
+        <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
+          <img src="/img/robo.webp" alt="O Helpy, um robozinho branco com fones de ouvido, acenando" width="1328" height="1184" />
+        </div>
+      </div>
 
       <p className="lp-robo-lado">
         <span className="lp-entra" style={{ '--d': '0.6s' }}>
