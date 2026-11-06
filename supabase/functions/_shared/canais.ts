@@ -298,6 +298,33 @@ export async function conferirWhatsApp(phoneNumberId: string, token: string) {
   return { externo_id: phoneNumberId, nome: [r.verified_name, r.display_phone_number].filter(Boolean).join(' · ') || phoneNumberId };
 }
 
+/**
+ * Põe a foto no perfil do número de WhatsApp. A Meta pede o envio em etapas:
+ * descobre o app do token, abre um envio, manda os bytes e usa o "handle" no perfil.
+ * A imagem chega já em JPEG (o painel converte a foto do assistente).
+ */
+export async function fotoDoWhatsApp(phoneNumberId: string, token: string, jpeg: Uint8Array) {
+  const app = await pedir(`${GRAPH}/app`, { headers: { Authorization: `Bearer ${token}` } }, 'O WhatsApp') as { id?: string };
+  if (!app?.id) throw new Error('A Meta não disse de qual app é este token.');
+  const sessao = await pedir(
+    `${GRAPH}/${app.id}/uploads?file_name=perfil.jpg&file_length=${jpeg.length}&file_type=image/jpeg`,
+    { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
+    'O WhatsApp',
+  ) as { id?: string };
+  if (!sessao?.id) throw new Error('A Meta não abriu o envio da foto.');
+  const enviado = await pedir(`${GRAPH}/${sessao.id}`, {
+    method: 'POST',
+    headers: { Authorization: `OAuth ${token}`, file_offset: '0', 'Content-Type': 'image/jpeg' },
+    body: jpeg,
+  }, 'O WhatsApp') as { h?: string };
+  if (!enviado?.h) throw new Error('A Meta não confirmou o envio da foto.');
+  await pedir(`${GRAPH}/${encodeURIComponent(phoneNumberId)}/whatsapp_business_profile`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messaging_product: 'whatsapp', profile_picture_handle: enviado.h }),
+  }, 'O WhatsApp');
+}
+
 export async function conferirInstagram(token: string) {
   const r = await pedir(`${GRAPH_IG}/me?fields=user_id,username`, { headers: { Authorization: `Bearer ${token}` } }, 'O Instagram') as { user_id?: string; id?: string; username?: string };
   const id = String(r.user_id ?? r.id ?? '');

@@ -20,6 +20,7 @@ import {
   conferirDiscord,
   conferirInstagram,
   conferirWhatsApp,
+  fotoDoWhatsApp,
   enviarPeloCanal,
   ErroDoCanal,
   guardarSegredo,
@@ -289,6 +290,23 @@ Deno.serve(async (req) => {
         return json({ ok: false, erro });
       }
       await admin.from('canais').update({ status: canal.status === 'pausado' ? 'pausado' : 'ativo', erro: null }).eq('id', canal.id);
+      return json({ ok: true });
+    }
+
+    // foto do assistente no perfil do número do WhatsApp (a imagem já vem em JPEG do painel)
+    if (action === 'foto_whatsapp') {
+      const canal = await canalDaConta(body.canal_id, conta);
+      if (canal.tipo !== 'whatsapp') throw new UserError('Só o WhatsApp usa esta foto.');
+      const b64 = String(body.imagem ?? '').replace(/^data:image\/jpeg;base64,/, '');
+      if (!b64 || b64.length > 7_000_000) throw new UserError('Foto inválida ou grande demais.');
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      if (bytes[0] !== 0xff || bytes[1] !== 0xd8) throw new UserError('A foto precisa estar em JPEG.');
+      const { token } = await segredoDo(admin, canal.id);
+      try {
+        await fotoDoWhatsApp(canal.externo_id, token, bytes);
+      } catch (e) {
+        return json({ ok: false, erro: (e as Error).message.slice(0, 300) });
+      }
       return json({ ok: true });
     }
 
