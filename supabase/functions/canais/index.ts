@@ -213,7 +213,11 @@ Deno.serve(async (req) => {
         if (!plan.canaisMeta) throw new UserError('WhatsApp e Instagram fazem parte do plano Profissional em diante.', 402);
         const { count } = await admin.from('canais').select('id', { count: 'exact', head: true })
           .eq('owner_id', conta).in('tipo', ['whatsapp', 'instagram']);
-        if ((count ?? 0) >= plan.canaisMeta) {
+        // o mesmo número de novo é atualização, não conta nova
+        const mesmoNumero = tipo === 'whatsapp' && /^\d{6,30}$/.test(texto(body.phone_number_id, 40))
+          ? (await admin.from('canais').select('id').eq('owner_id', conta).eq('tipo', 'whatsapp').eq('externo_id', texto(body.phone_number_id, 40)).maybeSingle()).data
+          : null;
+        if (!mesmoNumero && (count ?? 0) >= plan.canaisMeta) {
           throw new UserError(`Seu plano conecta até ${plan.canaisMeta} contas de WhatsApp e Instagram. Desconecte uma ou mude de plano.`, 402);
         }
       }
@@ -307,6 +311,29 @@ Deno.serve(async (req) => {
       } catch (e) {
         return json({ ok: false, erro: (e as Error).message.slice(0, 300) });
       }
+      return json({ ok: true });
+    }
+
+    // novo token (e, se vier, nova chave secreta) para um canal que já existe: não conta no limite do plano
+    if (action === 'trocar_token') {
+      const canal = await canalDaConta(body.canal_id, conta);
+      if (ehBotDoHelpy(canal)) throw new UserError('O bot do Helpy não usa token próprio.');
+      const token = texto(body.token, 2000);
+      if (token.length < 20) throw new UserError('Cole o token de acesso completo.');
+      const appSecret = texto(body.app_secret, 120);
+      let dados: { externo_id: string; nome: string };
+      try {
+        if (canal.tipo === 'whatsapp') dados = await conferirWhatsApp(canal.externo_id, token);
+        else if (canal.tipo === 'instagram') dados = await conferirInstagram(token);
+        else dados = await conferirDiscord(token);
+      } catch (e) {
+        throw new UserError(e instanceof ErroDoCanal ? e.message : `Não deu para conferir o token: ${(e as Error).message}`);
+      }
+      if (dados.externo_id !== canal.externo_id) throw new UserError('Este token é de outra conta. Use o token da mesma conta conectada.');
+      const antigo = await segredoDo(admin, canal.id).catch(() => null);
+      await guardarSegredo(admin, canal.id, { ...(antigo ?? {}), token, ...(appSecret ? { app_secret: appSecret } : {}) });
+      await admin.from('canais').update({ status: 'ativo', erro: null, nome: dados.nome.slice(0, 120) }).eq('id', canal.id);
+      if (canal.tipo !== 'discord') await assinarAvisos(canal.tipo, token, String(canal.config?.waba_id ?? ''));
       return json({ ok: true });
     }
 
