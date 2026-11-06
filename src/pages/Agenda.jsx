@@ -155,6 +155,22 @@ function ConfigAgenda({ cfg, onSalvar, onFechar }) {
   );
 }
 
+function Remarcar({ evento, onRemarcar }) {
+  const ini = new Date(evento.inicio);
+  const [dia, setDia] = useState(iso(ini));
+  const [hora, setHora] = useState(`${String(ini.getHours()).padStart(2, '0')}:${String(ini.getMinutes()).padStart(2, '0')}`);
+  return (
+    <form className="remarcar" onSubmit={(e) => { e.preventDefault(); onRemarcar(dia, hora); }}>
+      <span className="eyebrow">Remarcar</span>
+      <div className="row row-wrap" style={{ gap: 8 }}>
+        <input className="input" type="date" value={dia} onChange={(e) => setDia(e.target.value)} aria-label="Novo dia" style={{ width: 160 }} />
+        <input className="input" type="time" value={hora} onChange={(e) => setHora(e.target.value)} aria-label="Nova hora" style={{ width: 112 }} />
+        <button className="btn btn-ghost btn-sm">Mudar horário</button>
+      </div>
+    </form>
+  );
+}
+
 function NovoAgendamento({ inicial, duracao, onSalvar, onFechar }) {
   const [f, setF] = useState({ cliente_nome: '', cliente_contato: '', servico: '', dia: inicial.dia, hora: inicial.hora, duracao, observacao: '' });
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -283,9 +299,25 @@ export default function Agenda() {
     carregar();
   };
 
+  // marcar ou remarcar à mão: a equipe pode passar por cima, mas fica sabendo antes
+  const avisoDoHorario = (inicio, fim, ignorarId) => {
+    const faixas = cfg?.horarios?.[inicio.getDay()] ?? [];
+    const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (!faixas.length) return `${DIAS[inicio.getDay()]} a agenda está fechada.`;
+    if (!faixas.some(([a, b]) => hhmm(inicio) >= a && hhmm(fim) <= b)) return 'Esse horário fica fora do horário de atendimento.';
+    const iv = Number(cfg?.intervalo_min || 0) * 60000;
+    const vagas = Math.max(1, Number(cfg?.vagas || 1));
+    const ocupados = eventos.filter((e) => e.id !== ignorarId && ['confirmado', 'pendente', 'aguardando_pagamento', 'concluido'].includes(e.status)
+      && new Date(e.inicio).getTime() < fim.getTime() + iv && new Date(e.fim).getTime() + iv > inicio.getTime()).length;
+    if (ocupados >= vagas) return vagas === 1 ? 'Já tem alguém marcado nesse horário.' : `Os ${vagas} horários desse momento já estão ocupados.`;
+    return null;
+  };
+
   const marcar = async (f) => {
     const inicio = new Date(`${f.dia}T${f.hora}:00`);
     const fim = new Date(inicio.getTime() + Number(f.duracao || 30) * 60000);
+    const aviso = avisoDoHorario(inicio, fim);
+    if (aviso && !window.confirm(`${aviso} Marcar mesmo assim?`)) return;
     const { error } = await supabase.from('agendamentos').insert({
       owner_id: contaId,
       cliente_nome: f.cliente_nome.trim(),
@@ -301,8 +333,24 @@ export default function Agenda() {
     carregar();
   };
 
+  const remarcar = async (dia, hora) => {
+    const dur = new Date(aberto.fim) - new Date(aberto.inicio);
+    const inicio = new Date(`${dia}T${hora}:00`);
+    const fim = new Date(inicio.getTime() + dur);
+    if (Number.isNaN(inicio.getTime())) return avisar('Escolha o dia e a hora', { erro: true });
+    const aviso = avisoDoHorario(inicio, fim, aberto.id);
+    if (aviso && !window.confirm(`${aviso} Remarcar mesmo assim?`)) return;
+    const { error } = await supabase.from('agendamentos').update({ inicio: inicio.toISOString(), fim: fim.toISOString() }).eq('id', aberto.id);
+    if (error) return avisar('Não deu para remarcar', { erro: true, texto: /ocupado/.test(error.message) ? 'Esse horário já está ocupado.' : error.message });
+    avisar('Horário remarcado', { texto: 'Avise o cliente da mudança.' });
+    setAberto(null);
+    carregar();
+  };
+
   const mudarStatus = async (status) => {
     const ped = aberto.pedido;
+    if (status === 'cancelado' && ped?.status !== 'pago'
+      && !window.confirm(`Cancelar o horário de ${aberto.cliente_nome}? O cliente não é avisado automaticamente.`)) return;
     // cancelar horário pago: pergunta se devolve o dinheiro
     if (status === 'cancelado' && ped?.status === 'pago') return setDevolver(aberto);
     if (status === 'cancelado' && ped?.status === 'aguardando') {
@@ -487,6 +535,7 @@ export default function Agenda() {
             )
           }
         >
+          {['confirmado', 'pendente'].includes(aberto.status) && <Remarcar evento={aberto} onRemarcar={remarcar} />}
           <dl className="stack stack-sm" style={{ margin: 0 }}>
             <div><dt className="eyebrow">Serviço</dt><dd style={{ margin: 0 }}>{aberto.servico || '—'}</dd></div>
             <div><dt className="eyebrow">Contato</dt><dd style={{ margin: 0 }}>{aberto.cliente_contato || '—'}</dd></div>

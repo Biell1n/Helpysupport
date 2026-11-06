@@ -21,7 +21,7 @@ const ABAS = [
   { id: 'closed', rotulo: 'Fechados' },
 ];
 
-const nomeCliente = (c) => c.lead_nome?.trim() || 'Visitante';
+const nomeCliente = (c) => c.lead_nome?.trim() || c.cliente_email || 'Visitante';
 
 /** Em que pé está a compra nesta conversa: do carrinho ao pedido pago ou finalizado pela equipe. */
 const ETAPAS = {

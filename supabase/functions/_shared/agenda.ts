@@ -238,6 +238,11 @@ export async function marcar(
     })
     .select('id')
     .single();
+  // quem marcou passa a aparecer pelo nome e contato no atendimento
+  if (!error && input.conversation_id) {
+    await db.from('conversations').update({ lead_nome: input.nome.trim().slice(0, 120) }).eq('id', input.conversation_id).is('lead_nome', null);
+    if (input.contato?.trim()) await db.from('conversations').update({ lead_contato: input.contato.trim().slice(0, 160) }).eq('id', input.conversation_id).is('lead_contato', null);
+  }
   if (error) {
     // outra conversa pegou o mesmo horário um instante antes (conferido de novo no banco)
     if (/horario_ocupado/.test(error.message)) {
