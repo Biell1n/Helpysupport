@@ -255,7 +255,7 @@
 
 [data-tema='escuro'] .lp-robo-ceu {
   animation: none;
-  filter: brightness(0.32) saturate(1.35);
+  background-image: url('/img/ceu-escuro.webp');
 }
 
 [data-tema='escuro'] :is(.lp-nav, .lp-btn-vidro) {
