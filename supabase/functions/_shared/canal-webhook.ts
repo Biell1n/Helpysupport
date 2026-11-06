@@ -85,6 +85,31 @@ type WaMsg = {
   interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } };
 };
 
+type StatusWa = { status?: string; errors?: { code?: number; title?: string }[] };
+
+// erros de entrega que não são de um cliente só: o dono precisa agir
+const TRAVAS_WA: Record<number, string> = {
+  130497: 'A Meta não entrega mensagens deste número para clientes do Brasil. Acontece com o número de teste (+1 555): use o número da empresa (Etapa 2 no app da Meta).',
+  131030: 'O número de teste só entrega para os números cadastrados no campo "Para" da Meta. Adicione o número do cliente lá ou use o número da empresa.',
+  131031: 'A conta do WhatsApp Business foi bloqueada pela Meta. Abra o Gerenciador do WhatsApp para ver o motivo.',
+  131042: 'A Meta recusou por problema de pagamento na conta do WhatsApp Business.',
+  190: 'O token do WhatsApp venceu ou foi revogado. Use "Trocar token" com o token que não vence.',
+  368: 'A Meta bloqueou temporariamente este número por violar as políticas.',
+};
+
+async function anotarEntrega(numero: string, statuses: StatusWa[]) {
+  if (!statuses.length) return;
+  const canal = await canalPor('whatsapp', numero);
+  if (!canal) return;
+  const falha = statuses.flatMap((x) => (x.status === 'failed' ? x.errors ?? [] : [])).find((e) => e.code != null && TRAVAS_WA[e.code]);
+  if (falha) {
+    await admin.from('canais').update({ erro: TRAVAS_WA[falha.code!] }).eq('id', canal.id);
+  } else if (statuses.some((x) => x.status === 'delivered' || x.status === 'read')) {
+    // voltou a entregar: some o aviso de entrega (os outros continuam até o teste da conexão)
+    await admin.from('canais').update({ erro: null }).eq('id', canal.id).in('erro', Object.values(TRAVAS_WA));
+  }
+}
+
 async function lerMeta(corpo: Record<string, unknown>): Promise<Recebida[]> {
   const out: Recebida[] = [];
   const entradas = (corpo.entry as Record<string, unknown>[] | undefined) ?? [];
@@ -95,7 +120,12 @@ async function lerMeta(corpo: Record<string, unknown>): Promise<Recebida[]> {
         const v = ch.value ?? {};
         const numero = String((v.metadata as { phone_number_id?: string } | undefined)?.phone_number_id ?? '');
         const msgs = (v.messages as WaMsg[] | undefined) ?? [];
-        if (!numero || !msgs.length) continue; // status de entrega, leitura etc.
+        // a Meta conta depois se a resposta foi entregue: falha que trava o canal inteiro aparece no painel
+        if (numero && !msgs.length) {
+          await anotarEntrega(numero, (v.statuses as StatusWa[] | undefined) ?? []);
+          continue;
+        }
+        if (!numero) continue;
         const canal = await canalPor('whatsapp', numero);
         if (!canal) continue;
         const nomes = new Map(((v.contacts as { wa_id: string; profile?: { name?: string } }[] | undefined) ?? []).map((c) => [c.wa_id, c.profile?.name ?? null]));

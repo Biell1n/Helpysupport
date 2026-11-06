@@ -905,6 +905,11 @@
   gap: 8px;
 }
 
+/* com muitos chamados a lista rola: cada cartão mantém a altura inteira (o swipe tem overflow e encolhia) */
+.inbox-items > * {
+  flex-shrink: 0;
+}
+
 .ticket {
   width: 100%;
   text-align: left;
