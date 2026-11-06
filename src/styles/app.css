@@ -1516,6 +1516,11 @@
   }
 }
 
+/* os campos de hora cabem na gaveta, mesmo com dois horários no dia */
+.horarios-dia > * { min-width: 0; }
+.horarios-dia .row { flex-wrap: wrap; gap: 6px 8px; }
+.horarios-dia input[type='time'] { width: 112px; min-width: 0; flex: none; }
+
 /* ---------- chat público ---------- */
 
 .publico {

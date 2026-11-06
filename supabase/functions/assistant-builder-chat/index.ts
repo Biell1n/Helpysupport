@@ -498,7 +498,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: 'preencher_campos',
     description:
-      'Grava valores em campos simples. Use as chaves exatas do documento. Resposta vaga também é resposta: normalize em uma frase e grave. Em "regras", use acrescentar=true para não apagar as anteriores.',
+      'Grava valores em campos simples. Use as chaves exatas do documento. Resposta vaga também é resposta: normalize em uma frase e grave. Em "regras", use acrescentar=true para somar uma regra nova; para corrigir, tirar ou reescrever, mande o texto COMPLETO já corrigido com acrescentar=false (ele substitui o campo inteiro). Nunca diga que reescreveu se mandou acrescentar.',
     input_schema: {
       type: 'object',
       properties: {
@@ -741,7 +741,8 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
           v = achou;
         }
         const atual = valueOf(cfg, c.chave);
-        if ((c.acrescentar || def.accumulates) && atual && !atual.includes(v)) v = `${atual}\n${v}`;
+        // campo que acumula (regras) só junta quando não pediram para trocar: acrescentar=false reescreve o campo inteiro
+        if ((c.acrescentar || (def.accumulates && c.acrescentar !== false)) && atual && !atual.includes(v)) v = `${atual}\n${v}`;
         cfg.fields[c.chave] = { value: v, status: 'confirmado' };
         touched.add(c.chave);
         gravados.push(def.label);
