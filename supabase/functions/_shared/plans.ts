@@ -2,9 +2,9 @@
 // Planos e limites. Espelhado em src/lib/plans.js — mude os dois juntos.
 //
 // Conta do pior caso (cliente usando 100% de tudo, dólar a R$ 6,00):
-// a cota de mensagens conta pelo custo real da IA (US$ 0,002 vale uma
-// mensagem; média medida ≈ US$ 0,0012) e o criador também (US$ 0,03 vale uma;
-// média ≈ US$ 0,022). Com ~11% do preço em taxa de pagamento e imposto, todo
+// a cota de mensagens conta pelo custo real da IA (US$ 0,0015 vale uma
+// mensagem; com a conversa em cache a média medida fica ≈ US$ 0,0007–0,0012) e o
+// criador também (US$ 0,03 vale uma; média ≈ US$ 0,022). Com ~11% do preço em taxa de pagamento e imposto, todo
 // plano fica com pelo menos 70% de margem mesmo com tudo usado no limite.
 // ============================================================
 
@@ -36,26 +36,28 @@ export const PLANS: Record<PlanId, Plan> = {
     ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 1, tabelas: 3, msgsPorAtendimento: 30, funcionarios: 2,
   },
   essencial: {
-    id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 20, atendimentos: 200, mensagens: 900,
+    id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 20, atendimentos: 200, mensagens: 1200,
     ticketsAbertos: 20, chamados: true, chamadosAvancados: true, integracoes: false, canaisMeta: 1, tabelas: 3, msgsPorAtendimento: 30, funcionarios: 1,
   },
   profissional: {
-    id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 60, atendimentos: 500, mensagens: 2200,
+    id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 60, atendimentos: 500, mensagens: 3000,
     ticketsAbertos: 100, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 2, tabelas: 10, msgsPorAtendimento: 40, funcionarios: 5,
   },
   business: {
-    id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 120, atendimentos: 1400, mensagens: 6000,
+    id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 120, atendimentos: 1400, mensagens: 8000,
     ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, msgsPorAtendimento: 40, funcionarios: 20,
   },
 };
 
 /**
  * Uso extra: o que passa da cota do plano, cobrado à parte até o limite do
- * mês que o dono escolher. Custo medido de IA por mensagem: média ≈ R$ 0,01,
- * as mais pesadas ≈ R$ 0,03 (e uma busca na internet soma ≈ R$ 0,05); a
- * mensagem a R$ 0,05 cobre isso com margem.
+ * mês que o dono escolher. A mensagem cobre o custo da IA (no pior caso
+ * ≈ R$ 0,009, já que a cota conta pelo custo) com mais de 70% de margem; o
+ * atendimento quase não tem custo próprio, então sai barato. O Business paga
+ * menos nos dois.
  */
-export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.07 } as const;
+export const PRECO_EXTRA = { atendimento: 0.15, mensagem: 0.07 } as const;
+export const PRECO_EXTRA_BUSINESS = { atendimento: 0.1, mensagem: 0.05 } as const;
 
 /** Vaga de funcionário além das incluídas no plano (por mês). Espelha src/lib/plans.js. */
 export const PRECO_FUNCIONARIO_EXTRA = 19;
@@ -88,7 +90,8 @@ export interface Precos {
   teste: boolean;
   planos: Record<PlanoPago, Record<Ciclo, number>>; // valor de cada cobrança (mês ou ano)
   vaga: number; // por mês
-  extra: { atendimento: number; mensagem: number };
+  extra: { atendimento: number; mensagem: number }; // Essencial e Profissional
+  extraPlano: Record<PlanoPago, { atendimento: number; mensagem: number }>;
   vendas: Record<PlanId, number>; // % do Helpy sobre cada venda paga pelo chat
   cota_teste?: typeof COTA_TESTE;
 }
@@ -112,12 +115,19 @@ export function precosVigentes(teste: boolean): Precos {
       vaga: 0.01,
       // a fatura mínima do Asaas é R$ 5: a R$ 0,50 por mensagem, 10 mensagens já geram uma
       extra: { atendimento: 1, mensagem: 0.5 },
+      extraPlano: { essencial: { atendimento: 1, mensagem: 0.5 }, profissional: { atendimento: 1, mensagem: 0.5 }, business: { atendimento: 1, mensagem: 0.5 } },
       vendas: TAXA_VENDAS,
       cota_teste: COTA_TESTE,
     };
   }
   const planos = Object.fromEntries(PAGOS.map((id) => [id, { mensal: PLANS[id].precoMensal, anual: PLANS[id].preco * 12 }])) as Precos['planos'];
-  return { teste, planos, vaga: PRECO_FUNCIONARIO_EXTRA, extra: { ...PRECO_EXTRA }, vendas: TAXA_VENDAS };
+  const extraPlano = { essencial: { ...PRECO_EXTRA }, profissional: { ...PRECO_EXTRA }, business: { ...PRECO_EXTRA_BUSINESS } };
+  return { teste, planos, vaga: PRECO_FUNCIONARIO_EXTRA, extra: { ...PRECO_EXTRA }, extraPlano, vendas: TAXA_VENDAS };
+}
+
+/** Preço do uso extra para o plano da conta. */
+export function precoExtraDoPlano(p: Precos, plano: string): { atendimento: number; mensagem: number } {
+  return p.extraPlano[plano as PlanoPago] ?? p.extra;
 }
 
 /** Valor de cada cobrança da assinatura: plano no ciclo + vagas extras (mensais, x12 no anual). */

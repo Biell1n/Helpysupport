@@ -5,7 +5,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { alertar } from './atendimento.ts';
-import { inicioDoMes, type Plan, type PlanId, precosVigentes, trialExpirado } from './plans.ts';
+import { inicioDoMes, type Plan, type PlanId, precoExtraDoPlano, precosVigentes, trialExpirado } from './plans.ts';
 import { fecharUsoExtra } from './cobranca.ts';
 import { usoDoMes } from './db.ts';
 
@@ -31,7 +31,7 @@ export function extraLigado(p: PerfilExtra) {
 export async function usarExtra(db: SupabaseClient, p: PerfilExtra, tipo: 'atendimento' | 'mensagem'): Promise<boolean> {
   if (!extraLigado(p)) return false;
   const limite = Number(p.extra_limite);
-  const preco = precosVigentes(!!p.precos_teste).extra;
+  const preco = precoExtraDoPlano(precosVigentes(!!p.precos_teste), p.plan);
   const { data, error } = await db.rpc('helpy_usar_extra', {
     p_owner: p.id, p_tipo: tipo, p_valor: preco[tipo], p_limite: limite,
   });
