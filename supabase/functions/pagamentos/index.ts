@@ -13,6 +13,7 @@
 //   carteira_sacar    → { valor } saque por Pix para a chave CPF/CNPJ da própria empresa
 //   pedido_cancelar   → { id } cancela um pedido que ainda não foi pago (e o horário que ele guardava)
 //   estornar          → { id } devolve ao cliente um pedido pago (só o dono); cancela o horário ligado
+//   pedido_status     → { id, status } pedido anotado (sem pagamento no chat): a equipe finaliza, cancela ou reabre
 //
 // Avisos do Asaas (sem login; conferidos pelo token):
 //   ?asaas=helpy             → pagamentos dos planos (conta do Helpy)
@@ -369,7 +370,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!dono && action !== 'pedido_cancelar') throw new UserError('Só o dono da conta mexe em pagamentos.', 403);
+    if (!dono && action !== 'pedido_cancelar' && action !== 'pedido_status') throw new UserError('Só o dono da conta mexe em pagamentos.', 403);
 
     if (action === 'assinar') {
       const plano = String(body.plano ?? '') as PlanoPago;
@@ -698,6 +699,22 @@ Deno.serve(async (req) => {
         await loja?.pedir(`/paymentLinks/${ped.link_id}`, { method: 'DELETE' }).catch(() => {});
       }
       return json({ ok: true });
+    }
+
+    // pedido anotado pelo assistente (venda sem link): quem atende finaliza, cancela ou reabre
+    if (action === 'pedido_status') {
+      const id = String(body.id ?? '');
+      if (!UUID.test(id)) throw new UserError('Pedido inválido.');
+      const novo = String(body.status ?? '');
+      if (!['finalizado', 'cancelado', 'anotado'].includes(novo)) throw new UserError('Status inválido.');
+      const { data: ped } = await admin.from('pedidos').select('id, owner_id, status').eq('id', id).maybeSingle();
+      if (!ped || ped.owner_id !== conta) throw new UserError('Pedido não encontrado.', 404);
+      if (!['anotado', 'finalizado', 'cancelado'].includes(ped.status) || (ped.status === 'cancelado' && novo !== 'anotado')) {
+        throw new UserError('Este pedido é pago pelo link: use Cancelar ou Estornar.');
+      }
+      const { error } = await admin.from('pedidos').update({ status: novo }).eq('id', id).eq('status', ped.status);
+      if (error) throw error;
+      return json({ ok: true, status: novo });
     }
 
     throw new UserError('Ação desconhecida.');

@@ -12,7 +12,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { buscar, categorias } from './busca.ts';
-import { cancelarPedido, cobrarHorario, fecharPedido, MINIMO_COBRANCA, montarItens, valorDaReserva, vendeOnline } from './pedidos.ts';
+import { anotarPedido, cancelarPedido, cobrarHorario, fecharPedido, MINIMO_COBRANCA, montarItens, valorDaReserva, vendeOnline } from './pedidos.ts';
 import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
 import {
   type AgendaConfig, agendamentosDaConversa, alterarAgendamento, carregarAgenda, descreverAgendamento, hojeNoFuso, horariosLivres, marcar,
@@ -21,7 +21,7 @@ import {
 import { type ApiConfig, consultarApi, linhasDasTabelas, sincronizarUrl, VALIDADE_URL_MS } from './fontes.ts';
 import { configSql, consultarSql } from './sql.ts';
 import {
-  allCollections, COBRA_SINAL, type CollectionDef, type Config, describeConfig, normalizeConfig, type Schema, slug, valueOf, VENDE,
+  allCollections, COBRA_SINAL, type CollectionDef, type Config, describeConfig, normalizeConfig, type Schema, slug, valueOf, VENDA_ANOTA, VENDE,
 } from './schema.ts';
 
 export interface Assistant {
@@ -185,7 +185,7 @@ function semSenha(cfg: Config): Config {
   return { ...cfg, fields };
 }
 
-export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false, agendaPaga = false): string {
+export function systemPrompt(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false, agendaPaga = false, anota = false): string {
   const cfg = a.config;
   const model = a.business_model || a.schema?.business_model || 'produto';
   const nome = valueOf(cfg, 'nome_assistente') || a.name;
@@ -271,7 +271,10 @@ ${vende ? '\nCOMO RECOMENDAR: no máximo três opções, com o nome exato e o pr
 ${blocoTabelas}
 
 ${blocoAgenda}
-${loja ? `
+${loja && anota ? `
+VENDA PELO CHAT (SEM PAGAMENTO POR AQUI)
+Você monta o pedido aqui e a equipe finaliza. Quando a pessoa disser claramente o que quer (produto e quantidade), ponha no carrinho NA MESMA resposta. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Quando a pessoa decidir comprar: confirme produtos, quantidades e o total; pergunte se é entrega ou retirada (conforme a ficha; se for entrega, peça o endereço completo); peça o nome e um telefone ou e-mail (no WhatsApp e no Instagram o contato já vem do app, só peça o nome). Com o "pode fechar", chame fechar_pedido e siga a "mensagem" que ela devolve. Ela ANOTA o pedido para a equipe: não existe link de pagamento por aqui, a equipe combina o pagamento${valueOf(cfg, 'entrega') ? '' : ' e a entrega'}. Nunca invente link, frete, prazo nem forma de pagamento além do que está na ficha. Não diga que está pago nem confirmado: diga que está anotado e a equipe vai falar com a pessoa. Depois de anotado, se a pessoa quiser mais algo, é um pedido novo.` : ''}
+${loja && !anota ? `
 VENDA PELO CHAT
 Você fecha a compra aqui mesmo. Quando a pessoa disser claramente o que quer (produto e quantidade), ponha no carrinho NA MESMA resposta, sem condicionar a outra pergunta. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL: foi ela que mudou, então siga com o que está lá, sem perguntar de novo a quantidade. Quando a pessoa decidir comprar: confirme os produtos e as quantidades e resolva a entrega conforme ENTREGA NA VENDA PELO CHAT (abaixo); se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e siga a "mensagem" que ela devolve (no chat do site o pedido aparece sozinho na tela como recibo, com o botão de pagar; nos outros canais mande o resumo e o link exatamente como vieram). Depois que o pedido foi fechado, o link tem valor fixo: não ofereça incluir itens "nesse pedido"; se a pessoa quiser mais algo, é um pedido novo. Não fique oferecendo o mesmo produto de novo. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.
 
@@ -377,7 +380,7 @@ export async function carregarTabelas(db: SupabaseClient, assistantId: string): 
   return lista;
 }
 
-function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false): Anthropic.Tool[] {
+function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | null, loja = false, anota = false): Anthropic.Tool[] {
   const tools: Anthropic.Tool[] = [];
   const model = a.business_model || a.schema?.business_model || 'produto';
 
@@ -430,7 +433,9 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
     });
     tools.push({
       name: 'fechar_pedido',
-      description: 'Fecha a compra e gera o link de pagamento (Pix, cartão ou boleto) na conta da empresa. Só chame depois que a pessoa confirmar produtos, quantidades e total. Use o nome exato de cada produto do catálogo: o preço e o estoque vêm de lá.',
+      description: anota
+        ? 'Anota o pedido para a equipe finalizar (sem link de pagamento). Só chame depois que a pessoa confirmar produtos, quantidades, entrega ou retirada, nome e contato. Use o nome exato de cada produto do catálogo: o preço e o estoque vêm de lá.'
+        : 'Fecha a compra e gera o link de pagamento (Pix, cartão ou boleto) na conta da empresa. Só chame depois que a pessoa confirmar produtos, quantidades e total. Use o nome exato de cada produto do catálogo: o preço e o estoque vêm de lá.',
       input_schema: {
         type: 'object',
         properties: {
@@ -443,6 +448,7 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
             },
           },
           cliente_nome: { type: 'string', description: 'Nome da pessoa, se ela disse' },
+          ...(anota ? { cliente_contato: { type: 'string', description: 'Telefone ou e-mail que a pessoa deu para a equipe confirmar' } } : {}),
           entrega: { type: 'string', enum: ['entrega', 'retirada'], description: 'Receber em casa ou retirar no local (pergunte antes)' },
           endereco: { type: 'string', description: 'Endereço completo de entrega (rua, número, bairro, cidade), se for entrega' },
         },
@@ -605,7 +611,7 @@ export interface Rodada {
   /** a equipe acabou de responder uma dúvida desta conversa (o assistente retoma o atendimento) */
   retorno?: { pergunta: string; resposta: string };
   /** venda no chat e horário pago: ligados no assistente e com o recebimento conectado (preenchido em responder) */
-  vendas?: { loja: boolean; agendaPaga: boolean };
+  vendas?: { loja: boolean; agendaPaga: boolean; anota?: boolean };
 }
 
 /** Avisa a empresa (dono e equipe veem no painel). A mesma chave no mesmo dia não repete o aviso. */
@@ -683,6 +689,20 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   }
 
   if (nome === 'fechar_pedido' && r.vendas?.loja) {
+    if (r.vendas.anota) {
+      const catalogoA = catalogos(assistant.schema, cfg).flatMap((c) =>
+        (cfg.collections[c.key] ?? []).map((it) => Object.fromEntries(c.item_fields.map((f) => [f.key, String(it?.[f.key] ?? '')])))
+      );
+      if (!Array.isArray(args.itens) || !args.itens.length) {
+        const { data: conv } = await db.from('conversations').select('carrinho').eq('id', conversationId).maybeSingle();
+        const doCarrinho = (Array.isArray(conv?.carrinho) ? conv.carrinho : []) as { produto: string; quantidade: number }[];
+        args = { ...args, itens: doCarrinho.map((i) => ({ produto: i.produto, quantidade: i.quantidade })) };
+      }
+      const anotado = await anotarPedido(db, { ownerId: assistant.owner_id, assistantId: assistant.id, conversationId, teste: r.teste },
+        args as { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; cliente_contato?: string; entrega?: string; endereco?: string }, tabelas, catalogoA);
+      if ((anotado as { ok?: boolean }).ok) await db.from('conversations').update({ carrinho: [] }).eq('id', conversationId);
+      return anotado;
+    }
     const catalogo = catalogos(assistant.schema, cfg).flatMap((c) =>
       (cfg.collections[c.key] ?? []).map((it) => Object.fromEntries(c.item_fields.map((f) => [f.key, String(it?.[f.key] ?? '')])))
     );
@@ -996,6 +1016,8 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const vende = VENDE.includes((a.business_model || a.schema?.business_model || 'produto') as never);
   // venda no chat e cobrança do horário: o dono liga no assistente, e só valem com o recebimento conectado
   const querVenda = vende && /^sim/i.test(valueOf(a.config, 'venda_no_chat'));
+  // anota o pedido para a equipe: vende pelo chat sem cobrar, então não precisa da Carteira
+  const anota = vende && valueOf(a.config, 'venda_no_chat') === VENDA_ANOTA;
   const querCobrar = usarAgenda && /^sim/i.test(valueOf(a.config, 'agenda_pagamento'));
   const [tabelas, agenda, recebe, ondeFalar] = await Promise.all([
     carregarTabelas(r.db, a.id),
@@ -1003,8 +1025,8 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     querVenda || querCobrar ? vendeOnline(r.db, a.owner_id) : Promise.resolve(false),
     canaisDaEmpresa(r.db, a).catch(() => [] as string[]),
   ]);
-  const loja = querVenda && recebe;
-  rr.vendas = { loja, agendaPaga: querCobrar && recebe && !!agenda };
+  const loja = (querVenda && recebe) || anota;
+  rr.vendas = { loja, anota, agendaPaga: querCobrar && recebe && !!agenda };
 
   const fuso = agenda?.fuso ?? 'America/Sao_Paulo';
   const agora = new Intl.DateTimeFormat('pt-BR', { timeZone: fuso, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
@@ -1019,7 +1041,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     .filter((f) => f?.equipe && f?.pergunta && f?.resposta)
     .map((f) => `- ${f.pergunta}: ${f.resposta}`);
   const system: Anthropic.TextBlockParam[] = [
-    { type: 'text', text: systemPrompt(a, tabelas, agenda, loja, rr.vendas.agendaPaga), cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: systemPrompt(a, tabelas, agenda, loja, rr.vendas.agendaPaga, anota), cache_control: { type: 'ephemeral' } },
     // o dono ligou "vender no chat", mas a conta de recebimento não está pronta: nada de prometer link
     ...(querVenda && !recebe
       ? [{
@@ -1065,7 +1087,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     },
   ];
   const modeloNegocio = a.business_model || a.schema?.business_model || 'produto';
-  let tools: Anthropic.ToolUnion[] = [...ferramentas(a, tabelas, agenda, loja), ...(PESQUISA.includes(modeloNegocio) ? [buscaNaWeb(fuso)] : [])];
+  let tools: Anthropic.ToolUnion[] = [...ferramentas(a, tabelas, agenda, loja, anota), ...(PESQUISA.includes(modeloNegocio) ? [buscaNaWeb(fuso)] : [])];
 
   // a API quer papéis alternados, começando pelo usuário
   const msgs: Anthropic.MessageParam[] = [];

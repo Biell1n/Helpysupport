@@ -259,6 +259,64 @@ export async function cancelarPedido(db: SupabaseClient, ownerId: string, pedido
   }
 }
 
+/**
+ * Venda sem pagamento no chat: o assistente monta o pedido com o cliente e deixa
+ * registrado ("anotado") para a equipe combinar pagamento e entrega. Os preços vêm
+ * da tabela (nunca do que a IA escreveu) e o estoque é conferido, igual à venda com link.
+ */
+export async function anotarPedido(
+  db: SupabaseClient,
+  ctx: { ownerId: string; assistantId: string; conversationId: string; teste: boolean },
+  args: { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; cliente_contato?: string; entrega?: string; endereco?: string },
+  tabelas: TabelaPedido[],
+  catalogo: Record<string, string>[],
+) {
+  const pedidos = Array.isArray(args.itens) ? args.itens.slice(0, 30) : [];
+  if (!pedidos.length) return { erro: 'Diga quais produtos e quantas unidades.' };
+  const { itens: achados, problemas } = await montarItens(db, pedidos, tabelas, catalogo);
+  if (problemas.length) return { erro: 'O pedido NÃO foi anotado.', problemas };
+  const itens = achados.map(({ estoque_chave: _, ...i }) => i);
+  const total = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
+  if (!(total > 0)) return { erro: 'O pedido NÃO foi anotado: os itens estão sem preço na tabela. Ofereça a equipe para fechar.' };
+  const entrega = args.entrega === 'retirada' ? 'retirada' : args.entrega === 'entrega' ? 'entrega' : null;
+  const endereco = String(args.endereco ?? '').trim().slice(0, 300);
+  const nome = String(args.cliente_nome ?? '').trim().slice(0, 120);
+  const contato = String(args.cliente_contato ?? '').trim().slice(0, 120);
+  // no chat do site a equipe só consegue retornar com um contato; nos canais o contato já vem do app
+  let doCanal = false;
+  if (ctx.conversationId) {
+    const { data: conv } = await db.from('conversations').select('canal_id').eq('id', ctx.conversationId).maybeSingle();
+    doCanal = !!conv?.canal_id;
+  }
+  if (!nome || (!contato && !doCanal)) {
+    return { erro: 'O pedido NÃO foi anotado: falta o nome e um contato (telefone ou e-mail).', mensagem: 'Peça o nome e um telefone ou e-mail para a equipe confirmar o pedido.' };
+  }
+  if (entrega === 'entrega' && endereco.length < 8) {
+    return { erro: 'O pedido NÃO foi anotado: falta o endereço de entrega.', mensagem: 'Peça o endereço completo (rua, número, bairro e cidade).' };
+  }
+  const { data: ped, error } = await db.from('pedidos').insert({
+    owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId,
+    itens, total, status: 'anotado', cliente_nome: nome, cliente_contato: contato || null, numero: 0,
+    entrega, endereco: entrega === 'entrega' ? endereco : null,
+  }).select('id, numero').single();
+  if (error || !ped) throw error ?? new Error('pedido não anotado');
+  if (!ctx.teste) {
+    await db.from('alertas').insert({
+      owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId, origem: 'sistema',
+      chave: `pedido:anotado:${ped.id}`,
+      assunto: `Pedido nº ${ped.numero} anotado: ${reais(total)}`,
+      detalhe: `${nome}${contato ? ` (${contato})` : ''} pediu ${itens.map((i) => `${i.quantidade}x ${i.produto}`).join(', ')}${entrega === 'retirada' ? ', para retirar' : entrega === 'entrega' ? `, entrega em ${endereco}` : ''}. Combine o pagamento e marque como finalizado em Pedidos.`,
+    }).then(() => {}, () => {});
+  }
+  return {
+    ok: true,
+    numero: ped.numero,
+    total: reais(total),
+    itens: itens.map((i) => `${i.quantidade}x ${i.produto} — ${reais(i.subtotal)}`),
+    mensagem: `Pedido nº ${ped.numero} anotado (${reais(total)}). Confirme os itens e o total para a pessoa e diga que a equipe vai entrar em contato por aqui${contato ? ' ou pelo contato que ela deixou' : ''} para combinar o pagamento${entrega ? (entrega === 'retirada' ? ' e a retirada' : ' e a entrega') : ''}. Não mande link de pagamento e não diga que está pago.`,
+  };
+}
+
 export async function fecharPedido(
   db: SupabaseClient,
   ctx: { ownerId: string; assistantId: string; conversationId: string; negocio: string; teste: boolean; baixarEstoque: boolean; regraFrete?: string },

@@ -4701,3 +4701,31 @@
 /* dentro do cartão de conectado, a conta não precisa de outra caixa em volta */
 .canal-ligado .canal-conta { border: 0; padding: 0; background: none; }
 .tutorial-passo[data-aberto]::before { display: none; }
+
+/* etapa da compra no atendimento: carrinho, esperando pagamento, anotado, pago/finalizado */
+.selo-etapa {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.etapa-montando { background: var(--azul-claro); color: var(--azul-forte); }
+.etapa-pagamento { background: rgba(224, 166, 58, 0.16); color: #9a6200; }
+.etapa-anotado { background: var(--senha-clara); color: var(--senha-texto, var(--senha)); }
+.etapa-feito { background: var(--folha-clara); color: var(--folha); }
+[data-tema='escuro'] .etapa-pagamento { color: #e0a63a; }
+.filtro-etapas {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.filtro-etapas::-webkit-scrollbar { display: none; }
+.filtro-etapas .chip { flex: none; display: inline-flex; align-items: center; gap: 5px; }
