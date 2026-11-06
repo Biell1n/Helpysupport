@@ -22,54 +22,63 @@ export const GUIAS = {
       {
         titulo: 'Crie o app na Meta',
         itens: [
-          <>Abra o <A href={META}>painel de apps da Meta</A> e clique em <b>Criar app</b>.</>,
-          <>Em "O que você quer que o app faça", escolha <b>Outro</b> e depois o tipo <b>Empresa</b>. Dê o nome da sua empresa e vincule ao seu Gerenciador de Negócios.</>,
-          <>Na tela do app, encontre <b>WhatsApp</b> na lista de produtos e clique em <b>Configurar</b>.</>,
+          <>Abra o <A href={META}>painel de apps da Meta</A> e clique em <b>Criar app</b>. Se aparecer "Começar", faça antes o cadastro de desenvolvedor (entre com o Facebook e escolha "Desenvolvedor").</>,
+          <>Nome do app: o da sua empresa (não use as palavras "WhatsApp", "Meta" ou "Facebook", a Meta recusa). O cliente não vê esse nome.</>,
+          <>Em <b>Casos de uso</b>, marque só <b>Conectar-se com clientes pelo WhatsApp</b>. Em <b>Empresa</b>, escolha o portfólio da sua empresa (ou crie um) e conclua com <b>Criar app</b>.</>,
         ],
       },
       {
-        titulo: 'Coloque o número da empresa',
+        titulo: 'Pegue os dois números do WhatsApp',
         itens: [
-          <>No menu da esquerda, abra <b>WhatsApp → Configuração da API</b>.</>,
-          <>Em <b>Etapa 5</b> (ou "Adicionar número de telefone"), cadastre o número e confirme com o código que chega por SMS ou ligação. Se for só testar, use o número de teste que já aparece.</>,
-          <>Copie a <b>Identificação do número de telefone</b> e a <b>Identificação da conta do WhatsApp Business</b> que aparecem logo abaixo do número. Você vai colar as duas aqui.</>,
+          <>No app, clique no lápis (<b>Casos de uso</b>) e em <b>Personalizar</b> ao lado de "Conectar-se com clientes pelo WhatsApp".</>,
+          <>Para testar: em <b>Etapa 1. Experimente</b> aparece o número de teste. Copie o <b>Phone Number ID</b> (vai em "Identificação do número") e a <b>Identificação da conta de mensagens</b> (vai em "Identificação da conta").</>,
+          <>Para o número da empresa: em <b>Etapa 2 → Registre seu número de telefone</b>, cadastre o número, escolha o <b>nome de exibição</b> (o nome que o cliente vê, a Meta aprova) e confirme o código. Depois copie os dois números dele.</>,
         ],
       },
       {
         titulo: 'Gere o token que não vence',
         itens: [
+          <>Não use o botão "Gerar token" da Etapa 1: aquele vale só 24 horas e cai quando você gera outro.</>,
           <>Abra as <A href={NEGOCIOS}>configurações do negócio → Usuários do sistema</A> e clique em <b>Adicionar</b>. Nome: "Helpy", função: <b>Administrador</b>.</>,
-          <>Com o usuário criado, clique em <b>Atribuir ativos</b>, escolha o seu app e marque <b>Controle total</b>.</>,
-          <>Clique em <b>Gerar novo token</b>, escolha o app, em validade marque <b>Nunca</b> e selecione as permissões <i>whatsapp_business_messaging</i> e <i>whatsapp_business_management</i>.</>,
-          <>Copie o token (ele só aparece uma vez) e cole no campo <b>Token de acesso</b> aqui ao lado.</>,
+          <>Clique em <b>Atribuir ativos</b> e dê <b>Controle total</b> em dois: o seu <b>app</b> e a sua <b>conta do WhatsApp</b>.</>,
+          <>Clique em <b>Gerar novo token</b>: escolha o app, validade <b>Nunca</b> e as permissões <i>whatsapp_business_messaging</i> e <i>whatsapp_business_management</i>. Copie na hora (ele só aparece uma vez) e cole em <b>Token de acesso</b> aqui ao lado.</>,
         ],
       },
       {
         titulo: 'Copie a chave secreta do app',
         itens: [
-          <>De volta ao app, abra <b>Configurações do app → Básico</b>, clique em <b>Mostrar</b> na <b>Chave secreta do app</b> e cole em "Usa um app próprio da Meta?". É com ela que o Helpy confere que a mensagem veio mesmo do WhatsApp.</>,
-          <>Ainda em Básico, preencha a <b>URL da Política de Privacidade</b> com <code>https://helpysupport.com/privacidade</code> (a Meta pede para o app sair do modo de teste).</>,
+          <>Na barra de ícones da esquerda do app, clique na engrenagem: <b>Configurações do app → Básico</b>.</>,
+          <>Em <b>Chave Secreta do Aplicativo</b>, clique em <b>Mostrar</b> e cole no campo <b>Chave secreta do app</b> aqui ao lado. É com ela que o Helpy confere que a mensagem veio mesmo do WhatsApp.</>,
         ],
       },
       {
         titulo: 'Clique em Conectar',
-        itens: [<>O Helpy confere o número e o token na Meta na hora. Se algo estiver errado, ele diz o quê.</>],
+        itens: [<>O Helpy confere o número e o token na Meta na hora e põe a foto do assistente no perfil do número. Se algo estiver errado, ele diz o quê.</>],
       },
       {
         depois: true,
         titulo: 'Ligue os avisos de mensagem nova',
         itens: [
-          <>No app, abra <b>WhatsApp → Configuração</b> e, em Webhook, clique em <b>Editar</b>.</>,
-          <>Cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostrar depois de conectar e clique em <b>Verificar e salvar</b>.</>,
-          <>Em <b>Campos do webhook</b>, clique em <b>Gerenciar</b> e assine <b>messages</b>.</>,
-          <>No topo do app, troque o <b>Modo do app</b> de Desenvolvimento para <b>Ao vivo</b>. Pronto: mande um "oi" para o número e veja a resposta.</>,
+          <>No app, volte em <b>Casos de uso → Personalizar → Etapa 2. Configuração da produção → Configurar webhooks</b>.</>,
+          <>Cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostra (botões de copiar) e clique em <b>Verificar e salvar</b>.</>,
+          <>Logo abaixo, em <b>Campos do webhook</b>, assine <b>messages</b>.</>,
+        ],
+      },
+      {
+        depois: true,
+        titulo: 'Publique o app',
+        itens: [
+          <>Sem publicar, a Meta só manda mensagens de teste e as dos seus clientes não chegam.</>,
+          <>Em <b>Configurações do app → Básico</b>, preencha a <b>URL da Política de Privacidade</b> e a dos <b>Termos de Serviço</b> (as do seu site; se não tiver, use <code>https://helpysupport.com/privacidade</code> e <code>https://helpysupport.com/termos</code>), a <b>exclusão de dados</b> (a mesma URL da política), um <b>ícone</b> e a <b>categoria</b>. Clique em <b>Salvar alterações</b>, no fim da página.</>,
+          <>No menu da esquerda, clique em <b>Publicar</b> e confirme. Pronto: mande um "oi" para o número e veja a resposta.</>,
         ],
       },
     ],
     erros: [
       ['"Passaram mais de 24 horas"', 'Regra do WhatsApp: depois de 24 h sem o cliente escrever, só dá para mandar modelo aprovado. Quando ele escrever de novo, a conversa reabre.'],
-      ['Mensagem chega mas ninguém responde', 'Confira se o campo "messages" está assinado, se o app está Ao vivo e se a chave secreta do app foi colada.'],
-      ['"Token venceu ou foi revogado"', 'O token gerado direto na Configuração da API vale 24 h. Use o do usuário do sistema, com validade "Nunca".'],
+      ['Mensagem chega mas ninguém responde', 'Confira se o campo "messages" está assinado, se o app está publicado e se a chave secreta do app foi colada.'],
+      ['"Token venceu ou foi revogado"', 'Foi usado o token de 24 horas da Etapa 1. Gere o do usuário do sistema, com validade "Nunca", e conecte de novo com ele (os mesmos números atualizam o canal que já existe).'],
+      ['"Restricted from messaging users in this country"', 'O número de teste da Meta não começa conversa com números do Brasil. Não atrapalha o Helpy: é o cliente que manda a primeira mensagem.'],
     ],
   },
 
