@@ -106,17 +106,17 @@ function ConfigAgenda({ cfg, onSalvar, onFechar }) {
                   <div className="row">
                     <input className="input" type="time" value={manha[0]} onChange={(e) => muda(0, 0, e.target.value)} aria-label={`${DIAS[d]} abre`} />
                     <span className="faint">às</span>
-                    <input className="input" type="time" value={manha[1]} onChange={(e) => muda(0, 1, e.target.value)} aria-label={`${DIAS[d]} ${tarde ? 'pausa começa' : 'fecha'}`} />
+                    <input className="input" type="time" value={manha[1]} onChange={(e) => muda(0, 1, e.target.value)} aria-label={`${DIAS[d]} ${tarde ? 'fecha (1º horário)' : 'fecha'}`} />
                   </div>
                   {tarde ? (
                     <div className="row">
-                      <input className="input" type="time" value={tarde[0]} onChange={(e) => muda(1, 0, e.target.value)} aria-label={`${DIAS[d]} volta da pausa`} />
+                      <input className="input" type="time" value={tarde[0]} onChange={(e) => muda(1, 0, e.target.value)} aria-label={`${DIAS[d]} abre (2º horário)`} />
                       <span className="faint">às</span>
                       <input className="input" type="time" value={tarde[1]} onChange={(e) => muda(1, 1, e.target.value)} aria-label={`${DIAS[d]} fecha`} />
-                      <button type="button" className="link-btn" onClick={() => setDia(d, [[manha[0], tarde[1]]])}>tirar pausa</button>
+                      <button type="button" className="link-btn" onClick={() => setDia(d, [[manha[0], tarde[1]]])}>tirar</button>
                     </div>
                   ) : (
-                    <button type="button" className="link-btn" style={{ alignSelf: 'flex-start' }} onClick={() => setDia(d, [[manha[0], '12:00'], ['13:00', manha[1] > '13:00' ? manha[1] : '18:00']])}>+ pausa (almoço)</button>
+                    <button type="button" className="link-btn" style={{ alignSelf: 'flex-start' }} onClick={() => setDia(d, [[manha[0], '12:00'], ['13:00', manha[1] > '13:00' ? manha[1] : '18:00']])}>+ outro horário no dia</button>
                   )}
                 </div>
               ) : (
