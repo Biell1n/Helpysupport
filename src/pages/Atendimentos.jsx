@@ -516,19 +516,17 @@ export default function Atendimentos() {
                   <button type="button" className="btn btn-quiet btn-sm" title="Timeout ou banir" onClick={() => setBloquear(true)}><Ban /> Bloquear</button>
                 )}
               </div>
+              {bloqueioDa(aberta) && (
+                <div className="alert alert-erro aviso-bloqueio">
+                  <Ban size={18} aria-hidden="true" />
+                  <span>
+                    <b>{bloqueioDa(aberta).banido ? 'Pessoa banida.' : `Em ${rotuloDoBloqueio(bloqueioDa(aberta))}.`}</b>{' '}
+                    O assistente não responde ela enquanto valer.
+                  </span>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={desbloquear}>Desbloquear</button>
+                </div>
+              )}
             </header>
-
-            {bloqueioDa(aberta) && (
-              <div className="alert alert-erro aviso-bloqueio">
-                <Ban size={18} aria-hidden="true" />
-                <span>
-                  <b>{bloqueioDa(aberta).banido ? 'Pessoa banida.' : `Em ${rotuloDoBloqueio(bloqueioDa(aberta))}.`}</b>{' '}
-                  O assistente não responde ela enquanto valer.
-                </span>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={desbloquear}>Desbloquear</button>
-              </div>
-            )}
-
             {/* no celular os dados começam fechados: a conversa fica com a tela */}
             <details className="detail-dados" open={!CELULAR}>
             <summary>Dados do cliente e resumo</summary>
