@@ -342,3 +342,8 @@
 }
 
 [data-tema='escuro'] .flag-aviso { color: var(--ambar); }
+
+/* o robô tem a sua versão noturna */
+.lp-robo-escuro { display: none; }
+[data-tema='escuro'] .lp-robo-claro { display: none; }
+[data-tema='escuro'] .lp-robo-escuro { display: block; }

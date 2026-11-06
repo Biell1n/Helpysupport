@@ -186,7 +186,8 @@ function Hero({ user, deslizar }) {
 
       <div className="lp-robo-figura">
         <div className="lp-robo-flutua lp-entra" style={{ '--d': '0.2s' }}>
-          <img src="/img/robo/estende.webp" alt="O Helpy, um robozinho azul com o rosto numa telinha, esticando a mão para você" width="612" height="635" />
+          <img className="lp-robo-claro" src="/img/robo/estende.webp" alt="O Helpy, um robozinho azul com o rosto numa telinha, esticando a mão para você" width="612" height="635" />
+          <img className="lp-robo-escuro" src="/img/robo/estende-escuro.webp" alt="" aria-hidden="true" loading="lazy" width="622" height="627" />
         </div>
       </div>
 
