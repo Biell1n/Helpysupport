@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, CheckCircle2, CircleDashed, Copy, ExternalLink, Link2, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
+import { Check, CheckCircle2, CircleDashed, Copy, ExternalLink, Image as ImageIcon, Link2, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -117,6 +117,38 @@ function ConectarDiscord({ assistentes, onFechar }) {
   );
 }
 
+
+/** A foto do assistente em JPEG quadrado (a Meta só aceita JPEG ou PNG no perfil do WhatsApp). */
+async function fotoEmJpeg(url) {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise((ok, falhou) => {
+    img.onload = ok;
+    img.onerror = falhou;
+    img.src = url;
+  });
+  const L = 640;
+  const tela = document.createElement('canvas');
+  tela.width = L;
+  tela.height = L;
+  const g = tela.getContext('2d');
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, L, L);
+  const lado = Math.min(img.naturalWidth, img.naturalHeight);
+  g.drawImage(img, (img.naturalWidth - lado) / 2, (img.naturalHeight - lado) / 2, lado, lado, 0, 0, L, L);
+  return tela.toDataURL('image/jpeg', 0.9);
+}
+
+/** Põe a foto do assistente no perfil do número. Sem foto ou se a Meta recusar, devolve o motivo. */
+async function porFotoNoWhatsApp(canal, assistente) {
+  if (!canal || canal.tipo !== 'whatsapp') return null;
+  if (!assistente?.foto_url) return { ok: false, erro: 'O assistente ainda não tem foto. Ponha uma em Assistentes.' };
+  try {
+    return await chamar('canais', { action: 'foto_whatsapp', canal_id: canal.id, imagem: await fotoEmJpeg(assistente.foto_url) });
+  } catch (e) {
+    return { ok: false, erro: e.message };
+  }
+}
 function Conectar({ servico, assistentes, onFechar, onPronto }) {
   const avisar = useToast();
   const [f, setF] = useState({ assistant_id: assistentes[0]?.id ?? '', token: '', phone_number_id: '', waba_id: '', app_secret: '' });
@@ -136,7 +168,10 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
           texto: `${partes.length ? `Pronto: ${partes.join(', ')}. ` : ''}Agora é só convidar o bot para o servidor.`,
         });
       } else {
-        avisar(`${servico.nome} conectado`, { texto: 'Falta só um passo: colar o endereço no painel do serviço.' });
+        const foto = servico.tipo === 'whatsapp' ? await porFotoNoWhatsApp(canal, assistentes.find((a) => a.id === f.assistant_id)) : null;
+        avisar(`${servico.nome} conectado`, {
+          texto: `${foto?.ok ? 'A foto do assistente já está no perfil do número. ' : ''}Falta só um passo: colar o endereço no painel do serviço.`,
+        });
       }
       onPronto(canal);
     } catch (err) {
@@ -358,6 +393,9 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
       )}
       <div className="row row-wrap" style={{ gap: 8, marginTop: 12 }}>
         <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('testar')}><RefreshCw size={15} /> Testar conexão</button>
+        {canal.tipo === 'whatsapp' && (
+          <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('foto')}><ImageIcon size={15} /> Usar a foto do assistente</button>
+        )}
         {canal.status === 'pausado' ? (
           <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('pausar', { ativo: true })}><Play size={15} /> Retomar</button>
         ) : (
@@ -384,7 +422,7 @@ export default function Canais() {
   const carregar = useCallback(async () => {
     const [c, a] = await Promise.all([
       supabase.from('canais').select(COLUNAS).order('criado_em'),
-      supabase.from('assistants').select('id, name').order('created_at'),
+      supabase.from('assistants').select('id, name, foto_url').order('created_at'),
     ]);
     if (c.error) avisar('Não deu para carregar os canais', { erro: true, texto: c.error.message });
     setCanais(c.data ?? []);
@@ -414,9 +452,18 @@ export default function Canais() {
     if (action === 'desconectar') return setApagar(canal);
     setOcupado(true);
     try {
+      if (action === 'foto') {
+        const r = await porFotoNoWhatsApp(canal, assistentes.find((a) => a.id === canal.assistant_id));
+        avisar(r?.ok ? 'Foto atualizada no WhatsApp' : 'A foto não foi', r?.ok ? { texto: 'Pode levar alguns minutos para aparecer para os clientes.' } : { erro: true, texto: r?.erro });
+        return;
+      }
       const r = await chamar('canais', { action, canal_id: canal.id, ...extra });
       if (action === 'testar') {
         avisar(r.ok ? 'Tudo certo com a conexão' : 'A conexão falhou', r.ok ? {} : { erro: true, texto: r.erro });
+      }
+      // o número do WhatsApp passa a ter a foto do assistente novo
+      if (action === 'trocar_assistente' && canal.tipo === 'whatsapp') {
+        await porFotoNoWhatsApp(canal, assistentes.find((a) => a.id === extra.assistant_id));
       }
       if (action === 'trocar_assistente' && r.discord) {
         avisar(r.discord.nome ? 'O bot mudou de nome' : 'Assistente trocado', {
