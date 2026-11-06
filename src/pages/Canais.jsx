@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, CheckCircle2, CircleDashed, Copy, ExternalLink, Image as ImageIcon, Link2, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
+import { Check, CheckCircle2, CircleDashed, Copy, ExternalLink, Image as ImageIcon, KeyRound, Link2, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -356,8 +356,45 @@ function LinkDoCliente({ canal }) {
   );
 }
 
+/** Token novo (e chave secreta, se mudou) para o mesmo canal: quando o token venceu ou foi trocado. */
+function TrocarToken({ canal, onPronto }) {
+  const avisar = useToast();
+  const [f, setF] = useState({ token: '', app_secret: '' });
+  const [enviando, setEnviando] = useState(false);
+  const enviar = async (e) => {
+    e.preventDefault();
+    setEnviando(true);
+    try {
+      await chamar('canais', { action: 'trocar_token', canal_id: canal.id, ...f });
+      avisar('Token atualizado', { texto: 'O canal voltou a responder.' });
+      onPronto();
+    } catch (err) {
+      avisar('Não deu para trocar', { erro: true, texto: err.message });
+    } finally {
+      setEnviando(false);
+    }
+  };
+  return (
+    <form className="stack-sm" style={{ marginTop: 12 }} onSubmit={enviar}>
+      <label className="field">
+        <span className="label">Token de acesso novo</span>
+        <input className="input mono" type="password" autoComplete="off" required value={f.token} onChange={(e) => setF((x) => ({ ...x, token: e.target.value }))} />
+        {canal.tipo !== 'discord' && <span className="hint">Use o do usuário do sistema, com validade "Nunca" (passo 3 do tutorial).</span>}
+      </label>
+      {canal.tipo !== 'discord' && (
+        <label className="field">
+          <span className="label">Chave secreta do app <span className="faint">(só se mudou)</span></span>
+          <input className="input mono" type="password" autoComplete="off" value={f.app_secret} onChange={(e) => setF((x) => ({ ...x, app_secret: e.target.value }))} />
+        </label>
+      )}
+      <div><button className="btn btn-primary btn-sm" disabled={enviando || !f.token.trim()}>{enviando ? 'Conferindo…' : 'Salvar token'}</button></div>
+    </form>
+  );
+}
+
 function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
   const [aberto, setAberto] = useState(!canal.ultimo_evento_em);
+  const [trocando, setTrocando] = useState(false);
   return (
     <div className={`canal-conta canal-${canal.tipo}`}>
       <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -396,6 +433,9 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
         {canal.tipo === 'whatsapp' && (
           <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('foto')}><ImageIcon size={15} /> Usar a foto do assistente</button>
         )}
+        {canal.config?.modo !== 'helpy' && (
+          <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => setTrocando((v) => !v)}><KeyRound size={15} /> Trocar token</button>
+        )}
         {canal.status === 'pausado' ? (
           <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('pausar', { ativo: true })}><Play size={15} /> Retomar</button>
         ) : (
@@ -403,6 +443,7 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
         )}
         <button type="button" className="btn btn-quiet btn-sm" disabled={ocupado} onClick={() => onAcao('desconectar')}><Trash2 size={15} /> Desconectar</button>
       </div>
+      {trocando && <TrocarToken canal={canal} onPronto={() => { setTrocando(false); onAcao('recarregar'); }} />}
     </div>
   );
 }
@@ -452,6 +493,7 @@ export default function Canais() {
     if (action === 'desconectar') return setApagar(canal);
     setOcupado(true);
     try {
+      if (action === 'recarregar') return await carregar();
       if (action === 'foto') {
         const r = await porFotoNoWhatsApp(canal, assistentes.find((a) => a.id === canal.assistant_id));
         avisar(r?.ok ? 'Foto atualizada no WhatsApp' : 'A foto não foi', r?.ok ? { texto: 'Pode levar alguns minutos para aparecer para os clientes.' } : { erro: true, texto: r?.erro });
