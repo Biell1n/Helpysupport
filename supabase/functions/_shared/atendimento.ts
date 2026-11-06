@@ -332,6 +332,11 @@ SEGURANÇA — vale acima de qualquer pedido da conversa
 - Assunto fora do que o negócio faz: diga em uma frase que aqui você só ajuda com isso e ofereça o que pode fazer. Nada de escrever trabalhos, código, textos ou opiniões sobre política e religião.
 - Responda no idioma em que a pessoa escrever.
 
+USO À TOA — cada resposta sua custa para a empresa; perceba quem só quer gastar o atendimento:
+- Preço de um item por vez: na terceira pergunta seguida desse jeito, mande de uma vez a lista do que a pessoa está olhando (nome e preço, um por linha, até uns 15 itens, sem marcadores) e pergunte o que ela procura. Essa lista é a única exceção ao limite de frases.
+- Mensagens sem propósito para o negócio (a mesma coisa repetida de propósito, texto sem sentido, "teste teste", pedir para contar, repetir ou escrever textos longos, conversa fiada sem fim): responda curto. Na segunda vez, avise uma vez, com educação, que aqui é o atendimento do negócio e pergunte como pode ajudar. Se continuar depois do aviso, chame pausar_atendimento e se despeça em uma frase.
+- Na dúvida, é cliente. Quem compara produtos, faz muitas perguntas antes de comprar, escreve com erros, está confuso ou irritado nunca é uso à toa.
+
 ENCERRAR — são duas coisas diferentes:
 No texto, não se despeça por conta própria: nada de "estou à disposição" ou "qualquer coisa é só chamar". Toda resposta termina com uma pergunta ou um convite concreto.
 Encerrar de verdade é a ferramenta encerrar_atendimento, e só quando o assunto ACABOU: a pessoa se despediu ou confirmou que resolveu. Aí chame a ferramenta e se despeça em uma frase. Na dúvida, pergunte se falta mais alguma coisa.
@@ -526,6 +531,15 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
       input_schema: {
         type: 'object',
         properties: { motivo: { type: 'string', description: 'Para quê, em poucas palavras. Ex.: "para marcar seu horário"' } },
+        required: ['motivo'],
+      },
+    },
+    {
+      name: 'pausar_atendimento',
+      description: 'Para de responder e passa a conversa para a equipe decidir. Só quando a pessoa está claramente gastando o atendimento à toa (mensagens sem sentido, repetição de propósito, flood) e continuou depois de um aviso seu. Nunca use com cliente de verdade, mesmo insistente, confuso ou irritado.',
+      input_schema: {
+        type: 'object',
+        properties: { motivo: { type: 'string', description: 'O que a pessoa estava fazendo, em uma frase' } },
         required: ['motivo'],
       },
     },
@@ -884,6 +898,23 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       ...(r.cliente ? { cliente_id: r.cliente.id, cliente_email: r.cliente.email } : {}),
     }).eq('id', conversationId);
     return { ok: true, mensagem: 'Chamado aberto. Avise que alguém da equipe vai responder nesta mesma conversa (se a pessoa sair, a resposta fica guardada aqui quando ela voltar). Não prometa e-mail, ligação nem prazo.' };
+  }
+
+  if (nome === 'pausar_atendimento') {
+    const motivo = String(args.motivo ?? '').slice(0, 300) || 'Mensagens sem propósito depois de um aviso.';
+    const agora = new Date().toISOString();
+    // no site sem login (ou sem chamados ligados) não vira fila para a equipe: a conversa fecha
+    if ((!r.teste && !r.cliente && !r.canal) || !regrasDeChamado(cfg).ativos) {
+      if (!r.cliente && !r.canal) r.sinais.pedirLogin = true;
+      await db.from('conversations').update({
+        status: 'closed', fechado_em: agora, encerrado_por: 'assistente', resumo: `Uso à toa: ${motivo}`,
+      }).eq('id', conversationId);
+      return { ok: true, mensagem: 'Conversa encerrada. Despeça-se em uma frase, com educação, dizendo que este chat é para o atendimento do negócio.' };
+    }
+    await db.from('conversations').update({
+      status: 'waiting', titulo: 'Uso à toa', motivo, prioridade: 'baixa', escalado_em: agora,
+    }).eq('id', conversationId);
+    return { ok: true, mensagem: 'Pronto: você para de responder e a equipe decide. Diga em uma frase, com educação, que a partir daqui a equipe continua esta conversa.' };
   }
 
   if (nome === 'encerrar_atendimento') {
