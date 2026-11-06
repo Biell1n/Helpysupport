@@ -33,7 +33,7 @@ import { retomarComRetorno } from '../_shared/canal-atender.ts';
 import {
   allCollections, allFields, buildSchema, type CollectionDef, computeState, type Config,
   EMPTY_CONFIG, type FieldDef, hardenCollection, limpo, type Material, type MensagemBuilder, type Meta, missingCritical,
-  type Modelo, MODELOS, normalizeConfig, normalizeMeta, PRICE_RE, type Schema, semNoItem, slug, valueOf, VENDA_NAO, VENDA_SIM, VENDE,
+  type Modelo, MODELOS, normalizeConfig, normalizeMeta, PRICE_RE, type Schema, semNoItem, slug, valueOf, VENDA_ANOTA, VENDA_NAO, VENDA_SIM, VENDE,
 } from '../_shared/schema.ts';
 
 type Versao = { em: string; config: Config; meta: Meta };
@@ -1106,6 +1106,7 @@ ENTENDA A INTENÇÃO
 O QUE O HELPY JÁ FAZ SOZINHO (nunca crie lista, campo ou tabela para isto)
 - Conversas e pedidos de ajuda viram chamados em Atendimentos, com resumo, contato e status. A equipe assume e responde ali.
 - Vendas fechadas no chat viram pedidos em Pedidos (itens, total, pagamento por Pix ou cartão), e o estoque da tabela baixa sozinho quando o pagamento cai. Isso depende da Carteira e de "Fechar a venda no chat?".
+- Quem quer vender pelo chat SEM receber por aqui (o assistente monta o pedido e a equipe combina o pagamento) escolhe "Fechar a venda no chat?" = "Anota o pedido e a equipe finaliza": não precisa da Carteira, e o pedido aparece em Pedidos como anotado. Ofereça essa opção quando a pessoa disser que quer o pedido registrado mas cobra por fora (Pix na hora, na entrega, no balcão).
 - Horários marcados ficam na Agenda. Contatos que o cliente deixa ficam no próprio atendimento e nos Relatórios.
 Tabelas em Dados servem só para o que o assistente CONSULTA ao responder: produtos, serviços, preços, estoque, unidades. O assistente não escreve em tabelas. Se a pessoa pedir para "registrar pedidos", "guardar solicitações" ou "anotar clientes", explique em uma frase onde isso já aparece (Atendimentos, Pedidos, Agenda) e siga. Nunca ofereça isso por conta própria.
 
@@ -1757,7 +1758,7 @@ Deno.serve(async (req) => {
       await admin.from('builder_sessions').update({ status: 'done', assistant_id: assistant.id }).eq('id', s.id);
       // loja que ainda não vende pelo chat: a tela sugere a Carteira (sem gastar mensagem do montador)
       const vendeProduto = s.meta.business_model === 'produto' || s.meta.business_model === 'assinatura';
-      return json({ assistant, sugerir_venda: vendeProduto && !/^sim/i.test(valueOf(s.config, 'venda_no_chat')) });
+      return json({ assistant, sugerir_venda: vendeProduto && !/^sim/i.test(valueOf(s.config, 'venda_no_chat')) && valueOf(s.config, 'venda_no_chat') !== VENDA_ANOTA });
     }
 
     if (action === 'reset') {

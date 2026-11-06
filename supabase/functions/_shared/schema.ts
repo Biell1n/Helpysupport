@@ -25,6 +25,8 @@ export const VENDE: Modelo[] = ['produto', 'servico', 'curso', 'assinatura', 'ag
 
 export const VENDA_NAO = 'Não, a equipe fecha a venda';
 export const VENDA_SIM = 'Sim, manda o link de pagamento';
+/** Vende pelo chat sem cobrar: o assistente anota o pedido e a equipe finaliza (não precisa da Carteira). */
+export const VENDA_ANOTA = 'Anota o pedido e a equipe finaliza';
 export const COBRA_NAO = 'Não, paga no dia';
 export const COBRA_TOTAL = 'Sim, o valor do serviço';
 export const COBRA_SINAL = 'Sim, só um sinal';
@@ -340,8 +342,8 @@ const OPERACAO: Record<string, FieldDef[]> = {
     },
     {
       key: 'venda_no_chat', label: 'Fechar a venda no chat?', type: 'select', importance: 'optional',
-      options: [VENDA_NAO, VENDA_SIM],
-      hint: 'Com "Sim", quando o cliente decide comprar, o assistente confirma os itens e o total e manda um link de Pix, cartão ou boleto. Precisa ativar a Carteira.',
+      options: [VENDA_NAO, VENDA_ANOTA, VENDA_SIM],
+      hint: 'Com "Sim", quando o cliente decide comprar, o assistente confirma os itens e o total e manda um link de Pix, cartão ou boleto (precisa ativar a Carteira). Com "Anota o pedido", ele monta o pedido com o cliente (itens, entrega ou retirada, nome e contato) e deixa registrado em Pedidos para a equipe combinar o pagamento.',
     },
     {
       key: 'venda_estoque', label: 'Baixar o estoque quando o pagamento cair?', type: 'select', importance: 'optional',
@@ -601,7 +603,7 @@ export function sugestoesIniciais(cfg: Config, modelo: string | null): string[] 
   const marca = /^sim/i.test(valueOf(cfg, 'usar_agenda'));
   const vende = !!model && VENDE.includes(model);
   if (marca) out.push('Quero marcar um horário');
-  if (vende && /^sim/i.test(valueOf(cfg, 'venda_no_chat'))) out.push('Quero fazer um pedido');
+  if (vende && (/^sim/i.test(valueOf(cfg, 'venda_no_chat')) || valueOf(cfg, 'venda_no_chat') === VENDA_ANOTA)) out.push('Quero fazer um pedido');
   else if (model === 'produto') out.push('O que vocês têm?');
   for (const it of cfg.collections.faq ?? []) {
     const q = String(it?.pergunta ?? '').trim();

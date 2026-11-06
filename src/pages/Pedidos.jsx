@@ -10,6 +10,8 @@ import { reais } from '@/lib/plans';
 import { quando } from '@/lib/format';
 
 const STATUS = {
+  anotado: ['Anotado: falta finalizar', 'badge-human'],
+  finalizado: ['Finalizado', 'badge-closed'],
   aguardando: ['Aguardando pagamento', 'badge-waiting'],
   pago: ['Pago', 'badge-closed'],
   cancelado: ['Cancelado', 'badge-bot'],
@@ -17,6 +19,8 @@ const STATUS = {
 };
 const FILTROS = [
   { id: 'todos', rotulo: 'Todos' },
+  { id: 'anotado', rotulo: 'Anotados' },
+  { id: 'finalizado', rotulo: 'Finalizados' },
   { id: 'aguardando', rotulo: 'Aguardando' },
   { id: 'pago', rotulo: 'Pagos' },
   { id: 'cancelado', rotulo: 'Cancelados' },
@@ -35,7 +39,7 @@ export default function Pedidos() {
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
       .from('pedidos')
-      .select('id, numero, tipo, itens, total, status, cliente_nome, link_url, forma, pago_em, criado_em, conversation_id, entrega, endereco, frete')
+      .select('id, numero, tipo, itens, total, status, cliente_nome, cliente_contato, link_url, forma, pago_em, criado_em, conversation_id, entrega, endereco, frete')
       .order('criado_em', { ascending: false })
       .limit(200);
     // erro não vira "nenhum pedido ainda": mostra o aviso e deixa tentar de novo
@@ -83,6 +87,17 @@ export default function Pedidos() {
     }
   };
 
+  // pedido anotado (sem pagamento no chat): quem atende finaliza, cancela ou reabre
+  const mudarStatus = async (p, status) => {
+    try {
+      await chamar('pagamentos', { action: 'pedido_status', id: p.id, status });
+      avisar({ finalizado: `Pedido #${p.numero} finalizado`, cancelado: `Pedido #${p.numero} cancelado`, anotado: `Pedido #${p.numero} reaberto` }[status]);
+      carregar();
+    } catch (e) {
+      avisar('Não deu para mudar o pedido', { erro: true, texto: e.message });
+    }
+  };
+
   const devolver = async () => {
     const p = devolvendo;
     setDevolvendo(null);
@@ -100,7 +115,7 @@ export default function Pedidos() {
       <header className="page-head">
         <div>
           <h1>Pedidos</h1>
-          <p>O que o assistente vendeu no chat. Quando o pagamento cai, o pedido muda sozinho para pago e o cliente recebe a confirmação.</p>
+          <p>O que o assistente vendeu no chat. Pedido com link muda sozinho para pago quando o pagamento cai; pedido anotado espera a equipe finalizar.</p>
         </div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={carregar}><RefreshCw size={15} /> Atualizar</button>
       </header>
@@ -118,7 +133,7 @@ export default function Pedidos() {
           <ShoppingBag size={32} />
           <h3>Nenhum pedido ainda</h3>
           <p>{tipo === 'empresa'
-            ? 'Ative a Carteira e ligue a venda no assistente. Quando um cliente decidir comprar, ele confirma os itens e manda o link de pagamento na conversa.'
+            ? 'Ligue a venda no assistente (em "Fechar a venda no chat?"): com link de pagamento, que precisa da Carteira, ou só anotando o pedido para a equipe finalizar.'
             : 'Quando o assistente fechar uma venda no chat, o pedido aparece aqui com os itens e se o cliente já pagou.'}</p>
           {tipo === 'empresa' && <Link to="/painel/carteira" className="btn btn-senha">Ativar a Carteira</Link>}
         </div>
@@ -156,7 +171,7 @@ export default function Pedidos() {
                 <li key={p.id} className="card pedido">
                   <div className="pedido-topo">
                     <b>#{p.numero}</b>
-                    <span>{p.cliente_nome || 'Cliente'}</span>
+                    <span>{p.cliente_nome || 'Cliente'}{p.cliente_contato ? <span className="faint"> · {p.cliente_contato}</span> : null}</span>
                     {p.tipo === 'agendamento' && <span className="badge badge-plain">Horário</span>}
                     <span className="faint">{quando(p.criado_em)}</span>
                     <span className={`badge ${classe}`} style={{ marginLeft: 'auto' }}>{rotulo}</span>
@@ -188,6 +203,15 @@ export default function Pedidos() {
                       )}
                       {p.status === 'aguardando' && tipo === 'empresa' && (
                         <button type="button" className="btn btn-quiet btn-sm" onClick={() => setCancelando(p)}>Cancelar</button>
+                      )}
+                      {p.status === 'anotado' && (
+                        <>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={() => mudarStatus(p, 'finalizado')}>Finalizar</button>
+                          <button type="button" className="btn btn-quiet btn-sm" onClick={() => mudarStatus(p, 'cancelado')}>Cancelar</button>
+                        </>
+                      )}
+                      {p.status === 'finalizado' && (
+                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => mudarStatus(p, 'anotado')}>Reabrir</button>
                       )}
                       {p.status === 'pago' && tipo === 'empresa' && (
                         <button type="button" className="btn btn-quiet btn-sm" onClick={() => setDevolvendo(p)}>Estornar</button>
