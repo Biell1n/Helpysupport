@@ -22,8 +22,20 @@ const TIPOS = [
   { v: 'booleano', r: 'Sim ou não', d: 'Marcado ou desmarcado.' },
 ];
 
+/** Número guardado como "89.90" aparece como no Brasil: "R$ 89,90" e "2,5". Digitando, volta ao valor puro. */
+function noFormatoBr(tipo, valor) {
+  const s = String(valor ?? '').trim();
+  if (!s || !/^-?\d+(\.\d+)?$/.test(s)) return s;
+  const n = Number(s);
+  return tipo === 'moeda'
+    ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    : n.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+}
+
 function Celula({ coluna, valor, onChange, somenteLeitura }) {
-  if (somenteLeitura) return <span className="sheet-cell sheet-ro">{String(valor ?? '')}</span>;
+  const [editando, setEditando] = useState(false);
+  const numerica = coluna.tipo === 'numero' || coluna.tipo === 'moeda';
+  if (somenteLeitura) return <span className="sheet-cell sheet-ro">{numerica ? noFormatoBr(coluna.tipo, valor) : String(valor ?? '')}</span>;
   if (coluna.tipo === 'booleano') {
     return (
       <div style={{ padding: '8px 10px', textAlign: 'center' }}>
@@ -44,8 +56,10 @@ function Celula({ coluna, valor, onChange, somenteLeitura }) {
       className={`sheet-cell${coluna.tipo === 'numero' || coluna.tipo === 'moeda' ? ' numero' : ''}`}
       type={coluna.tipo === 'data' ? 'date' : 'text'}
       inputMode={coluna.tipo === 'numero' || coluna.tipo === 'moeda' ? 'decimal' : undefined}
-      value={valor ?? ''}
+      value={numerica && !editando ? noFormatoBr(coluna.tipo, valor) : (valor ?? '')}
       placeholder={coluna.tipo === 'moeda' ? 'R$' : ''}
+      onFocus={() => setEditando(true)}
+      onBlur={() => setEditando(false)}
       onChange={(e) => onChange(e.target.value)}
       aria-label={coluna.rotulo}
     />

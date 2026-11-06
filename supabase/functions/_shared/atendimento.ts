@@ -71,11 +71,11 @@ function missao(model: string, negocio: string, foraDaLoja = false) {
 - Fale como se fala com a idade e a série dos alunos: com criança, frases curtas, palavras simples, exemplos com coisas do dia a dia (balas, figurinhas, dedos), um passo de cada vez e muito incentivo.
 - Descubra ONDE a pessoa travou antes de explicar: peça para ela contar como pensou.
 - Um passo por vez: explique, dê um exemplo parecido (nunca o da prova) e peça para ela tentar.
-- Nunca entregue a resposta de questão de prova, atividade ou exercício: dê a pista seguinte e deixe a pessoa chegar sozinha. Se insistirem, explique com carinho que o objetivo é ela aprender.
-- Também NUNCA confirme nem negue a resposta final de uma questão da prova ("é 47, né?"): não diga "acertou", "isso mesmo", "quase" nem "errou". Peça para ela contar como chegou nesse número e confira o RACIOCÍNIO com uma conta parecida, com números diferentes. Elogie o esforço e o caminho, nunca o número.
-- Em exercício que não é da prova, pode dizer se acertou.
+- Prova ou atividade que vale nota: nunca entregue a resposta. Dê a pista seguinte e deixe a pessoa chegar sozinha; se insistirem, explique com carinho que o objetivo é ela aprender. Também NUNCA confirme nem negue a resposta final dessa questão ("é 47, né?"): não diga "acertou", "isso mesmo", "quase" nem "errou". Peça para ela contar como chegou nesse número e confira o RACIOCÍNIO com uma conta parecida, com números diferentes.
+- Exercício de treino, simulado, lista para estudar ou o exemplo que você mesmo deu: guie passo a passo e, quando a pessoa responder, DIGA COM CLAREZA se acertou ("isso, acertou!") ou onde errou, e por quê. Confirmar o acerto no treino é o que dá segurança; não hesite nem volte atrás.
 - Erro é informação: aponte onde e por quê, sem constranger.
 - Você é professor de verdade, não leitor de apostila: use o que você sabe da matéria e de didática (analogias, exemplos concretos, desenho em palavras, perguntas que fazem pensar, conferir se entendeu pedindo para explicar de volta). O material do dono é a base, não o limite.
+- Assunto da mesma matéria que não está no material (ex.: fotossíntese numa aula de Biologia sobre Genética): ajude normalmente com o que você sabe, podendo dizer que não é o foco da prova. Só recuse o que é claramente de fora da matéria e do objetivo das aulas.
 - Quem conversa aqui pode ser criança: nunca peça nome completo, telefone, endereço, e-mail ou qualquer contato.`;
   }
   if (model === 'suporte') {
@@ -698,7 +698,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
         const doCarrinho = (Array.isArray(conv?.carrinho) ? conv.carrinho : []) as { produto: string; quantidade: number }[];
         args = { ...args, itens: doCarrinho.map((i) => ({ produto: i.produto, quantidade: i.quantidade })) };
       }
-      const anotado = await anotarPedido(db, { ownerId: assistant.owner_id, assistantId: assistant.id, conversationId, teste: r.teste },
+      const anotado = await anotarPedido(db, { ownerId: assistant.owner_id, assistantId: assistant.id, conversationId, teste: r.teste, regraFrete: valueOf(cfg, 'frete_chat') },
         args as { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; cliente_contato?: string; entrega?: string; endereco?: string }, tabelas, catalogoA);
       if ((anotado as { ok?: boolean }).ok) await db.from('conversations').update({ carrinho: [] }).eq('id', conversationId);
       return anotado;
@@ -820,8 +820,17 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     const n = String(args.nome ?? '').trim().slice(0, 120);
     const c = String(args.contato ?? '').trim().slice(0, 160);
     if (!n || !c) return { ok: false, erro: 'Faltou nome ou contato. Pergunte à pessoa.' };
-    await db.from('conversations').update({ lead_nome: n, lead_contato: c, lead_interesse: String(args.interesse ?? '').slice(0, 400) || null }).eq('id', conversationId);
-    return { ok: true, mensagem: 'Contato registrado. Confirme à pessoa.' };
+    const interesse = String(args.interesse ?? '').slice(0, 400);
+    await db.from('conversations').update({ lead_nome: n, lead_contato: c, lead_interesse: interesse || null }).eq('id', conversationId);
+    // a equipe fica sabendo na hora: contato deixado no chat não pode ficar escondido na conversa
+    if (!r.teste) {
+      await alertar(db, assistant.owner_id, {
+        assistant_id: assistant.id, conversation_id: conversationId, origem: 'sistema', chave: `contato:${conversationId}`,
+        assunto: `Novo contato: ${n}`.slice(0, 160),
+        detalhe: `${n} deixou o contato ${c}${interesse ? ` e quer: ${interesse}` : ''}. Abra o atendimento para ver a conversa.`.slice(0, 1000),
+      }).catch(() => {});
+    }
+    return { ok: true, mensagem: 'Contato registrado e a equipe foi avisada. Confirme à pessoa.' };
   }
 
   if (nome === 'registrar_lacuna') {
@@ -1051,7 +1060,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     ...(querVenda && !recebe
       ? [{
         type: 'text' as const,
-        text: 'VENDA PELO CHAT AINDA NÃO ESTÁ ATIVA: aqui você não gera link de pagamento nem fecha pedido. Nunca prometa link ("já gero o link", "te mando o link"). Para comprar, explique o caminho que a ficha indica (forma de pagamento, retirada, contato) ou ofereça a equipe para finalizar.',
+        text: 'VENDA PELO CHAT AINDA NÃO ESTÁ ATIVA: aqui você não gera link de pagamento nem fecha pedido. Nunca prometa link ("já gero o link", "te mando o link"). Para comprar, explique o caminho que a ficha indica (forma de pagamento, retirada, contato) ou ofereça a equipe para finalizar. Não some frete nem monte total com frete: diga a regra de frete exatamente como está na ficha (ex.: "grátis acima de R$ 150") e, se a pessoa perguntar se o pedido dela se encaixa, compare com o subtotal com cuidado.',
       }]
       : []),
     ...(loja

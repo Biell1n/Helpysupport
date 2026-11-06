@@ -15,7 +15,7 @@ const STATUS = {
   aguardando: ['Aguardando pagamento', 'badge-waiting'],
   pago: ['Pago', 'badge-closed'],
   cancelado: ['Cancelado', 'badge-bot'],
-  estornado: ['Estornado', 'badge-bot'],
+  estornado: ['Devolvido', 'badge-bot'],
 };
 const FILTROS = [
   { id: 'todos', rotulo: 'Todos' },
@@ -24,7 +24,7 @@ const FILTROS = [
   { id: 'aguardando', rotulo: 'Aguardando' },
   { id: 'pago', rotulo: 'Pagos' },
   { id: 'cancelado', rotulo: 'Cancelados' },
-  { id: 'estornado', rotulo: 'Estornados' },
+  { id: 'estornado', rotulo: 'Devolvidos' },
 ];
 
 /** O que o assistente vendeu no chat: itens, total e se o cliente já pagou. */
@@ -54,8 +54,9 @@ export default function Pedidos() {
   }, [carregar]);
 
   const resumo = useMemo(() => {
-    const pagos = (pedidos ?? []).filter((p) => p.status === 'pago');
-    const aguardando = (pedidos ?? []).filter((p) => p.status === 'aguardando');
+    // vendido = pago pelo link ou finalizado pela equipe; em aberto = esperando pagamento ou anotado
+    const pagos = (pedidos ?? []).filter((p) => p.status === 'pago' || p.status === 'finalizado');
+    const aguardando = (pedidos ?? []).filter((p) => p.status === 'aguardando' || p.status === 'anotado');
     return {
       vendido: pagos.reduce((s, p) => s + Number(p.total), 0),
       pagos: pagos.length,
@@ -145,17 +146,17 @@ export default function Pedidos() {
             <div className="kpi">
               <span className="eyebrow">Vendido</span>
               <span className="kpi-valor"><Counter value={resumo.vendido} format={{ style: 'currency', currency: 'BRL' }} /></span>
-              <span className="faint">{resumo.pagos} pago{resumo.pagos === 1 ? '' : 's'}</span>
+              <span className="faint">{resumo.pagos} pedido{resumo.pagos === 1 ? '' : 's'} concluído{resumo.pagos === 1 ? '' : 's'}</span>
             </div>
             <div className="kpi">
-              <span className="eyebrow">Aguardando pagamento</span>
+              <span className="eyebrow">Em aberto</span>
               <span className="kpi-valor"><Counter value={resumo.emAberto} format={{ style: 'currency', currency: 'BRL' }} /></span>
-              <span className="faint">{resumo.aguardando} pedido{resumo.aguardando === 1 ? '' : 's'}</span>
+              <span className="faint">{resumo.aguardando} pedido{resumo.aguardando === 1 ? '' : 's'} para concluir</span>
             </div>
           </section>
 
-          <div className="row row-wrap" style={{ gap: 6, margin: '20px 0 12px' }} role="group" aria-label="Filtrar pedidos">
-            {FILTROS.map((f) => (
+          <div className="filtro-etapas" style={{ margin: '20px 0 12px' }} role="group" aria-label="Filtrar pedidos">
+            {FILTROS.filter((f) => f.id === 'todos' || f.id === filtro || (pedidos ?? []).some((p) => p.status === f.id)).map((f) => (
               <button key={f.id} type="button" aria-pressed={filtro === f.id} className="chip" onClick={() => setFiltro(f.id)}>
                 {f.rotulo}
               </button>

@@ -266,7 +266,7 @@ export async function cancelarPedido(db: SupabaseClient, ownerId: string, pedido
  */
 export async function anotarPedido(
   db: SupabaseClient,
-  ctx: { ownerId: string; assistantId: string; conversationId: string; teste: boolean },
+  ctx: { ownerId: string; assistantId: string; conversationId: string; teste: boolean; regraFrete?: string },
   args: { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; cliente_contato?: string; entrega?: string; endereco?: string },
   tabelas: TabelaPedido[],
   catalogo: Record<string, string>[],
@@ -277,10 +277,35 @@ export async function anotarPedido(
   if (problemas.length) return { erro: 'O pedido NÃO foi anotado.', problemas };
   // a chave do estoque fica no item: quando a equipe finaliza, a peça sai da tabela
   const itens = achados;
-  const total = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
-  if (!(total > 0)) return { erro: 'O pedido NÃO foi anotado: os itens estão sem preço na tabela. Ofereça a equipe para fechar.' };
+  // peça já separada em outro pedido aberto (anotado ou esperando pagamento) não pode ser vendida de novo
+  const comEstoque = itens.filter((i) => i.linha_id && i.estoque_chave);
+  if (comEstoque.length) {
+    const { data: abertos } = await db.from('pedidos').select('itens, conversation_id').eq('owner_id', ctx.ownerId).in('status', ['anotado', 'aguardando']).limit(300);
+    const reservado = new Map<string, number>();
+    for (const p of abertos ?? []) {
+      if (ctx.conversationId && p.conversation_id === ctx.conversationId) continue; // o pedido desta conversa é o mesmo cliente
+      for (const it of (p.itens ?? []) as Item[]) if (it.linha_id) reservado.set(it.linha_id, (reservado.get(it.linha_id) ?? 0) + Number(it.quantidade || 0));
+    }
+    const { data: linhas } = await db.from('tabela_linhas').select('id, dados').in('id', comEstoque.map((i) => i.linha_id!));
+    const presos: string[] = [];
+    for (const it of comEstoque) {
+      const dados = (linhas ?? []).find((l) => l.id === it.linha_id)?.dados as Record<string, unknown> | undefined;
+      const estoque = Number(String(dados?.[it.estoque_chave!] ?? '').replace(',', '.'));
+      const livre = Number.isFinite(estoque) ? estoque - (reservado.get(it.linha_id!) ?? 0) : Infinity;
+      if (livre < it.quantidade) presos.push(livre <= 0 ? `${it.produto}: já está separado no pedido de outra pessoa` : `${it.produto}: só ${livre} livre`);
+    }
+    if (presos.length) {
+      return { erro: 'O pedido NÃO foi anotado: item já reservado em outro pedido.', problemas: presos, mensagem: 'Explique que essa peça já foi separada para outra pessoa e ofereça outras parecidas do catálogo. Não diga que tem.' };
+    }
+  }
+  const subtotal = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
+  if (!(subtotal > 0)) return { erro: 'O pedido NÃO foi anotado: os itens estão sem preço na tabela. Ofereça a equipe para fechar.' };
   const entrega = args.entrega === 'retirada' ? 'retirada' : args.entrega === 'entrega' ? 'entrega' : null;
   const endereco = String(args.endereco ?? '').trim().slice(0, 300);
+  // frete sai da regra da empresa (nunca da conta da IA); sem regra, fica a combinar com a equipe
+  const regra = freteDaRegra(ctx.regraFrete ?? '', subtotal);
+  const frete = entrega === 'entrega' && regra.valor != null ? regra.valor : null;
+  const total = Math.round((subtotal + (frete ?? 0)) * 100) / 100;
   const nome = String(args.cliente_nome ?? '').trim().slice(0, 120);
   const contato = String(args.cliente_contato ?? '').trim().slice(0, 120);
   // no chat do site a equipe só consegue retornar com um contato; nos canais o contato já vem do app
@@ -327,7 +352,7 @@ export async function anotarPedido(
   const { data: ped, error } = await db.from('pedidos').insert({
     owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId,
     itens, total, status: 'anotado', cliente_nome: nome, cliente_contato: contato || null, numero: 0,
-    entrega, endereco: entrega === 'entrega' ? endereco : null,
+    entrega, endereco: entrega === 'entrega' ? endereco : null, frete,
   }).select('id, numero').single();
   if (error || !ped) throw error ?? new Error('pedido não anotado');
   if (!ctx.teste) {
@@ -343,7 +368,8 @@ export async function anotarPedido(
     numero: ped.numero,
     total: reais(total),
     itens: resumoItens,
-    mensagem: `Pedido nº ${ped.numero} anotado (${reais(total)}). Confirme os itens e o total para a pessoa e diga que a equipe vai entrar em contato por aqui${contato ? ' ou pelo contato que ela deixou' : ''} para combinar o pagamento${entrega ? (entrega === 'retirada' ? ' e a retirada' : ' e a entrega') : ''}. Não mande link de pagamento e não diga que está pago.`,
+    ...(frete != null ? { frete: reais(frete) } : entrega === 'entrega' ? { frete: 'a combinar com a equipe' } : {}),
+    mensagem: `Pedido nº ${ped.numero} anotado (${reais(total)}${frete != null ? `, com frete de ${reais(frete)}` : entrega === 'entrega' ? ', frete a combinar' : ''}). Confirme os itens e o total para a pessoa e diga que a equipe vai entrar em contato por aqui${contato ? ' ou pelo contato que ela deixou' : ''} para combinar o pagamento${entrega ? (entrega === 'retirada' ? ' e a retirada' : ' e a entrega') : ''}. Não mande link de pagamento e não diga que está pago.`,
   };
 }
 
