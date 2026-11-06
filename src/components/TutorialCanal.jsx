@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Clock, Play, Smartphone, UserRound } from 'lucide-react';
+
+const ICONES = { conta: <UserRound size={18} />, chip: <Smartphone size={18} />, tempo: <Clock size={18} /> };
 
 const META = 'https://developers.facebook.com/apps';
 const NEGOCIOS = 'https://business.facebook.com/settings/system-users';
@@ -14,9 +16,16 @@ const A = ({ href, children }) => <a href={href} target="_blank" rel="noreferrer
 export const GUIAS = {
   whatsapp: {
     tempo: 'uns 15 minutos',
+    video: '/videos/conectar-whatsapp.mp4',
     antes: [
-      'Uma conta no Facebook com acesso ao Gerenciador de Negócios da empresa (business.facebook.com).',
-      'Um número de telefone que não esteja em uso no aplicativo do WhatsApp (pode ser um número novo ou um fixo que recebe SMS ou ligação). Para testar, a Meta dá um número de teste grátis.',
+      { icone: 'conta', titulo: 'Uma conta no Facebook', texto: 'Com acesso ao portfólio da empresa (business.facebook.com).' },
+      {
+        icone: 'chip',
+        destaque: true,
+        titulo: 'Um número só do atendimento',
+        texto: 'Chip novo ou telefone fixo que receba SMS ou ligação. Ele não pode estar no WhatsApp do celular: o número que vai para o Helpy sai do aplicativo. Não use o seu número pessoal.',
+      },
+      { icone: 'tempo', titulo: 'Uns 15 minutos', texto: 'É feito uma vez só. Depois o assistente atende sozinho, 24 horas.' },
     ],
     passos: [
       {
@@ -186,12 +195,35 @@ export default function TutorialCanal({ tipo, soDepois = false }) {
     return novo;
   });
 
+  const [video, setVideo] = useState(false);
+  const itensAntes = g.antes.map((a) => (typeof a === 'string' ? { texto: a } : a));
+
   return (
     <div className="tutorial">
       {!soDepois && (
-        <div className="tutorial-antes">
-          <b>Antes de começar</b> <span className="faint">· leva {g.tempo}</span>
-          <ul>{g.antes.map((t) => <li key={t}>{t}</li>)}</ul>
+        <div className="tutorial-precisa">
+          <div className="tutorial-precisa-topo">
+            <b>Antes de começar, separe</b>
+            <span className="faint">leva {g.tempo}</span>
+          </div>
+          <ul>
+            {itensAntes.map((a) => (
+              <li key={a.titulo ?? a.texto} data-destaque={a.destaque || undefined}>
+                {a.icone && <span className="tutorial-precisa-ico" aria-hidden="true">{ICONES[a.icone]}</span>}
+                <span>{a.titulo && <b>{a.titulo}</b>}{a.texto}</span>
+              </li>
+            ))}
+          </ul>
+          {g.video && (
+            video ? (
+              <video className="tutorial-video" src={g.video} poster={g.video.replace('.mp4', '.jpg')} controls autoPlay playsInline />
+            ) : (
+              <button type="button" className="tutorial-video-btn" onClick={() => setVideo(true)}>
+                <span className="tutorial-play" aria-hidden="true"><Play size={14} fill="currentColor" /></span>
+                Ver o passo a passo em vídeo <span className="faint">· 1 min e meio</span>
+              </button>
+            )
+          )}
         </div>
       )}
       <ol className="tutorial-passos">
