@@ -251,12 +251,16 @@ async function publicInfo(assistantId: string | null) {
 async function planInfo(ownerId: string) {
   const profile = await profileOf(ownerId);
   const plan = planOf(profile);
-  const { count } = await admin
+  // cada mensagem do criador conta pelo que custou: US$ 0,03 vale uma (média medida ≈ US$ 0,022)
+  const { data: usos } = await admin
     .from('usage_events')
-    .select('id', { count: 'exact', head: true })
+    .select('cost_usd')
     .eq('owner_id', ownerId)
     .eq('kind', 'builder')
-    .gte('created_at', inicioDoMes());
+    .gte('created_at', inicioDoMes())
+    .limit(5000);
+  const custo = (usos ?? []).reduce((t, u) => t + Number(u.cost_usd || 0), 0);
+  const count = Math.max(usos?.length ?? 0, Math.ceil(custo / 0.03));
   return {
     plan,
     payload: {

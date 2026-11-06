@@ -1,10 +1,11 @@
 // ============================================================
 // Planos e limites. Espelhado em src/lib/plans.js — mude os dois juntos.
 //
-// Conta usada (pior caso, cliente usando 100% de tudo, dólar a R$ 5,60):
-// mensagem de cliente ≈ R$ 0,0067 e mensagem no criador ≈ R$ 0,23, mais
-// ~11% do preço em taxa de pagamento e imposto. Com os limites abaixo,
-// todo plano fica com pelo menos 40% de lucro mesmo no pior caso.
+// Conta do pior caso (cliente usando 100% de tudo, dólar a R$ 6,00):
+// a cota de mensagens conta pelo custo real da IA (US$ 0,002 vale uma
+// mensagem; média medida ≈ US$ 0,0012) e o criador também (US$ 0,03 vale uma;
+// média ≈ US$ 0,022). Com ~11% do preço em taxa de pagamento e imposto, todo
+// plano fica com pelo menos 70% de margem mesmo com tudo usado no limite.
 // ============================================================
 
 export type PlanId = 'trial' | 'essencial' | 'profissional' | 'business';
@@ -31,19 +32,19 @@ export interface Plan {
 
 export const PLANS: Record<PlanId, Plan> = {
   trial: {
-    id: 'trial', nome: 'Teste grátis', preco: 0, precoMensal: 0, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 25, mensagens: 400,
+    id: 'trial', nome: 'Teste grátis', preco: 0, precoMensal: 0, assistentes: 1, builderIA: true, builderMsgs: 30, atendimentos: 25, mensagens: 300,
     ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 1, tabelas: 3, msgsPorAtendimento: 30, funcionarios: 2,
   },
   essencial: {
-    id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 40, atendimentos: 200, mensagens: 4000,
-    ticketsAbertos: 20, chamados: true, chamadosAvancados: true, integracoes: false, canaisMeta: 1, tabelas: 3, msgsPorAtendimento: 40, funcionarios: 1,
+    id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 20, atendimentos: 200, mensagens: 900,
+    ticketsAbertos: 20, chamados: true, chamadosAvancados: true, integracoes: false, canaisMeta: 1, tabelas: 3, msgsPorAtendimento: 30, funcionarios: 1,
   },
   profissional: {
-    id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 150, atendimentos: 600, mensagens: 9000,
+    id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 60, atendimentos: 500, mensagens: 2200,
     ticketsAbertos: 100, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 2, tabelas: 10, msgsPorAtendimento: 40, funcionarios: 5,
   },
   business: {
-    id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 300, atendimentos: 1500, mensagens: 24000,
+    id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 120, atendimentos: 1400, mensagens: 6000,
     ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, msgsPorAtendimento: 40, funcionarios: 20,
   },
 };
@@ -54,7 +55,7 @@ export const PLANS: Record<PlanId, Plan> = {
  * as mais pesadas ≈ R$ 0,03 (e uma busca na internet soma ≈ R$ 0,05); a
  * mensagem a R$ 0,05 cobre isso com margem.
  */
-export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.05 } as const;
+export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.07 } as const;
 
 /** Vaga de funcionário além das incluídas no plano (por mês). Espelha src/lib/plans.js. */
 export const PRECO_FUNCIONARIO_EXTRA = 19;
