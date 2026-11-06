@@ -1132,6 +1132,9 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
         // o modelo pensa antes de responder, e o pensamento conta aqui
         max_tokens: 4096,
         ...(m === 'claude-haiku-4-5' ? {} : { output_config: { effort: 'medium' } }),
+        // a conversa também fica em cache: nas idas seguintes da mesma resposta (consultar tabela,
+        // agenda, carrinho) e na próxima mensagem do cliente, o histórico sai 90% mais barato
+        cache_control: { type: 'ephemeral' },
         system,
         tools,
         messages: mensagens,
