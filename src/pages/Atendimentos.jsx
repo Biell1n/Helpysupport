@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUp, CheckCircle2, ClipboardList, Clock3, Headset, Columns3, Hand, RotateCcw, Search, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Ban, CheckCircle2, ClipboardList, Clock3, Headset, Columns3, Hand, RotateCcw, Search, ShoppingCart } from 'lucide-react';
 import QuadroChamados from './QuadroChamados';
 import { chamar, supabase } from '@/lib/supabase';
 import { canalDe, NOME_DO_CANAL, SeloCanal } from '@/components/IconesCanais';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
-import { Confirmar } from '@/components/Modal';
+import { Confirmar, Modal } from '@/components/Modal';
 import AgendaDoChamado from '@/components/AgendaDoChamado';
 import SwipeRow from '@/components/SwipeRow';
 import Abas from '@/components/Abas';
@@ -31,6 +31,76 @@ const ETAPAS = {
   feito: { rotulo: 'Pedido pago/finalizado', Icone: CheckCircle2, cor: 'etapa-feito' },
 };
 const DO_PEDIDO = { aguardando: 'pagamento', anotado: 'anotado', pago: 'feito', finalizado: 'feito' };
+/** Timeout ou banimento valendo nesta conversa (para o ticket vermelho). */
+function bloqueioDa(c) {
+  if (c?.banido) return { banido: true };
+  if (c?.bloqueado_ate && new Date(c.bloqueado_ate).getTime() > Date.now()) return { ate: c.bloqueado_ate };
+  return null;
+}
+
+function rotuloDoBloqueio(b) {
+  if (b.banido) return 'banido';
+  const d = new Date(b.ate);
+  const hoje = new Date().toDateString() === d.toDateString();
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return `timeout até ${hoje ? hora : `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${hora}`}`;
+}
+
+const TEMPOS = [
+  { min: 60, rotulo: '1 hora' },
+  { min: 6 * 60, rotulo: '6 horas' },
+  { min: 24 * 60, rotulo: '24 horas' },
+  { min: 7 * 24 * 60, rotulo: '7 dias' },
+  { min: null, rotulo: 'Banir' },
+];
+
+/** A equipe dá timeout ou bane quem está gastando o atendimento à toa. */
+function BloquearModal({ conversa, atendente, onFechar, onFeito }) {
+  const avisar = useToast();
+  const [tempo, setTempo] = useState(60);
+  const [motivo, setMotivo] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const banir = tempo === null;
+
+  const salvar = async () => {
+    setSalvando(true);
+    const ate = banir ? null : new Date(Date.now() + tempo * 60e3).toISOString();
+    const { error } = await supabase.from('bloqueios').insert({
+      owner_id: conversa.owner_id, conversation_id: conversa.id, visitor_id: conversa.visitor_id, ip_hash: conversa.ip_hash,
+      cliente_id: conversa.cliente_id, ate, motivo: motivo.trim() || null, por: 'equipe', por_nome: atendente,
+    });
+    if (!error) await supabase.from('conversations').update({ bloqueado_ate: ate, banido: banir }).eq('id', conversa.id);
+    setSalvando(false);
+    if (error) return avisar('Não deu para bloquear', { erro: true, texto: error.message });
+    avisar(banir ? 'Pessoa banida' : 'Timeout aplicado', { texto: 'O assistente não responde mais essa pessoa enquanto valer.' });
+    onFeito();
+  };
+
+  return (
+    <Modal aberto onFechar={onFechar} largura={460}>
+      <div className="stack">
+        <h2 style={{ fontSize: 22 }}>Bloquear esta pessoa</h2>
+        <p className="muted" style={{ margin: 0 }}>
+          Enquanto valer, o assistente não responde mais ela, nem numa conversa nova. A equipe ainda pode responder por aqui.
+        </p>
+        <div className="row row-wrap" role="group" aria-label="Por quanto tempo">
+          {TEMPOS.map((t) => (
+            <button key={t.rotulo} type="button" className="chip" aria-pressed={tempo === t.min} onClick={() => setTempo(t.min)}>{t.rotulo}</button>
+          ))}
+        </div>
+        <label className="stack" style={{ gap: 6 }}>
+          <span className="label">Motivo (só a equipe vê)</span>
+          <input className="input" value={motivo} maxLength={300} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: mandando mensagem sem parar" />
+        </label>
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button type="button" className="btn btn-ghost" onClick={onFechar}>Cancelar</button>
+          <button type="button" className="btn btn-danger" disabled={salvando} onClick={salvar}><Ban /> {banir ? 'Banir' : 'Dar timeout'}</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function etapaDa(c, pedido) {
   if (pedido && DO_PEDIDO[pedido]) return DO_PEDIDO[pedido];
   return Array.isArray(c.carrinho) && c.carrinho.length ? 'montando' : null;
@@ -80,6 +150,7 @@ export default function Atendimentos() {
   const [resposta, setResposta] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [confirmar, setConfirmar] = useState(null);
+  const [bloquear, setBloquear] = useState(false);
   const [deslizada, setDeslizada] = useState(null);
   const fim = useRef(null);
 
@@ -202,6 +273,22 @@ export default function Atendimentos() {
       { status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'equipe' },
       { titulo: 'Chamado encerrado', texto: 'O cliente foi convidado a avaliar o atendimento.' },
     );
+
+  // tira o timeout ou o banimento da pessoa (em todas as conversas dela)
+  const desbloquear = async () => {
+    const agora = new Date().toISOString();
+    const q = [supabase.from('bloqueios').update({ removido_em: agora }).eq('conversation_id', aberta.id).is('removido_em', null)];
+    if (aberta.visitor_id) {
+      q.push(supabase.from('bloqueios').update({ removido_em: agora }).eq('visitor_id', aberta.visitor_id).is('removido_em', null));
+      q.push(supabase.from('conversations').update({ bloqueado_ate: null, banido: false }).eq('visitor_id', aberta.visitor_id));
+    }
+    q.push(supabase.from('conversations').update({ bloqueado_ate: null, banido: false }).eq('id', aberta.id));
+    const r = await Promise.all(q);
+    const erro = r.find((x) => x.error)?.error;
+    if (erro) return avisar('Não deu para desbloquear', { erro: true, texto: erro.message });
+    avisar('Bloqueio retirado', { texto: 'O assistente volta a responder essa pessoa.' });
+    await Promise.all([carregarAberta(aberta.id), carregar()]);
+  };
 
   const reabrir = () =>
     atualizar(
@@ -368,7 +455,7 @@ export default function Atendimentos() {
           )}
           {visiveis?.map((c) => (
             <SwipeRow key={c.id} {...acoesDaLinha(c)} aberta={deslizada === c.id} onAbrir={() => setDeslizada(c.id)}>
-            <button type="button" className="ticket" aria-current={aberta?.id === c.id} onClick={() => abrir(c.id)}>
+            <button type="button" className="ticket" aria-current={aberta?.id === c.id} data-bloqueado={bloqueioDa(c) ? 'sim' : undefined} onClick={() => abrir(c.id)}>
               <div className="stub">
                 <div className="stub-num">
                   <small>Senha</small>
@@ -376,6 +463,7 @@ export default function Atendimentos() {
                 </div>
                 <div className="stub-body">
                   <div className="ticket-title">
+                    {bloqueioDa(c) && <span className="flag flag-bloqueio" style={{ marginRight: 6 }}><Ban size={11} aria-hidden="true" /> {rotuloDoBloqueio(bloqueioDa(c))}</span>}
                     {c.prioridade === 'alta' && <span className="flag" style={{ marginRight: 6 }}>urgente</span>}
                     {c.titulo || c.motivo || 'Conversa com o assistente'}
                   </div>
@@ -438,8 +526,22 @@ export default function Atendimentos() {
                 {aberta.status === 'closed' && (
                   <button type="button" className="btn btn-ghost" onClick={reabrir}><RotateCcw /> Reabrir</button>
                 )}
+                {!bloqueioDa(aberta) && !aberta.teste && (
+                  <button type="button" className="btn btn-quiet btn-sm" title="Timeout ou banir" onClick={() => setBloquear(true)}><Ban /> Bloquear</button>
+                )}
               </div>
             </header>
+
+            {bloqueioDa(aberta) && (
+              <div className="alert alert-erro aviso-bloqueio">
+                <Ban size={18} aria-hidden="true" />
+                <span>
+                  <b>{bloqueioDa(aberta).banido ? 'Pessoa banida.' : `Em ${rotuloDoBloqueio(bloqueioDa(aberta))}.`}</b>{' '}
+                  O assistente não responde ela enquanto valer.
+                </span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={desbloquear}>Desbloquear</button>
+              </div>
+            )}
 
             {/* no celular os dados começam fechados: a conversa fica com a tela */}
             <details className="detail-dados" open={!CELULAR}>
@@ -515,6 +617,18 @@ export default function Atendimentos() {
         )}
       </section>
 
+      {bloquear && aberta && (
+        <BloquearModal
+          conversa={aberta}
+          atendente={atendente}
+          onFechar={() => setBloquear(false)}
+          onFeito={() => {
+            setBloquear(false);
+            carregarAberta(aberta.id);
+            carregar();
+          }}
+        />
+      )}
       <Confirmar
         aberto={confirmar === 'encerrar'}
         titulo="Encerrar este chamado?"

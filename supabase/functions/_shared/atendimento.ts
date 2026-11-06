@@ -9,6 +9,7 @@
 // como fonte de verdade, lacunas, e as regras de quando encerrar.
 // ============================================================
 
+import { bloquearConversa, TIMEOUT_MAX, TIMEOUT_MIN, textoDoBloqueio } from './bloqueios.ts';
 import Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { buscar, categorias } from './busca.ts';
@@ -536,11 +537,14 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
     },
     {
       name: 'pausar_atendimento',
-      description: 'Para de responder e passa a conversa para a equipe decidir. Só quando a pessoa está claramente gastando o atendimento à toa (mensagens sem sentido, repetição de propósito, flood) e continuou depois de um aviso seu. Nunca use com cliente de verdade, mesmo insistente, confuso ou irritado.',
+      description: 'Dá um tempo sem atendimento para quem está claramente gastando o atendimento à toa (mensagens sem sentido, repetição de propósito, flood) e continuou depois de um aviso seu: você para de responder, a pessoa fica esse tempo sem o assistente e a equipe vê a conversa marcada. Nunca use com cliente de verdade, mesmo insistente, confuso ou irritado.',
       input_schema: {
         type: 'object',
-        properties: { motivo: { type: 'string', description: 'O que a pessoa estava fazendo, em uma frase' } },
-        required: ['motivo'],
+        properties: {
+          motivo: { type: 'string', description: 'O que a pessoa estava fazendo, em uma frase' },
+          minutos: { type: 'integer', description: 'Quanto tempo sem atendimento, de 15 a 1440. Brincadeira ou teste: 30. Insistiu muito depois do aviso: 120 a 360. Ofensa, robô ou flood pesado: 1440.' },
+        },
+        required: ['motivo', 'minutos'],
       },
     },
     {
@@ -903,18 +907,22 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   if (nome === 'pausar_atendimento') {
     const motivo = String(args.motivo ?? '').slice(0, 300) || 'Mensagens sem propósito depois de um aviso.';
     const agora = new Date().toISOString();
+    const minutos = Math.round(Math.min(TIMEOUT_MAX, Math.max(TIMEOUT_MIN, Number(args.minutos) || 60)));
+    // o teste do painel não bloqueia ninguém (seria o próprio dono)
+    const bloqueio = r.teste ? null : await bloquearConversa(db, conversationId, { minutos, motivo, por: 'assistente' });
+    const pausa = bloqueio ? ` ${textoDoBloqueio(bloqueio)}` : '';
     // no site sem login (ou sem chamados ligados) não vira fila para a equipe: a conversa fecha
     if ((!r.teste && !r.cliente && !r.canal) || !regrasDeChamado(cfg).ativos) {
       if (!r.cliente && !r.canal) r.sinais.pedirLogin = true;
       await db.from('conversations').update({
         status: 'closed', fechado_em: agora, encerrado_por: 'assistente', resumo: `Uso à toa: ${motivo}`,
       }).eq('id', conversationId);
-      return { ok: true, mensagem: 'Conversa encerrada. Despeça-se em uma frase, com educação, dizendo que este chat é para o atendimento do negócio.' };
+      return { ok: true, mensagem: `Conversa encerrada. Despeça-se em uma frase, com educação, dizendo que este chat é para o atendimento do negócio.${pausa ? ` Diga também:${pausa}` : ''}` };
     }
     await db.from('conversations').update({
       status: 'waiting', titulo: 'Uso à toa', motivo, prioridade: 'baixa', escalado_em: agora,
     }).eq('id', conversationId);
-    return { ok: true, mensagem: 'Pronto: você para de responder e a equipe decide. Diga em uma frase, com educação, que a partir daqui a equipe continua esta conversa.' };
+    return { ok: true, mensagem: `Pronto: você para de responder e a equipe decide. Diga em uma frase, com educação, que a partir daqui a equipe continua esta conversa.${pausa ? ` Diga também:${pausa}` : ''}` };
   }
 
   if (nome === 'encerrar_atendimento') {

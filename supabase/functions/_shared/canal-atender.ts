@@ -10,6 +10,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { logUsage } from './ai.ts';
 import { alertar, type Assistant, responder } from './atendimento.ts';
 import { profileOf, usoDoMes } from './db.ts';
+import { bloqueioAtivo } from './bloqueios.ts';
 import { limitePorConversa, planOf, trialExpirado } from './plans.ts';
 import { type Canal, enviarPeloCanal, noPrivadoDoDiscord, NOMES } from './canais.ts';
 import { MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from './extra.ts';
@@ -63,6 +64,9 @@ export async function atenderNoCanal(
     });
     return null;
   }
+
+  // em timeout ou banido nesta empresa: não responde nem abre conversa
+  if (await bloqueioAtivo(db, canal.owner_id, { visitorId: `${canal.tipo}:${contato.id}` })) return null;
 
   // conversa aberta com este contato (ou uma nova)
   const { data: ultima } = await db.from('conversations')

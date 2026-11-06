@@ -22,6 +22,7 @@ import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, profileOf, requireUser, userFrom, usoDoMes } from '../_shared/db.ts';
 import { logUsage } from '../_shared/ai.ts';
 import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
+import { bloqueioAtivo, textoDoBloqueio } from '../_shared/bloqueios.ts';
 import { inicioDoMes, limitePorConversa, planOf, trialExpirado } from '../_shared/plans.ts';
 import { normalizeConfig, sugestoesIniciais, valueOf } from '../_shared/schema.ts';
 import { COBRANCA_EXTRA_PRONTA, MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from '../_shared/extra.ts';
@@ -38,6 +39,8 @@ const MSGS_POR_REDE = 60;
 // mensagens num dia, da mesma rede, para a mesma empresa: quem abre conversa atrás
 // de conversa para gastar a cota para aqui (um cliente de verdade não chega perto)
 const MSGS_REDE_DIA = 80;
+// conversas novas num dia, da mesma rede, para a mesma empresa
+const CONVERSAS_REDE_DIA = 5;
 const PEDE_LOGIN =
   'Para falar com a equipe, entre com sua conta tocando em "Entrar para falar com a equipe", aqui embaixo. Leva poucos segundos e a conversa continua de onde parou.';
 const MUITA_PROCURA =
@@ -265,6 +268,12 @@ Deno.serve(async (req) => {
     let recado = false;
     const ipHash = c ? null : await hashDoIp(req);
 
+    // em timeout ou banido nesta empresa: nem abre conversa nem chama a IA
+    if (!teste) {
+      const bloqueio = await bloqueioAtivo(admin, assistant.owner_id, { visitorId, ipHash: ipHash ?? c?.ip_hash, clienteId: cliente?.id });
+      if (bloqueio) return json({ conversation_id: c?.id ?? null, status: c?.status ?? 'closed', message: textoDoBloqueio(bloqueio), modo: 'recado' });
+    }
+
     if (!c) {
       if (!teste && !cliente) {
         if (!(await provaOk(assistant.public_token, visitorId, body.prova))) {
@@ -294,6 +303,10 @@ Deno.serve(async (req) => {
           const { count: doIp } = await admin.from('conversations').select('id', { count: 'exact', head: true })
             .eq('ip_hash', ipHash).gte('created_at', umDia);
           if ((doIp ?? 0) >= 20) throw new UserError('Muitas conversas novas a partir desta rede. Tente de novo mais tarde.', 429);
+          // e para a mesma empresa, bem menos: ninguém de verdade abre mais que isso num dia
+          const { count: doIpAqui } = await admin.from('conversations').select('id', { count: 'exact', head: true })
+            .eq('ip_hash', ipHash).eq('owner_id', assistant.owner_id).gte('created_at', umDia);
+          if ((doIpAqui ?? 0) >= CONVERSAS_REDE_DIA) throw new UserError('Você já abriu várias conversas hoje. Continue na conversa que você já abriu ou tente amanhã.', 429);
         }
 
         const { atendimentos: mes } = await usoDoMes(admin, assistant.owner_id);
