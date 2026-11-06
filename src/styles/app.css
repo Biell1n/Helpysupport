@@ -956,6 +956,11 @@
   box-shadow: inset 3px 0 0 var(--brasa);
 }
 
+.quadro-card[data-bloqueado] {
+  background: var(--brasa-clara);
+  border-left: 4px solid var(--brasa);
+}
+
 .flag-bloqueio {
   display: inline-flex;
   align-items: center;

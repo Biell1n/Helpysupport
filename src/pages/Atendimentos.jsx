@@ -12,6 +12,7 @@ import SwipeRow from '@/components/SwipeRow';
 import Abas from '@/components/Abas';
 import { numero, quando, STATUS } from '@/lib/format';
 import { avisarNoCanal } from '@/lib/canais';
+import { bloqueioDa, rotuloDoBloqueio } from '@/lib/bloqueio';
 
 const CELULAR = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 900px)').matches;
 const ABAS = [
@@ -31,21 +32,6 @@ const ETAPAS = {
   feito: { rotulo: 'Pedido pago/finalizado', Icone: CheckCircle2, cor: 'etapa-feito' },
 };
 const DO_PEDIDO = { aguardando: 'pagamento', anotado: 'anotado', pago: 'feito', finalizado: 'feito' };
-/** Timeout ou banimento valendo nesta conversa (para o ticket vermelho). */
-function bloqueioDa(c) {
-  if (c?.banido) return { banido: true };
-  if (c?.bloqueado_ate && new Date(c.bloqueado_ate).getTime() > Date.now()) return { ate: c.bloqueado_ate };
-  return null;
-}
-
-function rotuloDoBloqueio(b) {
-  if (b.banido) return 'banido';
-  const d = new Date(b.ate);
-  const hoje = new Date().toDateString() === d.toDateString();
-  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  return `timeout até ${hoje ? hora : `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${hora}`}`;
-}
-
 const TEMPOS = [
   { min: 60, rotulo: '1 hora' },
   { min: 6 * 60, rotulo: '6 horas' },

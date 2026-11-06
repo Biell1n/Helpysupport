@@ -915,7 +915,9 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     if ((!r.teste && !r.cliente && !r.canal) || !regrasDeChamado(cfg).ativos) {
       if (!r.cliente && !r.canal) r.sinais.pedirLogin = true;
       await db.from('conversations').update({
+        // com escalado_em a conversa aparece em Encerrados, com o ticket vermelho
         status: 'closed', fechado_em: agora, encerrado_por: 'assistente', resumo: `Uso à toa: ${motivo}`,
+        titulo: 'Uso à toa', motivo, escalado_em: agora,
       }).eq('id', conversationId);
       return { ok: true, mensagem: `Conversa encerrada. Despeça-se em uma frase, com educação, dizendo que este chat é para o atendimento do negócio.${pausa ? ` Diga também:${pausa}` : ''}` };
     }

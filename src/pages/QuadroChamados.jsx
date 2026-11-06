@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { List } from 'lucide-react';
+import { Ban, List } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { numero, quando } from '@/lib/format';
 import { canalDe, SeloCanal } from '@/components/IconesCanais';
 import { avisarNoCanal } from '@/lib/canais';
+import { bloqueioDa, rotuloDoBloqueio } from '@/lib/bloqueio';
 import { Marca } from '@/components/Logo';
 
 const COLUNAS = [
@@ -113,6 +114,7 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
                   className="quadro-card"
                   draggable
                   data-prioridade={c.prioridade}
+                  data-bloqueado={bloqueioDa(c) ? 'sim' : undefined}
                   onDragStart={(e) => {
                     e.dataTransfer.setData('text/plain', c.id);
                     setArrastando(c.id);
@@ -126,6 +128,7 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
                     <span className="mono faint" style={{ fontSize: 12 }}>{numero(c.numero)}</span>
                     <span className="row" style={{ gap: 6 }}>
                       {canalDe(c) && <SeloCanal tipo={canalDe(c)} />}
+                      {bloqueioDa(c) && <span className="flag flag-bloqueio"><Ban size={11} aria-hidden="true" /> {rotuloDoBloqueio(bloqueioDa(c))}</span>}
                       {c.prioridade === 'alta' && <span className="flag">urgente</span>}
                     </span>
                   </div>
