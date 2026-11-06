@@ -123,6 +123,8 @@ export interface Meta {
   tabela_oferecida: boolean;
   tabela_recusada: boolean;
   tabelas_criadas?: string[];
+  /** tabelas que já existiam em Dados e este assistente passa a consultar (o desfazer nunca apaga estas) */
+  tabelas_ligadas?: string[];
   /** lista do documento que virou tabela em Dados: chave da lista → nome da tabela */
   listas_em_tabela?: Record<string, string>;
   /** anotações pendentes achadas nas tabelas ("tons a confirmar"…), para perguntar ao dono */

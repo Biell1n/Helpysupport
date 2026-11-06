@@ -25,7 +25,7 @@ import { admin, aparaEquipe, configLigada, precosDeTeste, requireUser } from '..
 import { type Ciclo, PAGOS, PLANS, type PlanId, type PlanoPago, precosVigentes, valorDaAssinatura } from '../_shared/plans.ts';
 import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, garantirWebhook, hojeBr, novoToken, pago, tokenAceito } from '../_shared/asaas.ts';
 import { AMBIENTE, contaHelpy, desteAmbiente, fecharUsoExtra, guardarFatura, MINIMO_FATURA } from '../_shared/cobranca.ts';
-import { contaDaLoja, pagamentoDaLoja, tirarTaxa } from '../_shared/pedidos.ts';
+import { baixarEstoqueDoPedido, contaDaLoja, pagamentoDaLoja, tirarTaxa } from '../_shared/pedidos.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const depois = (p: Promise<unknown>) => {
@@ -707,13 +707,17 @@ Deno.serve(async (req) => {
       if (!UUID.test(id)) throw new UserError('Pedido inválido.');
       const novo = String(body.status ?? '');
       if (!['finalizado', 'cancelado', 'anotado'].includes(novo)) throw new UserError('Status inválido.');
-      const { data: ped } = await admin.from('pedidos').select('id, owner_id, status').eq('id', id).maybeSingle();
+      const { data: ped } = await admin.from('pedidos').select('id, owner_id, status, link_id').eq('id', id).maybeSingle();
       if (!ped || ped.owner_id !== conta) throw new UserError('Pedido não encontrado.', 404);
-      if (!['anotado', 'finalizado', 'cancelado'].includes(ped.status) || (ped.status === 'cancelado' && novo !== 'anotado')) {
+      // pedido com link de pagamento segue o caminho do pagamento (cancelar ou estornar)
+      if (ped.link_id || !['anotado', 'finalizado', 'cancelado'].includes(ped.status) || (ped.status === 'cancelado' && novo !== 'anotado')) {
         throw new UserError('Este pedido é pago pelo link: use Cancelar ou Estornar.');
       }
-      const { error } = await admin.from('pedidos').update({ status: novo }).eq('id', id).eq('status', ped.status);
+      const { data: mudou, error } = await admin.from('pedidos').update({ status: novo }).eq('id', id).eq('status', ped.status).select('id');
       if (error) throw error;
+      if (!mudou?.length) throw new UserError('Alguém mudou este pedido agora mesmo. Atualize a página.', 409);
+      // finalizado: as peças saem do estoque da tabela
+      if (novo === 'finalizado' && ped.status === 'anotado') await baixarEstoqueDoPedido(admin, id);
       return json({ ok: true, status: novo });
     }
 
