@@ -2678,10 +2678,28 @@
 
 .canais-grade {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* o botão fica no pé do cartão: os quatro alinham na mesma linha */
+.canal-pe {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.canais-ligados { margin-top: 28px; }
+.canais-ligados-titulo { font-size: 16px; margin: 0 0 12px; }
+.canais-ligados-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr));
   gap: 16px;
   align-items: start;
 }
+.canal-ligado .canal-topo .card-title { margin: 0; }
 
 .canal-card {
   display: flex;
@@ -4617,3 +4635,5 @@
   color: var(--tinta);
   background: var(--papel-2);
 }
+/* dentro do cartão de conectado, a conta não precisa de outra caixa em volta */
+.canal-ligado .canal-conta { border: 0; padding: 0; background: none; }

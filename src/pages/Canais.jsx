@@ -447,7 +447,9 @@ export default function Canais() {
             </div>
           </div>
           <p className="muted canal-frase">Um endereço para pôr no site, na bio e no QR code do balcão. Já vem em todos os planos.</p>
-          <Link to="/painel/assistentes" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }}>Ver links e QR codes</Link>
+          <div className="canal-pe">
+            <Link to="/painel/assistentes" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }}>Ver links e QR codes</Link>
+          </div>
         </section>
 
         {SERVICOS.map((s) => {
@@ -472,14 +474,12 @@ export default function Canais() {
               </div>
               <p className="muted canal-frase">{s.frase}</p>
 
-              {doTipo.map((c) => (
-                <CanalConectado key={c.id} canal={c} assistentes={assistentes} ocupado={ocupado} atividade={atividade[c.id]} onAcao={(a, extra) => acao(c, a, extra)} />
-              ))}
-
               {bloqueado ? (
-                <Link to="/painel/plano" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }}>Ver planos</Link>
+                <div className="canal-pe">
+                  <Link to="/painel/plano" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }}>Ver planos</Link>
+                </div>
               ) : (
-                <>
+                <div className="canal-pe">
                   <button
                     type="button"
                     className={`btn btn-sm ${doTipo.length ? 'btn-ghost' : 'btn-primary'}`}
@@ -499,12 +499,33 @@ export default function Canais() {
                       )}
                     </span>
                   )}
-                </>
+                </div>
               )}
             </section>
           );
         })}
       </div>
+
+      {/* os canais ligados ficam juntos, embaixo, com tudo o que dá para mexer em cada um */}
+      {(canais ?? []).length > 0 && (
+        <section className="canais-ligados">
+          <h2 className="canais-ligados-titulo">Conectados</h2>
+          <div className="canais-ligados-grade">
+            {SERVICOS.flatMap((s) => (canais ?? []).filter((c) => c.tipo === s.tipo).map((c) => {
+              const I = Icone[s.tipo];
+              return (
+                <section key={c.id} className="card canal-card canal-ligado">
+                  <div className="canal-topo">
+                    <span className={`canal-icone canal-${s.tipo}`}><I width={20} height={20} /></span>
+                    <h3 className="card-title">{s.nome}</h3>
+                  </div>
+                  <CanalConectado canal={c} assistentes={assistentes} ocupado={ocupado} atividade={atividade[c.id]} onAcao={(a, extra) => acao(c, a, extra)} />
+                </section>
+              );
+            }))}
+          </div>
+        </section>
+      )}
 
       <p className="faint" style={{ fontSize: 13, marginTop: 18, maxWidth: 680 }}>
         As conversas de todos os canais caem em Atendimentos, contam no mesmo limite do plano e seguem as mesmas regras de chamado.
