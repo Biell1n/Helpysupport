@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Copy, Link2, Minus, Plus, Trash2, UserMinus } from 'lucide-react';
 import { chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,16 +16,8 @@ function VagasExtras({ vagas, onMudou }) {
   useEffect(() => setQuero(vagas.extra), [vagas.extra]);
   const minimo = Math.max(0, vagas.membros + vagas.pendentes - vagas.incluidos);
 
-  if (profile?.plan === 'trial') {
-    return (
-      <section className="card stack" style={{ marginBottom: 16 }}>
-        <h2 className="card-title">Vagas extras</h2>
-        <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-          Nos planos pagos dá para pôr mais gente na equipe por {reais(vaga)}/mês cada. <Link to="/painel/plano">Ver planos</Link>
-        </p>
-      </section>
-    );
-  }
+  // no teste grátis não há vaga extra para comprar: o cartão só aparece num plano pago
+  if (profile?.plan === 'trial') return null;
 
   const salvar = async () => {
     setSalvando(true);

@@ -12,6 +12,7 @@ import { usePrecos } from '@/lib/precos';
 import { iniciais } from '@/lib/format';
 import { Avatar } from '@/components/TrocarFoto';
 import EscolherTema from '@/components/EscolherTema';
+import { useMenu } from '@/lib/menu';
 
 const NAV = [
   { to: '/painel', label: 'Painel', icon: LayoutGrid, end: true, tipos: ['empresa'] },
@@ -183,6 +184,7 @@ function AceiteTermos({ children }) {
 export default function AppShell() {
   const { user, profile, nome, signOut, tipo } = useAuth();
   const [uso, recarregarUso] = useUso();
+  const usa = useMenu(user?.id, tipo);
   usePrecos(); // com os preços de teste, ajusta a cota do Essencial antes das telas lerem
   const { pathname, search } = useLocation();
   const [mais, setMais] = useState(false);
@@ -248,7 +250,7 @@ export default function AppShell() {
         )}
 
         <nav className="side-nav" aria-label="Seções do painel">
-          {NAV.filter((n) => n.tipos.includes(tipo) && !n.fora).map(({ to, label, icon: Icon, end, contador, grupo }, i, lista) => (
+          {NAV.filter((n) => n.tipos.includes(tipo) && !n.fora && usa(n.to)).map(({ to, label, icon: Icon, end, contador, grupo }, i, lista) => (
             <Fragment key={to + label}>
               {grupo && grupo !== lista[i - 1]?.grupo && tipo === 'empresa' && <span className="side-grupo" aria-hidden="true">{grupo}</span>}
               <NavLink to={to} end={end} aria-label={label} className={({ isActive }) => `side-link${isActive ? ' active' : ''}`}>
@@ -316,7 +318,7 @@ export default function AppShell() {
       </main>
 
       {(() => {
-        const meus = NAV.filter((n) => n.tipos.includes(tipo));
+        const meus = NAV.filter((n) => n.tipos.includes(tipo) && usa(n.to));
         const atalhos = ATALHOS[tipo] ?? ['/painel'];
         const principais = meus.filter((n) => atalhos.includes(n.to));
         const resto = meus.filter((n) => !atalhos.includes(n.to));

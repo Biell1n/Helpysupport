@@ -961,6 +961,17 @@
   border-left: 4px solid var(--brasa);
 }
 
+.teto-conversa {
+  font: inherit;
+  font-weight: 600;
+  color: var(--tinta);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--linha-forte);
+  padding: 0 2px;
+  cursor: pointer;
+}
+
 .flag-bloqueio {
   display: inline-flex;
   align-items: center;

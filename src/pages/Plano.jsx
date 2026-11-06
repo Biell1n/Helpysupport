@@ -40,32 +40,24 @@ function TetoPorConversa({ plano }) {
     setSalvando(false);
     if (error) return avisar('Não deu para salvar', { erro: true, texto: error.message });
     await reloadProfile?.();
-    avisar(novo ? `Até ${novo} mensagens por conversa` : `Volta ao máximo do plano: ${maximo} por conversa`);
+    avisar(`Até ${novo || maximo} mensagens por conversa`);
   };
 
   return (
-    <section className="card uso-extra">
-      <div className="uso-extra-topo">
-        <div>
-          <h2 className="card-title">Mensagens por conversa</h2>
-          <p className="muted uso-extra-frase">
-            Quantas mensagens um cliente pode trocar com o assistente numa conversa. Passou disso, a conversa vai para a equipe.
-            Serve para ninguém gastar as mensagens da empresa de propósito.
-          </p>
-        </div>
-        <select
-          className="input"
-          style={{ width: 'auto' }}
-          value={valor}
-          disabled={salvando}
-          onChange={(e) => mudar(Number(e.target.value))}
-          aria-label="Mensagens por conversa"
-        >
-          {opcoes.map((x) => <option key={x} value={x}>Até {x}</option>)}
-          <option value={0}>Até {maximo} (máximo do plano)</option>
-        </select>
-      </div>
-    </section>
+    <p className="faint" style={{ fontSize: 13, margin: 0 }}>
+      Um atendimento é uma conversa de um cliente com o assistente, com até{' '}
+      <select
+        className="teto-conversa"
+        value={valor}
+        disabled={salvando}
+        onChange={(e) => mudar(Number(e.target.value))}
+        aria-label="Mensagens por conversa"
+      >
+        {opcoes.map((x) => <option key={x} value={x}>{x}</option>)}
+        <option value={0}>{maximo}</option>
+      </select>{' '}
+      mensagens dele. Passou disso, a conversa vai para a equipe.
+    </p>
   );
 }
 
@@ -194,14 +186,12 @@ export default function Plano() {
           {atual.builderIA && <UsoMenor rotulo="Mensagens no criador com IA" usado={uso?.builder_msgs} limite={atual.builderMsgs} cota />}
         </ul>
         {profile?.creditos_extra > 0 && <p className="muted" style={{ margin: 0 }}>Você tem <b>{profile.creditos_extra}</b> atendimentos extras de pacote.</p>}
-        <p className="faint" style={{ fontSize: 13, margin: 0 }}>Um atendimento é uma conversa de um cliente com o assistente, do começo ao fim.</p>
+        <TetoPorConversa plano={atual} />
       </section>
 
       <MinhaAssinatura dados={pagamentos} onMudou={carregar} />
 
       {USO_EXTRA_DISPONIVEL && !teste && <UsoExtra plano={atual} />}
-
-      <TetoPorConversa plano={atual} />
 
       <div className="plano-cab" id="planos">
         <h2>Planos</h2>
