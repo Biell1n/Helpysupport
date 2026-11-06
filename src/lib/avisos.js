@@ -1,7 +1,7 @@
 import { chamar, supabase } from '@/lib/supabase';
 
 // Notícia boa (pagamento confirmado, pedido pago) não vem com cara de problema.
-const BOM_CHAVE = /^(fatura:[^:]+|pedido:[0-9a-f-]{36}|saque:.+)$/i;
+const BOM_CHAVE = /^(fatura:[^:]+|pedido:(anotado:)?[0-9a-f-]{36}|contato:[0-9a-f-]{36}|saque:.+)$/i;
 const RUIM_TEXTO = /atras|venceu|sem estoque|em dobro|cancelad|recus|limite|acabaram|não foi paga/i;
 
 const deAlerta = (a) => ({

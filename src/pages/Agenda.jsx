@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Marca } from '@/components/Logo';
 import { ChevronLeft, ChevronRight, Plus, Settings2 } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
@@ -227,6 +227,15 @@ export default function Agenda() {
   const [aberto, setAberto] = useState(null);
 
   const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => somaDias(semana, i)), [semana]);
+  // no celular a semana não cabe: abre rolada até hoje (e não no domingo, que costuma estar fechado)
+  const calRef = useRef(null);
+  useEffect(() => {
+    const el = calRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth + 4) return;
+    const hoje = dias.findIndex((d) => mesmoDia(d, new Date()));
+    const col = (el.scrollWidth - 56) / 7;
+    el.scrollLeft = hoje >= 0 ? Math.max(0, hoje * col - 8) : 0;
+  }, [dias]);
 
   const carregar = useCallback(async () => {
     const [{ data: c }, { data: ev }] = await Promise.all([
@@ -379,7 +388,7 @@ export default function Agenda() {
         <b style={{ marginLeft: 6 }}>{titulo}</b>
       </div>
 
-      <div className="cal">
+      <div className="cal" ref={calRef}>
         <div className="cal-corner" />
         {dias.map((d) => (
           <div key={d.toISOString()} className={`cal-head${mesmoDia(d, hoje) ? ' hoje' : ''}`}>
@@ -425,7 +434,11 @@ export default function Agenda() {
                     }}
                     onClick={() => setAberto(e)}
                   >
-                    <b>{e.status === 'pendente' ? '⏳ ' : e.status === 'aguardando_pagamento' ? '💳 ' : ''}{e.cliente_nome}</b>
+                    <b>
+                      {e.status === 'pendente' ? '⏳ ' : e.status === 'aguardando_pagamento' ? '💳 ' : ''}
+                      {altura < 40 && <span className="cal-ev-hora">{ini.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} </span>}
+                      {e.cliente_nome}
+                    </b>
                     <span className="cal-ev-sub">
                       {ini.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       {e.servico ? ` · ${e.servico}` : ''}

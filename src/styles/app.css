@@ -239,6 +239,21 @@
   max-width: 620px;
 }
 
+/* tela baixa no computador: o menu rola por dentro e o rodapé (tema, conta, sair) fica sempre à vista */
+@media (min-width: 901px) {
+  .side-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    margin: 0 -6px;
+    padding: 0 6px;
+  }
+}
+@media (min-width: 901px) and (max-height: 860px) {
+  .side { gap: 14px; padding: 14px 12px; }
+}
+
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: minmax(0, 1fr);
@@ -1152,7 +1167,7 @@
 }
 
 .sheet-cell.numero {
-  text-align: right;
+  text-align: left;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1342,8 +1357,10 @@
   border-radius: var(--r);
   background: var(--branco);
   overflow: auto;
-  max-height: 70vh;
+  max-height: calc(100vh - 230px);
+  min-height: 420px;
 }
+.cal-ev-hora { font-weight: 500; opacity: 0.8; }
 
 .cal-head {
   position: sticky;
@@ -4734,3 +4751,25 @@
 }
 .filtro-etapas::-webkit-scrollbar { display: none; }
 .filtro-etapas .chip { flex: none; display: inline-flex; align-items: center; gap: 5px; }
+
+/* todo modal tem um X para fechar, no canto */
+.modal { position: relative; }
+.modal-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--tinta-3);
+  cursor: pointer;
+}
+.modal-x:hover { background: var(--papel-2); color: var(--tinta); }
+.modal-x:focus-visible { box-shadow: var(--foco); }
+/* campos lado a lado alinham pela caixa, mesmo quando um rótulo quebra em duas linhas */
+.conectar-form .grid-2 { align-items: end; }

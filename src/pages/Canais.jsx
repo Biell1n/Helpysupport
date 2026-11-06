@@ -217,7 +217,7 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
               <input className="input mono" inputMode="numeric" value={f.phone_number_id} onChange={set('phone_number_id')} placeholder="1234567890…" required />
             </label>
             <label className="field">
-              <span className="label">Identificação da conta (WABA)</span>
+              <span className="label">Identificação da conta</span>
               <input className="input mono" inputMode="numeric" value={f.waba_id} onChange={set('waba_id')} placeholder="opcional" />
             </label>
           </div>
