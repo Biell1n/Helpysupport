@@ -14,6 +14,19 @@ export interface AgendaConfig {
   /** o que dá para marcar, com duração e valor */
   servicos?: Array<{ nome: string; duracao_min?: number; valor?: number }>;
   registro_tabela_id?: string | null;
+  /** minutos livres depois de cada atendimento (limpeza, descanso) */
+  intervalo_min?: number | null;
+  /** quantos atendem ao mesmo tempo (profissionais, cadeiras) */
+  vagas?: number | null;
+}
+
+/** O intervalo e as vagas da empresa, sempre num valor que dá para usar. */
+const intervaloDe = (cfg: Pick<AgendaConfig, 'intervalo_min'> | null | undefined) => Math.max(0, Math.min(120, Number(cfg?.intervalo_min) || 0));
+const vagasDe = (cfg: Pick<AgendaConfig, 'vagas'> | null | undefined) => Math.max(1, Math.min(20, Number(cfg?.vagas) || 1));
+
+/** Quantos horários já marcados batem com [ini, fim), contando o intervalo depois de cada um. */
+function quantosBatem(busy: ReadonlyArray<readonly [number, number]>, ini: number, fim: number, intervaloMs: number) {
+  return busy.filter(([a, b]) => ini < b + intervaloMs && fim + intervaloMs > a).length;
 }
 
 /** Diferença, em minutos, entre o horário local do fuso e UTC naquele instante. */
@@ -122,19 +135,24 @@ export async function horariosLivres(
   const busy = await ocupados(db, cfg.owner_id, inicioDia, fimDia, ignorarId);
   const minimo = Date.now() + cfg.antecedencia_horas * 3600 * 1000;
 
+  const iv = intervaloDe(cfg) * 60000;
+  const vagas = vagasDe(cfg);
+  // a grade anda o tempo de um atendimento padrão mais o intervalo (9:00, 9:40, 10:20 com 30 + 10)
+  const passo = (cfg.duracao_min + intervaloDe(cfg)) * 60000;
   const livres: string[] = [];
   for (const [abre, fecha] of faixas) {
     let t = localToUtc(dia, abre, cfg.fuso).getTime();
     const limite = localToUtc(dia, fecha, cfg.fuso).getTime();
     while (t + dur * 60000 <= limite) {
       const fim = t + dur * 60000;
-      const conflito = busy.some(([a, b]) => t < b && fim > a);
+      // com mais de um profissional, o horário só fecha quando todos estão ocupados
+      const conflito = quantosBatem(busy, t, fim, iv) >= vagas;
       if (!conflito && t >= minimo) {
         livres.push(
           new Intl.DateTimeFormat('pt-BR', { timeZone: cfg.fuso, hour: '2-digit', minute: '2-digit' }).format(new Date(t)),
         );
       }
-      t += cfg.duracao_min * 60000;
+      t += passo;
     }
   }
   return { dia, duracao_min: dur, livres };
@@ -337,7 +355,11 @@ export async function horarioPago(db: SupabaseClient, agendamentoId: string, don
   if (a.status !== 'aguardando_pagamento') return { situacao: 'cancelado' as const, agendamento: a };
   const { data: cfg } = await db.from('agenda_config').select('*').eq('owner_id', a.owner_id).maybeSingle();
   const fuso = (cfg as AgendaConfig | null)?.fuso ?? 'America/Sao_Paulo';
-  const choque = (await ocupados(db, a.owner_id, new Date(a.inicio), new Date(a.fim), a.id)).length > 0;
+  const ivMs = intervaloDe(cfg as AgendaConfig | null) * 60000;
+  const ini = new Date(a.inicio).getTime();
+  const fimA = new Date(a.fim).getTime();
+  const perto = await ocupados(db, a.owner_id, new Date(ini - ivMs), new Date(fimA + ivMs), a.id);
+  const choque = quantosBatem(perto, ini, fimA, ivMs) >= vagasDe(cfg as AgendaConfig | null);
   const status = choque || donoConfirma ? 'pendente' : 'confirmado';
   await db.from('agendamentos').update({ status, reserva_ate: null }).eq('id', a.id);
   if (cfg) await atualizarNosDados(db, cfg as AgendaConfig, a.id, { status: status === 'pendente' ? 'Pago · pendente' : 'Pago · confirmado' });
