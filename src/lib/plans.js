@@ -7,15 +7,15 @@ export const PLANS = {
     ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 1, tabelas: 3, funcionarios: 2,
   },
   essencial: {
-    id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 20, atendimentos: 200, mensagens: 900,
+    id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 20, atendimentos: 200, mensagens: 1200,
     ticketsAbertos: 20, chamados: true, chamadosAvancados: true, integracoes: false, canaisMeta: 1, tabelas: 3, funcionarios: 1,
   },
   profissional: {
-    id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 60, atendimentos: 500, mensagens: 2200,
+    id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 60, atendimentos: 500, mensagens: 3000,
     ticketsAbertos: 100, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 2, tabelas: 10, funcionarios: 5, destaque: true,
   },
   business: {
-    id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 120, atendimentos: 1400, mensagens: 6000,
+    id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 120, atendimentos: 1400, mensagens: 8000,
     ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, funcionarios: 20,
   },
 };
@@ -36,6 +36,8 @@ export function recursosDoPlano(p) {
     `${p.funcionarios} ${p.funcionarios > 1 ? 'funcionários' : 'funcionário'} na equipe`,
     'Link, QR code, site e Discord',
     p.canaisMeta ? `WhatsApp e Instagram: até ${p.canaisMeta} ${p.canaisMeta === 1 ? 'conta' : 'contas'}` : null,
+    p.id === 'business' ? `Uso extra mais barato: ${reais(PRECO_EXTRA_BUSINESS.mensagem)} por mensagem` : null,
+    p.id === 'business' ? 'Suporte com prioridade' : null,
   ].filter(Boolean);
 }
 
@@ -43,7 +45,8 @@ export function recursosDoPlano(p) {
 export const USO_EXTRA_DISPONIVEL = true;
 
 /** Uso extra: o que passa da cota do plano, cobrado à parte até o limite do mês. Espelha PRECO_EXTRA de plans.ts. */
-export const PRECO_EXTRA = { atendimento: 0.4, mensagem: 0.07 };
+export const PRECO_EXTRA = { atendimento: 0.15, mensagem: 0.07 };
+export const PRECO_EXTRA_BUSINESS = { atendimento: 0.1, mensagem: 0.05 };
 
 /** Vaga de funcionário além das incluídas no plano. */
 export const PRECO_FUNCIONARIO_EXTRA = 19;
@@ -59,6 +62,7 @@ export const PRECOS_PADRAO = {
   planos: Object.fromEntries(['essencial', 'profissional', 'business'].map((id) => [id, { mensal: PLANS[id].precoMensal, anual: PLANS[id].preco * 12 }])),
   vaga: PRECO_FUNCIONARIO_EXTRA,
   extra: PRECO_EXTRA,
+  extraPlano: { essencial: PRECO_EXTRA, profissional: PRECO_EXTRA, business: PRECO_EXTRA_BUSINESS },
   // % do Helpy sobre cada venda paga pelo chat (espelha TAXA_VENDAS de plans.ts)
   vendas: { trial: 2, essencial: 2, profissional: 1.5, business: 1 },
   carteira: false,

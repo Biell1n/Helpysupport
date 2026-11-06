@@ -17,7 +17,8 @@ export default function UsoExtra({ plano }) {
   const avisar = useToast();
   const [ativo, setAtivo] = useState(!!profile?.extra_ativo);
   const [limite, setLimite] = useState(String(Number(profile?.extra_limite ?? 0) || 50));
-  const { extra: PRECO_EXTRA } = usePrecos();
+  const precos = usePrecos();
+  const PRECO_EXTRA = precos.extraPlano?.[plano.id] ?? precos.extra;
   const [gasto, setGasto] = useState(null);
   const [atrasada, setAtrasada] = useState(false);
   const [salvando, setSalvando] = useState(false);
