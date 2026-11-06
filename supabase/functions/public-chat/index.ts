@@ -22,7 +22,7 @@ import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, profileOf, requireUser, userFrom, usoDoMes } from '../_shared/db.ts';
 import { logUsage } from '../_shared/ai.ts';
 import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
-import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
+import { inicioDoMes, limitePorConversa, planOf, trialExpirado } from '../_shared/plans.ts';
 import { normalizeConfig, sugestoesIniciais, valueOf } from '../_shared/schema.ts';
 import { COBRANCA_EXTRA_PRONTA, MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from '../_shared/extra.ts';
 import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
@@ -35,6 +35,9 @@ const MSGS_TESTE_POR_DIA = 300;
 const RAJADA_ANONIMA = 30;
 // mensagens em 10 minutos somando todas as conversas abertas da mesma rede
 const MSGS_POR_REDE = 60;
+// mensagens num dia, da mesma rede, para a mesma empresa: quem abre conversa atrás
+// de conversa para gastar a cota para aqui (um cliente de verdade não chega perto)
+const MSGS_REDE_DIA = 80;
 const PEDE_LOGIN =
   'Para falar com a equipe, entre com sua conta tocando em "Entrar para falar com a equipe", aqui embaixo. Leva poucos segundos e a conversa continua de onde parou.';
 const MUITA_PROCURA =
@@ -350,6 +353,11 @@ Deno.serve(async (req) => {
           .eq('role', 'user').eq('conversations.ip_hash', c.ip_hash)
           .gte('created_at', new Date(Date.now() - 10 * 60_000).toISOString());
         if ((daRede ?? 0) >= MSGS_POR_REDE) throw new UserError('Muitas mensagens a partir desta rede. Espere alguns minutos e tente de novo.', 429);
+        const { count: daRedeHoje } = await admin.from('conversation_messages')
+          .select('id, conversations!inner(ip_hash, owner_id)', { count: 'exact', head: true })
+          .eq('role', 'user').eq('conversations.ip_hash', c.ip_hash).eq('conversations.owner_id', assistant.owner_id)
+          .gte('created_at', new Date(Date.now() - 864e5).toISOString());
+        if ((daRedeHoje ?? 0) >= MSGS_REDE_DIA) throw new UserError('Você já mandou muitas mensagens hoje por aqui. Volte amanhã ou fale com a equipe pelos outros canais da empresa.', 429);
       }
       if (clienteInfo) {
         await admin.from('conversations').update({ cliente_id: clienteInfo.id, cliente_email: clienteInfo.email })
@@ -390,7 +398,7 @@ Deno.serve(async (req) => {
     // teto por atendimento: passa para a equipe em vez de girar
     const { count: doVisitante } = await admin.from('conversation_messages').select('id', { count: 'exact', head: true })
       .eq('conversation_id', c.id).eq('role', 'user');
-    if ((doVisitante ?? 0) > plan.msgsPorAtendimento) {
+    if ((doVisitante ?? 0) > limitePorConversa(plan, profile)) {
       if (!cliente && !teste) {
         // sem login a conversa longa termina aqui, em vez de virar chamado
         await admin.from('conversations').update({ status: 'closed', fechado_em: new Date().toISOString(), encerrado_por: 'assistente' }).eq('id', c.id);

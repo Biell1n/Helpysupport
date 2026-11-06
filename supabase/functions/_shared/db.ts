@@ -110,7 +110,7 @@ export async function profileOf(userId: string) {
 async function lerPerfil(userId: string) {
   const { data, error } = await admin
     .from('profiles')
-    .select('id, plan, trial_ends_at, creditos_extra, funcionarios_extra, company_name, full_name, extra_ativo, extra_limite')
+    .select('id, plan, trial_ends_at, creditos_extra, funcionarios_extra, company_name, full_name, extra_ativo, extra_limite, msgs_por_conversa')
     .eq('id', userId)
     .maybeSingle();
   if (error) throw error;
@@ -119,7 +119,7 @@ async function lerPerfil(userId: string) {
   const { data: novo, error: e2 } = await admin
     .from('profiles')
     .insert({ id: userId })
-    .select('id, plan, trial_ends_at, creditos_extra, funcionarios_extra, company_name, full_name, extra_ativo, extra_limite')
+    .select('id, plan, trial_ends_at, creditos_extra, funcionarios_extra, company_name, full_name, extra_ativo, extra_limite, msgs_por_conversa')
     .single();
   if (e2) throw e2;
   return novo;

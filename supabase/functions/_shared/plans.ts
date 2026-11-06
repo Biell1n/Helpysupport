@@ -71,6 +71,15 @@ export interface Profile {
   full_name: string | null;
 }
 
+/**
+ * Teto de mensagens do cliente numa conversa: o do plano, ou menor se a
+ * empresa escolheu (em Plano), para ninguém gastar a cota de propósito.
+ */
+export function limitePorConversa(plan: Plan, profile: { msgs_por_conversa?: number | null } | null): number {
+  const escolhido = Number(profile?.msgs_por_conversa ?? 0);
+  return escolhido >= 5 ? Math.min(plan.msgsPorAtendimento, escolhido) : plan.msgsPorAtendimento;
+}
+
 export function planOf(profile: (Pick<Profile, 'plan'> & { precos_teste?: boolean }) | null): Plan {
   const plan = PLANS[(profile?.plan as PlanId) ?? 'trial'] ?? PLANS.trial;
   // preços de teste: o Essencial fica com cota pequena, para dar para testar o uso extra

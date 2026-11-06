@@ -3,7 +3,8 @@ import { useOutletContext } from 'react-router-dom';
 import { Check, CreditCard, MessageCircle } from 'lucide-react';
 import Abas from '@/components/Abas';
 import { useAuth } from '@/contexts/AuthContext';
-import { chamar } from '@/lib/supabase';
+import { chamar, supabase } from '@/lib/supabase';
+import { useToast } from '@/components/Toasts';
 import UsoExtra from '@/components/UsoExtra';
 import { AssinarModal, MinhaAssinatura } from '@/components/Assinatura';
 import { descontoAnual, diasDeTeste, PLANS, planOf, reais, USO_EXTRA_DISPONIVEL } from '@/lib/plans';
@@ -18,6 +19,55 @@ const nivel = (usado, limite) => {
   const r = (usado ?? 0) / limite;
   return r >= 1 ? 'cheio' : r >= 0.85 ? 'alto' : undefined;
 };
+
+/**
+ * Teto de mensagens do cliente por conversa. O do plano já vale; a empresa pode
+ * baixar para ninguém gastar a cota de propósito. Passou do teto, a conversa vai
+ * para a equipe (ou, sem login no site, termina pedindo para entrar).
+ */
+function TetoPorConversa({ plano }) {
+  const { user, profile, reloadProfile } = useAuth();
+  const avisar = useToast();
+  const maximo = plano.msgsPorAtendimento;
+  const salvo = Number(profile?.msgs_por_conversa) || 0;
+  const valor = salvo >= 5 ? Math.min(salvo, maximo) : 0;
+  const [salvando, setSalvando] = useState(false);
+  const opcoes = [10, 15, 20, 30].filter((x) => x < maximo);
+
+  const mudar = async (novo) => {
+    setSalvando(true);
+    const { error } = await supabase.from('profiles').update({ msgs_por_conversa: novo || null }).eq('id', user.id);
+    setSalvando(false);
+    if (error) return avisar('Não deu para salvar', { erro: true, texto: error.message });
+    await reloadProfile?.();
+    avisar(novo ? `Até ${novo} mensagens por conversa` : `Volta ao máximo do plano: ${maximo} por conversa`);
+  };
+
+  return (
+    <section className="card uso-extra">
+      <div className="uso-extra-topo">
+        <div>
+          <h2 className="card-title">Mensagens por conversa</h2>
+          <p className="muted uso-extra-frase">
+            Quantas mensagens um cliente pode trocar com o assistente numa conversa. Passou disso, a conversa vai para a equipe.
+            Serve para ninguém gastar as mensagens da empresa de propósito.
+          </p>
+        </div>
+        <select
+          className="input"
+          style={{ width: 'auto' }}
+          value={valor}
+          disabled={salvando}
+          onChange={(e) => mudar(Number(e.target.value))}
+          aria-label="Mensagens por conversa"
+        >
+          {opcoes.map((x) => <option key={x} value={x}>Até {x}</option>)}
+          <option value={0}>Até {maximo} (máximo do plano)</option>
+        </select>
+      </div>
+    </section>
+  );
+}
 
 /** As duas cotas que mais importam: número grande e barra. */
 function UsoGrande({ rotulo, usado, limite }) {
@@ -150,6 +200,8 @@ export default function Plano() {
       <MinhaAssinatura dados={pagamentos} onMudou={carregar} />
 
       {USO_EXTRA_DISPONIVEL && !teste && <UsoExtra plano={atual} />}
+
+      <TetoPorConversa plano={atual} />
 
       <div className="plano-cab" id="planos">
         <h2>Planos</h2>
