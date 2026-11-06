@@ -4,19 +4,19 @@
 export const PLANS = {
   trial: {
     id: 'trial', nome: 'Teste grátis', preco: 0, precoMensal: 0, assistentes: 1, builderIA: true, builderMsgs: 30, atendimentos: 25, mensagens: 300,
-    ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 1, tabelas: 3, funcionarios: 2,
+    ticketsAbertos: 10, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 1, tabelas: 3, msgsPorAtendimento: 30, funcionarios: 2,
   },
   essencial: {
     id: 'essencial', nome: 'Essencial', preco: 79, precoMensal: 97, assistentes: 1, builderIA: true, builderMsgs: 20, atendimentos: 200, mensagens: 1200,
-    ticketsAbertos: 20, chamados: true, chamadosAvancados: true, integracoes: false, canaisMeta: 1, tabelas: 3, funcionarios: 1,
+    ticketsAbertos: 20, chamados: true, chamadosAvancados: true, integracoes: false, canaisMeta: 1, tabelas: 3, msgsPorAtendimento: 30, funcionarios: 1,
   },
   profissional: {
     id: 'profissional', nome: 'Profissional', preco: 197, precoMensal: 247, assistentes: 3, builderIA: true, builderMsgs: 60, atendimentos: 500, mensagens: 3000,
-    ticketsAbertos: 100, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 2, tabelas: 10, funcionarios: 5, destaque: true,
+    ticketsAbertos: 100, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 2, tabelas: 10, msgsPorAtendimento: 40, funcionarios: 5, destaque: true,
   },
   business: {
     id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 120, atendimentos: 1400, mensagens: 8000,
-    ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, funcionarios: 20,
+    ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, msgsPorAtendimento: 40, funcionarios: 20,
   },
 };
 

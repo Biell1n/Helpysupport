@@ -10,7 +10,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { logUsage } from './ai.ts';
 import { alertar, type Assistant, responder } from './atendimento.ts';
 import { profileOf, usoDoMes } from './db.ts';
-import { planOf, trialExpirado } from './plans.ts';
+import { limitePorConversa, planOf, trialExpirado } from './plans.ts';
 import { type Canal, enviarPeloCanal, noPrivadoDoDiscord, NOMES } from './canais.ts';
 import { MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from './extra.ts';
 
@@ -142,7 +142,7 @@ export async function atenderNoCanal(
     .eq('conversation_id', c.id).eq('role', 'user');
   const doMes = (await usoDoMes(db, canal.owner_id)).mensagens;
   // além das mensagens do plano, o uso extra pode cobrir (se estiver ligado e couber no limite)
-  const passouConversa = (daConversa ?? 0) > plan.msgsPorAtendimento;
+  const passouConversa = (daConversa ?? 0) > limitePorConversa(plan, profile);
   const semMensagens = !passouConversa && doMes > plan.mensagens && !(await usarExtra(db, profile, 'mensagem'));
   if (passouConversa || semMensagens) {
     await db.from('conversations').update({
