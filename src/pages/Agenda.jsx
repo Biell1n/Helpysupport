@@ -15,6 +15,8 @@ const PADRAO = {
   fuso: 'America/Sao_Paulo',
   duracao_min: 30,
   antecedencia_horas: 2,
+  intervalo_min: 0,
+  vagas: 1,
   horarios: { 0: [], 1: [['09:00', '18:00']], 2: [['09:00', '18:00']], 3: [['09:00', '18:00']], 4: [['09:00', '18:00']], 5: [['09:00', '18:00']], 6: [['09:00', '13:00']] },
 };
 
@@ -38,7 +40,7 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 
 function ConfigAgenda({ cfg, onSalvar, onFechar }) {
   const [c, setC] = useState(() => JSON.parse(JSON.stringify(cfg)));
-  const setDia = (d, faixa) => setC((p) => ({ ...p, horarios: { ...p.horarios, [d]: faixa ? [faixa] : [] } }));
+  const setDia = (d, faixas) => setC((p) => ({ ...p, horarios: { ...p.horarios, [d]: faixas ?? [] } }));
 
   return (
     <Drawer
@@ -68,6 +70,19 @@ function ConfigAgenda({ cfg, onSalvar, onFechar }) {
           </select>
         </label>
         <label className="field">
+          <span className="label">Intervalo entre atendimentos</span>
+          <select className="select" value={c.intervalo_min ?? 0} onChange={(e) => setC({ ...c, intervalo_min: Number(e.target.value) })}>
+            {[0, 5, 10, 15, 20, 30].map((m) => <option key={m} value={m}>{m === 0 ? 'Sem intervalo' : `${m} min`}</option>)}
+          </select>
+        </label>
+        <label className="field">
+          <span className="label">Atendem ao mesmo tempo</span>
+          <select className="select" value={c.vagas ?? 1} onChange={(e) => setC({ ...c, vagas: Number(e.target.value) })}>
+            {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => <option key={n} value={n}>{n === 1 ? '1 pessoa' : `${n} pessoas`}</option>)}
+          </select>
+          <span className="hint">Profissionais, cadeiras ou salas. Com 2, o mesmo horário pode ser marcado duas vezes.</span>
+        </label>
+        <label className="field">
           <span className="label">Antecedência mínima</span>
           <select className="select" value={c.antecedencia_horas} onChange={(e) => setC({ ...c, antecedencia_horas: Number(e.target.value) })}>
             {[0, 1, 2, 4, 12, 24, 48].map((h) => <option key={h} value={h}>{h === 0 ? 'Nenhuma' : `${h} h`}</option>)}
@@ -77,18 +92,32 @@ function ConfigAgenda({ cfg, onSalvar, onFechar }) {
       <div>
         <span className="label">Dias e horários</span>
         {[1, 2, 3, 4, 5, 6, 0].map((d) => {
-          const faixa = c.horarios?.[d]?.[0];
+          const faixas = c.horarios?.[d] ?? [];
+          const [manha, tarde] = faixas;
+          const muda = (i, k, v) => setDia(d, faixas.map((f, n) => (n === i ? (k === 0 ? [v, f[1]] : [f[0], v]) : f)));
           return (
             <div key={d} className="horarios-dia">
               <label className="check">
-                <input type="checkbox" checked={!!faixa} onChange={(e) => setDia(d, e.target.checked ? ['09:00', '18:00'] : null)} />
+                <input type="checkbox" checked={!!manha} onChange={(e) => setDia(d, e.target.checked ? [['09:00', '18:00']] : [])} />
                 {DIAS[d]}
               </label>
-              {faixa ? (
-                <div className="row">
-                  <input className="input" type="time" value={faixa[0]} onChange={(e) => setDia(d, [e.target.value, faixa[1]])} aria-label={`${DIAS[d]} abre`} />
-                  <span className="faint">às</span>
-                  <input className="input" type="time" value={faixa[1]} onChange={(e) => setDia(d, [faixa[0], e.target.value])} aria-label={`${DIAS[d]} fecha`} />
+              {manha ? (
+                <div className="stack-sm" style={{ flex: 1 }}>
+                  <div className="row">
+                    <input className="input" type="time" value={manha[0]} onChange={(e) => muda(0, 0, e.target.value)} aria-label={`${DIAS[d]} abre`} />
+                    <span className="faint">às</span>
+                    <input className="input" type="time" value={manha[1]} onChange={(e) => muda(0, 1, e.target.value)} aria-label={`${DIAS[d]} ${tarde ? 'pausa começa' : 'fecha'}`} />
+                  </div>
+                  {tarde ? (
+                    <div className="row">
+                      <input className="input" type="time" value={tarde[0]} onChange={(e) => muda(1, 0, e.target.value)} aria-label={`${DIAS[d]} volta da pausa`} />
+                      <span className="faint">às</span>
+                      <input className="input" type="time" value={tarde[1]} onChange={(e) => muda(1, 1, e.target.value)} aria-label={`${DIAS[d]} fecha`} />
+                      <button type="button" className="link-btn" onClick={() => setDia(d, [[manha[0], tarde[1]]])}>tirar pausa</button>
+                    </div>
+                  ) : (
+                    <button type="button" className="link-btn" style={{ alignSelf: 'flex-start' }} onClick={() => setDia(d, [[manha[0], '12:00'], ['13:00', manha[1] > '13:00' ? manha[1] : '18:00']])}>+ pausa (almoço)</button>
+                  )}
                 </div>
               ) : (
                 <span className="faint" style={{ fontSize: 13.5 }}>Fechado</span>
@@ -210,6 +239,8 @@ export default function Agenda() {
       fuso: c.fuso || 'America/Sao_Paulo',
       duracao_min: c.duracao_min,
       antecedencia_horas: c.antecedencia_horas,
+      intervalo_min: c.intervalo_min ?? 0,
+      vagas: c.vagas ?? 1,
       horarios: c.horarios,
     });
     if (error) return avisar('Não deu para salvar', { erro: true, texto: error.message });

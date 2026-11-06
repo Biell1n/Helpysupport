@@ -636,6 +636,8 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
         },
         duracao_min: { type: 'integer' },
         antecedencia_horas: { type: 'integer' },
+        intervalo_min: { type: 'integer', description: 'Minutos livres depois de cada atendimento (limpeza, descanso). 0 se não tiver.' },
+        vagas: { type: 'integer', description: 'Quantos atendimentos ao mesmo tempo (profissionais, cadeiras, salas). 1 se só uma pessoa atende.' },
         servicos: {
           type: 'array',
           items: {
@@ -970,6 +972,8 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
       }
       if (Number(input.duracao_min) >= 5) novo.duracao_min = Math.min(480, Math.round(Number(input.duracao_min)));
       if (Number(input.antecedencia_horas) >= 0 && input.antecedencia_horas != null) novo.antecedencia_horas = Math.min(720, Math.round(Number(input.antecedencia_horas)));
+      if (input.intervalo_min != null && Number(input.intervalo_min) >= 0) novo.intervalo_min = Math.min(120, Math.round(Number(input.intervalo_min)));
+      if (Number(input.vagas) >= 1) novo.vagas = Math.min(20, Math.round(Number(input.vagas)));
       if (Array.isArray(input.servicos)) {
         const porNome = new Map<string, Record<string, unknown>>((atual?.servicos ?? []).map((x: Record<string, unknown>) => [slug(String(x.nome)), x]));
         for (const x of input.servicos as Array<Record<string, unknown>>) {
@@ -1063,9 +1067,11 @@ Se usar a agenda, a agenda só fica certa com estas respostas. Pergunte UMA de c
 1. Dias e horários em que atende, e se tem pausa (almoço). Pausa vira duas faixas no mesmo dia (09:00–12:00 e 13:00–18:00).
 2. Quanto tempo leva CADA serviço que dá para marcar. Serviços diferentes levam tempos diferentes (ex.: corte 1h, corte e barba 1h30): pergunte de cada um, nunca chute e nunca use um tempo só para todos.
 3. O valor de cada serviço (ou "sem valor", se o horário não é cobrado, como hora para provar roupa).
-4. Com quanta antecedência alguém pode marcar (ex.: até 2h antes).
-5. Se quer registrar cada agendamento nos Dados com o valor (campo agenda_registrar).
-6. Se qualquer pessoa pode marcar ou só quem entrou na conta (campo agenda_quem). Só pergunte se fizer sentido para o negócio; o padrão é qualquer pessoa.
+4. Se tem um intervalo entre um atendimento e outro (limpar a cadeira, descansar) e de quanto tempo (intervalo_min).
+5. Quantas pessoas atendem ao mesmo tempo (ex.: 2 barbeiros = 2 atendimentos no mesmo horário) (vagas).
+6. Com quanta antecedência alguém pode marcar (ex.: até 2h antes).
+7. Se quer registrar cada agendamento nos Dados com o valor (campo agenda_registrar).
+8. Se qualquer pessoa pode marcar ou só quem entrou na conta (campo agenda_quem). Só pergunte se fizer sentido para o negócio; o padrão é qualquer pessoa.
 O resultado de configurar_agenda diz o que ainda falta: pergunte isso antes de passar para outro assunto.
 
 TUDO QUE A PESSOA CLICA, VOCÊ TAMBÉM FAZ
