@@ -354,6 +354,11 @@ Deno.serve(async (req) => {
       if (clienteInfo) {
         await admin.from('conversations').update({ cliente_id: clienteInfo.id, cliente_email: clienteInfo.email })
           .eq('id', c.id).is('cliente_id', null);
+        // quem entrou na conta no meio da conversa passa a aparecer pelo nome no atendimento (não "Visitante")
+        const nome = clienteInfo.nome
+          || String((await admin.from('profiles').select('full_name').eq('id', clienteInfo.id).maybeSingle()).data?.full_name ?? '').trim() || null;
+        if (nome) await admin.from('conversations').update({ lead_nome: nome }).eq('id', c.id).is('lead_nome', null);
+        if (clienteInfo.email) await admin.from('conversations').update({ lead_contato: clienteInfo.email }).eq('id', c.id).is('lead_contato', null);
       }
 
       if (c.status === 'closed') {

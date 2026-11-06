@@ -4773,3 +4773,5 @@
 .modal-x:focus-visible { box-shadow: var(--foco); }
 /* campos lado a lado alinham pela caixa, mesmo quando um rótulo quebra em duas linhas */
 .conectar-form .grid-2 { align-items: end; }
+
+.remarcar { display: grid; gap: 6px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--linha); }
