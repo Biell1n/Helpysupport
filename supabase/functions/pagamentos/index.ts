@@ -25,7 +25,7 @@ import { admin, aparaEquipe, configLigada, precosDeTeste, requireUser } from '..
 import { type Ciclo, PAGOS, PLANS, type PlanId, type PlanoPago, precosVigentes, valorDaAssinatura } from '../_shared/plans.ts';
 import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, garantirWebhook, hojeBr, novoToken, pago, tokenAceito } from '../_shared/asaas.ts';
 import { AMBIENTE, contaHelpy, desteAmbiente, fecharUsoExtra, guardarFatura, MINIMO_FATURA } from '../_shared/cobranca.ts';
-import { baixarEstoqueDoPedido, contaDaLoja, pagamentoDaLoja, tirarTaxa } from '../_shared/pedidos.ts';
+import { baixarEstoqueDoPedido, contaDaLoja, devolverEstoqueDoPedido, pagamentoDaLoja, tirarTaxa } from '../_shared/pedidos.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const depois = (p: Promise<unknown>) => {
@@ -718,6 +718,8 @@ Deno.serve(async (req) => {
       if (!mudou?.length) throw new UserError('Alguém mudou este pedido agora mesmo. Atualize a página.', 409);
       // finalizado: as peças saem do estoque da tabela
       if (novo === 'finalizado' && ped.status === 'anotado') await baixarEstoqueDoPedido(admin, id);
+      // finalizado que voltou (reaberto ou cancelado): as peças voltam para o estoque
+      if (ped.status === 'finalizado' && novo !== 'finalizado') await devolverEstoqueDoPedido(admin, id);
       return json({ ok: true, status: novo });
     }
 

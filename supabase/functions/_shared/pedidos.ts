@@ -382,6 +382,9 @@ export async function baixarEstoqueDoPedido(db: SupabaseClient, pedidoId: string
     const escolha = String((a?.config as { fields?: Record<string, { value?: string }> } | null)?.fields?.venda_estoque?.value ?? '');
     if (/^n[aã]o/i.test(escolha)) return;
   }
+  // só baixa uma vez: finalizar, reabrir e finalizar de novo não tira a peça duas vezes
+  const { data: marcou } = await db.from('pedidos').update({ estoque_baixado: true }).eq('id', pedidoId).eq('estoque_baixado', false).select('id');
+  if (!marcou?.length) return;
   const faltou: string[] = [];
   for (const it of (ped.itens ?? []) as Item[]) {
     if (!it.linha_id || !it.estoque_chave) continue;
@@ -394,6 +397,17 @@ export async function baixarEstoqueDoPedido(db: SupabaseClient, pedidoId: string
       chave: `pedido:estoque:${ped.id}`, assunto: `Pedido nº ${ped.numero} finalizado sem estoque suficiente`.slice(0, 160),
       detalhe: `A tabela não tinha unidades suficientes: ${faltou.join('; ')}. Confira o estoque em Dados.`.slice(0, 1000),
     }).then(() => {}, () => {});
+  }
+}
+
+/** Pedido finalizado que voltou (reaberto ou cancelado): as peças voltam para o estoque da tabela. */
+export async function devolverEstoqueDoPedido(db: SupabaseClient, pedidoId: string) {
+  const { data: marcou } = await db.from('pedidos').update({ estoque_baixado: false }).eq('id', pedidoId).eq('estoque_baixado', true).select('itens');
+  const ped = marcou?.[0];
+  if (!ped) return;
+  for (const it of (ped.itens ?? []) as Item[]) {
+    if (!it.linha_id || !it.estoque_chave) continue;
+    await db.rpc('helpy_baixar_estoque', { p_linha: it.linha_id, p_chave: it.estoque_chave, p_qtd: -it.quantidade });
   }
 }
 
