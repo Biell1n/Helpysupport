@@ -32,6 +32,8 @@ export interface Assistant {
   schema: Schema;
   config: Config;
   meta?: { briefing?: string; materiais?: Array<{ nome: string; texto: string }> } | null;
+  public_token?: string | null;
+  is_public?: boolean | null;
 }
 
 /** Como o dono configurou os chamados deste assistente. */
@@ -960,6 +962,29 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   return { erro: 'ferramenta desconhecida' };
 }
 
+/** Endereço do WhatsApp para o cliente abrir a conversa (o nome do canal guarda o número: "Loja · +55 11 9..."). */
+export function linkDoWhatsApp(nome: string | null | undefined): string | null {
+  const numero = String(nome ?? '').split('·').pop()?.replace(/\D/g, '') ?? '';
+  return numero.length >= 10 ? `https://wa.me/${numero}` : null;
+}
+
+/** Os lugares onde o cliente fala com a empresa, para o assistente indicar quando pedirem. */
+async function canaisDaEmpresa(db: SupabaseClient, a: Assistant): Promise<string[]> {
+  const site = Deno.env.get('SITE_URL') ?? 'https://helpysupport.com';
+  const { data } = await db.from('canais').select('tipo, nome, status').eq('owner_id', a.owner_id).eq('status', 'ativo');
+  const linhas: string[] = [];
+  if (a.public_token && a.is_public !== false) linhas.push(`- Chat no site: ${site}/c/${a.public_token}`);
+  for (const c of data ?? []) {
+    if (c.tipo === 'whatsapp') {
+      const l = linkDoWhatsApp(c.nome);
+      if (l) linhas.push(`- WhatsApp: ${l}`);
+    } else if (c.tipo === 'instagram' && /^@/.test(c.nome ?? '')) {
+      linhas.push(`- Instagram (Direct): https://ig.me/m/${String(c.nome).slice(1)}`);
+    }
+  }
+  return linhas;
+}
+
 // ------------------------------------------------------------
 // Uma rodada de resposta
 // ------------------------------------------------------------
@@ -972,10 +997,11 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   // venda no chat e cobrança do horário: o dono liga no assistente, e só valem com o recebimento conectado
   const querVenda = vende && /^sim/i.test(valueOf(a.config, 'venda_no_chat'));
   const querCobrar = usarAgenda && /^sim/i.test(valueOf(a.config, 'agenda_pagamento'));
-  const [tabelas, agenda, recebe] = await Promise.all([
+  const [tabelas, agenda, recebe, ondeFalar] = await Promise.all([
     carregarTabelas(r.db, a.id),
     usarAgenda ? carregarAgenda(r.db, a.owner_id) : Promise.resolve(null),
     querVenda || querCobrar ? vendeOnline(r.db, a.owner_id) : Promise.resolve(false),
+    canaisDaEmpresa(r.db, a).catch(() => [] as string[]),
   ]);
   const loja = querVenda && recebe;
   rr.vendas = { loja, agendaPaga: querCobrar && recebe && !!agenda };
@@ -1015,6 +1041,12 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
             ? `\n\nRETORNO QUE ACABOU DE CHEGAR (o cliente não viu o texto da equipe): sobre "${r.retorno.pergunta}": ${r.retorno.resposta}\nSua próxima mensagem dá esse retorno ao cliente, aplicado ao caso dele, começando por "Recebi o retorno aqui:" e confirmando o que ele queria saber (ex.: "temos o tom claro sim"). Depois siga a conversa com uma pergunta útil. Não diga que não tem a confirmação: você tem.`
             : ''
         }`,
+      }]
+      : []),
+    ...(ondeFalar.length
+      ? [{
+        type: 'text' as const,
+        text: `ONDE O CLIENTE TAMBÉM FALA COM A EMPRESA (os canais ligados agora):\n${ondeFalar.join('\n')}\nPasse um destes endereços, exatamente como está, só quando a pessoa pedir outro jeito de falar com a empresa (ex.: "tem WhatsApp?"). Não ofereça o canal em que vocês já estão conversando.`,
       }]
       : []),
     {

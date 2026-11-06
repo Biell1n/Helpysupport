@@ -300,6 +300,27 @@ function TicketsDiscord({ canal }) {
   );
 }
 
+/** O endereço que a empresa manda para os clientes: abre a conversa direto no app. */
+function linkParaClientes(canal) {
+  if (canal.tipo === 'whatsapp') {
+    const numero = String(canal.nome ?? '').split('·').pop().replace(/\D/g, '');
+    return numero.length >= 10 ? `https://wa.me/${numero}` : null;
+  }
+  if (canal.tipo === 'instagram' && /^@/.test(canal.nome ?? '')) return `https://ig.me/m/${canal.nome.slice(1)}`;
+  return null;
+}
+
+function LinkDoCliente({ canal }) {
+  const link = linkParaClientes(canal);
+  if (!link) return null;
+  return (
+    <div className="stack-sm" style={{ marginTop: 12 }}>
+      <Copiavel rotulo="Link para os clientes" valor={link} />
+      <span className="hint">Ponha na bio, no site, no cartão ou mande para quem pedir: abre a conversa direto {canal.tipo === 'whatsapp' ? 'no WhatsApp' : 'no Direct'}. O assistente também passa esse link quando alguém pergunta.</span>
+    </div>
+  );
+}
+
 function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
   const [aberto, setAberto] = useState(!canal.ultimo_evento_em);
   return (
@@ -314,6 +335,7 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
         <span className={`badge ${CLASSE_STATUS[canal.status] ?? ''}`}>{ROTULO_STATUS[canal.status] ?? canal.status}</span>
       </div>
       {canal.erro && <div className="alert alert-erro" style={{ marginTop: 10 }}><span>{canal.erro}</span></div>}
+      <LinkDoCliente canal={canal} />
       <Atividade dias={atividade} />
       <label className="field" style={{ marginTop: 12 }}>
         <span className="label">Assistente</span>
