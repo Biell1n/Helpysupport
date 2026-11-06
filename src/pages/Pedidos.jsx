@@ -210,6 +210,9 @@ export default function Pedidos() {
                           <button type="button" className="btn btn-quiet btn-sm" onClick={() => mudarStatus(p, 'cancelado')}>Cancelar</button>
                         </>
                       )}
+                      {p.status === 'cancelado' && !p.link_url && p.tipo !== 'agendamento' && (
+                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => mudarStatus(p, 'anotado')}>Reabrir</button>
+                      )}
                       {p.status === 'finalizado' && (
                         <button type="button" className="btn btn-quiet btn-sm" onClick={() => mudarStatus(p, 'anotado')}>Reabrir</button>
                       )}

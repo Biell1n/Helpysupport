@@ -275,7 +275,8 @@ export async function anotarPedido(
   if (!pedidos.length) return { erro: 'Diga quais produtos e quantas unidades.' };
   const { itens: achados, problemas } = await montarItens(db, pedidos, tabelas, catalogo);
   if (problemas.length) return { erro: 'O pedido NÃO foi anotado.', problemas };
-  const itens = achados.map(({ estoque_chave: _, ...i }) => i);
+  // a chave do estoque fica no item: quando a equipe finaliza, a peça sai da tabela
+  const itens = achados;
   const total = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
   if (!(total > 0)) return { erro: 'O pedido NÃO foi anotado: os itens estão sem preço na tabela. Ofereça a equipe para fechar.' };
   const entrega = args.entrega === 'retirada' ? 'retirada' : args.entrega === 'entrega' ? 'entrega' : null;
@@ -293,6 +294,35 @@ export async function anotarPedido(
   }
   if (entrega === 'entrega' && endereco.length < 8) {
     return { erro: 'O pedido NÃO foi anotado: falta o endereço de entrega.', mensagem: 'Peça o endereço completo (rua, número, bairro e cidade).' };
+  }
+  const resumoItens = itens.map((i) => `${i.quantidade}x ${i.produto} — ${reais(i.subtotal)}`);
+  // teste do dono: mostra como fica, sem criar pedido de verdade (não mistura com os reais nem gasta a numeração)
+  if (ctx.teste) {
+    return {
+      ok: true, teste: true, total: reais(total), itens: resumoItens,
+      mensagem: `Isto é um teste do dono: o pedido NÃO foi salvo. Responda como se tivesse anotado (${reais(total)}) e diga que, num atendimento de verdade, ele aparece em Pedidos para a equipe finalizar.`,
+    };
+  }
+  // o mesmo pedido de novo na mesma conversa (a pessoa confirmou duas vezes): não duplica
+  const assinatura = (lista: { produto: string; quantidade: number }[]) => lista.map((i) => `${i.quantidade}x${i.produto}`.toLowerCase()).sort().join('|');
+  if (ctx.conversationId) {
+    const { data: abertos } = await db.from('pedidos').select('numero, itens, total').eq('conversation_id', ctx.conversationId).eq('status', 'anotado')
+      .gte('criado_em', new Date(Date.now() - 6 * 3600 * 1000).toISOString());
+    const igual = (abertos ?? []).find((p) => assinatura((p.itens ?? []) as { produto: string; quantidade: number }[]) === assinatura(itens));
+    if (igual) {
+      return {
+        ok: true, ja_anotado: true, numero: igual.numero, total: reais(Number(igual.total)), itens: resumoItens,
+        mensagem: `Este pedido JÁ ESTÁ anotado (nº ${igual.numero}). Não anote de novo: confirme para a pessoa que o pedido nº ${igual.numero} está anotado e que a equipe vai falar com ela.`,
+      };
+    }
+    // quem pediu passa a ter nome e contato no atendimento
+    const { data: conv } = await db.from('conversations').select('lead_nome, lead_contato').eq('id', ctx.conversationId).maybeSingle();
+    if (conv && (!conv.lead_nome || (!conv.lead_contato && contato))) {
+      await db.from('conversations').update({
+        ...(conv.lead_nome ? {} : { lead_nome: nome }),
+        ...(!conv.lead_contato && contato ? { lead_contato: contato } : {}),
+      }).eq('id', ctx.conversationId);
+    }
   }
   const { data: ped, error } = await db.from('pedidos').insert({
     owner_id: ctx.ownerId, assistant_id: ctx.assistantId, conversation_id: ctx.conversationId,
@@ -312,9 +342,33 @@ export async function anotarPedido(
     ok: true,
     numero: ped.numero,
     total: reais(total),
-    itens: itens.map((i) => `${i.quantidade}x ${i.produto} — ${reais(i.subtotal)}`),
+    itens: resumoItens,
     mensagem: `Pedido nº ${ped.numero} anotado (${reais(total)}). Confirme os itens e o total para a pessoa e diga que a equipe vai entrar em contato por aqui${contato ? ' ou pelo contato que ela deixou' : ''} para combinar o pagamento${entrega ? (entrega === 'retirada' ? ' e a retirada' : ' e a entrega') : ''}. Não mande link de pagamento e não diga que está pago.`,
   };
+}
+
+/** A equipe finalizou um pedido anotado: as peças saem do estoque da tabela (se o dono baixa estoque). */
+export async function baixarEstoqueDoPedido(db: SupabaseClient, pedidoId: string) {
+  const { data: ped } = await db.from('pedidos').select('id, numero, owner_id, assistant_id, conversation_id, itens').eq('id', pedidoId).maybeSingle();
+  if (!ped) return;
+  if (ped.assistant_id) {
+    const { data: a } = await db.from('assistants').select('config').eq('id', ped.assistant_id).maybeSingle();
+    const escolha = String((a?.config as { fields?: Record<string, { value?: string }> } | null)?.fields?.venda_estoque?.value ?? '');
+    if (/^n[aã]o/i.test(escolha)) return;
+  }
+  const faltou: string[] = [];
+  for (const it of (ped.itens ?? []) as Item[]) {
+    if (!it.linha_id || !it.estoque_chave) continue;
+    const { data: antes } = await db.rpc('helpy_baixar_estoque', { p_linha: it.linha_id, p_chave: it.estoque_chave, p_qtd: it.quantidade });
+    if (antes != null && Number(antes) < it.quantidade) faltou.push(`${it.produto} (havia ${Math.max(0, Number(antes))})`);
+  }
+  if (faltou.length) {
+    await db.from('alertas').insert({
+      owner_id: ped.owner_id, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',
+      chave: `pedido:estoque:${ped.id}`, assunto: `Pedido nº ${ped.numero} finalizado sem estoque suficiente`.slice(0, 160),
+      detalhe: `A tabela não tinha unidades suficientes: ${faltou.join('; ')}. Confira o estoque em Dados.`.slice(0, 1000),
+    }).then(() => {}, () => {});
+  }
 }
 
 export async function fecharPedido(

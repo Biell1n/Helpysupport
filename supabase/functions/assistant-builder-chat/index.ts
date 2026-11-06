@@ -25,7 +25,8 @@
 
 import type Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
-import { admin, profileOf, requireUser } from '../_shared/db.ts';
+import { admin, configLigada, profileOf, requireUser } from '../_shared/db.ts';
+import { vendeOnline } from '../_shared/pedidos.ts';
 import { addUsage, anthropic, emptyUsage, logUsage, MODELS, textOf } from '../_shared/ai.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { colunasDe, lerAbas, registrosDe } from '../_shared/planilha.ts';
@@ -949,6 +950,16 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
       if (!cfg.declined.collections.includes(c.key)) cfg.declined.collections.push(c.key);
       s.meta.tabela_oferecida = true;
       touched.add(c.key);
+      // a tabela que a pessoa já tinha em Dados passa a ser consultada por este assistente de verdade
+      const nomeTab = String(input.tabela ?? '').trim();
+      if (nomeTab) {
+        const { data: achadas } = await admin.from('tabelas').select('id, nome').eq('owner_id', ctx.userId).ilike('nome', nomeTab.replace(/[%_]/g, '')).limit(1);
+        const tab = achadas?.[0];
+        if (tab) {
+          s.meta.tabelas_ligadas = [...new Set([...(s.meta.tabelas_ligadas ?? []), tab.id])];
+          if (s.assistant_id) await admin.from('assistente_tabelas').upsert({ assistant_id: s.assistant_id, tabela_id: tab.id });
+        }
+      }
       return { ok: true, mensagem: `A lista "${c.label}" fica na tabela${input.tabela ? ` "${String(input.tabela).slice(0, 80)}"` : ''}, em Dados.` };
     }
 
@@ -1721,6 +1732,16 @@ Deno.serve(async (req) => {
       }
       s.meta.conversa = conversaDe(s.messages).slice(-80);
 
+      // venda com link sem a Carteira disponível: o assistente anota o pedido para a equipe, em vez de travar a venda
+      let vendaAjustada = false;
+      if (valueOf(s.config, 'venda_no_chat') === VENDA_SIM) {
+        const [recebe, carteira] = await Promise.all([vendeOnline(admin, user.id).catch(() => false), configLigada('carteira_disponivel').catch(() => false)]);
+        if (!recebe && !carteira) {
+          s.config.fields.venda_no_chat = { value: VENDA_ANOTA, status: 'confirmado' };
+          vendaAjustada = true;
+        }
+      }
+
       const name = valueOf(s.config, 'nome_assistente') || valueOf(s.config, 'nome_negocio') || 'Assistente';
       const row = {
         name: name.slice(0, 80),
@@ -1752,11 +1773,19 @@ Deno.serve(async (req) => {
 
       // tabelas criadas durante a montagem passam a ser consultadas por ele
       // (só as que são desta conta: a lista mora na sessão, que o navegador consegue editar)
-      const pedidas = (s.meta.tabelas_criadas ?? []).filter((id: unknown) => typeof id === 'string');
+      const pedidas = [...(s.meta.tabelas_criadas ?? []), ...(s.meta.tabelas_ligadas ?? [])].filter((id: unknown) => typeof id === 'string');
       const { data: minhas } = pedidas.length
         ? await admin.from('tabelas').select('id').eq('owner_id', user.id).in('id', pedidas)
         : { data: [] };
       const criadas = (minhas ?? []).map((t) => t.id);
+      // tabelas da conta que nenhum assistente consulta (importadas em Dados antes de criar o assistente) também passam a valer
+      const { data: todas } = await admin.from('tabelas').select('id').eq('owner_id', user.id);
+      const ids = (todas ?? []).map((t) => t.id);
+      if (ids.length) {
+        const { data: ligadas } = await admin.from('assistente_tabelas').select('tabela_id').in('tabela_id', ids);
+        const usadas = new Set((ligadas ?? []).map((l) => l.tabela_id));
+        for (const id of ids) if (!usadas.has(id) && !criadas.includes(id)) criadas.push(id);
+      }
       if (criadas.length) {
         await admin.from('assistente_tabelas').upsert(criadas.map((tabela_id) => ({ assistant_id: assistant.id, tabela_id })));
       }
@@ -1764,7 +1793,11 @@ Deno.serve(async (req) => {
       await admin.from('builder_sessions').update({ status: 'done', assistant_id: assistant.id }).eq('id', s.id);
       // loja que ainda não vende pelo chat: a tela sugere a Carteira (sem gastar mensagem do montador)
       const vendeProduto = s.meta.business_model === 'produto' || s.meta.business_model === 'assinatura';
-      return json({ assistant, sugerir_venda: vendeProduto && !/^sim/i.test(valueOf(s.config, 'venda_no_chat')) && valueOf(s.config, 'venda_no_chat') !== VENDA_ANOTA });
+      return json({
+        assistant,
+        sugerir_venda: vendeProduto && !/^sim/i.test(valueOf(s.config, 'venda_no_chat')) && valueOf(s.config, 'venda_no_chat') !== VENDA_ANOTA,
+        ...(vendaAjustada ? { aviso: 'O pagamento por link (Carteira) ainda não está disponível. Por enquanto o assistente anota o pedido e ele aparece em Pedidos para a sua equipe combinar o pagamento. Quando a Carteira abrir, é só ligar o link.' } : {}),
+      });
     }
 
     if (action === 'reset') {

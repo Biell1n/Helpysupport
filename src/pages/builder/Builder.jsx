@@ -326,7 +326,7 @@ function Tela() {
     setPublicando(true);
     try {
       const a = await b.publicar();
-      avisar(b.editando ? 'Alterações publicadas' : 'Assistente publicado', { texto: 'Teste como um cliente veria.' });
+      avisar(b.editando ? 'Alterações publicadas' : 'Assistente publicado', { texto: a.aviso || 'Teste como um cliente veria.', ...(a.aviso ? { acao: { rotulo: 'Entendi', onClick: () => {} } } : {}) });
       navigate(`/painel/assistentes/${a.id}/testar`, { state: { sugerirVenda: a.sugerirVenda } });
     } catch (e) {
       avisar('Ainda não dá para publicar', { erro: true, texto: e.message });

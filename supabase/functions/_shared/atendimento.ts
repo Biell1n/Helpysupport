@@ -1036,6 +1036,11 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const carrinho = loja
     ? (((await r.db.from('conversations').select('carrinho').eq('id', r.conversationId).maybeSingle()).data?.carrinho ?? []) as { produto: string; quantidade: number; subtotal: number }[])
     : [];
+  // pedidos que esta conversa já fez: o resultado da ferramenta não fica no histórico, então vai aqui
+  const pedidosDaConversa = loja && r.conversationId
+    ? (((await r.db.from('pedidos').select('numero, status, total, itens').eq('conversation_id', r.conversationId)
+      .in('status', ['anotado', 'aguardando', 'pago', 'finalizado']).order('criado_em').limit(10)).data ?? []) as { numero: number; status: string; total: number; itens: { produto: string; quantidade: number }[] }[])
+    : [];
   // respostas que a equipe deu em Avisos: confirmadas, valem mais que tabela e ficha
   const daEquipe = ((a.config.collections?.faq ?? []) as Array<Record<string, string>>)
     .filter((f) => f?.equipe && f?.pergunta && f?.resposta)
@@ -1053,6 +1058,12 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
       ? [{
         type: 'text' as const,
         text: `CARRINHO ATUAL (${r.canal ? 'a pessoa NÃO vê o carrinho neste app: quando ele mudar ou antes de fechar, escreva a lista com o total' : 'o cliente vê na tela e pode mudar a quantidade por lá'}): ${carrinho.length ? carrinho.map((i) => `${i.quantidade}x ${i.produto} (${reaisBR(i.subtotal)})`).join('; ') : 'vazio'}.`,
+      }]
+      : []),
+    ...(pedidosDaConversa.length
+      ? [{
+        type: 'text' as const,
+        text: `PEDIDOS JÁ FEITOS NESTA CONVERSA (já estão registrados; não faça de novo): ${pedidosDaConversa.map((p) => `nº ${p.numero} (${{ anotado: 'anotado, a equipe vai finalizar', aguardando: 'esperando pagamento', pago: 'pago', finalizado: 'finalizado pela equipe' }[p.status] ?? p.status}): ${(p.itens ?? []).map((i) => `${i.quantidade}x ${i.produto}`).join(', ')} — ${reaisBR(Number(p.total))}`).join('; ')}.`,
       }]
       : []),
     ...(daEquipe.length || r.retorno
