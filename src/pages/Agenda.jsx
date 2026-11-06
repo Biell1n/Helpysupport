@@ -20,6 +20,31 @@ const PADRAO = {
   horarios: { 0: [], 1: [['09:00', '18:00']], 2: [['09:00', '18:00']], 3: [['09:00', '18:00']], 4: [['09:00', '18:00']], 5: [['09:00', '18:00']], 6: [['09:00', '13:00']] },
 };
 
+/** Divide os horários que se encostam em colunas, para nenhum ficar escondido atrás do outro. */
+function lado(evs) {
+  const ord = [...evs].sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+  const out = [];
+  let grupo = [];
+  let fimGrupo = 0;
+  const fechar = () => {
+    const n = Math.max(1, ...grupo.map((g) => g.faixa + 1));
+    for (const g of grupo) out.push({ ...g, faixas: n });
+    grupo = [];
+  };
+  for (const e of ord) {
+    const ini = new Date(e.inicio).getTime();
+    const fim = new Date(e.fim).getTime();
+    if (grupo.length && ini >= fimGrupo) fechar();
+    const ocupadas = grupo.filter((g) => new Date(g.e.fim).getTime() > ini).map((g) => g.faixa);
+    let faixa = 0;
+    while (ocupadas.includes(faixa)) faixa += 1;
+    grupo.push({ e, faixa });
+    fimGrupo = Math.max(fimGrupo, fim);
+  }
+  if (grupo.length) fechar();
+  return out;
+}
+
 const inicioDaSemana = (d) => {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -378,9 +403,8 @@ export default function Agenda() {
                 onClick={() => setNovo({ dia: iso(d), hora: `${String(h).padStart(2, '0')}:00` })}
               />
             ))}
-            {eventos
-              .filter((e) => mesmoDia(new Date(e.inicio), d))
-              .map((e) => {
+            {lado(eventos.filter((e) => mesmoDia(new Date(e.inicio), d)))
+              .map(({ e, faixa, faixas }) => {
                 const ini = new Date(e.inicio);
                 const fim = new Date(e.fim);
                 const top = ((ini.getHours() + ini.getMinutes() / 60 - hIni) * HORA_PX);
@@ -393,7 +417,12 @@ export default function Agenda() {
                     data-origem={e.origem}
                     data-status={e.status}
                     data-curto={altura < 40}
-                    style={{ top, height: altura }}
+                    style={{
+                      top,
+                      height: altura,
+                      // horários ao mesmo tempo (mais de um profissional) ficam lado a lado
+                      ...(faixas > 1 ? { left: `calc(4px + ${faixa} * (100% - 8px) / ${faixas})`, right: 'auto', width: `calc((100% - 8px) / ${faixas} - 2px)` } : {}),
+                    }}
                     onClick={() => setAberto(e)}
                   >
                     <b>{e.status === 'pendente' ? '⏳ ' : e.status === 'aguardando_pagamento' ? '💳 ' : ''}{e.cliente_nome}</b>
