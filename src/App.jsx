@@ -44,6 +44,7 @@ function Inicio() {
   return <Painel />;
 }
 const ChatPublico = lazy(() => import('@/pages/ChatPublico'));
+const PoliticaEmpresa = lazy(() => import('@/pages/PoliticaEmpresa'));
 const Legal = lazy(() => import('@/pages/Legal'));
 const NaoEncontrada = lazy(() => import('@/pages/NaoEncontrada'));
 
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/termos" element={<Legal tipo="termos" />} />
             <Route path="/privacidade" element={<Legal tipo="privacidade" />} />
             <Route path="/c/:token" element={<ChatPublico />} />
+            <Route path="/c/:token/privacidade" element={<PoliticaEmpresa />} />
             <Route path="/ajuda/*" element={<AjudaPublica />} />
 
             <Route

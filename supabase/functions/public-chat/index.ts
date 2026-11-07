@@ -157,7 +157,8 @@ Deno.serve(async (req) => {
       const token = String(body.token ?? '').trim();
       if (token.length < 10) throw new UserError('Link inválido.', 400);
       const { data } = await admin.from('assistants').select('*').eq('public_token', token).maybeSingle();
-      if (data && !data.is_public) throw new UserError('Este atendimento está desligado no momento.', 403);
+      // a política de privacidade continua no ar mesmo com o link desligado (a Meta confere o endereço)
+      if (data && !data.is_public && action !== 'politica') throw new UserError('Este atendimento está desligado no momento.', 403);
       assistant = data;
     }
     if (!assistant) throw new UserError('Este link não existe ou foi trocado.', 404);
@@ -172,6 +173,27 @@ Deno.serve(async (req) => {
         business_model: assistant.business_model,
         sugestoes: sugestoesIniciais(cfg, assistant.business_model ?? assistant.schema?.business_model ?? null),
         desafio: { agora: Date.now(), bits: BITS_DESAFIO },
+      });
+    }
+
+    // política de privacidade da empresa (página pública /c/:token/privacidade)
+    if (action === 'politica') {
+      const [{ data: dono }, { data: canais }] = await Promise.all([
+        admin.from('profiles').select('company_name, full_name').eq('id', assistant.owner_id).maybeSingle(),
+        admin.from('canais').select('tipo').eq('owner_id', assistant.owner_id),
+      ]);
+      const contatos = (cfg.collections.contatos ?? [])
+        .map((c) => `${String(c.tipo ?? 'Contato').trim()}: ${String(c.valor ?? '').trim()}`)
+        .filter((s) => s.length > 8)
+        .slice(0, 4);
+      const venda = valueOf(cfg, 'venda_no_chat');
+      return json({
+        empresa: valueOf(cfg, 'nome_negocio') || dono?.company_name || dono?.full_name || assistant.name,
+        assistente: valueOf(cfg, 'nome_assistente') || assistant.name,
+        contatos,
+        canais: [...new Set((canais ?? []).map((c) => c.tipo))],
+        vende: !!venda && !/^n[aã]o/i.test(venda),
+        agenda: /^sim/i.test(valueOf(cfg, 'usar_agenda')),
       });
     }
 
