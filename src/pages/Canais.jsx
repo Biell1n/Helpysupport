@@ -8,7 +8,7 @@ import { Confirmar, Modal } from '@/components/Modal';
 import { planOf } from '@/lib/plans';
 import { quando } from '@/lib/format';
 import { IconeDoCanal as Icone } from '@/components/IconesCanais';
-import TutorialCanal from '@/components/TutorialCanal';
+import TutorialCanal, { VideoTutorial } from '@/components/TutorialCanal';
 import { origemDoSite } from '@/lib/site';
 
 // os avisos da Meta e do Discord chegam pelo mesmo endereço do chat público
@@ -99,6 +99,7 @@ function ConectarDiscord({ assistentes, onFechar }) {
           <p className="faint" style={{ margin: '2px 0 0', fontSize: 14 }}>O bot do Helpy entra no seu servidor e atende com o nome do assistente.</p>
         </div>
       </div>
+      <div style={{ marginBottom: 14 }}><VideoTutorial tipo="discord" /></div>
       <ol className="passos">
         <li>Escolha o assistente que vai atender no servidor.</li>
         <li>Clique em <b>Adicionar ao meu servidor</b>: o Discord abre, você escolhe o servidor e autoriza (precisa ser administrador dele).</li>

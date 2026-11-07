@@ -17,6 +17,7 @@ export const GUIAS = {
   whatsapp: {
     tempo: 'uns 15 minutos',
     video: '/videos/conectar-whatsapp.mp4',
+    duracaoVideo: '1 min e 25 s',
     antes: [
       { icone: 'conta', titulo: 'Uma conta no Facebook', texto: 'Com acesso ao portfólio da empresa (business.facebook.com).' },
       {
@@ -93,6 +94,8 @@ export const GUIAS = {
 
   instagram: {
     tempo: 'uns 10 minutos',
+    video: '/videos/conectar-instagram.mp4',
+    duracaoVideo: '1 min e 15 s',
     antes: [
       'A conta do Instagram precisa ser profissional (Comercial ou Criador de conteúdo). Dá para mudar em Configurações → Tipo de conta e ferramentas.',
       'No app do Instagram: Configurações → Mensagens e respostas ao story → Ferramentas conectadas → ative "Permitir acesso às mensagens".',
@@ -141,6 +144,8 @@ export const GUIAS = {
 
   discord: {
     tempo: 'uns 2 minutos',
+    video: '/videos/conectar-discord.mp4',
+    duracaoVideo: '50 s',
     antes: ['Ser administrador (ou ter "Gerenciar servidor") no servidor do Discord onde o assistente vai atender.'],
     passos: [
       { titulo: 'Escolha o assistente', itens: [<>Ele vai atender no servidor com o próprio nome.</>] },
@@ -184,6 +189,21 @@ function Passo({ n, passo, aberto, onAlternar }) {
 }
 
 /** O guia completo de um canal: o que ter antes, os passos e os erros mais comuns. */
+/** O vídeo do passo a passo: um botão que vira o player (com som) ao ser tocado. */
+export function VideoTutorial({ tipo }) {
+  const g = GUIAS[tipo];
+  const [video, setVideo] = useState(false);
+  if (!g?.video) return null;
+  return video ? (
+    <video className="tutorial-video" src={g.video} poster={g.video.replace('.mp4', '.jpg')} controls autoPlay playsInline />
+  ) : (
+    <button type="button" className="tutorial-video-btn" onClick={() => setVideo(true)}>
+      <span className="tutorial-play" aria-hidden="true"><Play size={14} fill="currentColor" /></span>
+      Ver o passo a passo em vídeo <span className="faint">· {g.duracaoVideo}</span>
+    </button>
+  );
+}
+
 export default function TutorialCanal({ tipo, soDepois = false }) {
   const g = GUIAS[tipo];
   const passos = g.passos.map((p, i) => ({ ...p, n: i + 1 })).filter((p) => !soDepois || p.depois);
@@ -195,7 +215,6 @@ export default function TutorialCanal({ tipo, soDepois = false }) {
     return novo;
   });
 
-  const [video, setVideo] = useState(false);
   const itensAntes = g.antes.map((a) => (typeof a === 'string' ? { texto: a } : a));
 
   return (
@@ -214,16 +233,7 @@ export default function TutorialCanal({ tipo, soDepois = false }) {
               </li>
             ))}
           </ul>
-          {g.video && (
-            video ? (
-              <video className="tutorial-video" src={g.video} poster={g.video.replace('.mp4', '.jpg')} controls autoPlay playsInline />
-            ) : (
-              <button type="button" className="tutorial-video-btn" onClick={() => setVideo(true)}>
-                <span className="tutorial-play" aria-hidden="true"><Play size={14} fill="currentColor" /></span>
-                Ver o passo a passo em vídeo <span className="faint">· 1 min e meio</span>
-              </button>
-            )
-          )}
+          <VideoTutorial tipo={tipo} />
         </div>
       )}
       <ol className="tutorial-passos">
