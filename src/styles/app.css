@@ -2986,6 +2986,56 @@
   font-weight: 600;
   cursor: pointer;
 }
+/* vídeo do passo a passo: grande, por cima da janela de conectar */
+.video-grande {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 16, 28, 0.82);
+}
+
+.video-grande-caixa {
+  position: relative;
+  width: min(1200px, 100%, calc((100vh - 48px) * 16 / 9));
+}
+
+.video-grande-caixa video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  background: #000;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.6);
+}
+
+.video-grande-x {
+  position: absolute;
+  top: -44px;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+}
+
+.video-grande-x:hover { background: rgba(255, 255, 255, 0.24); }
+
+/* celular: o vídeo ocupa a tela; deitar o aparelho deixa a legenda maior */
+@media (max-width: 700px) {
+  .video-grande { padding: 56px 0 0; align-items: start; }
+  .video-grande-caixa { width: 100%; }
+  .video-grande-caixa video { border-radius: 0; }
+  .video-grande-x { top: -46px; right: 10px; }
+}
+
 .tutorial-video-btn .faint { color: inherit; opacity: 0.7; font-weight: 500; }
 .tutorial-video-btn:focus-visible { box-shadow: var(--foco); }
 .tutorial-play {

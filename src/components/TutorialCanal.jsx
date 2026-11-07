@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { ChevronDown, Clock, Play, Smartphone, UserRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, Clock, Play, Smartphone, UserRound, X } from 'lucide-react';
 
 const ICONES = { conta: <UserRound size={18} />, chip: <Smartphone size={18} />, tempo: <Clock size={18} /> };
 
@@ -16,8 +17,10 @@ const A = ({ href, children }) => <a href={href} target="_blank" rel="noreferrer
 export const GUIAS = {
   whatsapp: {
     tempo: 'uns 15 minutos',
-    video: '/videos/conectar-whatsapp.mp4',
-    duracaoVideo: '1 min e 25 s',
+    video: '/videos/conectar-whatsapp-1.mp4',
+    duracaoVideo: 'parte 1 de 2 · 2 min',
+    videoDepois: '/videos/conectar-whatsapp-2.mp4',
+    duracaoDepois: 'parte 2 de 2 · 1 min',
     antes: [
       { icone: 'conta', titulo: 'Uma conta no Facebook', texto: 'Com acesso ao portfólio da empresa (business.facebook.com).' },
       {
@@ -94,8 +97,10 @@ export const GUIAS = {
 
   instagram: {
     tempo: 'uns 10 minutos',
-    video: '/videos/conectar-instagram.mp4',
-    duracaoVideo: '1 min e 15 s',
+    video: '/videos/conectar-instagram-1.mp4',
+    duracaoVideo: 'parte 1 de 2 · 1 min e 25 s',
+    videoDepois: '/videos/conectar-instagram-2.mp4',
+    duracaoDepois: 'parte 2 de 2 · 1 min',
     antes: [
       'A conta do Instagram precisa ser profissional (Comercial ou Criador de conteúdo). Dá para mudar em Configurações → Tipo de conta e ferramentas.',
       'No app do Instagram: Configurações → Mensagens e respostas ao story → Ferramentas conectadas → ative "Permitir acesso às mensagens".',
@@ -118,8 +123,7 @@ export const GUIAS = {
       {
         titulo: 'Copie a chave secreta',
         itens: [
-          <>Na mesma página (Configuração da API com login do Instagram), copie a <b>Chave secreta do app do Instagram</b> e cole em "Usa um app próprio da Meta?".</>,
-          <>Em <b>Configurações do app → Básico</b>, preencha a URL da Política de Privacidade com a política que o Helpy gera para a sua empresa (o link aparece no canal conectado, em “Ver dados para colar na Meta”).</>,
+          <>Na mesma página (Configuração da API com login do Instagram), clique em <b>Mostrar</b> na <b>Chave secreta do app do Instagram</b>, copie e cole no campo de mesmo nome aqui ao lado.</>,
         ],
       },
       {
@@ -132,6 +136,7 @@ export const GUIAS = {
         itens: [
           <>Na página do Instagram no app, em <b>Configurar webhooks</b>, cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostrar e clique em <b>Verificar e salvar</b>.</>,
           <>Assine o campo <b>messages</b>.</>,
+          <>Em <b>Configurações do app → Básico</b>, cole na URL da Política de Privacidade a política que o Helpy gera para a sua empresa (aparece no canal conectado, em “Ver dados para colar na Meta”).</>,
           <>Troque o <b>Modo do app</b> para <b>Ao vivo</b>. Para atender qualquer pessoa (não só quem é testador do app), a Meta pede a revisão da permissão <i>instagram_business_manage_messages</i>; enquanto ela não sai, teste com a sua própria conta.</>,
         ],
       },
@@ -145,7 +150,7 @@ export const GUIAS = {
   discord: {
     tempo: 'uns 2 minutos',
     video: '/videos/conectar-discord.mp4',
-    duracaoVideo: '50 s',
+    duracaoVideo: '1 min e 10 s',
     antes: ['Ser administrador (ou ter "Gerenciar servidor") no servidor do Discord onde o assistente vai atender.'],
     passos: [
       { titulo: 'Escolha o assistente', itens: [<>Ele vai atender no servidor com o próprio nome.</>] },
@@ -189,18 +194,38 @@ function Passo({ n, passo, aberto, onAlternar }) {
 }
 
 /** O guia completo de um canal: o que ter antes, os passos e os erros mais comuns. */
-/** O vídeo do passo a passo: um botão que vira o player (com som) ao ser tocado. */
-export function VideoTutorial({ tipo }) {
+/**
+ * O vídeo do passo a passo. Abre grande, por cima de tudo (dentro da janela de
+ * conectar ele ficaria pequeno demais para ler as legendas).
+ */
+export function VideoTutorial({ tipo, depois = false }) {
   const g = GUIAS[tipo];
+  const src = depois ? g?.videoDepois : g?.video;
+  const duracao = depois ? g?.duracaoDepois : g?.duracaoVideo;
   const [video, setVideo] = useState(false);
-  if (!g?.video) return null;
-  return video ? (
-    <video className="tutorial-video" src={g.video} poster={g.video.replace('.mp4', '.jpg')} controls autoPlay playsInline />
-  ) : (
-    <button type="button" className="tutorial-video-btn" onClick={() => setVideo(true)}>
-      <span className="tutorial-play" aria-hidden="true"><Play size={14} fill="currentColor" /></span>
-      Ver o passo a passo em vídeo <span className="faint">· {g.duracaoVideo}</span>
-    </button>
+  useEffect(() => {
+    if (!video) return undefined;
+    const esc = (e) => e.key === 'Escape' && setVideo(false);
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [video]);
+  if (!src) return null;
+  return (
+    <>
+      <button type="button" className="tutorial-video-btn" onClick={() => setVideo(true)}>
+        <span className="tutorial-play" aria-hidden="true"><Play size={14} fill="currentColor" /></span>
+        Ver o passo a passo em vídeo <span className="faint">· {duracao}</span>
+      </button>
+      {video && createPortal(
+        <div className="video-grande" role="dialog" aria-modal="true" aria-label="Vídeo do passo a passo" onMouseDown={(e) => e.target === e.currentTarget && setVideo(false)}>
+          <div className="video-grande-caixa">
+            <button type="button" className="video-grande-x" aria-label="Fechar o vídeo" onClick={() => setVideo(false)}><X size={20} /></button>
+            <video src={src} poster={src.replace('.mp4', '.jpg')} controls autoPlay playsInline />
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -236,6 +261,7 @@ export default function TutorialCanal({ tipo, soDepois = false }) {
           <VideoTutorial tipo={tipo} />
         </div>
       )}
+      {soDepois && g.videoDepois && <div style={{ marginBottom: 12 }}><VideoTutorial tipo={tipo} depois /></div>}
       <ol className="tutorial-passos">
         {passos.map((p) => <Passo key={p.n} n={p.n} passo={p} aberto={aberto.has(p.n)} onAlternar={() => alternar(p.n)} />)}
       </ol>

@@ -1,6 +1,17 @@
 // Motor dos vídeos tutoriais. render(T) desenha o quadro do segundo T, sempre igual
 // (os quadros são gravados em ordem, um a um). Também exporta window.EVENTOS, a lista de
 // sons (clique, tecla, pop, sucesso, transição…) com o segundo exato de cada um.
+//
+// Roteiro de cada cena (atributos da <section class="scene">):
+//   data-dur      duração em segundos
+//   data-passo    número do passo (barra de progresso e legenda)
+//   data-cursor   [[t, "seletor", 1?], [t, x, y, 1?]]  o cursor CHEGA ao alvo em t (e clica, se 1)
+//   data-cam      [[t, zoom, "seletor"|null]]           a câmera começa a ir para o enquadramento em t
+//   data-toque    cena de celular: um círculo de dedo no lugar da seta
+// Elementos: data-on / data-off (aparece e some), data-mostra (sai do layout quando some),
+// data-anim (sobe, pop, lado, modal, toast, balao), data-digita + data-t (digita), data-cola,
+// data-aperta (botão afunda), data-check (marca), data-marca, data-realce "a-b".
+// Dois estados que trocam no mesmo lugar ficam dentro de .troca (mesma célula, nada pula).
 (() => {
   const TR = 0.7; // transição entre cenas (segundos)
   const stage = document.getElementById('stage');
@@ -9,10 +20,13 @@
   let soma = 0;
   for (const c of cenas) { ini.push(soma); soma += Number(c.dataset.dur); }
   window.DURACAO = soma;
+  const fimDe = (k) => ini[k] + Number(cenas[k].dataset.dur);
 
   const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
   const io = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
   const out = (x) => 1 - Math.pow(1 - x, 3);
+  const seno = (x) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(x));
+  const mj = (x) => x * x * x * (10 + x * (6 * x - 15)); // minimum-jerk: o jeito de uma mão de verdade
   const back = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
   const faixa = (s) => String(s).split('-').map(Number);
   const json = (s) => (s ? JSON.parse(s) : null);
@@ -43,13 +57,15 @@
   cursor.setAttribute('class', 'cursor');
   cursor.setAttribute('viewBox', '0 0 24 24');
   cursor.innerHTML = '<path d="M4 2l15 9-6.5 1.5L16 20l-3 1.4-3.4-7.5L4 18z" fill="#0b1a2c" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>';
+  const dedo = document.createElement('div');
+  dedo.className = 'dedo';
   const ripple = document.createElement('div');
   ripple.className = 'clique';
   stage.appendChild(ripple);
+  stage.appendChild(dedo);
   stage.appendChild(cursor);
 
   // ---------- roteiro do cursor (global) ----------
-  // [t, "seletor", clica?] = o cursor CHEGA ao seletor no segundo t (e clica, se 1)
   const kfs = [];
   cenas.forEach((c, k) => {
     for (const [t, a, b, d] of json(c.dataset.cursor) ?? []) {
@@ -57,11 +73,14 @@
     }
   });
   const pos = new Map(); // última posição conhecida de cada alvo
-  let ultimo = [900, 560];
+  const INICIO = [1010, 430];
+  let ultimo = INICIO.slice();
 
-  function alvo(kf) {
+  function alvo(kf, T) {
     if (kf.xy) return kf.xy;
     const chave = `${kf.cena}|${kf.sel}`;
+    // a cena que está saindo não arrasta o cursor junto: o alvo fica congelado
+    if (T >= fimDe(kf.cena) - TR / 2 && pos.has(chave)) return pos.get(chave);
     const el = cenas[kf.cena].classList.contains('viva') ? cenas[kf.cena].querySelector(kf.sel) : null;
     if (el) {
       const r = el.getBoundingClientRect();
@@ -84,8 +103,9 @@
       const sai = clamp((t - off) / 0.25);
       const v = entra * (1 - sai);
       const tipo = el.dataset.anim || (el.classList.contains('modal') ? 'modal' : el.classList.contains('toast') ? 'toast' : el.classList.contains('balao') ? 'balao' : el.classList.contains('ok') ? 'ok' : 'sobe');
-      // quem tem data-mostra (ou só data-off) sai do layout; o resto só fica invisível, sem pular nada
-      const saiDoLayout = el.hasAttribute('data-mostra') || (el.dataset.off != null && el.dataset.on == null);
+      // quem tem data-mostra (ou só data-off) sai do layout; dentro de .troca, nunca (os dois estados dividem o lugar)
+      const naTroca = el.parentElement?.classList.contains('troca');
+      const saiDoLayout = !naTroca && (el.hasAttribute('data-mostra') || (el.dataset.off != null && el.dataset.on == null));
       if (v <= 0) {
         if (saiDoLayout) el.classList.add('esconde');
         else { el.classList.remove('esconde'); el.style.opacity = 0; el.style.visibility = 'hidden'; }
@@ -100,7 +120,7 @@
         if (card) card.style.transform = `translateY(${(1 - out(entra)) * 18}px) scale(${0.96 + 0.04 * back(entra)})`;
       } else if (tipo === 'toast') {
         el.style.opacity = v;
-        el.style.transform = `translateY(${(1 - out(entra)) * -14 + sai * -8}px)`;
+        el.style.transform = `translateY(${(1 - out(entra)) * 8 + sai * -6}px) scale(${0.9 + 0.1 * back(entra)})`;
       } else if (tipo === 'balao') {
         el.style.opacity = out(v);
         const lado = el.classList.contains('eu') ? 1 : -1;
@@ -111,8 +131,13 @@
         el.style.transform = `scale(${0.7 + 0.3 * back(entra)})`;
         el.style.transformOrigin = '0 50%';
       } else if (tipo === 'lado') {
-        el.style.opacity = clamp(v * 2);
-        el.style.transform = `translateX(${(1 - out(entra)) * 60}%)`;
+        // página nova empurra a anterior, opaca, como no celular
+        el.style.opacity = sai > 0 ? 1 - sai : 1;
+        el.style.transform = `translateX(${(1 - out(entra)) * 100}%)`;
+      } else if (tipo === 'painel') {
+        // painel do Helpy que entra pela direita ao lado da tela da Meta
+        el.style.opacity = clamp(v * 1.6);
+        el.style.transform = `translateX(${(1 - out(entra)) * 70 + sai * 40}px)`;
       } else {
         el.style.opacity = out(v);
         el.style.transform = `translateY(${(1 - out(entra)) * 14}px)`;
@@ -140,12 +165,16 @@
     c.querySelectorAll('[data-check]').forEach((el) => {
       const a = Number(el.dataset.check);
       el.classList.toggle('on', t >= a);
-      const k = clamp((t - a) / 0.3);
-      el.style.transform = k > 0 && k < 1 ? `scale(${0.85 + 0.15 * back(k)})` : '';
+      if (el.classList.contains('chave')) {
+        // a bolinha da chave desliza e a cor passa aos poucos
+        el.style.setProperty('--k', t < a ? 0 : clamp(back(clamp((t - a) / 0.22)), 0, 1.08));
+      } else {
+        const k = clamp((t - a) / 0.3);
+        el.style.transform = k > 0 && k < 1 ? `scale(${0.85 + 0.15 * back(k)})` : '';
+      }
     });
     c.querySelectorAll('[data-marca]').forEach((el) => el.classList.toggle('marcada', t >= Number(el.dataset.marca)));
     c.querySelectorAll('[data-realce]').forEach((el) => { const [a, b] = faixa(el.dataset.realce); el.classList.toggle('realce', t >= a && t < b); });
-    // números que contam, pontinhos de "digitando"
     c.querySelectorAll('.digitando i').forEach((el, i) => { el.style.transform = `translateY(${Math.sin(t * 9 - i * 0.9) * 2.5}px)`; });
 
     // legenda
@@ -162,35 +191,45 @@
       if (p) { p.style.opacity = out(kp); p.style.transform = `translateY(${(1 - out(kp)) * 12}px)`; }
     }
 
-    // câmera: aproxima de onde está a ação
+    // câmera: aproxima de onde está a ação, sem pressa
     const cam = c.querySelector('.camera');
     if (cam) {
       const roteiro = json(c.dataset.cam) ?? [[0, 1, null]];
       cam.style.transform = 'none';
+      const cache = c._foco || (c._foco = new Map());
+      const base = cam.getBoundingClientRect();
       const foco = (sel) => {
         if (!sel) return [640, 290];
-        const el = c.querySelector(sel);
-        const r = el?.getBoundingClientRect();
-        if (!r || (!r.width && !r.height)) return [640, 290];
-        const base = cam.getBoundingClientRect();
-        return [r.left - base.left + r.width / 2, r.top - base.top + r.height / 2];
+        const r = c.querySelector(sel)?.getBoundingClientRect();
+        if (!r || (!r.width && !r.height)) return cache.get(sel) ?? [640, 290];
+        const p = [r.left - base.left + r.width / 2, r.top - base.top + r.height / 2];
+        cache.set(sel, p);
+        return p;
       };
       let z = roteiro[0][1];
       let f = foco(roteiro[0][2]);
       for (let k = 1; k < roteiro.length; k++) {
         const [tk, zk, sk] = roteiro[k];
         if (t < tk) break;
-        const e = io(clamp((t - tk) / 1.1));
+        const e = seno((t - tk) / 1.3);
         const fk = foco(sk);
         z = z + (zk - z) * e;
         f = [f[0] + (fk[0] - f[0]) * e, f[1] + (fk[1] - f[1]) * e];
       }
-      const drift = 1 + 0.018 * (t / dur);
-      const zz = z * drift;
-      // zoom em volta do foco, puxando o foco um pouco para o meio do quadro
-      const puxa = clamp((zz - 1) * 2.2, 0, 0.7);
-      const tx = f[0] * (1 - zz) + (640 - f[0]) * puxa;
-      const ty = f[1] * (1 - zz) + (290 - f[1]) * puxa;
+      const zz = z * (1 + 0.012 * (t / dur));
+      // zoom em volta do foco, puxando o foco só um pouco para o meio
+      const puxa = clamp((zz - 1) * 1.2, 0, 0.3);
+      let tx = f[0] * (1 - zz) + (640 - f[0]) * puxa;
+      let ty = f[1] * (1 - zz) + (270 - f[1]) * puxa;
+      // janela: nunca mostra fundo de um lado enquanto corta conteúdo do outro, e o topo não foge
+      if (cam.querySelector(':scope > .janela')) {
+        const lo = 1280 - 1210 * zz;
+        const hi = -70 * zz;
+        const a = 16 - 70 * zz;
+        const b = 1264 - 1210 * zz;
+        tx = lo <= hi ? Math.min(hi, Math.max(lo, tx)) : (a <= b ? Math.min(b, Math.max(a, tx)) : 640 - 640 * zz);
+        ty = Math.max(ty, 12 - 34 * zz);
+      }
       cam.style.transform = `translate(${tx}px, ${ty}px) scale(${zz})`;
     }
   }
@@ -203,22 +242,29 @@
 
     let principal = 0;
     let pesoMax = -1;
+    const pesos = [];
     cenas.forEach((c, k) => {
       const S = ini[k];
-      const E = S + Number(c.dataset.dur);
+      const E = fimDe(k);
       const entra = k === 0 ? 1 : clamp((T - (S - TR / 2)) / TR);
       const sai = k === cenas.length - 1 ? 0 : clamp((T - (E - TR / 2)) / TR);
       const w = entra * (1 - sai);
+      pesos[k] = w;
       if (w <= 0.001) { c.classList.remove('viva'); c.style.opacity = 0; return; }
       c.classList.add('viva');
       const t = clamp(T - S, 0, Number(c.dataset.dur));
       estado(c, t, Number(c.dataset.dur));
+      // a cena nova entra por cima e fica opaca cedo; a antiga só some depois de coberta
       const ei = io(entra);
       const es = io(sai);
-      const dx = (1 - ei) * 90 - es * 90;
-      const sc = 1 + (1 - ei) * 0.03 - es * 0.03;
-      // quem sai some rápido; quem entra chega deslizando: sem tela vazia e sem duas cenas misturadas
-      c.style.opacity = Math.min(clamp(entra * 1.25 - 0.1), 1 - clamp(sai * 1.7));
+      c.style.zIndex = String(k + 1);
+      const opEntra = k === 0 ? 1 : clamp(entra / 0.45);
+      const opSai = k === cenas.length - 1 ? 1 : 1 - clamp((sai - 0.4) / 0.45);
+      c.style.opacity = Math.min(opEntra, opSai);
+      const dx = (1 - ei) * 40 - es * 20;
+      // última cena: um empurrão lento nos 3 s finais, para o cartão não ficar morto
+      const fim = k === cenas.length - 1 ? 0.02 * clamp((T - (soma - 3)) / 3) : 0;
+      const sc = 1 + (1 - ei) * 0.012 + fim;
       c.style.transform = `translateX(${dx}px) scale(${sc})`;
       if (w > pesoMax) { pesoMax = w; principal = k; }
     });
@@ -235,13 +281,16 @@
     });
     prog.style.opacity = principal === 0 ? clamp((T - ini[0] - Number(cenas[0].dataset.dur) + 1) / 0.8) : 1;
 
-    // cursor
-    const temCursor = (k) => !!cenas[k]?.dataset.cursor;
+    // cursor: visível pela soma dos pesos das cenas com cursor (não pisca na troca de cena)
     let vis = 0;
+    let toque = 0;
     cenas.forEach((c, k) => {
-      if (!temCursor(k) || !c.classList.contains('viva')) return;
-      vis = Math.max(vis, Number(c.style.opacity));
+      if (!c.dataset.cursor) return;
+      if (c.dataset.toque != null) toque += pesos[k];
+      else vis += pesos[k];
     });
+    vis = clamp(vis);
+    toque = clamp(toque);
     let x = ultimo[0];
     let y = ultimo[1];
     let aperto = 1;
@@ -250,35 +299,37 @@
       if (i === -1) i = kfs.length;
       const prox = kfs[i];
       const ant = kfs[i - 1];
-      const pa = ant ? alvo(ant) : ultimo;
+      const pa = ant ? alvo(ant, T) : INICIO;
       if (prox) {
-        const pb = alvo(prox);
+        const pb = alvo(prox, T);
         const dist = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
-        const dur = clamp(0.4 + dist / 1500, 0.45, 0.95);
-        const comeca = Math.max(ant ? ant.T + 0.12 : prox.T - dur, prox.T - dur);
-        const k = clamp((T - comeca) / (prox.T - comeca));
-        const e = io(k);
-        // leve arco, como uma mão de verdade
+        const dur = clamp(0.45 + dist / 900, 0.55, 1.15);
+        const chega = prox.T - (prox.clica ? 0.1 : 0); // assenta antes de clicar
+        let comeca = Math.max(ant ? ant.T + 0.2 : chega - dur, chega - dur);
+        if (chega - comeca < 0.15) comeca = chega - 0.15;
+        const e = mj(clamp((T - comeca) / (chega - comeca)));
+        // leve arco
         const nx = -(pb[1] - pa[1]);
         const ny = pb[0] - pa[0];
-        const arco = Math.sin(Math.PI * e) * 0.08;
+        const arco = Math.sin(Math.PI * e) * 0.06;
         x = pa[0] + (pb[0] - pa[0]) * e + nx * arco;
         y = pa[1] + (pb[1] - pa[1]) * e + ny * arco;
       } else { x = pa[0]; y = pa[1]; }
-      // aperto do clique
       const clicado = kfs.filter((kf) => kf.clica && T >= kf.T - 0.08 && T < kf.T + 0.6).pop();
       if (clicado) {
         const k = (T - clicado.T + 0.08) / 0.2;
         aperto = k > 0 && k < 1 ? 1 - 0.18 * Math.sin(k * Math.PI) : 1;
         const kr = clamp((T - clicado.T) / 0.55);
-        const [rx, ry] = alvo(clicado);
+        const [rx, ry] = alvo(clicado, T);
         ripple.style.transform = `translate(${rx}px, ${ry}px) scale(${0.3 + 1.1 * out(kr)})`;
-        ripple.style.opacity = T >= clicado.T ? (1 - kr) * vis : 0;
+        ripple.style.opacity = T >= clicado.T ? (1 - kr) * Math.max(vis, toque) : 0;
       } else ripple.style.opacity = 0;
     }
     ultimo = [x, y];
     cursor.style.opacity = vis;
     cursor.style.transform = `translate(${x - 4}px, ${y - 2}px) scale(${aperto})`;
+    dedo.style.opacity = toque * 0.9;
+    dedo.style.transform = `translate(${x}px, ${y}px) scale(${aperto})`;
   };
 
   // ---------- sons ----------
@@ -289,24 +340,38 @@
     if (c.querySelector('.legenda .passo-n')) ev.push({ t: S + 0.2, tipo: 'passo' });
     c.querySelectorAll('[data-digita]').forEach((el) => {
       const [a, b] = faixa(el.dataset.t);
-      const n = el.dataset.digita.length;
+      const n = el.dataset.digita.replace(/\s/g, '').length;
       if (n / (b - a) > 28 || el.dataset.cola != null) ev.push({ t: S + a, tipo: 'cola' });
-      else for (let i = 0; i < n; i++) if (el.dataset.digita[i] !== ' ') ev.push({ t: S + a + ((i + 0.5) * (b - a)) / n, tipo: 'tecla' });
+      else {
+        // no máximo 12 teclas por segundo: rajadas cansam
+        const m = Math.min(n, Math.max(1, Math.round((b - a) * 12)));
+        for (let i = 0; i < m; i++) ev.push({ t: S + a + ((i + 0.5) * (b - a)) / m, tipo: 'tecla' });
+      }
     });
     c.querySelectorAll('[data-on]').forEach((el) => {
+      if (el.dataset.som === 'nao') return;
       const t = S + Number(el.dataset.on);
       if (el.classList.contains('ok')) ev.push({ t, tipo: 'sucesso' });
       else if (el.classList.contains('balao') && el.classList.contains('eu')) ev.push({ t, tipo: 'envia' });
       else if (el.classList.contains('balao') && el.classList.contains('ela')) ev.push({ t, tipo: 'recebe' });
       else if (el.classList.contains('balao')) return;
       else if (el.classList.contains('modal')) ev.push({ t, tipo: 'abre' });
-      else ev.push({ t, tipo: 'pop' });
+      else if (Number(el.dataset.on) > 0.05 || k === 0) ev.push({ t, tipo: 'pop' });
     });
     c.querySelectorAll('.chave[data-check]').forEach((el) => ev.push({ t: S + Number(el.dataset.check), tipo: 'toggle' }));
   });
   for (const kf of kfs) if (kf.clica) ev.push({ t: kf.T, tipo: 'clique' });
   ev.push({ t: ini[cenas.length - 1] + 0.3, tipo: 'final' });
-  window.EVENTOS = ev.sort((a, b) => a.t - b.t);
+  ev.sort((a, b) => a.t - b.t);
+  // uma ação, um som: clique junto de toggle vira só o toggle; pops grudados viram um
+  const limpo = [];
+  for (const e of ev) {
+    const perto = (tipo, ms) => limpo.some((o) => o.tipo === tipo && Math.abs(o.t - e.t) < ms / 1000);
+    if (e.tipo === 'clique' && ev.some((o) => o.tipo === 'toggle' && Math.abs(o.t - e.t) < 0.06)) continue;
+    if (e.tipo === 'pop' && (perto('pop', 120) || perto('sucesso', 120) || perto('abre', 120))) continue;
+    limpo.push(e);
+  }
+  window.EVENTOS = limpo;
 
   window.render(0);
 })();
