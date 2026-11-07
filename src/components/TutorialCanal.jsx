@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { ChevronDown, Clock, Play, Smartphone, UserRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, Clock, Play, Smartphone, UserRound, X } from 'lucide-react';
 
 const ICONES = { conta: <UserRound size={18} />, chip: <Smartphone size={18} />, tempo: <Clock size={18} /> };
 
@@ -189,18 +190,36 @@ function Passo({ n, passo, aberto, onAlternar }) {
 }
 
 /** O guia completo de um canal: o que ter antes, os passos e os erros mais comuns. */
-/** O vídeo do passo a passo: um botão que vira o player (com som) ao ser tocado. */
+/**
+ * O vídeo do passo a passo. Abre grande, por cima de tudo (dentro da janela de
+ * conectar ele ficaria pequeno demais para ler as legendas).
+ */
 export function VideoTutorial({ tipo }) {
   const g = GUIAS[tipo];
   const [video, setVideo] = useState(false);
+  useEffect(() => {
+    if (!video) return undefined;
+    const esc = (e) => e.key === 'Escape' && setVideo(false);
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [video]);
   if (!g?.video) return null;
-  return video ? (
-    <video className="tutorial-video" src={g.video} poster={g.video.replace('.mp4', '.jpg')} controls autoPlay playsInline />
-  ) : (
-    <button type="button" className="tutorial-video-btn" onClick={() => setVideo(true)}>
-      <span className="tutorial-play" aria-hidden="true"><Play size={14} fill="currentColor" /></span>
-      Ver o passo a passo em vídeo <span className="faint">· {g.duracaoVideo}</span>
-    </button>
+  return (
+    <>
+      <button type="button" className="tutorial-video-btn" onClick={() => setVideo(true)}>
+        <span className="tutorial-play" aria-hidden="true"><Play size={14} fill="currentColor" /></span>
+        Ver o passo a passo em vídeo <span className="faint">· {g.duracaoVideo}</span>
+      </button>
+      {video && createPortal(
+        <div className="video-grande" role="dialog" aria-modal="true" aria-label="Vídeo do passo a passo" onMouseDown={(e) => e.target === e.currentTarget && setVideo(false)}>
+          <div className="video-grande-caixa">
+            <button type="button" className="video-grande-x" aria-label="Fechar o vídeo" onClick={() => setVideo(false)}><X size={20} /></button>
+            <video src={g.video} poster={g.video.replace('.mp4', '.jpg')} controls autoPlay playsInline />
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
