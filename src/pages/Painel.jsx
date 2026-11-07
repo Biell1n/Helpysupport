@@ -6,6 +6,7 @@ import Faisca from '@/components/Faisca';
 import ListaViva from '@/components/ListaViva';
 import PrimeirosPassos from '@/components/PrimeirosPassos';
 import { supabase } from '@/lib/supabase';
+import { FUSO_PADRAO } from '@/lib/fuso';
 import { useAuth } from '@/contexts/AuthContext';
 import { diasDeTeste, planOf } from '@/lib/plans';
 import { numero, quando, STATUS } from '@/lib/format';
@@ -65,6 +66,7 @@ export default function Painel() {
   const rascunho = useRascunho();
   const [fila, setFila] = useState([]);
   const [proximos, setProximos] = useState([]);
+  const [fuso, setFuso] = useState(FUSO_PADRAO);
   const [nota, setNota] = useState(null);
   const [porDia, setPorDia] = useState(null); // atendimentos dos últimos 14 dias
   const [mesPassado, setMesPassado] = useState(null); // até o mesmo dia do mês passado
@@ -77,7 +79,7 @@ export default function Painel() {
       const desde14 = new Date(hoje.getTime() - 13 * 864e5);
       const iniMesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
       const mesmoDiaMesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, Math.min(hoje.getDate(), 28) + 1);
-      const [a, f, p, n, d, mp] = await Promise.all([
+      const [a, f, p, n, d, mp, ag] = await Promise.all([
         supabase.from('assistants').select('id, name, business_type, is_public, public_token').order('created_at'),
         supabase
           .from('conversations')
@@ -97,6 +99,7 @@ export default function Painel() {
         supabase.from('conversations').select('created_at').eq('teste', false).gte('created_at', desde14.toISOString()).limit(5000),
         supabase.from('conversations').select('id', { count: 'exact', head: true }).eq('teste', false)
           .gte('created_at', iniMesPassado.toISOString()).lt('created_at', mesmoDiaMesPassado.toISOString()),
+        supabase.from('agenda_config').select('fuso').maybeSingle(),
       ]);
       const contagem = Array(14).fill(0);
       for (const c of d.data ?? []) {
@@ -108,6 +111,7 @@ export default function Painel() {
       setAssistentes(a.data ?? []);
       setFila(f.data ?? []);
       setProximos(p.data ?? []);
+      setFuso(ag.data?.fuso || FUSO_PADRAO);
       const notas = (n.data ?? []).map((x) => Number(x.nota)).filter((x) => x >= 1 && x <= 5);
       setNota(notas.length ? { media: notas.reduce((s, x) => s + x, 0) / notas.length, total: notas.length } : null);
     })();
@@ -266,7 +270,7 @@ export default function Painel() {
                 {proximos.map((p) => (
                   <li key={p.id} className="row" style={{ padding: '10px 0' }}>
                     <span className="num" style={{ minWidth: 92, color: 'var(--tinta-2)' }}>
-                      {new Date(p.inicio).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(p.inicio).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: fuso })}
                     </span>
                     <span style={{ flex: 1 }}>
                       <b>{p.cliente_nome}</b>

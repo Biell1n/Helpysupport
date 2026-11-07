@@ -45,7 +45,34 @@ export function lerCsv(texto) {
     linha.push(campo);
     if (linha.some((c) => c.trim())) linhas.push(linha);
   }
+  // CSV com vírgula: "1,5 kg" ou "89,90" sem aspas viram duas células. Linha com
+  // mais valores que o cabeçalho tem os números de volta juntados.
+  if (sep === ',' && linhas.length) {
+    const n = linhas[0].length;
+    for (let k = 1; k < linhas.length; k++) linhas[k] = juntarDecimais(linhas[k], n);
+  }
   return linhas;
+}
+
+function juntarDecimais(linha, n) {
+  const l = [...linha];
+  while (l.length > n) {
+    const i = l.findIndex((c, j) => j < l.length - 1 && /\d$/.test(c.trim()) && /^\d/.test(l[j + 1].trim()));
+    if (i < 0) break;
+    l.splice(i, 2, `${l[i]},${l[i + 1]}`);
+  }
+  return l;
+}
+
+/** Linhas (números a partir de 2, como na planilha) com mais valores que o cabeçalho. */
+export function linhasTortas(linhas) {
+  const n = linhas[0]?.length ?? 0;
+  const tortas = [];
+  linhas.slice(1).forEach((l, i) => {
+    const cheias = l.length > n && l.slice(n).some((c) => String(c ?? '').trim());
+    if (cheias) tortas.push(i + 2);
+  });
+  return tortas;
 }
 
 const doisDigitos = (n) => String(n).padStart(2, '0');

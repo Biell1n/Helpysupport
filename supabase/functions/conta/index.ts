@@ -137,6 +137,7 @@ Deno.serve(async (req) => {
         return json({
           servicos: agenda.servicos ?? [],
           duracao_min: agenda.duracao_min,
+          fuso: agenda.fuso || 'America/Sao_Paulo',
           marcados: marcados.map((m) => ({ ...m, texto: descreverAgendamento(m, agenda.fuso).replace(/ \(id [^)]+\)$/, '') })),
         });
       }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Marca } from '@/components/Logo';
 import { ChevronLeft, ChevronRight, Plus, Settings2 } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
+import { agoraNoFuso, FUSO_PADRAO, hojeNoFuso, paraInstante, paredeIso } from '@/lib/fuso';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
 import { Confirmar, Drawer, Modal } from '@/components/Modal';
@@ -20,15 +21,25 @@ const PADRAO = {
   horarios: { 0: [], 1: [['09:00', '18:00']], 2: [['09:00', '18:00']], 3: [['09:00', '18:00']], 4: [['09:00', '18:00']], 5: [['09:00', '18:00']], 6: [['09:00', '13:00']] },
 };
 
-/** Divide os horários que se encostam em colunas, para nenhum ficar escondido atrás do outro. */
-function lado(evs) {
+const ATIVO = (e) => e.status !== 'cancelado' && e.status !== 'faltou';
+const encosta = (a, b) => new Date(a.inicio) < new Date(b.fim) && new Date(b.inicio) < new Date(a.fim);
+/** Mais que isso lado a lado não cabe numa coluna da semana: o resto vira "+N". */
+const MAX_LADO = 2;
+
+/**
+ * Divide os horários que se encostam em colunas, para nenhum ficar escondido
+ * atrás do outro. Cancelado só aparece se não tiver um horário valendo por cima.
+ */
+function lado(todos) {
+  const evs = todos.filter((e) => ATIVO(e) || !todos.some((o) => o !== e && ATIVO(o) && encosta(o, e)));
   const ord = [...evs].sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
   const out = [];
   let grupo = [];
   let fimGrupo = 0;
   const fechar = () => {
     const n = Math.max(1, ...grupo.map((g) => g.faixa + 1));
-    for (const g of grupo) out.push({ ...g, faixas: n });
+    const membros = grupo.map((g) => g.e);
+    for (const g of grupo) out.push({ ...g, faixas: n, membros });
     grupo = [];
   };
   for (const e of ord) {
@@ -235,37 +246,46 @@ const reaisBr = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', cu
 export default function Agenda() {
   const { user, contaId, tipo } = useAuth();
   const avisar = useToast();
-  const [semana, setSemana] = useState(() => inicioDaSemana(new Date()));
+  const [semana, setSemana] = useState(() => inicioDaSemana(agoraNoFuso(FUSO_PADRAO)));
   const [cfg, setCfg] = useState(null);
   const [eventos, setEventos] = useState([]);
   const [configurando, setConfigurando] = useState(false);
   const [novo, setNovo] = useState(null);
   const [aberto, setAberto] = useState(null);
+  const [grupoAberto, setGrupoAberto] = useState(null);
 
   const dias = useMemo(() => Array.from({ length: 7 }, (_, i) => somaDias(semana, i)), [semana]);
+  // tudo na tela fica no relógio do fuso da empresa (e não no do aparelho)
+  const fuso = cfg?.fuso || FUSO_PADRAO;
   // no celular a semana não cabe: abre rolada até hoje (e não no domingo, que costuma estar fechado)
   const calRef = useRef(null);
   useEffect(() => {
     const el = calRef.current;
     if (!el || el.scrollWidth <= el.clientWidth + 4) return;
-    const hoje = dias.findIndex((d) => mesmoDia(d, new Date()));
+    const hoje = dias.findIndex((d) => mesmoDia(d, agoraNoFuso(fuso)));
     const col = (el.scrollWidth - 56) / 7;
     el.scrollLeft = hoje >= 0 ? Math.max(0, hoje * col - 8) : 0;
-  }, [dias]);
+  }, [dias, fuso]);
 
   const carregar = useCallback(async () => {
-    const [{ data: c }, { data: ev }] = await Promise.all([
-      supabase.from('agenda_config').select('*').maybeSingle(),
-      supabase
-        .from('agendamentos')
-        .select('*, pedido:pedidos!agendamentos_pedido_id_fkey(id, status, total, forma)')
-        .gte('inicio', semana.toISOString())
-        .lt('inicio', somaDias(semana, 7).toISOString())
-        .order('inicio'),
-    ]);
+    const { data: c } = await supabase.from('agenda_config').select('*').maybeSingle();
+    const f = c?.fuso || FUSO_PADRAO;
+    const { data: ev } = await supabase
+      .from('agendamentos')
+      .select('*, pedido:pedidos!agendamentos_pedido_id_fkey(id, status, total, forma)')
+      .gte('inicio', paraInstante(semana, f).toISOString())
+      .lt('inicio', paraInstante(somaDias(semana, 7), f).toISOString())
+      .order('inicio');
     setCfg(c ?? { ...PADRAO, owner_id: contaId });
     // reserva que venceu sem pagamento: o horário já está livre de novo
-    setEventos((ev ?? []).filter((e) => e.status !== 'aguardando_pagamento' || new Date(e.reserva_ate) > new Date()));
+    const valendo = (ev ?? []).filter((e) => e.status !== 'aguardando_pagamento' || new Date(e.reserva_ate) > new Date());
+    // horários passam para o relógio do fuso: daqui em diante a tela só lida com ele
+    setEventos(valendo.map((e) => ({
+      ...e,
+      inicio: paredeIso(e.inicio, f),
+      fim: paredeIso(e.fim, f),
+      reserva_ate: e.reserva_ate ? paredeIso(e.reserva_ate, f) : e.reserva_ate,
+    })));
   }, [semana, contaId]);
 
   useEffect(() => {
@@ -323,8 +343,8 @@ export default function Agenda() {
       cliente_nome: f.cliente_nome.trim(),
       cliente_contato: f.cliente_contato.trim() || null,
       servico: f.servico.trim() || null,
-      inicio: inicio.toISOString(),
-      fim: fim.toISOString(),
+      inicio: paraInstante(inicio, fuso).toISOString(),
+      fim: paraInstante(fim, fuso).toISOString(),
       origem: 'manual',
     });
     if (error) return avisar('Não deu para marcar', { erro: true, texto: error.message });
@@ -340,7 +360,8 @@ export default function Agenda() {
     if (Number.isNaN(inicio.getTime())) return avisar('Escolha o dia e a hora', { erro: true });
     const aviso = avisoDoHorario(inicio, fim, aberto.id);
     if (aviso && !window.confirm(`${aviso} Remarcar mesmo assim?`)) return;
-    const { error } = await supabase.from('agendamentos').update({ inicio: inicio.toISOString(), fim: fim.toISOString() }).eq('id', aberto.id);
+    const { error } = await supabase.from('agendamentos')
+      .update({ inicio: paraInstante(inicio, fuso).toISOString(), fim: paraInstante(fim, fuso).toISOString() }).eq('id', aberto.id);
     if (error) return avisar('Não deu para remarcar', { erro: true, texto: /ocupado/.test(error.message) ? 'Esse horário já está ocupado.' : error.message });
     avisar('Horário remarcado', { texto: 'Avise o cliente da mudança.' });
     setAberto(null);
@@ -390,7 +411,7 @@ export default function Agenda() {
     return !faixas.some(([a, b]) => h * 60 >= hm(a) && h * 60 < hm(b));
   };
 
-  const hoje = new Date();
+  const hoje = agoraNoFuso(fuso);
   const titulo = `${dias[0].toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} – ${dias[6].toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
 
   return (
@@ -402,7 +423,7 @@ export default function Agenda() {
         </div>
         <div className="row row-wrap">
           {tipo === 'empresa' && <button type="button" className="btn btn-ghost" onClick={() => setConfigurando(true)}><Settings2 /> Horários</button>}
-          <button type="button" className="btn btn-primary" onClick={() => setNovo({ dia: iso(new Date()), hora: '09:00' })}><Plus /> Agendar</button>
+          <button type="button" className="btn btn-primary" onClick={() => setNovo({ dia: hojeNoFuso(fuso), hora: '09:00' })}><Plus /> Agendar</button>
         </div>
       </header>
 
@@ -431,7 +452,7 @@ export default function Agenda() {
 
       <div className="row" style={{ marginBottom: 12 }}>
         <button type="button" className="btn btn-ghost btn-icon" aria-label="Semana anterior" onClick={() => setSemana((s) => somaDias(s, -7))}><ChevronLeft /></button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSemana(inicioDaSemana(new Date()))}>Hoje</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSemana(inicioDaSemana(agoraNoFuso(fuso)))}>Hoje</button>
         <button type="button" className="btn btn-ghost btn-icon" aria-label="Próxima semana" onClick={() => setSemana((s) => somaDias(s, 7))}><ChevronRight /></button>
         <b style={{ marginLeft: 6 }}>{titulo}</b>
       </div>
@@ -461,11 +482,31 @@ export default function Agenda() {
               />
             ))}
             {lado(eventos.filter((e) => mesmoDia(new Date(e.inicio), d)))
-              .map(({ e, faixa, faixas }) => {
+              .map(({ e, faixa, faixas, membros }) => {
                 const ini = new Date(e.inicio);
                 const fim = new Date(e.fim);
                 const top = ((ini.getHours() + ini.getMinutes() / 60 - hIni) * HORA_PX);
                 const altura = Math.max(24, ((fim - ini) / 3600000) * HORA_PX - 2);
+                // muitos ao mesmo tempo: mostra o primeiro e um "+N" que abre a lista
+                const cheio = faixas > MAX_LADO;
+                if (cheio && faixa >= MAX_LADO) return null;
+                if (cheio && faixa === MAX_LADO - 1) {
+                  const resto = membros.filter((m) => m !== membros[0]);
+                  return (
+                    <button
+                      key={`mais-${e.id}`}
+                      type="button"
+                      className="cal-ev cal-ev-mais"
+                      style={{ top, height: altura, left: 'calc(4px + (100% - 8px) / 2)', right: 'auto', width: 'calc((100% - 8px) / 2 - 2px)' }}
+                      onClick={() => setGrupoAberto(membros)}
+                      aria-label={`Ver os ${membros.length} horários desse momento`}
+                    >
+                      <b>+{resto.length}</b>
+                    </button>
+                  );
+                }
+                const cols = cheio ? MAX_LADO : faixas;
+                const nome = cols > 1 ? String(e.cliente_nome ?? '').split(' ')[0] : e.cliente_nome;
                 return (
                   <button
                     key={e.id}
@@ -478,14 +519,14 @@ export default function Agenda() {
                       top,
                       height: altura,
                       // horários ao mesmo tempo (mais de um profissional) ficam lado a lado
-                      ...(faixas > 1 ? { left: `calc(4px + ${faixa} * (100% - 8px) / ${faixas})`, right: 'auto', width: `calc((100% - 8px) / ${faixas} - 2px)` } : {}),
+                      ...(cols > 1 ? { left: `calc(4px + ${faixa} * (100% - 8px) / ${cols})`, right: 'auto', width: `calc((100% - 8px) / ${cols} - 2px)` } : {}),
                     }}
                     onClick={() => setAberto(e)}
                   >
                     <b>
                       {e.status === 'pendente' ? '⏳ ' : e.status === 'aguardando_pagamento' ? '💳 ' : ''}
-                      {altura < 40 && <span className="cal-ev-hora">{ini.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} </span>}
-                      {e.cliente_nome}
+                      {altura < 40 && cols < 2 && <span className="cal-ev-hora">{ini.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} </span>}
+                      {nome}
                     </b>
                     <span className="cal-ev-sub">
                       {ini.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -512,6 +553,28 @@ export default function Agenda() {
       {configurando && cfg && <ConfigAgenda cfg={cfg} onSalvar={salvarCfg} onFechar={() => setConfigurando(false)} />}
       {novo && <NovoAgendamento inicial={novo} duracao={cfg?.duracao_min ?? 30} onSalvar={marcar} onFechar={() => setNovo(null)} />}
 
+      {grupoAberto && (
+        <Modal aberto onFechar={() => setGrupoAberto(null)} largura={420}>
+          <h2 style={{ fontSize: 20 }}>{grupoAberto.length} horários nesse momento</h2>
+          <div className="stack" style={{ gap: 8, marginTop: 14 }}>
+            {grupoAberto.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                className="cal-lista-item"
+                onClick={() => {
+                  setGrupoAberto(null);
+                  setAberto(e);
+                }}
+              >
+                <b>{new Date(e.inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</b>
+                <span>{e.cliente_nome}{e.servico ? ` · ${e.servico}` : ''}</span>
+                <span className="faint">{SITUACAO[e.status] ?? e.status}</span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
       {aberto && (
         <Drawer
           aberto
