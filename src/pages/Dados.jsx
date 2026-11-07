@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardPaste, Columns3, FileSpreadsheet, Plus, Search, Settings2, Table2, Trash2, X } from 'lucide-react';
+import { ClipboardPaste, Columns3, FileSpreadsheet, FileText, Plus, Search, Settings2, Table2, Trash2, X } from 'lucide-react';
 import MenuMais from '@/components/MenuMais';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -134,6 +134,37 @@ function EditorColuna({ coluna, onSalvar, onExcluir, onFechar }) {
   );
 }
 
+/**
+ * Arquivos que o dono mandou no montador (apostila, cardápio em PDF, regulamento).
+ * Não viram tabela: o assistente lê o texto inteiro. Ficam listados aqui para o
+ * dono saber que existem; trocar ou tirar é no montador.
+ */
+function Documentos({ assistentes }) {
+  const docs = (assistentes ?? []).flatMap((a) => (Array.isArray(a.materiais) ? a.materiais : []).map((m) => ({ ...m, assistente: a })));
+  if (!docs.length) return null;
+  const tamanho = (n) => (n >= 1000 ? `${Math.round(n / 1000)} mil caracteres` : `${n} caracteres`);
+  return (
+    <section className="card stack" style={{ marginTop: 28 }}>
+      <div>
+        <h2 className="card-title">Documentos que o assistente lê</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 14 }}>Arquivos que você mandou ao montar o assistente. Ele lê o texto inteiro na hora de responder. Para trocar ou tirar, abra o assistente.</p>
+      </div>
+      <ul className="materiais">
+        {docs.map((m) => (
+          <li key={`${m.assistente.id}-${m.id ?? m.nome}`}>
+            <FileText aria-hidden="true" />
+            <div>
+              <b>{m.nome}</b>
+              <span>{m.assistente.name} · {tamanho(String(m.texto ?? '').length)}</span>
+            </div>
+            <Link className="btn btn-ghost btn-sm" to={`/painel/assistentes/${m.assistente.id}/editar`}>Abrir</Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default function Dados() {
   const { user, profile } = useAuth();
   const avisar = useToast();
@@ -159,7 +190,7 @@ export default function Dados() {
   const carregarTabelas = useCallback(async () => {
     const [{ data: t }, { data: a }] = await Promise.all([
       supabase.from('tabelas').select('*, tabela_linhas(count)').order('criada_em'),
-      supabase.from('assistants').select('id, name').order('created_at'),
+      supabase.from('assistants').select('id, name, materiais:meta->materiais').order('created_at'),
     ]);
     setTabelas(t ?? []);
     setAssistentes(a ?? []);
@@ -487,6 +518,8 @@ export default function Dados() {
           }}
         />
       )}
+
+      <Documentos assistentes={assistentes} />
 
       <Modal aberto={colando} onFechar={() => setColando(false)} largura={620}>
         <h2>Colar linhas</h2>

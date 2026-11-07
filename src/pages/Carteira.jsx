@@ -471,12 +471,13 @@ function Ativar({ onPronto }) {
         ) : (
           <>
             <ol className="passos" style={{ margin: 0, paddingLeft: 20 }}>
-              <li>No Asaas, abra <b>Integrações → Chave de API</b>, gere a chave (sem permissão de saque) e cole aqui.</li>
+              <li>No site do Asaas, abra <b>Integrações → Chave de API</b> e gere uma chave <b>sem permissão de saque</b>.</li>
+              <li>Copie a chave e cole aqui embaixo.</li>
               <li>O saldo aparece aqui; o saque continua pelo site do Asaas.</li>
             </ol>
-            <div className="grid-2">
+            <div>
               <label className="field">
-                <span className="label">Chave de API do Asaas</span>
+                <span className="label">Chave do Asaas</span>
                 <input
                   className="input" type="password" value={chave} placeholder="$aact_…" autoComplete="off" required
                   onChange={(e) => {
@@ -487,13 +488,10 @@ function Ativar({ onPronto }) {
                     else if (/^\$?aact_hmlg_/i.test(v.trim())) setAmbiente('sandbox');
                   }}
                 />
-              </label>
-              <label className="field">
-                <span className="label">Ambiente</span>
-                <select className="select" value={ambiente} onChange={(e) => setAmbiente(e.target.value)}>
-                  <option value="producao">Produção (dinheiro de verdade)</option>
-                  <option value="sandbox">Teste (sandbox)</option>
-                </select>
+                {/* a própria chave diz se é de teste: não precisa perguntar */}
+                <span className="hint">
+                  {ambiente === 'sandbox' ? 'Essa é uma chave de teste: as vendas não serão de verdade.' : 'Começa com $aact_. Fica guardada com criptografia.'}
+                </span>
               </label>
             </div>
           </>

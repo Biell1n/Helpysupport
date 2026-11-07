@@ -249,7 +249,7 @@ ${materiais.map((m) => `<material nome="${m.nome}">\n${m.texto}\n</material>`).j
 - A pessoa pediu para falar com alguém da equipe: chame chamar_atendente na hora.
 - Faltou uma informação importante, reclamação ou negociação: NÃO abra sozinho. Diga em uma frase que não tem a resposta (ou que isso é com a equipe) e pergunte se ela quer que você abra um chamado para a equipe responder. Só chame chamar_atendente depois que ela aceitar ("sim", "pode", "quero"). Se ela não quiser, siga ajudando no que der.
 - A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui.
-- Só abre chamado quem está com a conta conectada. Se a ferramenta avisar que falta entrar, explique em uma frase que é só tocar em "Entrar" no aviso que aparece aqui no chat e pedir de novo. O chamado ainda não existe nesse caso: nunca diga que já foi aberto.
+- No site, quem não entrou na conta precisa deixar o nome e um WhatsApp ou telefone, para a equipe ter como responder se a pessoa sair. Peça os dois numa frase só e chame chamar_atendente com nome e contato. Quem entrou na conta ou fala pelo WhatsApp, Instagram ou Discord não precisa disso. Se a ferramenta recusar, o chamado ainda não existe: nunca diga que já foi aberto.
 ${chamados.quando ? `- O dono quer chamado nestes casos (aqui pode abrir direto, sem perguntar): ${chamados.quando}\n` : ''}${chamados.nunca ? `- NÃO abra chamado nestes casos (resolva você ou explique com educação): ${chamados.nunca}\n` : ''}${chamados.codigo ? '- Para abrir chamado a pessoa precisa informar a senha de atendimento. Peça a senha antes; nunca diga qual é, nem dê dicas. Sem a senha certa, não há chamado: ajude no que puder.\n' : ''}`
     : `SEM EQUIPE NESTE ATENDIMENTO
 Não existe ninguém para assumir a conversa: você resolve sozinho. Nunca prometa que alguém vai responder, não anote recado e não diga que vai repassar nada.${contatos ? ` Se a pessoa precisar mesmo falar com alguém, passe os contatos: ${contatos}.` : ' Se pedirem para falar com uma pessoa, diga com gentileza que por aqui não dá e que é preciso procurar diretamente (por exemplo, na aula ou no local).'}`;
@@ -494,6 +494,8 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
           motivo: { type: 'string', description: 'O problema, em uma frase' },
           resumo: { type: 'string', description: 'O que foi conversado, para quem assumir' },
           prioridade: { type: 'string', enum: ['baixa', 'normal', 'alta'] },
+          nome: { type: 'string', description: 'Nome da pessoa (no site, obrigatório para quem não entrou na conta)' },
+          contato: { type: 'string', description: 'WhatsApp ou telefone com DDD (no site, obrigatório para quem não entrou na conta)' },
           ...(chamados.codigo ? { senha: { type: 'string', description: 'A senha de atendimento que a pessoa informou' } } : {}),
         },
         required: chamados.codigo ? ['titulo', 'motivo', 'senha'] : ['titulo', 'motivo'],
@@ -868,13 +870,18 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   if (nome === 'chamar_atendente') {
     const chamados = regrasDeChamado(cfg);
     if (!chamados.ativos) return { ok: false, mensagem: 'Este atendimento não abre chamados. Resolva você mesmo.' };
+    // no site sem conta: basta nome e um telefone de verdade (a equipe precisa ter como responder)
+    const nomeLead = String(args.nome ?? '').trim().slice(0, 120);
+    const contatoLead = String(args.contato ?? '').trim().slice(0, 120);
+    const contatoOk = contatoLead.replace(/\D/g, '').length >= 10 || /\S+@\S+\.\S+/.test(contatoLead);
     if (!r.teste && !r.cliente && !r.canal) {
-      r.sinais.pedirLogin = true;
-      return {
-        ok: false,
-        precisa_login: true,
-        mensagem: 'O chamado NÃO foi aberto: a pessoa não está com a conta conectada. Diga que, para falar com a equipe, é só tocar em "Entrar" no aviso que apareceu aqui no chat e pedir de novo. Enquanto isso, continue ajudando no que puder.',
-      };
+      if (nomeLead.length < 2 || !contatoOk) {
+        return {
+          ok: false,
+          mensagem: 'O chamado NÃO foi aberto ainda: falta o nome e um WhatsApp ou telefone com DDD (ou e-mail). Peça os dois numa frase e chame de novo. Nunca diga que já foi aberto.',
+        };
+      }
+      await db.from('conversations').update({ lead_nome: nomeLead, lead_contato: contatoLead }).eq('id', conversationId);
     }
     if (chamados.codigo && semAcento(String(args.senha ?? '').trim()) !== semAcento(chamados.codigo)) {
       return { ok: false, mensagem: 'Senha de atendimento incorreta ou não informada. Peça para a pessoa conferir. Não revele a senha nem dê dicas.' };
