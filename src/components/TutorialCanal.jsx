@@ -118,8 +118,7 @@ export const GUIAS = {
       {
         titulo: 'Copie a chave secreta',
         itens: [
-          <>Na mesma página (Configuração da API com login do Instagram), copie a <b>Chave secreta do app do Instagram</b> e cole em "Usa um app próprio da Meta?".</>,
-          <>Em <b>Configurações do app → Básico</b>, preencha a URL da Política de Privacidade com a política que o Helpy gera para a sua empresa (o link aparece no canal conectado, em “Ver dados para colar na Meta”).</>,
+          <>Na mesma página (Configuração da API com login do Instagram), clique em <b>Mostrar</b> na <b>Chave secreta do app do Instagram</b>, copie e cole no campo de mesmo nome aqui ao lado.</>,
         ],
       },
       {
@@ -132,6 +131,7 @@ export const GUIAS = {
         itens: [
           <>Na página do Instagram no app, em <b>Configurar webhooks</b>, cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostrar e clique em <b>Verificar e salvar</b>.</>,
           <>Assine o campo <b>messages</b>.</>,
+          <>Em <b>Configurações do app → Básico</b>, cole na URL da Política de Privacidade a política que o Helpy gera para a sua empresa (aparece no canal conectado, em “Ver dados para colar na Meta”).</>,
           <>Troque o <b>Modo do app</b> para <b>Ao vivo</b>. Para atender qualquer pessoa (não só quem é testador do app), a Meta pede a revisão da permissão <i>instagram_business_manage_messages</i>; enquanto ela não sai, teste com a sua própria conta.</>,
         ],
       },
