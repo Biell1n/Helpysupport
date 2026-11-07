@@ -72,6 +72,12 @@
   color: #6fd3a5;
 }
 
+[data-tema='escuro'] .alert-aviso {
+  background: rgba(240, 180, 60, 0.12);
+  border-color: rgba(240, 180, 60, 0.3);
+  color: #f0c46a;
+}
+
 [data-tema='escuro'] .carteira-situacao {
   border-color: #6b5420;
   background: #1c1709;

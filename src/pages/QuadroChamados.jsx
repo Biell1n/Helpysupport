@@ -7,6 +7,7 @@ import { numero, quando } from '@/lib/format';
 import { canalDe, SeloCanal } from '@/components/IconesCanais';
 import { avisarNoCanal } from '@/lib/canais';
 import { bloqueioDa, rotuloDoBloqueio } from '@/lib/bloqueio';
+import { etapasDasConversas, SeloEtapa } from '@/components/EtapaCompra';
 import { Marca } from '@/components/Logo';
 
 const COLUNAS = [
@@ -20,6 +21,7 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
   const { user, nome } = useAuth();
   const avisar = useToast();
   const [cards, setCards] = useState(null);
+  const [etapas, setEtapas] = useState({});
   const [arrastando, setArrastando] = useState(null);
   const [sobre, setSobre] = useState(null);
   const atendente = nome || user?.email?.split('@')[0] || 'Equipe';
@@ -31,7 +33,9 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
       supabase.from('conversations').select('*').eq('teste', false).eq('status', 'closed').not('escalado_em', 'is', null)
         .gte('fechado_em', quinzena).order('fechado_em', { ascending: false }).limit(100),
     ]);
-    setCards([...(abertos ?? []), ...(fechados ?? [])]);
+    const todos = [...(abertos ?? []), ...(fechados ?? [])];
+    setCards(todos);
+    setEtapas(await etapasDasConversas(supabase, todos));
   }, []);
 
   useEffect(() => {
@@ -133,6 +137,7 @@ export default function QuadroChamados({ onAbrir, onLista, assistentes, recarreg
                     </span>
                   </div>
                   <b>{c.titulo || c.motivo || 'Atendimento'}</b>
+                  {etapas[c.id] && <span><SeloEtapa etapa={etapas[c.id]} /></span>}
                   <span className="faint" style={{ fontSize: 12.5 }}>
                     {c.lead_nome || c.cliente_email || 'Visitante'}{assistentes[c.assistant_id] ? ` · ${assistentes[c.assistant_id]}` : ''}
                   </span>

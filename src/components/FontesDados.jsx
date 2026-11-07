@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { ArrowLeft, Check, Database, FileSpreadsheet, Link2, Loader2, PlugZap, RefreshCw, Table2, Upload } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
 import { quando } from '@/lib/format';
-import { colunasDe, lerArquivo, LIMITE_LINHAS, registrosDe } from '@/lib/planilha';
+import { colunasDe, lerArquivo, LIMITE_LINHAS, linhasTortas, registrosDe } from '@/lib/planilha';
 import { Modal } from '@/components/Modal';
 import { useAuth } from '@/contexts/AuthContext';
 import { planOf } from '@/lib/plans';
@@ -38,8 +38,18 @@ async function criarTabelaBase({ userId, nome, assistentes, extra = {} }) {
 }
 
 function Previa({ cabecalho, linhas, total }) {
+  const tortas = linhasTortas([cabecalho, ...linhas]);
   return (
     <div className="fonte-previa">
+      {tortas.length > 0 && (
+        <div className="alert alert-aviso" style={{ marginBottom: 10 }}>
+          <span>
+            {tortas.length === 1 ? `A linha ${tortas[0]} tem` : `${tortas.length} linhas (${tortas.slice(0, 5).join(', ')}${tortas.length > 5 ? '…' : ''}) têm`} mais
+            valores que colunas, e o que sobrar fica de fora. Costuma ser vírgula no meio do texto. Se puder, salve a planilha
+            como Excel (.xlsx) ou corrija depois na tabela.
+          </span>
+        </div>
+      )}
       <div className="sheet-wrap" style={{ maxHeight: 220 }}>
         <table className="sheet">
           <thead>

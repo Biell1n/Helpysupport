@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUp, Ban, CheckCircle2, ClipboardList, Clock3, Headset, Columns3, Hand, RotateCcw, Search, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Ban, CheckCircle2, Headset, Columns3, Hand, RotateCcw, Search } from 'lucide-react';
 import QuadroChamados from './QuadroChamados';
 import { chamar, supabase } from '@/lib/supabase';
 import { canalDe, NOME_DO_CANAL, SeloCanal } from '@/components/IconesCanais';
@@ -13,6 +13,7 @@ import Abas from '@/components/Abas';
 import { numero, quando, STATUS } from '@/lib/format';
 import { avisarNoCanal } from '@/lib/canais';
 import { bloqueioDa, rotuloDoBloqueio } from '@/lib/bloqueio';
+import { DO_PEDIDO, ETAPAS, etapaDa, SeloEtapa } from '@/components/EtapaCompra';
 
 const CELULAR = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 900px)').matches;
 const ABAS = [
@@ -24,14 +25,6 @@ const ABAS = [
 
 const nomeCliente = (c) => c.lead_nome?.trim() || c.cliente_email || 'Visitante';
 
-/** Em que pé está a compra nesta conversa: do carrinho ao pedido pago ou finalizado pela equipe. */
-const ETAPAS = {
-  montando: { rotulo: 'Montando pedido', Icone: ShoppingCart, cor: 'etapa-montando' },
-  pagamento: { rotulo: 'Aguardando pagamento', Icone: Clock3, cor: 'etapa-pagamento' },
-  anotado: { rotulo: 'Pedido anotado', Icone: ClipboardList, cor: 'etapa-anotado' },
-  feito: { rotulo: 'Pedido pago/finalizado', Icone: CheckCircle2, cor: 'etapa-feito' },
-};
-const DO_PEDIDO = { aguardando: 'pagamento', anotado: 'anotado', pago: 'feito', finalizado: 'feito' };
 const TEMPOS = [
   { min: 60, rotulo: '1 hora' },
   { min: 6 * 60, rotulo: '6 horas' },
@@ -87,16 +80,6 @@ function BloquearModal({ conversa, atendente, onFechar, onFeito }) {
   );
 }
 
-function etapaDa(c, pedido) {
-  if (pedido && DO_PEDIDO[pedido]) return DO_PEDIDO[pedido];
-  return Array.isArray(c.carrinho) && c.carrinho.length ? 'montando' : null;
-}
-
-function SeloEtapa({ etapa }) {
-  const e = ETAPAS[etapa];
-  if (!e) return null;
-  return <span className={`selo-etapa ${e.cor}`} title={e.rotulo}><e.Icone size={12} aria-hidden="true" /> {e.rotulo}</span>;
-}
 const estrelas = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 export default function Atendimentos() {
   const { recarregarUso } = useOutletContext();
@@ -189,13 +172,17 @@ export default function Atendimentos() {
   // ---- conversa aberta ----
   // a conversa que está aberta agora: resposta atrasada de outra (troca rápida de chamado) é descartada
   const abertaAgora = useRef(null);
+  const pedidoAberta = useRef(0);
   const carregarAberta = useCallback(async (id) => {
+    // a atualização automática (a cada 8 s) pode voltar depois da que veio de um clique:
+    // só vale a resposta do pedido mais novo, senão a tela volta para o estado antigo
+    const meu = ++pedidoAberta.current;
     const [{ data: c, error: erro }, { data: msgs }, { data: evs }] = await Promise.all([
       supabase.from('conversations').select('*').eq('id', id).maybeSingle(),
       supabase.from('conversation_messages').select('id, role, content, author_name, created_at').eq('conversation_id', id).order('created_at').limit(300),
       supabase.from('conversa_eventos').select('id, tipo, quem, detalhe, criado_em').eq('conversation_id', id).order('criado_em').limit(100),
     ]);
-    if (abertaAgora.current !== id) return;
+    if (abertaAgora.current !== id || meu !== pedidoAberta.current) return;
     // uma falha de rede numa atualização não apaga da tela a conversa que já estava aberta
     if (erro) {
       setAberta((antes) => (antes?.id === id ? antes : null));
@@ -336,8 +323,11 @@ export default function Atendimentos() {
         role: 'agent',
         content: texto,
         author_name: atendente,
-      }).select('id').single();
+      }).select('id, role, content, author_name, created_at').single();
       if (error) throw error;
+      // a resposta aparece na hora (sem esperar a próxima atualização), para ninguém mandar de novo
+      setMensagens((p) => (p.some((x) => x.id === msg.id) ? p : [...p, msg]));
+      setResposta('');
       // conversa que veio do WhatsApp, Instagram ou Discord: a resposta sai por lá
       if (aberta.canal_id) {
         try {

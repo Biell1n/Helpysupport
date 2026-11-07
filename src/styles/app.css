@@ -1528,6 +1528,29 @@
   cursor: pointer;
 }
 
+.cal-ev-mais {
+  background: var(--papel-2);
+  color: var(--tinta);
+  text-align: center;
+  font-weight: 600;
+}
+
+.cal-lista-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--linha);
+  border-radius: var(--r);
+  background: var(--branco);
+  color: var(--tinta);
+  cursor: pointer;
+}
+
+.cal-lista-item:hover { border-color: var(--linha-forte); }
+.cal-lista-item > .faint { grid-column: 2; font-size: 12.5px; }
+
 .cal-ev[data-origem='assistente'] {
   background: var(--senha);
   color: var(--sobre-senha);

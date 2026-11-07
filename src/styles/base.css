@@ -648,6 +648,12 @@ button, input, select, textarea {
   color: #a3361f;
 }
 
+.alert-aviso {
+  background: #fff6e0;
+  border-color: rgba(183, 121, 31, 0.35);
+  color: #7a4f0e;
+}
+
 .alert-ok {
   background: var(--folha-clara);
   border-color: rgba(29, 134, 86, 0.3);

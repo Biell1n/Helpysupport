@@ -3,8 +3,10 @@ import { CalendarPlus, Loader2 } from 'lucide-react';
 import { chamar } from '@/lib/supabase';
 import { useToast } from '@/components/Toasts';
 import { Modal } from '@/components/Modal';
+import { FUSO_PADRAO, hojeNoFuso, paredeIso } from '@/lib/fuso';
 
-const hojeIso = () => new Date().toLocaleDateString('en-CA');
+// datas no fuso da empresa, não no do aparelho
+const hojeIso = (fuso) => hojeNoFuso(fuso || FUSO_PADRAO);
 
 /**
  * A agenda dentro do chamado: quem está atendendo marca, remarca e
@@ -45,7 +47,7 @@ export default function AgendaDoChamado({ conversa, onMudou }) {
     setForm({
       modo: 'novo',
       servico: info.servicos[0]?.nome ?? '',
-      dia: hojeIso(),
+      dia: hojeIso(info?.fuso),
       hora: '',
       nome: conversa.lead_nome ?? '',
       contato: conversa.lead_contato ?? '',
@@ -86,7 +88,7 @@ export default function AgendaDoChamado({ conversa, onMudou }) {
           <div key={m.id} className="chamado-agenda-item">
             <span>{m.texto}</span>
             <span className="chamado-agenda-acoes">
-              <button type="button" className="link-btn" disabled={ocupado} onClick={() => setForm({ modo: 'remarcar', id: m.id, dia: new Date(m.inicio).toLocaleDateString('en-CA'), hora: '' })}>
+              <button type="button" className="link-btn" disabled={ocupado} onClick={() => setForm({ modo: 'remarcar', id: m.id, dia: paredeIso(m.inicio, info.fuso || FUSO_PADRAO).slice(0, 10), hora: '' })}>
                 Remarcar
               </button>
               <button
@@ -123,7 +125,7 @@ export default function AgendaDoChamado({ conversa, onMudou }) {
             )}
             <label className="field">
               <span className="label">Dia</span>
-              <input className="input" type="date" min={hojeIso()} value={form.dia} onChange={set('dia')} />
+              <input className="input" type="date" min={hojeIso(info?.fuso)} value={form.dia} onChange={set('dia')} />
             </label>
             <div className="field">
               <span className="label">Horário livre</span>
