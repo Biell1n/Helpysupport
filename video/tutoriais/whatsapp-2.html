@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="motor.css">
+<style>
+.capa h1 span { color: #12805c; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- capa -->
+  <section class="scene" data-dur="7">
+    <div class="capa"><div>
+      <div class="etiqueta" data-on="0">Parte 2 de 2 · uns 5 minutos</div>
+      <h1 data-on="0.15">Depois de conectar o <span>WhatsApp</span></h1>
+      <div class="leva" data-on="0.5" style="max-width:820px;margin:0 auto">Mais três coisas na Meta e o assistente já responde os seus clientes.</div>
+    </div></div>
+  </section>
+
+  <!-- 1. ver dados -->
+  <section class="scene" data-dur="9" data-passo="1"
+    data-cursor='[[1.8,"#x1-ver",1],[5.6,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela helpy"><div data-barra="helpysupport.com/painel/canais"></div>
+      <div class="conteudo"><div data-lateral-helpy></div>
+        <div class="area">
+          <h2 style="margin-bottom:14px">Canais</h2>
+          <div class="opcao canal-card" style="width:640px;flex-wrap:wrap"><div class="zap"><svg viewBox="0 0 24 24" fill="#12805c"><circle cx="12" cy="12" r="9"/></svg></div><div><b>WhatsApp</b><small>+55 11 91234-5678</small></div><div style="flex:1"></div><span class="badge-ok">● Conectado</span>
+            <div style="flex-basis:100%"><span class="link" id="x1-ver">Ver dados para colar na Meta</span></div>
+            <div data-on="2.2" data-mostra style="flex-basis:100%;margin-top:8px">
+              <div class="dado" style="margin-bottom:8px" data-realce="2.8-3.8"><div class="campo" style="flex:1;margin:0"><label style="font-size:15px">URL de callback</label><div class="input mono" style="height:38px;font-size:15px">https://helpysupport.com/webhook/meta</div></div></div>
+              <div class="dado" style="margin-bottom:8px" data-realce="3.8-4.8"><div class="campo" style="flex:1;margin:0"><label style="font-size:15px">Verificar token</label><div class="input mono" style="height:38px;font-size:15px">a151c30e07aa9d02cb37…</div></div></div>
+              <div class="dado" style="margin-bottom:8px" data-realce="4.8-5.8"><div class="campo" style="flex:1;margin:0"><label style="font-size:15px">Política de privacidade da sua empresa</label><div class="input mono" style="height:38px;font-size:15px">https://helpysupport.com/c/…/privacidade</div></div></div>
+            </div>
+          </div>
+        </div></div></div></div>
+    <div class="legenda"><div class="passo-n">1</div><div><h3>Pegue os dados para a Meta</h3><p>No WhatsApp conectado, clique em <b>Ver dados para colar na Meta</b>.</p></div></div>
+  </section>
+
+  <!-- 2. webhook -->
+  <section class="scene" data-dur="12" data-passo="2"
+    data-cursor='[[1.8,"#x2-cu",1],[2.8,"#x2-url",1],[4.0,"#x2-ct",1],[5.0,"#x2-tok",1],[6.4,"#x2-salvar",1],[8.4,"#x2-msg",1],[10.0,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · WhatsApp · Personalizar · Etapa 2"></div>
+      <div class="conteudo"><div data-lateral="Lumi Cosméticos;Etapa 1. Experimente;Etapa 2. Produção*;Configurar webhooks"></div>
+        <div class="area">
+          <h2>Configurar webhooks</h2><p class="sub">Webhook = o aviso de mensagem nova.</p>
+          <div class="campo" style="width:440px"><label>URL de callback</label><div class="input mono" id="x2-url" style="font-size:15px"><span data-digita="https://helpysupport.com/webhook/meta" data-t="2.9-3.05" data-cola></span></div></div>
+          <div class="campo" style="width:440px"><label>Verificar token</label><div class="input mono" id="x2-tok" style="font-size:15px"><span data-digita="a151c30e07aa9d02cb37…" data-t="5.1-5.25" data-cola></span></div></div>
+          <div class="linha"><button class="btn btn-azul" id="x2-salvar" data-aperta="6.4">Verificar e salvar</button><div class="ok" data-on="6.75"><i></i> Verificado</div></div>
+          <div class="opcao" data-on="7.2" style="margin-top:14px;width:440px"><div style="flex:1"><b>messages</b><small>Campo do webhook: assine</small></div><span class="chave" id="x2-msg" data-check="8.4"></span></div>
+        </div></div></div>
+      <div class="mini" data-on="0.9" data-anim="painel" style="top:190px;width:380px"><div class="mini-topo"><span data-logo></span> Dados para a Meta</div><div class="mini-corpo">
+        <div class="campo"><label>URL de callback</label><div class="linha"><div class="input mono" style="font-size:13px">…/webhook/meta</div><span class="copiar" id="x2-cu" data-copiar="1.8-2.6"></span></div></div>
+        <div class="campo"><label>Verificar token</label><div class="linha"><div class="input mono" style="font-size:13px">a151c30e07aa…</div><span class="copiar" id="x2-ct" data-copiar="4.0-4.8"></span></div></div>
+      </div></div>
+    </div>
+    <div class="legenda"><div class="passo-n">2</div><div><h3>Ligue os avisos de mensagem nova</h3><p>Cole os dois dados, clique em <b>Verificar e salvar</b> e ligue <b>messages</b>.</p></div></div>
+  </section>
+
+  <!-- 3. dados do app -->
+  <section class="scene" data-dur="12" data-passo="3"
+    data-cursor='[[1.8,"#x3-pol",1],[3.2,"#x3-exc",1],[4.8,"#x3-ico",1],[6.2,"#x3-cat",1],[7.8,"#x3-salvar",1],[9.6,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · Configurações do app · Básico"></div>
+      <div class="conteudo"><div class="lateral"><b>Lumi Cosméticos</b><div>Painel</div><div>Casos de uso</div><div class="at">⚙ Configurações do app</div><div>Publicar</div></div>
+        <div class="area">
+          <h2>Configurações básicas</h2><p class="sub" style="margin-bottom:16px">Cole a política que o Helpy gerou para a sua empresa.</p>
+          <div class="linha" style="align-items:flex-start">
+            <div style="flex:1">
+              <div class="campo"><label>URL da Política de Privacidade</label><div class="input mono" id="x3-pol" style="font-size:15px"><span data-digita="https://helpysupport.com/c/…/privacidade" data-t="1.9-2.05" data-cola></span></div></div>
+              <div class="campo"><label>URL de Exclusão de dados</label><div class="input mono" id="x3-exc" style="font-size:15px"><span data-digita="https://helpysupport.com/c/…/privacidade" data-t="3.3-3.45" data-cola></span></div></div>
+            </div>
+            <div style="width:250px">
+              <div class="campo"><label>Ícone do app</label><div id="x3-ico" style="width:84px;height:84px;border:2px dashed #b9c4d2;border-radius:10px;display:grid;place-items:center;color:#8a98a8;position:relative">+<div data-on="5.0" style="position:absolute;inset:6px;border-radius:8px;background:#e3f6ea;display:grid;place-items:center;color:#12805c;font-weight:800;font-size:28px">L</div></div></div>
+              <div class="campo"><label>Categoria</label><div class="input" id="x3-cat"><span class="troca"><span data-off="6.4" style="color:#8a98a8">Escolha ▾</span><span data-on="6.45">Negócios e páginas</span></span></div></div>
+            </div>
+          </div>
+          <div class="linha"><button class="btn btn-azul" id="x3-salvar" data-aperta="7.8">Salvar alterações</button><div class="ok" data-on="8.15"><i></i> Salvo</div></div>
+        </div></div></div></div>
+    <div class="legenda"><div class="passo-n">3</div><div><h3>Preencha os dados do app</h3><p>Cole a política em <b>Privacidade</b> e em <b>Exclusão de dados</b>. Ícone, categoria e salve.</p></div></div>
+  </section>
+
+  <!-- 4. publicar -->
+  <section class="scene" data-dur="8.5" data-passo="4"
+    data-cursor='[[1.8,"#x4-menu",1],[3.6,"#x4-pub",1],[5.0,"#x4-conf",1],[6.6,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · Publicar"></div>
+      <div class="conteudo"><div class="lateral"><b>Lumi Cosméticos</b><div>Painel</div><div>Casos de uso</div><div>⚙ Configurações do app</div><div id="x4-menu" data-marca="1.8">Publicar</div></div>
+        <div class="area">
+          <div class="troca">
+            <div data-off="2.1"><h2>Configurações básicas</h2><p class="sub">Tudo salvo.</p></div>
+            <div data-on="2.15"><h2>Publicar</h2><p class="sub">Sem publicar, as mensagens dos clientes não chegam.</p>
+              <div class="linha"><button class="btn btn-azul" id="x4-pub" data-aperta="3.6">Publicar</button><div class="ok" data-on="5.35"><i></i> Publicado · Ao vivo</div></div></div>
+          </div>
+        </div>
+        <div class="modal" data-on="3.9" data-off="5.25"><div class="card" style="width:480px">
+          <h2>Publicar o app?</h2><p style="margin:0 0 18px;color:#5b6b7d;font-size:17px">Ele passa a receber mensagens de qualquer pessoa.</p>
+          <button class="btn btn-azul" id="x4-conf" data-aperta="5.0">Confirmar</button>
+        </div></div>
+      </div></div></div>
+    <div class="legenda"><div class="passo-n">4</div><div><h3>Publique o app</h3><p>No menu da esquerda, clique em <b>Publicar</b> e confirme.</p></div></div>
+  </section>
+
+  <!-- final -->
+  <section class="scene" data-dur="11">
+    <div class="celular" data-on="0"><div class="tela">
+      <div class="zap-topo"><div class="av">L</div><div><b>Lumi Cosméticos</b><small>online</small></div></div>
+      <div class="balao eu" style="top:96px" data-on="0.9">Oi! Vocês têm protetor solar? ☀️<span class="lido">✓✓</span></div>
+      <div class="balao digitando" style="top:162px" data-on="1.7" data-off="3.2"><i></i><i></i><i></i></div>
+      <div class="balao ela" style="top:162px" data-on="3.5">Temos sim! O FPS 50 sai por R$&nbsp;59,90. Quer que eu separe um? 😊</div>
+      <div class="balao eu" style="top:262px" data-on="5.4">Quero, por favor<span class="lido">✓✓</span></div>
+      <div class="campo-msg">Mensagem<i></i></div>
+    </div></div>
+    <div class="final"><h1 data-on="0.25">Pronto. <span>Agora teste.</span></h1><p data-on="0.6">Mande um oi de outro celular para o número. A conversa aparece em <b>Atendimentos</b>, no Helpy.</p>
+      <div class="assinatura" data-on="1.0"><span data-logo></span> helpysupport.com</div></div>
+  </section>
+</div>
+<script src="partes.js"></script>
+<script src="motor.js"></script>
+</body>
+</html>

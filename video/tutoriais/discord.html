@@ -6,173 +6,218 @@
 <link rel="stylesheet" href="motor.css">
 <style>
 .capa h1 span { color: #5865f2; }
-.dc-ico { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: #5865f2; }
-.dc-ico svg { width: 24px; height: 24px; }
-/* janela do Discord */
-.janela.dc { background: #313338; color: #dbdee1; }
+.dc-ico { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #5865f2; flex: none; }
+.dc-ico svg { width: 26px; height: 26px; }
+/* Discord */
+.janela.dc { background: #313338; color: #dbdee1; font-family: 'Inter', 'Liberation Sans', sans-serif; }
 .dc .barra { background: #1e1f22; border-bottom-color: #1e1f22; }
 .dc .url { background: #2b2d31; border-color: #2b2d31; color: #949ba4; }
-.dc .conteudo { display: flex; }
-.dc-servidores { width: 72px; background: #1e1f22; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 12px; }
-.dc-servidores i { width: 48px; height: 48px; border-radius: 50%; background: #313338; display: grid; place-items: center; font-style: normal; font-weight: 700; color: #dbdee1; }
+.dc-servidores { width: 76px; background: #1e1f22; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 12px; flex: none; }
+.dc-servidores i { width: 50px; height: 50px; border-radius: 50%; background: #313338; display: grid; place-items: center; font-style: normal; font-weight: 700; color: #dbdee1; font-size: 20px; }
 .dc-servidores i.at { border-radius: 16px; background: #5865f2; color: #fff; }
-.dc-canais { width: 230px; background: #2b2d31; padding: 14px 10px; font-size: 15px; }
-.dc-canais b { display: block; color: #f2f3f5; padding: 0 8px 12px; border-bottom: 1px solid #1f2023; margin-bottom: 10px; }
-.dc-cat { font-size: 12px; font-weight: 700; color: #949ba4; letter-spacing: .03em; text-transform: uppercase; margin: 14px 8px 4px; }
+.dc-canais { width: 250px; background: #2b2d31; padding: 14px 10px; font-size: 17px; flex: none; }
+.dc-canais > b { display: block; color: #f2f3f5; padding: 0 8px 12px; border-bottom: 1px solid #1f2023; margin-bottom: 8px; }
+.dc-cat { font-size: 14px; font-weight: 700; color: #949ba4; letter-spacing: .03em; text-transform: uppercase; margin: 14px 8px 4px; }
 .dc-canal { padding: 6px 8px; border-radius: 6px; color: #949ba4; }
 .dc-canal.at { background: #404249; color: #f2f3f5; }
-.dc-chat { flex: 1; position: relative; padding: 18px 22px; }
-.dc-msg { display: flex; gap: 14px; margin-bottom: 14px; font-size: 15px; line-height: 1.4; }
-.dc-av { width: 40px; height: 40px; border-radius: 50%; background: #5865f2; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; }
+.dc-chat { flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0; }
+.dc-topo { height: 50px; border-bottom: 1px solid #26272b; display: flex; align-items: center; padding: 0 20px; color: #f2f3f5; font-weight: 600; font-size: 17px; flex: none; }
+.dc-corpo { padding: 16px 22px; flex: 1; position: relative; }
+.dc-msg { display: flex; gap: 14px; margin-bottom: 14px; font-size: 18px; line-height: 1.38; }
+.dc-av { width: 44px; height: 44px; border-radius: 50%; background: #5865f2; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; }
+.dc-av.helpy { background: #fff; } .dc-av.helpy svg { width: 30px; height: 30px; }
 .dc-nome { color: #f2f3f5; font-weight: 600; margin-right: 6px; }
-.dc-app { background: #5865f2; color: #fff; font-size: 10.5px; font-weight: 700; padding: 1px 5px; border-radius: 4px; vertical-align: 2px; }
-.dc-so { color: #949ba4; font-size: 12.5px; margin-top: 6px; }
+.dc-app { background: #5865f2; color: #fff; font-size: 13px; font-weight: 700; padding: 1px 5px; border-radius: 4px; vertical-align: 2px; }
+.dc-so { color: #949ba4; font-size: 15px; margin-top: 6px; }
 .dc-botoes { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.dc-btn { height: 34px; padding: 0 14px; border-radius: 4px; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; color: #fff; background: #4e5058; border: 0; }
+.dc-btn { height: 40px; padding: 0 16px; border-radius: 4px; font-size: 16px; font-weight: 600; display: inline-flex; align-items: center; color: #fff; background: #4e5058; border: 0; font-family: inherit; }
 .dc-btn.verde { background: #248046; } .dc-btn.azul { background: #5865f2; }
-.dc-entrada { position: absolute; left: 22px; right: 22px; bottom: 18px; height: 44px; border-radius: 8px; background: #383a40; display: flex; align-items: center; padding: 0 16px; color: #dbdee1; font-size: 15px; }
+.dc-entrada { position: absolute; left: 22px; right: 22px; bottom: 16px; height: 48px; border-radius: 8px; background: #383a40; display: flex; align-items: center; padding: 0 16px; color: #dbdee1; font-size: 17px; }
+.dc-entrada .ph { color: #6d6f78; }
 .dc-entrada.foco { box-shadow: 0 0 0 2px #5865f2; }
-.dc-sug { position: absolute; left: 22px; right: 22px; bottom: 70px; background: #2b2d31; border-radius: 8px; padding: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.35); }
-.dc-sug div { padding: 8px 10px; border-radius: 6px; background: #404249; color: #f2f3f5; font-size: 14.5px; }
-.dc-sug small { color: #949ba4; margin-left: 8px; }
-.dc-ok { color: #2dc770; }
-/* tela de autorizar */
-.auth { position: absolute; inset: 42px 0 0 0; background: #5865f2; display: grid; place-items: center; }
-.auth .card { width: 440px; background: #313338; color: #dbdee1; border-radius: 10px; padding: 26px; }
-.auth h2 { color: #f2f3f5; font-size: 20px; margin: 10px 0 4px; text-align: center; }
-.auth .sel { height: 42px; border-radius: 6px; background: #1e1f22; display: flex; align-items: center; padding: 0 14px; margin: 14px 0; color: #f2f3f5; }
-.auth .perm { font-size: 14px; color: #b5bac1; line-height: 1.9; margin: 4px 0 14px; }
+.dc-sug { position: absolute; left: 22px; right: 22px; bottom: 74px; background: #2b2d31; border-radius: 8px; padding: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.35); }
+.dc-sug div { padding: 9px 12px; border-radius: 6px; background: #404249; color: #f2f3f5; font-size: 17px; }
+.dc-sug small { color: #949ba4; margin-left: 8px; font-size: 15px; }
+.dc-ok { color: #2dc770; font-weight: 600; }
+.auth { position: absolute; inset: 46px 0 0 0; background: #5865f2; display: grid; place-items: center; }
+.auth .card { width: 480px; background: #313338; color: #dbdee1; border-radius: 8px; padding: 26px; }
+.auth h2 { color: #f2f3f5; font-size: 22px; margin: 12px 0 4px; text-align: center; }
+.auth .sel { height: 48px; border-radius: 6px; background: #1e1f22; display: flex; align-items: center; padding: 0 14px; margin: 12px 0 16px; color: #f2f3f5; font-size: 17px; }
+.auth .perm { font-size: 17px; color: #b5bac1; line-height: 1.8; margin: 4px 0 14px; }
 .auth .perm b { color: #2dc770; }
 .auth .btn { width: 100%; justify-content: center; background: #5865f2; color: #fff; }
+.membros { width: 250px; background: #2b2d31; padding: 16px 12px; font-size: 17px; flex: none; position: relative; }
+.membro { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; color: #dbdee1; }
+.membro .dc-av { width: 34px; height: 34px; font-size: 15px; }
+.perfil-dc { position: absolute; right: 270px; top: 120px; width: 320px; background: #232428; border-radius: 8px; padding: 18px; box-shadow: 0 16px 40px rgba(0,0,0,.5); color: #dbdee1; z-index: 5; }
+.cargo { display: inline-flex; align-items: center; gap: 6px; background: #2b2d31; border-radius: 4px; padding: 4px 10px; font-size: 15px; }
+.cargo i { width: 10px; height: 10px; border-radius: 50%; background: #2dc770; display: block; }
+.mais { width: 30px; height: 30px; border-radius: 4px; background: #2b2d31; display: inline-grid; place-items: center; font-size: 20px; color: #dbdee1; }
+.lista-cargos { margin-top: 10px; background: #111214; border-radius: 6px; padding: 6px; }
+.lista-cargos div { padding: 8px 10px; border-radius: 4px; font-size: 16px; }
+.dc .marcada { background: #404249; border-color: transparent; color: #f2f3f5; }
+.dc .realce { box-shadow: 0 0 0 2px #5865f2; }
 </style>
 </head>
 <body>
 <div class="stage" id="stage">
 
   <!-- capa -->
-  <section class="scene" data-dur="7">
+  <section class="scene" data-dur="10">
     <div class="capa"><div>
-      <div class="etiqueta" data-on="0.1">Tutorial · uns 2 minutos</div>
-      <h1 data-on="0.25">Conectar o <span>Discord</span> ao Helpy</h1>
-      <div class="leva" data-on="0.6">O assistente atende no seu servidor, com o próprio nome. Você só precisa de:</div>
+      <div class="etiqueta" data-on="0">Tutorial · uns 2 minutos</div>
+      <h1 data-on="0.15">Conectar o <span>Discord</span> ao Helpy</h1>
+      <div class="leva" data-on="0.5">O assistente atende no seu servidor, com o próprio nome.</div>
       <div class="precisa">
-        <div class="item destaque" data-on="1.3" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg></div><b>Ser administrador</b><span>Ou ter "Gerenciar servidor" no servidor onde ele vai atender.</span></div>
-        <div class="item" data-on="2.1" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg></div><b>Nada de criar bot</b><span>O bot do Helpy entra pronto. Sem token, sem código.</span></div>
-        <div class="item" data-on="2.9" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><b>Uns 2 minutos</b><span>Um clique para adicionar e um comando para montar tudo.</span></div>
+        <div class="item destaque" data-on="1.2" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/></svg></div><b>Ser administrador</b><span>Ou ter "Gerenciar servidor" no servidor.</span></div>
+        <div class="item" data-on="2.6" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg></div><b>Nada de criar bot</b><span>Sem programação e sem configuração técnica.</span></div>
+        <div class="item" data-on="4.0" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><b>Uns 2 minutos</b><span>Um clique para adicionar e um comando.</span></div>
       </div>
     </div></div>
   </section>
 
   <!-- 1. no Helpy -->
-  <section class="scene" data-dur="7" data-passo="1"
-    data-cursor='[[1.0,"#d1-con",1],[2.6,"#d1-ass",1],[4.4,"#d1-add",1]]'
-    data-cam='[[0,1,null],[1.6,1.15,".modal .card"]]'>
-    <div class="camera"><div class="janela helpy"><div class="barra"><div class="bolinhas"><i></i><i></i><i></i></div><div class="url">helpysupport.com/painel/canais</div></div>
-      <div class="conteudo"><div class="lateral"><b><span class="logo-h">h</span> helpy</b><div>Painel</div><div>Atendimentos</div><div>Assistentes</div><div class="at">Canais</div></div>
+  <section class="scene" data-dur="9.5" data-passo="1"
+    data-cursor='[[1.8,"#d1-con",1],[3.6,"#d1-ass",0],[5.4,"#d1-add",1]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela helpy"><div data-barra="helpysupport.com/painel/canais"></div>
+      <div class="conteudo"><div data-lateral-helpy></div>
         <div class="area">
           <h2>Canais</h2><p class="sub">O mesmo assistente onde o seu cliente já conversa.</p>
-          <div class="opcao" style="width:380px"><div class="dc-ico"><svg viewBox="0 0 24 24" fill="#fff"><path d="M19.3 5.3A16.6 16.6 0 0 0 15.2 4l-.5 1a15.4 15.4 0 0 0-5.4 0l-.5-1a16.6 16.6 0 0 0-4.1 1.3C2.1 9.2 1.4 13 1.7 16.8A16.7 16.7 0 0 0 6.8 19.4l1.1-1.7a10.8 10.8 0 0 1-1.7-.8l.4-.3a11.9 11.9 0 0 0 10.8 0l.4.3a10.8 10.8 0 0 1-1.7.8l1.1 1.7a16.6 16.6 0 0 0 5.1-2.6c.4-4.4-.7-8.2-3-11.5zM8.7 14.5c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg></div><div><b>Discord</b><small>Atende no seu servidor</small></div><div style="flex:1"></div><button class="btn btn-helpy" id="d1-con" data-aperta="1.0">Conectar</button></div>
-          <div class="modal" data-on="1.3"><div class="card" style="width:520px">
-            <h2 style="font-size:20px;margin:0 0 6px">Conectar Discord</h2>
-            <p style="margin:0 0 16px;color:#5b6b7d;font-size:14px">O bot do Helpy entra no seu servidor e atende com o nome do assistente.</p>
-            <div class="campo"><label>Assistente que vai atender</label><div class="input" id="d1-ass" data-realce="2.5-3.6">Lumi</div></div>
-            <button class="btn btn-helpy" id="d1-add" data-aperta="4.4">Adicionar ao meu servidor</button>
-          </div></div>
-        </div></div></div></div>
-    <div class="legenda"><div class="passo-n">1</div><div><h3>Escolha o assistente</h3><p>Em <b>Canais → Discord → Conectar</b>, escolha quem vai atender e clique em <b>Adicionar ao meu servidor</b>. O Discord abre sozinho.</p></div></div>
+          <div class="opcao canal-card"><div class="dc-ico"><svg viewBox="0 0 24 24" fill="#fff"><path d="M19.3 5.3A16.6 16.6 0 0 0 15.2 4l-.5 1a15.4 15.4 0 0 0-5.4 0l-.5-1a16.6 16.6 0 0 0-4.1 1.3C2.1 9.2 1.4 13 1.7 16.8A16.7 16.7 0 0 0 6.8 19.4l1.1-1.7a10.8 10.8 0 0 1-1.7-.8l.4-.3a11.9 11.9 0 0 0 10.8 0l.4.3a10.8 10.8 0 0 1-1.7.8l1.1 1.7a16.6 16.6 0 0 0 5.1-2.6c.4-4.4-.7-8.2-3-11.5zM8.7 14.5c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg></div><div><b>Discord</b><small>Atende no seu servidor</small></div><div style="flex:1"></div><button class="btn btn-helpy" id="d1-con" data-aperta="1.8">Conectar</button></div>
+        </div>
+        <div class="modal" data-on="2.1" style="place-items:start center;padding-top:40px"><div class="card" style="width:560px">
+          <h2 style="margin-bottom:6px">Conectar Discord</h2>
+          <p style="margin:0 0 16px;color:#5b6b7d;font-size:17px">O bot do Helpy entra no seu servidor e atende com o nome do assistente.</p>
+          <div class="campo"><label>Assistente que vai atender</label><div class="input" id="d1-ass" data-realce="3.4-4.6">Lumi</div></div>
+          <button class="btn btn-helpy" id="d1-add" data-aperta="5.4">Adicionar ao meu servidor</button>
+        </div></div>
+      </div></div></div>
+    <div class="legenda"><div class="passo-n">1</div><div><h3>Escolha o assistente</h3><p>Em <b>Canais → Discord → Conectar</b>: escolha e clique em <b>Adicionar ao meu servidor</b>.</p></div></div>
   </section>
 
   <!-- 2. autorizar -->
-  <section class="scene" data-dur="8" data-passo="2"
-    data-cursor='[[1.1,"#d2-sel",1],[2.6,"#d2-cont",1],[4.6,"#d2-aut",1]]'
-    data-cam='[[0,1,null],[0.6,1.15,".auth .card"]]'>
-    <div class="camera"><div class="janela dc"><div class="barra"><div class="bolinhas"><i></i><i></i><i></i></div><div class="url">discord.com/oauth2/authorize</div></div>
+  <section class="scene" data-dur="8.5" data-passo="2"
+    data-cursor='[[1.8,"#d2-sel",1],[3.2,"#d2-cont",1],[5.2,"#d2-aut",1],[7.0,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela dc"><div data-barra="discord.com/oauth2/authorize"></div>
       <div class="auth"><div class="card">
-        <div style="display:flex;justify-content:center;gap:10px"><span class="dc-av" style="background:#1f66f4">h</span><span class="dc-av">L</span></div>
+        <div style="display:flex;justify-content:center;align-items:center;gap:10px"><span class="dc-av helpy" data-logo></span><span style="color:#949ba4;letter-spacing:2px">•••</span><span class="dc-av">L</span></div>
         <h2>Helpy quer entrar no seu servidor</h2>
-        <div data-off="2.8">
-          <div style="font-size:13px;font-weight:700;color:#b5bac1;margin-top:14px">ADICIONAR AO SERVIDOR</div>
-          <div class="sel" id="d2-sel"><span data-off="1.2">Selecione um servidor ▾</span><span data-on="1.2" data-mostra>🌸 Lumi Cosméticos</span></div>
-          <button class="btn" id="d2-cont" data-aperta="2.6">Continuar</button>
+        <div class="troca">
+          <div data-off="3.45">
+            <div style="font-size:14px;font-weight:700;color:#b5bac1;margin-top:14px">ADICIONAR AO SERVIDOR</div>
+            <div class="sel" id="d2-sel"><span class="troca"><span data-off="2.0">Selecione um servidor ▾</span><span data-on="2.05">🌸 Lumi Cosméticos</span></span></div>
+            <button class="btn" id="d2-cont" data-aperta="3.2">Continuar</button>
+          </div>
+          <div data-on="3.5">
+            <div class="perm" style="margin-top:14px"><b>✓</b> Enviar mensagens e criar tópicos privados<br><b>✓</b> Gerenciar tópicos<br><b>✓</b> Usar comandos de barra</div>
+            <button class="btn" id="d2-aut" data-aperta="5.2">Autorizar</button>
+          </div>
         </div>
-        <div data-on="2.85" data-mostra>
-          <div class="perm"><b>✓</b> Enviar mensagens e criar tópicos privados<br><b>✓</b> Gerenciar tópicos<br><b>✓</b> Usar comandos de barra</div>
-          <button class="btn" id="d2-aut" data-aperta="4.6">Autorizar</button>
-        </div>
-        <div class="ok" data-on="5.0" data-mostra style="justify-content:center;margin-top:14px;color:#2dc770"><i style="background:#2dc770"></i> Autorizado · voltando para o Helpy</div>
+        <div class="ok" data-on="5.6" style="justify-content:center;margin-top:14px;color:#2dc770"><i style="background:#2dc770"></i> Autorizado · voltando para o Helpy</div>
       </div></div></div></div>
-    <div class="legenda"><div class="passo-n">2</div><div><h3>Autorize no Discord</h3><p>Escolha o <b>servidor</b>, clique em <b>Continuar</b> e em <b>Autorizar</b>. O bot já entra com as permissões certas e você volta para o Helpy.</p></div></div>
+    <div class="legenda"><div class="passo-n">2</div><div><h3>Autorize no Discord</h3><p>Escolha o <b>servidor</b>, clique em <b>Continuar</b> e em <b>Autorizar</b>.</p></div></div>
   </section>
 
   <!-- 3. /helpy-config -->
-  <section class="scene" data-dur="11" data-passo="3"
-    data-cursor='[[0.9,"#d3-entrada",1],[3.1,"#d3-montar",1],[6.4,"#d3-publicar",1]]'
-    data-cam='[[0,1,null],[0.6,1.12,"#d3-entrada"],[2.4,1.06,null],[5.8,1.12,"#d3-publicar"]]'>
-    <div class="camera"><div class="janela dc"><div class="barra"><div class="bolinhas"><i></i><i></i><i></i></div><div class="url">discord.com · Lumi Cosméticos</div></div>
+  <section class="scene" data-dur="13" data-passo="3"
+    data-cursor='[[1.6,"#d3-entrada",1],[5.4,"#d3-montar",1],[8.8,"#d3-publicar",1],[10.6,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela dc"><div data-barra="discord.com · Lumi Cosméticos"></div>
       <div class="conteudo">
         <div class="dc-servidores"><i class="at">🌸</i><i>+</i></div>
         <div class="dc-canais"><b>Lumi Cosméticos</b>
           <div class="dc-cat">Canais de texto</div>
           <div class="dc-canal at"># geral</div>
           <div class="dc-canal"># novidades</div>
-          <div id="d3-cat" data-on="3.6" data-mostra>
+          <div data-on="5.9">
             <div class="dc-cat">Atendimento</div>
-            <div class="dc-canal" data-on="3.8" data-anim="pop"># abrir-atendimento</div>
-            <div class="dc-canal" data-on="4.0" data-anim="pop">🔒 equipe-atendimento</div>
+            <div class="dc-canal" data-on="6.1" data-anim="pop" data-som="nao"># abrir-atendimento</div>
+            <div class="dc-canal" data-on="6.3" data-anim="pop" data-som="nao">🔒 equipe-atendimento</div>
           </div>
         </div>
-        <div class="dc-chat">
-          <div class="dc-msg" id="d3-bot" data-on="1.9" data-mostra><span class="dc-av">L</span><div><span class="dc-nome">Lumi</span><span class="dc-app">APP</span>
-            <div style="margin-top:4px" data-off="3.4">Vamos montar o atendimento do servidor. Escolha nos menus ou deixe comigo:</div>
-            <div data-on="3.45" data-mostra style="margin-top:4px">✅ Canal do atendimento: #abrir-atendimento<br>✅ Cargo da equipe: Equipe de atendimento<br>✅ Avisos: #equipe-atendimento</div>
-            <div class="dc-botoes"><button class="dc-btn verde" id="d3-montar" data-aperta="3.1">⚡ Montar tudo pra mim</button><button class="dc-btn">📋 Passo a passo</button><button class="dc-btn azul" id="d3-publicar" data-aperta="6.4">Publicar o botão</button></div>
+        <div class="dc-chat"><div class="dc-topo"># geral</div><div class="dc-corpo">
+          <div class="dc-msg" data-on="4.0"><span class="dc-av helpy" data-logo></span><div><span class="dc-nome">Lumi</span><span class="dc-app">APP</span>
+            <div class="troca" style="margin-top:4px">
+              <div data-off="5.7">Vamos montar o atendimento do servidor. Escolha nos menus ou deixe comigo:</div>
+              <div data-on="5.75">✅ Canal do atendimento: #abrir-atendimento<br>✅ Cargo: Equipe de atendimento<br>✅ Avisos: #equipe-atendimento</div>
+            </div>
+            <div class="dc-botoes"><button class="dc-btn verde" id="d3-montar" data-aperta="5.4">⚡ Montar tudo pra mim</button><button class="dc-btn">📋 Passo a passo</button><button class="dc-btn azul" id="d3-publicar" data-aperta="8.8">Publicar o botão</button></div>
             <div class="dc-so">Só você está vendo esta mensagem</div>
-            <div class="dc-ok" data-on="6.8" data-mostra style="margin-top:8px;font-weight:600">✓ Botão publicado em #abrir-atendimento</div>
+            <div class="dc-ok" data-on="9.2" style="margin-top:8px">✓ Botão publicado em #abrir-atendimento</div>
           </div></div>
-          <div class="dc-sug" data-on="1.15" data-off="1.8"><div>/helpy-config<small>Helpy · configurar o atendimento</small></div></div>
-          <div class="dc-entrada" id="d3-entrada"><span data-digita="/helpy-config" data-t="1.1-1.7" data-off="1.85"></span><span data-off="1.85" style="opacity:.0"></span></div>
-        </div>
+          <div class="dc-sug" data-on="1.9" data-off="3.8"><div>/helpy-config<small>Helpy · configurar o atendimento</small></div></div>
+          <div class="dc-entrada" id="d3-entrada"><span class="troca"><span data-off="1.75" class="ph">Conversar em #geral</span><span data-on="1.8" data-off="3.85"><span data-digita="/helpy-config" data-t="1.9-3.2"></span></span></span></div>
+        </div></div>
       </div></div></div>
-    <div class="legenda"><div class="passo-n">3</div><div><h3>Monte o atendimento com um comando</h3><p>No servidor, digite <b>/helpy-config</b> e clique em <b>⚡ Montar tudo pra mim</b>: o bot cria os canais e o cargo da equipe. Depois, <b>Publicar o botão</b>.</p></div></div>
+    <div class="legenda"><div class="passo-n">3</div><div><h3>Monte o atendimento</h3><p>Digite <b>/helpy-config</b>, clique em <b>⚡ Montar tudo pra mim</b> e em <b>Publicar o botão</b>.</p></div></div>
   </section>
 
-  <!-- 4. o cliente -->
-  <section class="scene" data-dur="9.5" data-passo="4"
-    data-cursor='[[1.2,"#d4-abrir",1]]'
-    data-cam='[[0,1,null],[0.5,1.15,"#d4-painel"],[2.4,1.12,"#d4-topico"]]'>
-    <div class="camera"><div class="janela dc"><div class="barra"><div class="bolinhas"><i></i><i></i><i></i></div><div class="url">discord.com · Lumi Cosméticos · #abrir-atendimento</div></div>
+  <!-- 3b. cargo -->
+  <section class="scene" data-dur="10" data-passo="4"
+    data-cursor='[[1.8,"#d4-ana",1],[3.6,"#d4-mais",1],[5.2,"#d4-cargo",1],[7.4,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela dc"><div data-barra="discord.com · Lumi Cosméticos"></div>
+      <div class="conteudo">
+        <div class="dc-servidores"><i class="at">🌸</i><i>+</i></div>
+        <div class="dc-canais"><b>Lumi Cosméticos</b><div class="dc-cat">Canais de texto</div><div class="dc-canal at"># geral</div><div class="dc-cat">Atendimento</div><div class="dc-canal"># abrir-atendimento</div><div class="dc-canal">🔒 equipe-atendimento</div></div>
+        <div class="dc-chat"><div class="dc-topo"># geral</div><div class="dc-corpo"></div></div>
+        <div class="membros"><div class="dc-cat" style="margin-top:0">Membros</div>
+          <div class="membro" id="d4-ana" data-marca="1.8"><span class="dc-av" style="background:#e67e22">A</span>ana.lumi</div>
+          <div class="membro"><span class="dc-av" style="background:#3ba55d">B</span>bruno</div>
+          <div class="membro"><span class="dc-av helpy" data-logo></span>Lumi <span class="dc-app">APP</span></div>
+        </div>
+        <div class="perfil-dc" data-on="2.1" data-anim="pop">
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px"><span class="dc-av" style="background:#e67e22;width:52px;height:52px">A</span><b style="color:#f2f3f5;font-size:19px">ana.lumi</b></div>
+          <div style="font-size:13px;font-weight:700;color:#b5bac1;margin-bottom:6px">CARGOS</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="cargo" data-on="5.5" data-anim="pop"><i></i>Equipe de atendimento</span><span class="mais" id="d4-mais">+</span></div>
+          <div class="lista-cargos" data-on="3.9" data-off="5.4" data-mostra><div id="d4-cargo" data-realce="4.8-5.4" style="color:#2dc770">● Equipe de atendimento</div><div>● Moderação</div></div>
+        </div>
+      </div></div></div>
+    <div class="legenda"><div class="passo-n">4</div><div><h3>Dê o cargo para quem atende</h3><p>Clique no nome da pessoa, no <b>+</b> e escolha <b>Equipe de atendimento</b>.</p></div></div>
+  </section>
+
+  <!-- 4. teste como cliente -->
+  <section class="scene" data-dur="11" data-passo="5"
+    data-cursor='[[2.6,"#d5-abrir",1],[4.0,1150,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela dc"><div data-barra="discord.com · Lumi Cosméticos · #abrir-atendimento"></div>
       <div class="conteudo">
         <div class="dc-servidores"><i class="at">🌸</i><i>+</i></div>
         <div class="dc-canais"><b>Lumi Cosméticos</b>
-          <div class="dc-cat">Canais de texto</div><div class="dc-canal"># geral</div>
           <div class="dc-cat">Atendimento</div><div class="dc-canal at"># abrir-atendimento</div>
-          <div class="dc-canal" data-on="1.6" data-anim="pop" style="padding-left:22px">🧵 Atendimento · maria</div>
+          <div class="dc-canal" data-on="3.0" data-anim="pop" data-som="nao" style="padding-left:22px">🧵 Atendimento · maria</div>
         </div>
-        <div class="dc-chat">
-          <div data-off="1.6">
-            <div class="dc-msg" id="d4-painel"><span class="dc-av">L</span><div><span class="dc-nome">Lumi</span><span class="dc-app">APP</span>
-              <div style="margin-top:4px">Precisa de ajuda? Clique no botão e converse com a gente num tópico privado. 💬</div>
-              <div class="dc-botoes"><button class="dc-btn azul" id="d4-abrir" data-aperta="1.2">Abrir atendimento</button></div></div></div>
+        <div class="dc-chat"><div class="dc-topo"><span class="troca"><span data-off="2.95"># abrir-atendimento</span><span data-on="3.0">🧵 Atendimento · maria</span></span></div><div class="dc-corpo">
+          <div class="troca">
+            <div data-off="2.95">
+              <div class="dc-msg"><span class="dc-av helpy" data-logo></span><div><span class="dc-nome">Lumi</span><span class="dc-app">APP</span>
+                <div style="margin-top:4px">Precisa de ajuda? Clique no botão e converse com a gente num tópico privado. 💬</div>
+                <div class="dc-botoes"><button class="dc-btn azul" id="d5-abrir" data-aperta="2.6">Abrir atendimento</button></div></div></div>
+            </div>
+            <div data-on="3.0">
+              <div style="font-size:15px;color:#949ba4;margin-bottom:12px">🔒 Tópico privado · só você e a equipe veem</div>
+              <div class="dc-msg" data-on="3.6" data-anim="balao2"><span class="dc-av" style="background:#e67e22">M</span><div><span class="dc-nome">maria</span><div style="margin-top:2px">Oi! Tem o protetor FPS 50?</div></div></div>
+              <div class="dc-msg" data-on="5.2" data-anim="balao2"><span class="dc-av helpy" data-logo></span><div><span class="dc-nome">Lumi</span><span class="dc-app">APP</span><div style="margin-top:2px">Tem sim, Maria! Sai por R$&nbsp;59,90. Quer que eu separe um? 😊</div></div></div>
+              <div class="dc-msg" data-on="6.8" data-anim="balao2"><span class="dc-av" style="background:#e67e22">M</span><div><span class="dc-nome">maria</span><div style="margin-top:2px">Quero!</div></div></div>
+            </div>
           </div>
-          <div id="d4-topico" data-on="1.65" data-mostra>
-            <div style="font-size:13px;color:#949ba4;margin-bottom:12px">🔒 Tópico privado · só você e a equipe veem</div>
-            <div class="dc-msg" data-on="2.6" data-anim="balao2"><span class="dc-av" style="background:#e67e22">M</span><div><span class="dc-nome">maria</span><div style="margin-top:2px">Oi! Tem o protetor FPS 50?</div></div></div>
-            <div class="dc-msg" data-on="4.4" data-anim="balao2"><span class="dc-av">L</span><div><span class="dc-nome">Lumi</span><span class="dc-app">APP</span><div style="margin-top:2px">Tem sim, Maria! Sai por R$ 59,90. Quer que eu separe um para você? 😊</div></div></div>
-            <div class="dc-msg" data-on="6.2" data-anim="balao2"><span class="dc-av" style="background:#e67e22">M</span><div><span class="dc-nome">maria</span><div style="margin-top:2px">Quero!</div></div></div>
-          </div>
-        </div>
+        </div></div>
       </div></div></div>
-    <div class="legenda"><div class="passo-n">4</div><div><h3>O cliente clica e conversa</h3><p>Em <b>#abrir-atendimento</b>, o cliente clica em <b>Abrir atendimento</b> e fala com o assistente num tópico privado. Tudo aparece em <b>Atendimentos</b> no Helpy.</p></div></div>
+    <div class="legenda"><div class="passo-n">5</div><div><h3>Teste como cliente</h3><p>Em <b>#abrir-atendimento</b>, clique em <b>Abrir atendimento</b>. A conversa também aparece no Helpy.</p></div></div>
   </section>
 
   <!-- final -->
-  <section class="scene" data-dur="6.5">
+  <section class="scene" data-dur="9">
     <div class="capa"><div>
-      <h1 data-on="0.3">Pronto. Seu servidor tem <span>atendimento 24 horas.</span></h1>
-      <div class="leva" data-on="0.7" style="max-width:760px;margin:0 auto">Quando precisar de gente, o assistente chama quem tem o cargo da equipe, e quem responde pelo Helpy aparece no Discord com o próprio nome.</div>
+      <h1 data-on="0">Pronto. <span>Atendimento 24 horas.</span></h1>
+      <div class="leva" data-on="0.35" style="max-width:820px;margin:0 auto 26px">Quando precisar de gente, o assistente chama quem tem o cargo <b>Equipe de atendimento</b>.</div>
+      <div class="assinatura" data-on="0.8" style="justify-content:center"><span data-logo></span> helpysupport.com</div>
     </div></div>
   </section>
 </div>
+<script src="partes.js"></script>
 <script src="motor.js"></script>
 </body>
 </html>

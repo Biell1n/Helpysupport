@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="motor.css">
+<style>
+.capa h1 span { background: linear-gradient(90deg, #f58529, #dd2a7b 50%, #8134af); -webkit-background-clip: text; background-clip: text; color: transparent; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- capa -->
+  <section class="scene" data-dur="11">
+    <div class="capa"><div>
+      <div class="etiqueta" data-on="0">Parte 1 de 2 · uns 10 minutos</div>
+      <h1 data-on="0.15">Conectar o <span>Instagram</span> ao Helpy</h1>
+      <div class="leva" data-on="0.5">O assistente responde o Direct. Antes, confira:</div>
+      <div class="precisa">
+        <div class="item destaque" data-on="1.2" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></div><b>Conta profissional</b><span>Configurações → Tipo de conta e ferramentas.</span></div>
+        <div class="item" data-on="2.6" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><b>Um computador</b><span>O painel da Meta não funciona direito no celular.</span></div>
+        <div class="item" data-on="4.0" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><b>Uns 10 minutos</b><span>Já tem o app da Meta do WhatsApp? Use o mesmo.</span></div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 0. Helpy aberto ao lado -->
+  <section class="scene" data-dur="9.5" data-passo="1"
+    data-cursor='[[1.8,"#j0-con",1],[4.6,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela helpy"><div data-barra="helpysupport.com/painel/canais"></div>
+      <div class="conteudo"><div data-lateral-helpy></div>
+        <div class="area">
+          <h2>Canais</h2><p class="sub">O mesmo assistente onde o seu cliente já conversa.</p>
+          <div class="opcao canal-card"><div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></div><div><b>Instagram</b><small>Responde o Direct</small></div><div style="flex:1"></div><button class="btn btn-helpy" id="j0-con" data-aperta="1.8">Conectar</button></div>
+        </div>
+        <div class="modal" data-on="2.1"><div class="card">
+          <h2>Conectar Instagram</h2>
+          <div class="campo"><label>Assistente que vai responder</label><div class="input">Lumi</div></div>
+          <div class="campo"><label>Token de acesso</label><div class="input mono"></div></div>
+          <div class="campo"><label>Chave secreta do app do Instagram</label><div class="input mono"></div></div>
+          <div class="faixa" data-on="3.4" style="margin:6px 0 0">Pode deixar esta janela aberta enquanto faz.</div>
+        </div></div>
+      </div></div></div>
+    <div class="legenda"><div class="passo-n">1</div><div><h3>Deixe o Helpy aberto ao lado</h3><p>Em <b>Canais → Instagram → Conectar</b>. Você vai copiar da Meta e colar aqui.</p></div></div>
+  </section>
+
+  <!-- 1. liberar no app (celular) -->
+  <section class="scene" data-dur="12" data-passo="2" data-toque
+    data-cursor='[[1.8,"#j1-menu",1],[3.8,"#j1-msg",1],[5.8,"#j1-ferr",1],[7.6,"#j1-chave",1]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera">
+      <div class="cel"><div class="tela">
+        <div class="cel-status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="cel-topo">lumicosmeticos<span class="dir" id="j1-menu"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span></div>
+        <div class="perfil"><div class="av"><b>L</b></div><div class="perfil-num"><div><b>48</b>posts</div><div><b>2.310</b>seguidores</div></div></div>
+        <div class="grade-ig"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="cel-pagina" data-on="2.0" data-anim="lado">
+          <div class="cel-status"><span>9:41</span><span>●●● ▮</span></div>
+          <div class="cel-topo">‹ &nbsp;Configurações e atividade</div>
+          <div class="cel-item"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"/></svg><div>Notificações</div><span class="seta">›</span></div>
+          <div class="cel-item" id="j1-msg"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><div>Mensagens e respostas ao story</div><span class="seta">›</span></div>
+          <div class="cel-item"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><div>Privacidade da conta</div><span class="seta">›</span></div>
+          <div class="cel-item"><svg viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h12"/></svg><div>Tipo de conta e ferramentas</div><span class="seta">›</span></div>
+          <div class="cel-pagina" data-on="4.0" data-anim="lado">
+            <div class="cel-status"><span>9:41</span><span>●●● ▮</span></div>
+            <div class="cel-topo">‹ &nbsp;Mensagens e respostas</div>
+            <div class="cel-item"><div>Controles de mensagens</div><span class="seta">›</span></div>
+            <div class="cel-item" id="j1-ferr"><div>Ferramentas conectadas<small>Apps que respondem por você</small></div><span class="seta">›</span></div>
+            <div class="cel-item"><div>Respostas ao story</div><span class="seta">›</span></div>
+            <div class="cel-pagina" data-on="6.0" data-anim="lado">
+              <div class="cel-status"><span>9:41</span><span>●●● ▮</span></div>
+              <div class="cel-topo">‹ &nbsp;Ferramentas conectadas</div>
+              <div class="cel-item" style="padding-right:16px"><div>Permitir acesso às mensagens<small>Deixa o Helpy ler e responder o&nbsp;Direct</small></div><span class="chave" id="j1-chave" data-check="7.6" style="margin-left:auto"></span></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="caminho">
+        <h4>No app do Instagram:</h4>
+        <div data-marca="1.8"><i>1</i>☰ Menu</div>
+        <div data-marca="3.8"><i>2</i>Mensagens e respostas ao story</div>
+        <div data-marca="5.8"><i>3</i>Ferramentas conectadas</div>
+        <div data-marca="7.6"><i>4</i>Permitir acesso às mensagens</div>
+      </div>
+    </div>
+    <div class="legenda"><div class="passo-n">2</div><div><h3>Libere as mensagens no Instagram</h3><p>No app: <b>☰ → Mensagens e respostas ao story → Ferramentas conectadas</b>.</p></div></div>
+  </section>
+
+  <!-- 2. criar o app -->
+  <section class="scene" data-dur="12" data-passo="3"
+    data-cursor='[[1.8,"#j2-outro",1],[2.8,"#j2-av1",1],[3.8,"#j2-emp",1],[4.8,"#j2-av2",1],[5.6,"#j2-nome",1],[6.9,"#j2-criar",1],[8.6,"#j2-config",1],[10.0,"#j2-api",1]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com/apps"></div>
+      <div class="conteudo"><div data-lateral="∞ Meta for Developers;Meus apps*;Ferramentas"></div>
+        <div class="area">
+          <div class="troca">
+            <div data-off="3.05"><h2>Qual o caso de uso?</h2><p class="sub">Criar app</p>
+              <div class="opcao" style="width:520px" id="j2-outro" data-marca="1.8"><div class="caixa" data-check="1.8" style="border-radius:50%"></div><b>Outro</b></div>
+              <button class="btn btn-azul" id="j2-av1" data-aperta="2.8">Avançar</button></div>
+            <div data-on="3.1" data-off="5.05"><h2>Tipo de app</h2><p class="sub">Criar app</p>
+              <div class="opcao" style="width:520px" id="j2-emp" data-marca="3.8"><div class="caixa" data-check="3.8" style="border-radius:50%"></div><b>Empresa</b></div>
+              <button class="btn btn-azul" id="j2-av2" data-aperta="4.8">Avançar</button></div>
+            <div data-on="5.1" data-off="7.25"><h2>Detalhes do app</h2><p class="sub">Criar app</p>
+              <div class="campo" style="width:520px"><label>Nome do app</label><div class="input" id="j2-nome"><span data-digita="Lumi Cosméticos" data-t="5.7-6.5"></span></div></div>
+              <button class="btn btn-azul" id="j2-criar" data-aperta="6.9">Criar app</button></div>
+            <div data-on="7.3"><h2>Adicionar produtos ao app</h2><p class="sub">Lumi Cosméticos</p>
+              <div class="opcao" style="width:640px"><div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></div><div><b>Instagram</b><small>Mensagens do Direct</small></div><div style="flex:1"></div><button class="btn btn-azul" id="j2-config" data-aperta="8.6">Configurar</button></div>
+              <div class="opcao" style="width:640px" id="j2-api" data-on="9.0" data-marca="10.0"><div class="caixa" data-check="10.0" style="border-radius:50%"></div><div><b>API com login do Instagram</b><small>É a que o Helpy usa</small></div></div></div>
+          </div>
+        </div></div></div></div>
+    <div class="legenda"><div class="passo-n">3</div><div><h3>Crie o app e adicione o Instagram</h3><p><b>Criar app → Outro → Empresa</b>. No Instagram: <b>Configurar → API com login</b>.</p></div></div>
+  </section>
+
+  <!-- 3. token -->
+  <section class="scene" data-dur="12" data-passo="4"
+    data-cursor='[[1.8,"#j3-add",1],[3.4,"#j3-cont",1],[5.4,"#j3-gerar",1],[6.9,"#j3-cop",1],[8.3,"#j3-campo",1],[9.8,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · Instagram · Configuração da API"></div>
+      <div class="conteudo"><div data-lateral="Lumi Cosméticos;API com login do Instagram*;Webhooks"></div>
+        <div class="area">
+          <h2>Gerar tokens de acesso</h2><p class="sub">Entre com a conta do Instagram da empresa.</p>
+          <button class="btn btn-azul" id="j3-add" data-aperta="1.8">Adicionar conta</button>
+          <div data-on="3.75" style="margin-top:16px;width:560px">
+            <div class="opcao"><div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></div><div><b>@lumicosmeticos</b><small>Conta comercial</small></div><div style="flex:1"></div><button class="btn btn-azul" id="j3-gerar" data-aperta="5.4">Gerar token</button></div>
+            <div class="linha" data-on="5.75"><div class="input mono" style="flex:1">IGAAR4kZ2u••••••••••••</div><span class="copiar" id="j3-cop" data-copiar="6.9-8.1"></span></div>
+          </div>
+        </div>
+        <div class="modal" data-on="2.1" data-off="3.6"><div class="card" style="width:430px;text-align:center">
+          <div class="ig" style="margin:0 auto 12px;width:56px;height:56px"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></div>
+          <h2 style="margin:0 0 6px">Entrar como @lumicosmeticos</h2>
+          <p style="margin:0 0 16px;color:#5b6b7d;font-size:16px">Lumi Cosméticos quer acessar as mensagens.</p>
+          <button class="btn btn-ig" id="j3-cont" data-aperta="3.4" style="width:100%;justify-content:center">Continuar</button>
+        </div></div>
+      </div></div>
+      <div class="mini" data-on="7.5" data-anim="painel" style="top:250px"><div class="mini-topo"><span data-logo></span> Conectar Instagram <small>helpysupport.com</small></div><div class="mini-corpo">
+        <div class="campo"><label>Token de acesso</label><div class="input mono" id="j3-campo"><span data-digita="••••••••••••••••••••" data-t="8.4-8.55" data-cola></span><span class="colado" data-on="8.6" data-som="nao">✓ colado</span></div></div>
+      </div></div>
+    </div>
+    <div class="legenda"><div class="passo-n">4</div><div><h3>Gere a senha de acesso (token)</h3><p><b>Adicionar conta</b>, entre com o Instagram da empresa e <b>Gerar token</b>. Cole no Helpy.</p></div></div>
+  </section>
+
+  <!-- 4. chave secreta -->
+  <section class="scene" data-dur="10" data-passo="5"
+    data-cursor='[[1.8,"#j4-mostrar",1],[3.3,"#j4-cop",1],[4.8,"#j4-campo",1],[6.4,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · Instagram · Configuração da API"></div>
+      <div class="conteudo"><div data-lateral="Lumi Cosméticos;API com login do Instagram*;Webhooks"></div>
+        <div class="area">
+          <h2>Configuração da API</h2><p class="sub">Na mesma página, um pouco acima.</p>
+          <div class="campo" style="width:560px"><label>Chave secreta do app do Instagram</label>
+            <div class="linha"><div class="input mono" style="flex:1"><span class="troca"><span data-off="2.0">••••••••••••••••••••••••</span><span data-on="2.05">8c41d0e9a7f24b13b9e6</span></span></div>
+              <button class="btn btn-claro" id="j4-mostrar" data-aperta="1.8">Mostrar</button><span class="copiar" id="j4-cop" data-copiar="3.3-4.5"></span></div></div>
+        </div></div></div>
+      <div class="mini" data-on="3.9" data-anim="painel" style="top:250px"><div class="mini-topo"><span data-logo></span> Conectar Instagram <small>helpysupport.com</small></div><div class="mini-corpo">
+        <div class="campo"><label>Chave secreta do app do Instagram</label><div class="input mono" id="j4-campo"><span data-digita="••••••••••••••••" data-t="4.9-5.05" data-cola></span><span class="colado" data-on="5.1" data-som="nao">✓ colado</span></div></div>
+      </div></div>
+    </div>
+    <div class="legenda"><div class="passo-n">5</div><div><h3>Copie a chave secreta</h3><p>Em <b>Chave secreta do app do Instagram</b>: Mostrar, copie e cole no Helpy.</p></div></div>
+  </section>
+
+  <!-- 5. conectar -->
+  <section class="scene" data-dur="9" data-passo="6"
+    data-cursor='[[2.0,"#j5-ok",1],[4.4,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela helpy"><div data-barra="helpysupport.com/painel/canais"></div>
+      <div class="conteudo"><div data-lateral-helpy></div>
+        <div class="area">
+          <h2>Canais</h2><p class="sub">O mesmo assistente onde o seu cliente já conversa.</p>
+          <div class="opcao canal-card"><div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></div><div><b>Instagram</b><small>@lumicosmeticos</small></div><div style="flex:1"></div><span class="badge-ok" data-on="2.7">● Conectado</span></div>
+          <div class="ok" data-on="2.8" style="margin-top:6px"><i></i> Conectado · falta 1 passo na Meta (Parte 2)</div>
+        </div>
+        <div class="modal" data-off="2.35"><div class="card">
+          <h2>Conectar Instagram</h2>
+          <div class="campo"><label>Assistente que vai responder</label><div class="input">Lumi</div></div>
+          <div class="campo"><label>Token de acesso</label><div class="input mono">••••••••••••••••••••</div></div>
+          <div class="campo"><label>Chave secreta do app do Instagram</label><div class="input mono">••••••••••••••••</div></div>
+          <button class="btn btn-helpy" id="j5-ok" data-aperta="2.0">Conectar</button>
+        </div></div>
+      </div></div></div>
+    <div class="legenda"><div class="passo-n">6</div><div><h3>Clique em Conectar</h3><p>O Helpy confere a conta na hora. Depois, falta a Parte 2, na Meta.</p></div></div>
+  </section>
+
+  <!-- final da parte 1 -->
+  <section class="scene" data-dur="8">
+    <div class="capa"><div>
+      <div class="etiqueta" data-on="0">Parte 1 concluída</div>
+      <h1 data-on="0">Conectado! Falta a <span>Parte 2</span>.</h1>
+      <div class="leva" data-on="0.4" style="max-width:860px;margin:0 auto 26px">Ligar os avisos de mensagem e publicar o app. O vídeo está no Instagram conectado, em <b>Canais</b>.</div>
+      <div class="assinatura" data-on="0.8" style="justify-content:center"><span data-logo></span> helpysupport.com</div>
+    </div></div>
+  </section>
+</div>
+<script src="partes.js"></script>
+<script src="motor.js"></script>
+</body>
+</html>
