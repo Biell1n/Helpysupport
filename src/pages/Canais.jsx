@@ -14,7 +14,11 @@ import { origemDoSite } from '@/lib/site';
 // os avisos da Meta e do Discord chegam pelo mesmo endereço do chat público
 const VENDAS = import.meta.env.VITE_CONTATO_VENDAS;
 const BASE = `${import.meta.env.VITE_SUPABASE_URL ?? ''}/functions/v1/public-chat`;
-const WEBHOOK = `${BASE}?canal=meta`;
+// no site oficial o endereço do webhook é o nosso domínio (o servidor repassa para a função);
+// em prévias e no ambiente local, o endereço direto
+const WEBHOOK = typeof window !== 'undefined' && window.location.hostname === 'helpysupport.com'
+  ? 'https://helpysupport.com/webhook/meta'
+  : `${BASE}?canal=meta`;
 const COLUNAS = 'id, assistant_id, tipo, status, nome, externo_id, config, verificar_token, ultimo_evento_em, erro, criado_em';
 
 const SERVICOS = [
@@ -248,7 +252,7 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
 }
 
 /** O que colar no painel do serviço depois de conectar. */
-function Enderecos({ canal }) {
+function Enderecos({ canal, assistente }) {
   if (canal.tipo === 'discord') {
     const convite = `https://discord.com/oauth2/authorize?client_id=${canal.externo_id}&scope=bot+applications.commands&permissions=2048`;
     const automatico = canal.config?.endereco_automatico === 'sim';
@@ -263,9 +267,18 @@ function Enderecos({ canal }) {
     );
   }
   return (
-    <div className="grid-2">
-      <Copiavel rotulo="URL de callback" valor={WEBHOOK} />
-      <Copiavel rotulo="Verificar token" valor={canal.verificar_token} dica='Depois de salvar, assine o campo "messages".' />
+    <div className="stack-sm">
+      <div className="grid-2">
+        <Copiavel rotulo="URL de callback" valor={WEBHOOK} />
+        <Copiavel rotulo="Verificar token" valor={canal.verificar_token} dica='Depois de salvar, assine o campo "messages".' />
+      </div>
+      {assistente?.public_token && (
+        <Copiavel
+          rotulo="Política de privacidade da sua empresa"
+          valor={`${window.location.origin}/c/${assistente.public_token}/privacidade`}
+          dica="Gerada pelo Helpy com os dados do assistente. No app da Meta, use nos campos Política de Privacidade e Exclusão de dados."
+        />
+      )}
     </div>
   );
 }
@@ -424,7 +437,7 @@ function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
       )}
       {aberto && canal.config?.modo !== 'helpy' && (
         <div className="stack" style={{ marginTop: 10 }}>
-          <Enderecos canal={canal} />
+          <Enderecos canal={canal} assistente={assistentes.find((a) => a.id === canal.assistant_id)} />
           <TutorialCanal tipo={canal.tipo} soDepois />
         </div>
       )}
@@ -463,7 +476,7 @@ export default function Canais() {
   const carregar = useCallback(async () => {
     const [c, a] = await Promise.all([
       supabase.from('canais').select(COLUNAS).order('criado_em'),
-      supabase.from('assistants').select('id, name, foto_url').order('created_at'),
+      supabase.from('assistants').select('id, name, foto_url, public_token').order('created_at'),
     ]);
     if (c.error) avisar('Não deu para carregar os canais', { erro: true, texto: c.error.message });
     setCanais(c.data ?? []);

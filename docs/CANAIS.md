@@ -23,7 +23,7 @@ no painel, a resposta sai pelo canal de onde o cliente escreveu.
   testar, pausar, trocar de assistente, desconectar e **enviar** (resposta
   da equipe pelo canal).
 - Os avisos de mensagem nova chegam no mesmo endereço do chat público:
-  - Meta (WhatsApp e Instagram): `…/functions/v1/public-chat?canal=meta`
+  - Meta (WhatsApp e Instagram): `https://helpysupport.com/webhook/meta` (o Vercel repassa para `…/functions/v1/public-chat?canal=meta`, que também funciona direto)
   - Discord (bot do Helpy): `…/functions/v1/public-chat?discord=helpy`
   - Discord (servidor ligado, mensagens dos tickets): `…?discord=gateway`
   - Discord (bot próprio da empresa, jeito antigo): `…?discord=<id do canal>`

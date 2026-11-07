@@ -4838,3 +4838,20 @@
 .conectar-form .grid-2 { align-items: end; }
 
 .remarcar { display: grid; gap: 6px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--linha); }
+
+/* política de privacidade da empresa (/c/:token/privacidade) */
+.politica {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 64px 24px 96px;
+}
+
+.politica h1 {
+  font-size: clamp(30px, 6vw, 40px);
+  margin-bottom: 6px;
+}
+
+.politica h2 {
+  font-size: 20px;
+  margin-bottom: 6px;
+}

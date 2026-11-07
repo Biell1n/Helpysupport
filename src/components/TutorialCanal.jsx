@@ -78,7 +78,7 @@ export const GUIAS = {
         titulo: 'Publique o app',
         itens: [
           <>Sem publicar, a Meta só manda mensagens de teste e as dos seus clientes não chegam.</>,
-          <>Em <b>Configurações do app → Básico</b>, preencha a <b>URL da Política de Privacidade</b> e a dos <b>Termos de Serviço</b> (as do seu site; se não tiver, use <code>https://helpysupport.com/privacidade</code> e <code>https://helpysupport.com/termos</code>), a <b>exclusão de dados</b> (a mesma URL da política), um <b>ícone</b> e a <b>categoria</b>. Clique em <b>Salvar alterações</b>, no fim da página.</>,
+          <>Em <b>Configurações do app → Básico</b>, preencha a <b>URL da Política de Privacidade</b> e a de <b>Exclusão de dados</b>: as duas podem ser a política que o Helpy gera para a sua empresa (o link aparece no canal conectado, em “Ver dados para colar na Meta”). Escolha também um <b>ícone</b> e a <b>categoria</b>. Clique em <b>Salvar alterações</b>, no fim da página.</>,
           <>No menu da esquerda, clique em <b>Publicar</b> e confirme. Pronto: mande um "oi" para o número e veja a resposta.</>,
         ],
       },
@@ -116,7 +116,7 @@ export const GUIAS = {
         titulo: 'Copie a chave secreta',
         itens: [
           <>Na mesma página (Configuração da API com login do Instagram), copie a <b>Chave secreta do app do Instagram</b> e cole em "Usa um app próprio da Meta?".</>,
-          <>Em <b>Configurações do app → Básico</b>, preencha a URL da Política de Privacidade com <code>https://helpysupport.com/privacidade</code>.</>,
+          <>Em <b>Configurações do app → Básico</b>, preencha a URL da Política de Privacidade com a política que o Helpy gera para a sua empresa (o link aparece no canal conectado, em “Ver dados para colar na Meta”).</>,
         ],
       },
       {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUp, Ban, CheckCircle2, Headset, Columns3, Hand, RotateCcw, Search } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Ban, CheckCircle2, Headset, Columns3, Hand, RotateCcw, Search, Trash2 } from 'lucide-react';
 import QuadroChamados from './QuadroChamados';
 import { chamar, supabase } from '@/lib/supabase';
 import { canalDe, NOME_DO_CANAL, SeloCanal } from '@/components/IconesCanais';
@@ -83,7 +83,7 @@ function BloquearModal({ conversa, atendente, onFechar, onFeito }) {
 const estrelas = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 export default function Atendimentos() {
   const { recarregarUso } = useOutletContext();
-  const { user, nome } = useAuth();
+  const { user, nome, tipo } = useAuth();
   const avisar = useToast();
   const [params, setParams] = useSearchParams();
   const abertaId = params.get('id');
@@ -505,6 +505,10 @@ export default function Atendimentos() {
                 {!bloqueioDa(aberta) && !aberta.teste && (
                   <button type="button" className="btn btn-quiet btn-sm" title="Timeout ou banir" onClick={() => setBloquear(true)}><Ban /> Bloquear</button>
                 )}
+                {/* LGPD: só o dono apaga, quando a pessoa pede */}
+                {tipo === 'empresa' && (
+                  <button type="button" className="btn btn-quiet btn-sm" title="Apagar esta conversa a pedido do cliente" onClick={() => setConfirmar('apagar')}><Trash2 /> Apagar</button>
+                )}
               </div>
               {bloqueioDa(aberta) && (
                 <div className="alert alert-erro aviso-bloqueio">
@@ -611,6 +615,24 @@ export default function Atendimentos() {
         onConfirmar={() => {
           setConfirmar(null);
           encerrar();
+        }}
+        onFechar={() => setConfirmar(null)}
+      />
+      <Confirmar
+        aberto={confirmar === 'apagar'}
+        titulo="Apagar esta conversa?"
+        texto="Use quando o cliente pedir para apagar os dados dele. As mensagens, o contato e o histórico somem para sempre. Pedidos e horários ficam, porque são registro da venda."
+        acao="Apagar"
+        onConfirmar={async () => {
+          setConfirmar(null);
+          try {
+            await chamar('conta', { action: 'apagar_conversa', conversation_id: aberta.id });
+            avisar('Conversa apagada');
+            abrir(null);
+            carregar();
+          } catch (e) {
+            avisar('Não deu para apagar', { erro: true, texto: e.message });
+          }
         }}
         onFechar={() => setConfirmar(null)}
       />

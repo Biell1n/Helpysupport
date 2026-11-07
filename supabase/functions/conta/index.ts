@@ -289,6 +289,17 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // LGPD: a pessoa pediu para apagar os dados dela. Some a conversa (mensagens e
+    // histórico vão junto); pedido e horário ficam, porque são registro da venda
+    if (action === 'apagar_conversa') {
+      const id = String(body.conversation_id ?? '');
+      const { data: c } = await admin.from('conversations').select('id, owner_id').eq('id', id).maybeSingle();
+      if (!c || c.owner_id !== user.id) throw new UserError('Conversa não encontrada.', 404);
+      const { error } = await admin.from('conversations').delete().eq('id', id);
+      if (error) throw error;
+      return json({ ok: true });
+    }
+
     if (action === 'equipe_remover') {
       const alvo = String(body.user_id ?? '');
       const { data: removido } = await admin.from('equipe').delete().eq('owner_id', user.id).eq('user_id', alvo).select('user_id').maybeSingle();
