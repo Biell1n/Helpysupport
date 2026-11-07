@@ -450,7 +450,8 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
             ) : (
               <span>
                 Atendimento automático.{' '}
-                <Link className="link-btn" to={`/entrar?de=${encodeURIComponent(`/c/${token}`)}`}>Entrar</Link> para falar com a equipe.
+                {/* falar com a equipe não exige conta (nome e telefone bastam); entrar só guarda o histórico */}
+                <Link className="link-btn" to={`/entrar?de=${encodeURIComponent(`/c/${token}`)}`}>Entrar</Link> para guardar suas conversas.
               </span>
             )}
           </div>
