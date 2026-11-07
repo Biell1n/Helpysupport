@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/webhook/meta",
+      "destination": "https://cdscurcwcyzeagincjdv.supabase.co/functions/v1/public-chat?canal=meta"
+    },
+    {
       "source": "/((?!assets/|img/|videos/|favicon|og\\.png|robots\\.txt|sitemap\\.xml).*)",
       "destination": "/index.html"
     }
