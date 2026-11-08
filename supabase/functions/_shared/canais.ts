@@ -89,25 +89,71 @@ export class ErroDoCanal extends Error {
   }
 }
 
+/** Texto da Meta quando a conta nova do WhatsApp Business ainda está em análise: o canal fica "aguardando", não "com erro". */
+export const ESPERA_META = 'A Meta ainda está analisando a sua conta do WhatsApp Business. Costuma levar de algumas horas a 2 dias. Quando ela aprovar, clique em "Testar conexão" e o número começa a responder.';
+
+/** Status do canal para um texto de erro: a análise da Meta é espera, não erro. */
+export const statusDoErro = (texto: string | null | undefined) => (texto === ESPERA_META ? 'pendente' : 'erro');
+
+/** Tira HTML, "(#123)" e espaços sobrando do texto que vem da Meta. */
+function limpar(t: string) {
+  return t.replace(/<[^>]*>/g, ' ').replace(/\(#\d+\)\s*/g, '').replace(/\s+/g, ' ').trim().replace(/[.:\s]+$/, '');
+}
+
 function explicar(servico: string, status: number, corpo: string) {
-  // janela de 24 h do WhatsApp: fora dela só dá para mandar modelo aprovado
-  if (/131047|re-engagement|24 hours?/i.test(corpo)) {
-    return 'Passaram mais de 24 horas desde a última mensagem do cliente. Por regra do WhatsApp, só dá para falar com ele de novo quando ele escrever (ou com um modelo de mensagem aprovado pela Meta).';
-  }
+  const zap = /whatsapp/i.test(servico);
   // a Meta devolve {"error":{"message","code","error_subcode","error_user_msg"}}: todo erro dela tem
   // "OAuthException" no tipo, então só o código 190 (ou HTTP 401) quer dizer token vencido
-  let meta: { message?: string; code?: number; error_subcode?: number; error_user_msg?: string; error_data?: { details?: string } } = {};
+  let meta: { message?: string; code?: number; error_subcode?: number; error_user_title?: string; error_user_msg?: string; error_data?: { details?: string } } = {};
   try { meta = JSON.parse(corpo)?.error ?? {}; } catch { /* corpo não é JSON */ }
-  if (status === 401 || meta.code === 190) {
-    return `${servico} recusou o token: ele venceu ou foi revogado. Gere outro e conecte de novo.`;
+  // Discord: {"code": 50007, "message": "..."}
+  let discord = 0;
+  try { discord = Number(JSON.parse(corpo)?.code) || 0; } catch { /* corpo não é JSON */ }
+  const code = meta.code ?? 0;
+  const tudo = `${corpo} ${meta.error_user_title ?? ''}`;
+
+  // janela de 24 h: fora dela só dá para mandar modelo aprovado
+  if (code === 131047 || meta.error_subcode === 2534022 || /re-engagement|allowed window/i.test(tudo)) {
+    return zap
+      ? 'Passaram mais de 24 horas desde a última mensagem do cliente. O WhatsApp só deixa responder de novo quando ele escrever.'
+      : 'Passaram mais de 24 horas desde a última mensagem do cliente. O Instagram só deixa responder de novo quando ele escrever.';
   }
-  if (meta.code === 200 || meta.code === 10) {
-    return `${servico} disse que o token não tem permissão para isso. No usuário do sistema "Helpy", atribua a conta do WhatsApp com Controle total e gere o token de novo com as permissões whatsapp_business_messaging e whatsapp_business_management.`;
+  if (status === 401 || code === 190) {
+    return 'O token deste canal venceu ou foi cancelado. Gere um novo na Meta e cole em Configurar → Trocar token.';
   }
-  if (/50007/.test(corpo)) return 'O Discord não deixou o bot mandar mensagem direta para essa pessoa (ela bloqueou mensagens de bots ou saiu do servidor).';
-  const motivo = meta.error_user_msg || meta.error_data?.details || meta.message;
-  if (motivo) return `${servico} recusou: ${motivo}${meta.code ? ` (código ${meta.code})` : ''}`.slice(0, 400);
-  return `${servico} recusou (${status}): ${corpo.slice(0, 300)}`;
+  if (/n[ãa]o verificad|not verified|unverified|em an[áa]lise|under review|pending review/i.test(tudo)) return ESPERA_META;
+  if (code === 133010) return 'O número ainda não foi ativado no WhatsApp. Clique em "Testar conexão" para ativar.';
+  if (code === 133005 || /two.step|duas etapas/i.test(tudo)) {
+    return 'Este número tem verificação em duas etapas ligada. No WhatsApp Manager, abra o número → Verificação em duas etapas, desligue e clique em "Testar conexão".';
+  }
+  if (code === 200 || code === 10 || (code >= 200 && code < 300)) {
+    return zap
+      ? 'O token não tem acesso a este número. No Business da Meta, em Usuários do sistema → Helpy → Atribuir ativos, dê Controle total na conta do WhatsApp e gere o token de novo.'
+      : 'O token não tem permissão para mandar mensagens. Gere o token de novo marcando todas as permissões do Instagram.';
+  }
+  if (code === 100 && (meta.error_subcode === 33 || /does not exist|n[ãa]o existe/i.test(tudo))) {
+    return zap
+      ? 'A Meta não achou esse número. Confira o "ID do número de telefone" (é diferente do ID da conta).'
+      : 'A Meta não achou essa conta do Instagram. Conecte de novo pelo tutorial.';
+  }
+  if ([4, 17, 32, 613, 80002, 80006, 80007, 130429, 131056].includes(code) || (status === 429 && !discord)) {
+    return 'Muitas mensagens em pouco tempo. A Meta pediu uma pausa; tente de novo em alguns minutos.';
+  }
+  if (code === 131026) return 'A mensagem não chegou: esse número não usa WhatsApp ou o app dele está desatualizado.';
+  if (code === 131031) return 'A Meta bloqueou a conta do WhatsApp Business. Abra o WhatsApp Manager para ver o motivo.';
+  if (code === 368) return 'A Meta bloqueou este número por um tempo por causa das regras dela. Abra o WhatsApp Manager para ver o motivo.';
+  if (code === 131042) return 'A Meta recusou por um problema de pagamento na conta do WhatsApp Business.';
+  if (code === 551 || code === 230) return 'Essa pessoa não está disponível no Instagram agora (desativou a conta ou bloqueou mensagens).';
+
+  if (discord === 50007) return 'O Discord não deixou o bot mandar mensagem direta para essa pessoa (ela bloqueou mensagens de bots ou saiu do servidor).';
+  if (discord === 50013 || discord === 50001) return 'O bot não tem permissão para isso no servidor. Confira o cargo do bot nas configurações do servidor.';
+  if (discord === 10003 || discord === 10004) return 'Esse canal ou servidor não existe mais no Discord.';
+  if (status === 429) return 'O Discord pediu uma pausa por excesso de mensagens. Tente de novo em alguns minutos.';
+
+  if (status >= 500) return `${servico} está instável agora. Tente de novo em alguns minutos.`;
+  const motivo = limpar(meta.error_user_msg || meta.error_data?.details || meta.message || '');
+  if (motivo) return `${servico} não aceitou: ${motivo}.`.slice(0, 300);
+  return `${servico} não respondeu como esperado. Tente de novo em alguns minutos.`;
 }
 
 export async function pedir(url: string, init: RequestInit, servico: string) {
@@ -328,13 +374,10 @@ export async function registrarWhatsApp(phoneNumberId: string, token: string, pi
     }, 'O WhatsApp');
     return null;
   } catch (e) {
-    const corpo = e instanceof ErroDoCanal ? e.corpo : '';
-    if (/133005|pin/i.test(corpo)) {
-      return 'Este número já tem verificação em duas etapas com outro PIN. No WhatsApp Manager, abra o número → Configurações → Verificação em duas etapas, desative, e clique em "Testar conexão" aqui.';
-    }
-    return `A Meta não ativou o número na API: ${(e as Error).message}`.slice(0, 400);
+    return (e as Error).message;
   }
 }
+
 
 /**
  * Põe a foto no perfil do número de WhatsApp. A Meta pede o envio em etapas:
