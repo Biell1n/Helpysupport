@@ -1,11 +1,20 @@
-# o site e a ajuda são públicos; painel, login e conversas não entram na busca
+# o site e a ajuda são públicos; painel, login e conversas não entram na busca.
+# A política de privacidade de cada empresa (/c/<token>/privacidade) fica aberta:
+# a Meta confere esse link para publicar o app do WhatsApp e do Instagram.
 User-agent: *
 Allow: /
+Allow: /c/*/privacidade
 Disallow: /painel
 Disallow: /c/
 Disallow: /entrar
 Disallow: /criar-conta
 Disallow: /recuperar-senha
 Disallow: /nova-senha
+
+# o verificador da Meta (campo "Site" e política de privacidade no app) precisa abrir os links do chat
+User-agent: facebookexternalhit
+User-agent: Facebot
+Allow: /
+Disallow: /painel
 
 Sitemap: https://helpysupport.com/sitemap.xml
