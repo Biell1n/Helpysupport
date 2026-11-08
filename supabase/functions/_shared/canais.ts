@@ -34,6 +34,8 @@ export const NOMES: Record<TipoCanal, string> = { whatsapp: 'WhatsApp', instagra
 export interface Segredo {
   token: string;
   app_secret?: string;
+  /** WhatsApp: PIN da verificação em duas etapas com que o Helpy registrou o número na API */
+  pin?: string;
   /** Discord (bot do Helpy): webhook do canal dos tickets, para a equipe aparecer com o próprio nome */
   webhook?: { id: string; token: string; canal: string };
 }
@@ -296,6 +298,33 @@ export async function conferirWhatsApp(phoneNumberId: string, token: string) {
     headers: { Authorization: `Bearer ${token}` },
   }, 'O WhatsApp') as { display_phone_number?: string; verified_name?: string };
   return { externo_id: phoneNumberId, nome: [r.verified_name, r.display_phone_number].filter(Boolean).join(' · ') || phoneNumberId };
+}
+
+/**
+ * Número novo na API da Meta precisa ser "registrado" uma vez; sem isso ele recebe
+ * mensagens mas não consegue responder. Registra se ainda não estiver. Devolve null
+ * quando está tudo certo, ou o motivo para mostrar no painel.
+ */
+export async function registrarWhatsApp(phoneNumberId: string, token: string, pin: string): Promise<string | null> {
+  const id = encodeURIComponent(phoneNumberId);
+  try {
+    const st = await pedir(`${GRAPH}/${id}?fields=platform_type`, { headers: { Authorization: `Bearer ${token}` } }, 'O WhatsApp') as { platform_type?: string };
+    if (st?.platform_type === 'CLOUD_API') return null;
+  } catch { /* não deu para conferir: tenta registrar mesmo assim */ }
+  try {
+    await pedir(`${GRAPH}/${id}/register`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', pin }),
+    }, 'O WhatsApp');
+    return null;
+  } catch (e) {
+    const corpo = e instanceof ErroDoCanal ? e.corpo : '';
+    if (/133005|pin/i.test(corpo)) {
+      return 'Este número já tem verificação em duas etapas com outro PIN. No WhatsApp Manager, abra o número → Configurações → Verificação em duas etapas, desative, e clique em "Testar conexão" aqui.';
+    }
+    return `A Meta não ativou o número na API: ${(e as Error).message}`.slice(0, 400);
+  }
 }
 
 /**
