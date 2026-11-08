@@ -46,7 +46,7 @@ export const GUIAS = {
           <>No app, clique no lápis (<b>Casos de uso</b>) e em <b>Personalizar</b> ao lado de "Conectar-se com clientes pelo WhatsApp".</>,
           <>Para testar: em <b>Etapa 1. Experimente</b> aparece o número de teste. Copie o <b>Phone Number ID</b> (vai em "Identificação do número") e a <b>Identificação da conta de mensagens</b> (vai em "Identificação da conta").</>,
           <>Para o número da empresa: em <b>Etapa 2 → Registre seu número de telefone</b>, cadastre o número, escolha o <b>nome de exibição</b> (o nome que o cliente vê, a Meta aprova) e confirme o código. Depois copie os dois números dele.</>,
-          <>Se a Meta pedir um <b>site</b> e a empresa não tiver, use o endereço do Instagram da empresa (<code>https://instagram.com/sua_conta</code>): a Meta às vezes recusa links novos.</>,
+          <>Se a Meta pedir um <b>site</b> e a empresa não tiver, use o link do chat do assistente (em <b>Assistentes</b>, "Copiar link") ou o Instagram da empresa (<code>https://instagram.com/sua_conta</code>).</>,
         ],
       },
       {
