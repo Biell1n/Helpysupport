@@ -219,23 +219,23 @@ function Conectar({ servico, assistentes, onFechar, onPronto }) {
           <div className="grid-2">
             <label className="field">
               <span className="label">Identificação do número</span>
-              <input className="input mono" inputMode="numeric" value={f.phone_number_id} onChange={set('phone_number_id')} placeholder="1234567890…" required />
+              <input className="input mono" inputMode="numeric" autoComplete="off" name="meta-numero-id" data-1p-ignore data-lpignore="true" value={f.phone_number_id} onChange={set('phone_number_id')} placeholder="1234567890…" required />
             </label>
             <label className="field">
               <span className="label">Identificação da conta</span>
-              <input className="input mono" inputMode="numeric" value={f.waba_id} onChange={set('waba_id')} placeholder="opcional" />
+              <input className="input mono" inputMode="numeric" autoComplete="off" name="meta-conta-id" data-1p-ignore data-lpignore="true" value={f.waba_id} onChange={set('waba_id')} placeholder="opcional" />
             </label>
           </div>
         )}
         <label className="field">
           <span className="label">{servico.tipo === 'discord' ? 'Token do bot' : 'Token de acesso'}</span>
-          <input className="input mono" type="password" autoComplete="off" value={f.token} onChange={set('token')} required />
+          <input className="input mono" type="password" autoComplete="new-password" data-1p-ignore data-lpignore="true" value={f.token} onChange={set('token')} required />
           <span className="hint">Fica guardado criptografado no cofre do servidor. Ninguém da equipe consegue ver depois.</span>
         </label>
         {servico.meta && (
           <label className="field">
             <span className="label">{servico.tipo === 'instagram' ? 'Chave secreta do app do Instagram' : 'Chave secreta do app'}</span>
-            <input className="input mono" type="password" autoComplete="off" value={f.app_secret} onChange={set('app_secret')} required />
+            <input className="input mono" type="password" autoComplete="new-password" data-1p-ignore data-lpignore="true" value={f.app_secret} onChange={set('app_secret')} required />
             <span className="hint">Serve para o Helpy confirmar que cada mensagem veio mesmo da Meta. Também fica no cofre.</span>
           </label>
         )}
@@ -392,13 +392,13 @@ function TrocarToken({ canal, onPronto }) {
     <form className="stack-sm" style={{ marginTop: 12 }} onSubmit={enviar}>
       <label className="field">
         <span className="label">Token de acesso novo</span>
-        <input className="input mono" type="password" autoComplete="off" required value={f.token} onChange={(e) => setF((x) => ({ ...x, token: e.target.value }))} />
+        <input className="input mono" type="password" autoComplete="new-password" data-1p-ignore data-lpignore="true" required value={f.token} onChange={(e) => setF((x) => ({ ...x, token: e.target.value }))} />
         {canal.tipo !== 'discord' && <span className="hint">Use o do usuário do sistema, com validade "Nunca" (passo 3 do tutorial).</span>}
       </label>
       {canal.tipo !== 'discord' && (
         <label className="field">
           <span className="label">Chave secreta do app <span className="faint">(só se mudou)</span></span>
-          <input className="input mono" type="password" autoComplete="off" value={f.app_secret} onChange={(e) => setF((x) => ({ ...x, app_secret: e.target.value }))} />
+          <input className="input mono" type="password" autoComplete="new-password" data-1p-ignore data-lpignore="true" value={f.app_secret} onChange={(e) => setF((x) => ({ ...x, app_secret: e.target.value }))} />
         </label>
       )}
       <div><button className="btn btn-primary btn-sm" disabled={enviando || !f.token.trim()}>{enviando ? 'Conferindo…' : 'Salvar token'}</button></div>

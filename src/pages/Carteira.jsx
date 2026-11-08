@@ -479,7 +479,7 @@ function Ativar({ onPronto }) {
               <label className="field">
                 <span className="label">Chave do Asaas</span>
                 <input
-                  className="input" type="password" value={chave} placeholder="$aact_…" autoComplete="off" required
+                  className="input" type="password" value={chave} placeholder="$aact_…" autoComplete="new-password" data-1p-ignore data-lpignore="true" required
                   onChange={(e) => {
                     const v = e.target.value;
                     setChave(v);
