@@ -94,10 +94,19 @@ function explicar(servico: string, status: number, corpo: string) {
   if (/131047|re-engagement|24 hours?/i.test(corpo)) {
     return 'Passaram mais de 24 horas desde a última mensagem do cliente. Por regra do WhatsApp, só dá para falar com ele de novo quando ele escrever (ou com um modelo de mensagem aprovado pela Meta).';
   }
-  if (status === 401 || /OAuthException|invalid.*token|190/i.test(corpo)) {
+  // a Meta devolve {"error":{"message","code","error_subcode","error_user_msg"}}: todo erro dela tem
+  // "OAuthException" no tipo, então só o código 190 (ou HTTP 401) quer dizer token vencido
+  let meta: { message?: string; code?: number; error_subcode?: number; error_user_msg?: string; error_data?: { details?: string } } = {};
+  try { meta = JSON.parse(corpo)?.error ?? {}; } catch { /* corpo não é JSON */ }
+  if (status === 401 || meta.code === 190) {
     return `${servico} recusou o token: ele venceu ou foi revogado. Gere outro e conecte de novo.`;
   }
+  if (meta.code === 200 || meta.code === 10) {
+    return `${servico} disse que o token não tem permissão para isso. No usuário do sistema "Helpy", atribua a conta do WhatsApp com Controle total e gere o token de novo com as permissões whatsapp_business_messaging e whatsapp_business_management.`;
+  }
   if (/50007/.test(corpo)) return 'O Discord não deixou o bot mandar mensagem direta para essa pessoa (ela bloqueou mensagens de bots ou saiu do servidor).';
+  const motivo = meta.error_user_msg || meta.error_data?.details || meta.message;
+  if (motivo) return `${servico} recusou: ${motivo}${meta.code ? ` (código ${meta.code})` : ''}`.slice(0, 400);
   return `${servico} recusou (${status}): ${corpo.slice(0, 300)}`;
 }
 
