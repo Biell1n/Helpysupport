@@ -26,6 +26,7 @@ import {
   jaVista,
   responderInteracaoDiscord,
   segredoDo,
+  statusDoErro,
   type TipoCanal,
 } from './canais.ts';
 import { atenderNoCanal } from './canal-atender.ts';
@@ -52,7 +53,8 @@ async function canalPor(tipo: TipoCanal, externoId: string): Promise<Canal | nul
 }
 
 async function marcarErro(canal: Canal, e: unknown) {
-  await admin.from('canais').update({ status: 'erro', erro: String((e as Error)?.message ?? e).slice(0, 500) }).eq('id', canal.id);
+  const erro = String((e as Error)?.message ?? e).slice(0, 500);
+  await admin.from('canais').update({ status: statusDoErro(erro), erro }).eq('id', canal.id);
 }
 
 /** Uma mensagem de um contato: atende e devolve pelo mesmo canal. */
@@ -93,7 +95,7 @@ const TRAVAS_WA: Record<number, string> = {
   131030: 'O número de teste só entrega para os números cadastrados no campo "Para" da Meta. Adicione o número do cliente lá ou use o número da empresa.',
   131031: 'A conta do WhatsApp Business foi bloqueada pela Meta. Abra o Gerenciador do WhatsApp para ver o motivo.',
   131042: 'A Meta recusou por problema de pagamento na conta do WhatsApp Business.',
-  190: 'O token do WhatsApp venceu ou foi revogado. Use "Trocar token" com o token que não vence.',
+  190: 'O token deste canal venceu ou foi cancelado. Gere um novo na Meta e cole em Configurar → Trocar token.',
   368: 'A Meta bloqueou temporariamente este número por violar as políticas.',
 };
 

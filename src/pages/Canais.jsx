@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, CheckCircle2, CircleDashed, Copy, ExternalLink, Image as ImageIcon, KeyRound, Link2, Pause, Play, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, CheckCircle2, ChevronDown, CircleDashed, Clock, Copy, ExternalLink, Image as ImageIcon, KeyRound, Link2, Pause, Play, RefreshCw, Settings2, Trash2 } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
@@ -42,7 +42,7 @@ const SERVICOS = [
   },
 ];
 
-const ROTULO_STATUS = { ativo: 'Respondendo', pausado: 'Pausado', erro: 'Com erro', pendente: 'Aguardando' };
+const ROTULO_STATUS = { ativo: 'Respondendo', pausado: 'Pausado', erro: 'Precisa de atenção', pendente: 'Aguardando a Meta' };
 const CLASSE_STATUS = { ativo: 'badge-closed', pausado: 'badge-bot', erro: 'badge-waiting', pendente: 'badge-human' };
 
 function Copiavel({ rotulo, valor, dica }) {
@@ -284,36 +284,6 @@ function Enderecos({ canal, assistente }) {
   );
 }
 
-/** Uma barrinha por dia nos últimos 30 dias: altura = conversas que chegaram por este canal. */
-function Atividade({ dias }) {
-  if (!dias) return null;
-  const max = Math.max(1, ...dias);
-  const total = dias.reduce((a, b) => a + b, 0);
-  const hoje = new Date();
-  return (
-    <div className="canal-atividade">
-      <div className="canal-atividade-barras" role="img" aria-label={`${total} conversas nos últimos 30 dias`}>
-        {dias.map((v, i) => {
-          const d = new Date(hoje.getTime() - (dias.length - 1 - i) * 864e5);
-          return (
-            <i
-              key={i}
-              data-vazio={v ? undefined : ''}
-              style={{ '--h': `${Math.max(14, (v / max) * 100)}%` }}
-              title={`${d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}: ${v} ${v === 1 ? 'conversa' : 'conversas'}`}
-            />
-          );
-        })}
-      </div>
-      <div className="canal-atividade-legenda faint">
-        <span>30 dias atrás</span>
-        <span>{total} {total === 1 ? 'conversa' : 'conversas'}</span>
-        <span>hoje</span>
-      </div>
-    </div>
-  );
-}
-
 /** Bot do Helpy no Discord: como estão as conversas privadas neste servidor. */
 function TicketsDiscord({ canal }) {
   const [livre, setLivre] = useState(null);
@@ -365,7 +335,7 @@ function LinkDoCliente({ canal }) {
   return (
     <div className="stack-sm" style={{ marginTop: 12 }}>
       <Copiavel rotulo="Link para os clientes" valor={link} />
-      <span className="hint">Ponha na bio, no site, no cartão ou mande para quem pedir: abre a conversa direto {canal.tipo === 'whatsapp' ? 'no WhatsApp' : 'no Direct'}. O assistente também passa esse link quando alguém pergunta.</span>
+      <span className="hint">Ponha na bio, no site ou no cartão: abre a conversa direto {canal.tipo === 'whatsapp' ? 'no WhatsApp' : 'no Direct'}.</span>
     </div>
   );
 }
@@ -407,57 +377,80 @@ function TrocarToken({ canal, onPronto }) {
 }
 
 function CanalConectado({ canal, assistentes, ocupado, onAcao, atividade }) {
-  const [aberto, setAberto] = useState(!canal.ultimo_evento_em);
+  const [config, setConfig] = useState(false);
   const [trocando, setTrocando] = useState(false);
+  const helpy = canal.config?.modo === 'helpy';
+  const conversas = (atividade ?? []).reduce((a, b) => a + b, 0);
+  const resumo = [
+    canal.ultimo_evento_em ? `Última mensagem ${quando(canal.ultimo_evento_em)}` : 'Nenhuma mensagem ainda',
+    conversas ? `${conversas} ${conversas === 1 ? 'conversa' : 'conversas'} em 30 dias` : null,
+  ].filter(Boolean).join(' · ');
+  const esperando = canal.status === 'pendente';
   return (
     <div className={`canal-conta canal-${canal.tipo}`}>
-      <div className="row" style={{ justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <b>{canal.nome || canal.externo_id}</b>
-          <div className="faint" style={{ fontSize: 13 }}>
-            {canal.ultimo_evento_em ? `Última mensagem ${quando(canal.ultimo_evento_em)}` : 'Nenhuma mensagem ainda'}
-          </div>
+      <div className="canal-conta-topo">
+        <div style={{ minWidth: 0 }}>
+          <b className="canal-conta-nome">{canal.nome || canal.externo_id}</b>
+          <div className="faint canal-conta-resumo">{resumo}</div>
         </div>
         <span className={`badge ${CLASSE_STATUS[canal.status] ?? ''}`}>{ROTULO_STATUS[canal.status] ?? canal.status}</span>
       </div>
-      {canal.erro && <div className="alert alert-erro" style={{ marginTop: 10 }}><span>{canal.erro}</span></div>}
-      <LinkDoCliente canal={canal} />
-      <Atividade dias={atividade} />
-      <label className="field" style={{ marginTop: 12 }}>
-        <span className="label">Assistente</span>
+
+      {canal.erro && (
+        <div className={`alert ${esperando ? 'alert-aviso' : 'alert-erro'} canal-conta-alerta`}>
+          {esperando ? <Clock size={16} /> : <AlertCircle size={16} />}
+          <span>{canal.erro}</span>
+        </div>
+      )}
+      {helpy && !canal.config?.painel_msg && (
+        <div className="alert alert-aviso canal-conta-alerta">
+          <AlertCircle size={16} />
+          <span>Falta um passo: no servidor, digite <b>/helpy-config</b>, escolha o canal e o cargo da equipe e publique o botão.</span>
+        </div>
+      )}
+
+      <label className="field" style={{ marginTop: 14 }}>
+        <span className="label">Assistente que responde</span>
         <select className="select" value={canal.assistant_id} disabled={ocupado} onChange={(e) => onAcao('trocar_assistente', { assistant_id: e.target.value })}>
           {assistentes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </label>
-      {canal.config?.modo === 'helpy' ? (
-        <TicketsDiscord canal={canal} />
-      ) : (
-        <button type="button" className="link-btn" style={{ marginTop: 10 }} onClick={() => setAberto((v) => !v)}>
-          {aberto ? 'Esconder os dados' : `Ver dados para colar ${canal.tipo === 'discord' ? 'no Discord' : 'na Meta'}`}
-        </button>
-      )}
-      {aberto && canal.config?.modo !== 'helpy' && (
-        <div className="stack" style={{ marginTop: 10 }}>
-          <Enderecos canal={canal} assistente={assistentes.find((a) => a.id === canal.assistant_id)} />
-          <TutorialCanal tipo={canal.tipo} soDepois />
-        </div>
-      )}
-      <div className="row row-wrap" style={{ gap: 8, marginTop: 12 }}>
+      <LinkDoCliente canal={canal} />
+
+      <div className="canal-conta-acoes">
         <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('testar')}><RefreshCw size={15} /> Testar conexão</button>
-        {canal.tipo === 'whatsapp' && (
-          <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('foto')}><ImageIcon size={15} /> Usar a foto do assistente</button>
-        )}
-        {canal.config?.modo !== 'helpy' && (
-          <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => setTrocando((v) => !v)}><KeyRound size={15} /> Trocar token</button>
-        )}
         {canal.status === 'pausado' ? (
           <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('pausar', { ativo: true })}><Play size={15} /> Retomar</button>
         ) : (
           <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('pausar', { ativo: false })}><Pause size={15} /> Pausar</button>
         )}
-        <button type="button" className="btn btn-quiet btn-sm" disabled={ocupado} onClick={() => onAcao('desconectar')}><Trash2 size={15} /> Desconectar</button>
+        <button type="button" className="btn btn-quiet btn-sm canal-conta-mais" aria-expanded={config} onClick={() => setConfig((v) => !v)}>
+          <Settings2 size={15} /> Configurar <ChevronDown size={14} className="canal-conta-seta" />
+        </button>
       </div>
-      {trocando && <TrocarToken canal={canal} onPronto={() => { setTrocando(false); onAcao('recarregar'); }} />}
+
+      {config && (
+        <div className="canal-conta-config">
+          {helpy ? (
+            <TicketsDiscord canal={canal} />
+          ) : (
+            <>
+              <Enderecos canal={canal} assistente={assistentes.find((a) => a.id === canal.assistant_id)} />
+              <TutorialCanal tipo={canal.tipo} soDepois />
+            </>
+          )}
+          <div className="row row-wrap" style={{ gap: 8 }}>
+            {canal.tipo === 'whatsapp' && (
+              <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => onAcao('foto')}><ImageIcon size={15} /> Usar a foto do assistente</button>
+            )}
+            {!helpy && (
+              <button type="button" className="btn btn-ghost btn-sm" disabled={ocupado} onClick={() => setTrocando((v) => !v)}><KeyRound size={15} /> Trocar token</button>
+            )}
+            <button type="button" className="btn btn-quiet btn-sm" disabled={ocupado} onClick={() => onAcao('desconectar')}><Trash2 size={15} /> Desconectar</button>
+          </div>
+          {trocando && <TrocarToken canal={canal} onPronto={() => { setTrocando(false); onAcao('recarregar'); }} />}
+        </div>
+      )}
     </div>
   );
 }
@@ -515,7 +508,9 @@ export default function Canais() {
       }
       const r = await chamar('canais', { action, canal_id: canal.id, ...extra });
       if (action === 'testar') {
-        avisar(r.ok ? 'Tudo certo com a conexão' : 'A conexão falhou', r.ok ? {} : { erro: true, texto: r.erro });
+        if (r.ok) avisar('Tudo certo com a conexão', { texto: 'O canal está respondendo.' });
+        else if (r.aguardando) avisar('Ainda em análise na Meta', { texto: 'Assim que ela aprovar, teste de novo.' });
+        else avisar('A conexão falhou', { erro: true, texto: r.erro });
       }
       // o número do WhatsApp passa a ter a foto do assistente novo
       if (action === 'trocar_assistente' && canal.tipo === 'whatsapp') {

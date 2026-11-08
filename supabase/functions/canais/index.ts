@@ -25,6 +25,8 @@ import {
   ErroDoCanal,
   guardarSegredo,
   registrarWhatsApp,
+  ESPERA_META,
+  statusDoErro,
   NOMES,
   segredoDo,
   type TipoCanal,
@@ -267,8 +269,8 @@ Deno.serve(async (req) => {
         pin ??= String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
         aviso = await registrarWhatsApp(dados.externo_id, token, pin);
         if (aviso) {
-          await admin.from('canais').update({ status: 'erro', erro: aviso }).eq('id', canal.id);
-          canal.status = 'erro';
+          canal.status = statusDoErro(aviso);
+          await admin.from('canais').update({ status: canal.status, erro: aviso }).eq('id', canal.id);
           canal.erro = aviso;
         }
       }
@@ -308,15 +310,15 @@ Deno.serve(async (req) => {
           const aviso = await registrarWhatsApp(canal.externo_id, token, pin);
           if (!segredo.pin) await guardarSegredo(admin, canal.id, { ...segredo, pin });
           if (aviso) {
-            await admin.from('canais').update({ status: 'erro', erro: aviso }).eq('id', canal.id);
-            return json({ ok: false, erro: aviso });
+            await admin.from('canais').update({ status: statusDoErro(aviso), erro: aviso }).eq('id', canal.id);
+            return json({ ok: false, erro: aviso, aguardando: aviso === ESPERA_META });
           }
         } else if (canal.tipo === 'instagram') await conferirInstagram(token);
         else await conferirDiscord(token);
       } catch (e) {
         const erro = (e as Error).message.slice(0, 500);
-        await admin.from('canais').update({ status: 'erro', erro }).eq('id', canal.id);
-        return json({ ok: false, erro });
+        await admin.from('canais').update({ status: statusDoErro(erro), erro }).eq('id', canal.id);
+        return json({ ok: false, erro, aguardando: erro === ESPERA_META });
       }
       await admin.from('canais').update({ status: canal.status === 'pausado' ? 'pausado' : 'ativo', erro: null }).eq('id', canal.id);
       return json({ ok: true });
