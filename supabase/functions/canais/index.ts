@@ -24,6 +24,7 @@ import {
   enviarPeloCanal,
   ErroDoCanal,
   guardarSegredo,
+  registrarWhatsApp,
   NOMES,
   segredoDo,
   type TipoCanal,
@@ -257,7 +258,21 @@ Deno.serve(async (req) => {
         ? await admin.from('canais').update(linha).eq('id', existente.id).select('*').single()
         : await admin.from('canais').insert(linha).select('*').single();
       if (error) throw error;
-      await guardarSegredo(admin, canal.id, { token, ...(appSecret ? { app_secret: appSecret } : {}) });
+      // número novo do WhatsApp: registra na API (senão recebe e não responde)
+      let pin: string | undefined;
+      let aviso: string | null = null;
+      if (tipo === 'whatsapp') {
+        const { data: velho } = existente ? await admin.rpc('helpy_canal_segredo', { p_canal: canal.id }) : { data: null };
+        try { pin = velho ? JSON.parse(String(velho)).pin : undefined; } catch { /* sem PIN guardado */ }
+        pin ??= String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+        aviso = await registrarWhatsApp(dados.externo_id, token, pin);
+        if (aviso) {
+          await admin.from('canais').update({ status: 'erro', erro: aviso }).eq('id', canal.id);
+          canal.status = 'erro';
+          canal.erro = aviso;
+        }
+      }
+      await guardarSegredo(admin, canal.id, { token, ...(appSecret ? { app_secret: appSecret } : {}), ...(pin ? { pin } : {}) });
       await assinarAvisos(tipo, token, dados.config?.waba_id ?? '');
       // Discord: o bot ganha o nome e a foto do assistente e o endereço é cadastrado sozinho
       let discord = null;
@@ -283,10 +298,20 @@ Deno.serve(async (req) => {
         await admin.from('canais').update({ status: esta ? (canal.status === 'pausado' ? 'pausado' : 'ativo') : 'erro', erro }).eq('id', canal.id);
         return json(esta ? { ok: true } : { ok: false, erro });
       }
-      const { token } = await segredoDo(admin, canal.id);
+      const segredo = await segredoDo(admin, canal.id);
+      const { token } = segredo;
       try {
-        if (canal.tipo === 'whatsapp') await conferirWhatsApp(canal.externo_id, token);
-        else if (canal.tipo === 'instagram') await conferirInstagram(token);
+        if (canal.tipo === 'whatsapp') {
+          await conferirWhatsApp(canal.externo_id, token);
+          // confere (e faz, se faltar) o registro do número na API
+          const pin = segredo.pin ?? String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+          const aviso = await registrarWhatsApp(canal.externo_id, token, pin);
+          if (!segredo.pin) await guardarSegredo(admin, canal.id, { ...segredo, pin });
+          if (aviso) {
+            await admin.from('canais').update({ status: 'erro', erro: aviso }).eq('id', canal.id);
+            return json({ ok: false, erro: aviso });
+          }
+        } else if (canal.tipo === 'instagram') await conferirInstagram(token);
         else await conferirDiscord(token);
       } catch (e) {
         const erro = (e as Error).message.slice(0, 500);
