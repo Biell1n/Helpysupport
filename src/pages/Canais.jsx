@@ -557,6 +557,28 @@ export default function Canais() {
         </div>
       </header>
 
+      {/* os canais ligados vêm primeiro (no celular, o status fica logo à vista) */}
+      {(canais ?? []).length > 0 && (
+        <section className="canais-ligados">
+          <h2 className="canais-ligados-titulo">Conectados</h2>
+          <div className="canais-ligados-grade">
+            {SERVICOS.flatMap((s) => (canais ?? []).filter((c) => c.tipo === s.tipo).map((c) => {
+              const I = Icone[s.tipo];
+              return (
+                <section key={c.id} className="card canal-card canal-ligado">
+                  <div className="canal-topo">
+                    <span className={`canal-icone canal-${s.tipo}`}><I width={20} height={20} /></span>
+                    <h3 className="card-title">{s.nome}</h3>
+                  </div>
+                  <CanalConectado canal={c} assistentes={assistentes} ocupado={ocupado} atividade={atividade[c.id]} onAcao={(a, extra) => acao(c, a, extra)} />
+                </section>
+              );
+            }))}
+          </div>
+        </section>
+      )}
+
+      {(canais ?? []).length > 0 && <h2 className="canais-ligados-titulo">Conectar outro canal</h2>}
       <div className="canais-grade">
         <section className="card canal-card">
           <div className="canal-topo">
@@ -585,6 +607,10 @@ export default function Canais() {
                   <h2 className="card-title">{s.nome}</h2>
                   {bloqueado ? (
                     <span className="badge badge-plain badge-human">Fora do seu plano</span>
+                  ) : doTipo.some((c) => c.status === 'erro') ? (
+                    <span className="badge badge-waiting">Precisa de atenção</span>
+                  ) : doTipo.some((c) => c.status === 'pendente') ? (
+                    <span className="badge badge-human">Aguardando a Meta</span>
                   ) : doTipo.length ? (
                     <span className="badge badge-closed">{doTipo.length} conectad{doTipo.length > 1 ? 'os' : 'o'}</span>
                   ) : (
@@ -625,27 +651,6 @@ export default function Canais() {
           );
         })}
       </div>
-
-      {/* os canais ligados ficam juntos, embaixo, com tudo o que dá para mexer em cada um */}
-      {(canais ?? []).length > 0 && (
-        <section className="canais-ligados">
-          <h2 className="canais-ligados-titulo">Conectados</h2>
-          <div className="canais-ligados-grade">
-            {SERVICOS.flatMap((s) => (canais ?? []).filter((c) => c.tipo === s.tipo).map((c) => {
-              const I = Icone[s.tipo];
-              return (
-                <section key={c.id} className="card canal-card canal-ligado">
-                  <div className="canal-topo">
-                    <span className={`canal-icone canal-${s.tipo}`}><I width={20} height={20} /></span>
-                    <h3 className="card-title">{s.nome}</h3>
-                  </div>
-                  <CanalConectado canal={c} assistentes={assistentes} ocupado={ocupado} atividade={atividade[c.id]} onAcao={(a, extra) => acao(c, a, extra)} />
-                </section>
-              );
-            }))}
-          </div>
-        </section>
-      )}
 
       <p className="faint" style={{ fontSize: 13, marginTop: 18, maxWidth: 680 }}>
         As conversas de todos os canais caem em Atendimentos, contam no mesmo limite do plano e seguem as mesmas regras de chamado.
