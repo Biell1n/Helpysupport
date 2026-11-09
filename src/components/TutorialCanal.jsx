@@ -6,6 +6,8 @@ const ICONES = { conta: <UserRound size={18} />, chip: <Smartphone size={18} />,
 
 const META = 'https://developers.facebook.com/apps';
 const NEGOCIOS = 'https://business.facebook.com/settings/system-users';
+const GERENCIADOR = 'https://business.facebook.com/wa/manage/phone-numbers';
+const CONTAS_WA = 'https://business.facebook.com/settings/whatsapp-business-accounts';
 
 const A = ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>;
 
@@ -16,65 +18,82 @@ const A = ({ href, children }) => <a href={href} target="_blank" rel="noreferrer
  */
 export const GUIAS = {
   whatsapp: {
-    tempo: 'uns 15 minutos',
+    tempo: 'uns 20 minutos',
     video: '/videos/conectar-whatsapp-1.mp4',
-    duracaoVideo: 'parte 1 de 2 · 2 min',
+    duracaoVideo: 'parte 1 de 2 · 2 min e 20 s',
     videoDepois: '/videos/conectar-whatsapp-2.mp4',
     duracaoDepois: 'parte 2 de 2 · 1 min',
     antes: [
-      { icone: 'conta', titulo: 'Uma conta no Facebook', texto: 'Com acesso ao portfólio da empresa (business.facebook.com).' },
+      { icone: 'conta', titulo: 'Uma conta no Facebook', texto: 'A que administra a página ou o portfólio da empresa na Meta.' },
       {
         icone: 'chip',
         destaque: true,
-        titulo: 'Um número só do atendimento',
-        texto: 'Chip novo ou telefone fixo que receba SMS ou ligação. Ele não pode estar no WhatsApp do celular: o número que vai para o Helpy sai do aplicativo. Não use o seu número pessoal.',
+        titulo: 'Um chip só do atendimento',
+        texto: 'Um número que receba SMS e que não seja o seu pessoal. Se ele já teve WhatsApp (comum ou Business), apague a conta antes: o número sai do aplicativo e passa a responder pelo Helpy.',
       },
-      { icone: 'tempo', titulo: 'Uns 15 minutos', texto: 'É feito uma vez só. Depois o assistente atende sozinho, 24 horas.' },
+      { icone: 'tempo', titulo: 'Uns 20 minutos', texto: 'É feito uma vez só. Depois o assistente atende sozinho, 24 horas.' },
     ],
     passos: [
+      {
+        titulo: 'Tire o chip do WhatsApp',
+        itens: [
+          <>Se o chip nunca teve WhatsApp, pule este passo.</>,
+          <>No celular com o chip, abra o WhatsApp: <b>⋮ → Configurações → Conta → Apagar conta</b>. Confirme o número e espere uns 3 minutos. Sem isso, a Meta não deixa cadastrar o número.</>,
+        ],
+      },
       {
         titulo: 'Crie o app na Meta',
         itens: [
           <>Abra o <A href={META}>painel de apps da Meta</A> e clique em <b>Criar app</b>. Se aparecer "Começar", faça antes o cadastro de desenvolvedor (entre com o Facebook e escolha "Desenvolvedor").</>,
           <>Nome do app: o da sua empresa (não use as palavras "WhatsApp", "Meta" ou "Facebook", a Meta recusa). O cliente não vê esse nome.</>,
           <>Em <b>Casos de uso</b>, marque só <b>Conectar-se com clientes pelo WhatsApp</b>. Em <b>Empresa</b>, escolha o portfólio da sua empresa (ou crie um) e conclua com <b>Criar app</b>.</>,
+          <>Se a Meta pedir um <b>site</b> e a empresa não tiver, use o Instagram da empresa (<code>https://instagram.com/sua_conta</code>) ou o link do chat do assistente (em <b>Assistentes</b>, "Copiar link").</>,
         ],
       },
       {
-        titulo: 'Pegue os dois números do WhatsApp',
+        titulo: 'Cadastre o chip',
         itens: [
-          <>No app, clique no lápis (<b>Casos de uso</b>) e em <b>Personalizar</b> ao lado de "Conectar-se com clientes pelo WhatsApp".</>,
-          <>Para testar: em <b>Etapa 1. Experimente</b> aparece o número de teste. Copie o <b>Phone Number ID</b> (vai em "Identificação do número") e a <b>Identificação da conta de mensagens</b> (vai em "Identificação da conta").</>,
-          <>Para o número da empresa: em <b>Etapa 2 → Registre seu número de telefone</b>, cadastre o número, escolha o <b>nome de exibição</b> (o nome que o cliente vê, a Meta aprova) e confirme o código. Depois copie os dois números dele.</>,
-          <>Se a Meta pedir um <b>site</b> e a empresa não tiver, use o link do chat do assistente (em <b>Assistentes</b>, "Copiar link") ou o Instagram da empresa (<code>https://instagram.com/sua_conta</code>).</>,
+          <>Abra o <A href={GERENCIADOR}>WhatsApp Manager → Números de telefone</A>. No topo, confira se está selecionada a <b>mesma empresa do app</b>.</>,
+          <>Clique em <b>Adicionar número de telefone</b>. Preencha o <b>nome de exibição</b> (o que o cliente vê; a Meta aprova em algumas horas) e o número do chip, com +55 e DDD. Confirme o código do SMS.</>,
+          <>Se a Meta pedir "dados da empresa para os novos ativos" ou der erro de política, você está criando uma empresa nova sem querer. Feche e adicione pelo WhatsApp Manager, na empresa do app.</>,
+        ],
+      },
+      {
+        titulo: 'Copie os dois números',
+        itens: [
+          <><b>Identificação do número:</b> no WhatsApp Manager, em <b>Números de telefone</b>, clique no número: a <b>Identificação do número de telefone</b> aparece nos detalhes. Cole em "Identificação do número", aqui ao lado.</>,
+          <><b>Identificação da conta:</b> abra as <A href={CONTAS_WA}>configurações do negócio → Contas do WhatsApp</A>, clique na conta onde o chip entrou e copie a <b>Identificação</b>, embaixo do nome. Cole em "Identificação da conta".</>,
         ],
       },
       {
         titulo: 'Gere o token que não vence',
         itens: [
-          <>Não use o botão "Gerar token" da Etapa 1: aquele vale só 24 horas e cai quando você gera outro.</>,
           <>Abra as <A href={NEGOCIOS}>configurações do negócio → Usuários do sistema</A> e clique em <b>Adicionar</b>. Nome: "Helpy", função: <b>Administrador</b>.</>,
-          <>Clique em <b>Atribuir ativos</b> e dê <b>Controle total</b> em dois: o seu <b>app</b> e a sua <b>conta do WhatsApp</b>.</>,
+          <>Clique em <b>Atribuir ativos</b> e dê <b>Controle total</b> em dois: o seu <b>app</b> e a <b>conta do WhatsApp onde o chip entrou</b>. Se você criar outra conta depois, atribua essa também.</>,
           <>Clique em <b>Gerar novo token</b>: escolha o app, validade <b>Nunca</b> e as permissões <i>whatsapp_business_messaging</i> e <i>whatsapp_business_management</i>. Copie na hora (ele só aparece uma vez) e cole em <b>Token de acesso</b> aqui ao lado.</>,
+          <>Não use o botão "Gerar token" do painel do app: aquele vale só 24 horas.</>,
         ],
       },
       {
         titulo: 'Copie a chave secreta do app',
         itens: [
-          <>Na barra de ícones da esquerda do app, clique na engrenagem: <b>Configurações do app → Básico</b>.</>,
+          <>No app, na barra da esquerda, clique na engrenagem: <b>Configurações do app → Básico</b>.</>,
           <>Em <b>Chave Secreta do Aplicativo</b>, clique em <b>Mostrar</b> e cole no campo <b>Chave secreta do app</b> aqui ao lado. É com ela que o Helpy confere que a mensagem veio mesmo do WhatsApp.</>,
         ],
       },
       {
         titulo: 'Clique em Conectar',
-        itens: [<>O Helpy confere o número e o token na Meta na hora e põe a foto do assistente no perfil do número. Se algo estiver errado, ele diz o quê.</>],
+        itens: [
+          <>O Helpy confere o número e o token na Meta, ativa o número e põe a foto do assistente no perfil. Se algo estiver errado, ele diz o quê.</>,
+          <>Conta do WhatsApp nova? O canal aparece como <b>Aguardando a Meta</b> enquanto ela analisa (de algumas horas a 2 dias). Quando aprovar, o número começa a responder sozinho.</>,
+        ],
       },
       {
         depois: true,
         titulo: 'Ligue os avisos de mensagem nova',
         itens: [
-          <>No app, volte em <b>Casos de uso → Personalizar → Etapa 2. Configuração da produção → Configurar webhooks</b>.</>,
-          <>Cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostra (botões de copiar) e clique em <b>Verificar e salvar</b>.</>,
+          <>No app, abra <b>Casos de uso → Personalizar</b> (ao lado do WhatsApp) <b>→ Configuração → Configurar webhooks</b>.</>,
+          <>Cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostra em <b>Canais → Configurar</b> e clique em <b>Verificar e salvar</b>.</>,
           <>Logo abaixo, em <b>Campos do webhook</b>, assine <b>messages</b>.</>,
         ],
       },
@@ -82,17 +101,19 @@ export const GUIAS = {
         depois: true,
         titulo: 'Publique o app',
         itens: [
-          <>Sem publicar, a Meta só manda mensagens de teste e as dos seus clientes não chegam.</>,
-          <>Em <b>Configurações do app → Básico</b>, preencha a <b>URL da Política de Privacidade</b> e a de <b>Exclusão de dados</b>: as duas podem ser a política que o Helpy gera para a sua empresa (o link aparece no canal conectado, em “Ver dados para colar na Meta”). Escolha também um <b>ícone</b> e a <b>categoria</b>. Clique em <b>Salvar alterações</b>, no fim da página.</>,
-          <>No menu da esquerda, clique em <b>Publicar</b> e confirme. Pronto: mande um "oi" para o número e veja a resposta.</>,
+          <>Sem publicar, as mensagens dos seus clientes não chegam.</>,
+          <>Em <b>Configurações do app → Básico</b>, preencha a <b>URL da Política de Privacidade</b> e a de <b>Exclusão de dados</b>: as duas podem ser a política que o Helpy gera para a sua empresa (o link aparece em <b>Canais → Configurar</b>). Escolha também um <b>ícone</b> e a <b>categoria</b>. Clique em <b>Salvar alterações</b>, no fim da página.</>,
+          <>No menu da esquerda, clique em <b>Publicar</b> e confirme. Pronto: mande um "oi" para o número de outro celular e veja a resposta.</>,
         ],
       },
     ],
     erros: [
-      ['"Passaram mais de 24 horas"', 'Regra do WhatsApp: depois de 24 h sem o cliente escrever, só dá para mandar modelo aprovado. Quando ele escrever de novo, a conversa reabre.'],
+      ['"Aguardando a Meta"', 'A conta do WhatsApp é nova e a Meta ainda está analisando. Não precisa fazer nada: quando ela aprovar, o número liga sozinho.'],
+      ['A Meta não deixa cadastrar o número', 'O chip ainda tem WhatsApp. Apague a conta no celular (Configurações → Conta → Apagar conta), espere uns minutos e tente de novo.'],
+      ['Erro de política ao adicionar o número', 'Você estava criando uma empresa nova. Feche, abra o WhatsApp Manager na empresa do app e adicione o número por lá.'],
+      ['"O token não tem acesso a este número"', 'Em Usuários do sistema → Helpy → Atribuir ativos, dê Controle total na conta do WhatsApp onde o chip entrou. Não precisa gerar outro token.'],
       ['Mensagem chega mas ninguém responde', 'Confira se o campo "messages" está assinado, se o app está publicado e se a chave secreta do app foi colada.'],
-      ['"Token venceu ou foi revogado"', 'Foi usado o token de 24 horas da Etapa 1. Gere o do usuário do sistema, com validade "Nunca", e conecte de novo com ele (os mesmos números atualizam o canal que já existe).'],
-      ['"Restricted from messaging users in this country"', 'O número de teste da Meta não começa conversa com números do Brasil. Não atrapalha o Helpy: é o cliente que manda a primeira mensagem.'],
+      ['"Passaram mais de 24 horas"', 'Regra do WhatsApp: depois de 24 h sem o cliente escrever, só dá para responder quando ele escrever de novo.'],
     ],
   },
 
@@ -137,7 +158,7 @@ export const GUIAS = {
         itens: [
           <>Na página do Instagram no app, em <b>Configurar webhooks</b>, cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostrar e clique em <b>Verificar e salvar</b>.</>,
           <>Assine o campo <b>messages</b>.</>,
-          <>Em <b>Configurações do app → Básico</b>, cole na URL da Política de Privacidade a política que o Helpy gera para a sua empresa (aparece no canal conectado, em “Ver dados para colar na Meta”).</>,
+          <>Em <b>Configurações do app → Básico</b>, cole na URL da Política de Privacidade a política que o Helpy gera para a sua empresa (aparece no canal conectado, em Canais → Configurar).</>,
           <>Troque o <b>Modo do app</b> para <b>Ao vivo</b>. Para atender qualquer pessoa (não só quem é testador do app), a Meta pede a revisão da permissão <i>instagram_business_manage_messages</i>; enquanto ela não sai, teste com a sua própria conta.</>,
         ],
       },

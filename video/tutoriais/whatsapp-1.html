@@ -14,19 +14,64 @@
   <!-- capa -->
   <section class="scene" data-dur="11">
     <div class="capa"><div>
-      <div class="etiqueta" data-on="0">Parte 1 de 2 · uns 15 minutos</div>
+      <div class="etiqueta" data-on="0">Parte 1 de 2 · uns 20 minutos</div>
       <h1 data-on="0.15">Conectar o <span>WhatsApp</span> ao Helpy</h1>
       <div class="leva" data-on="0.5">Antes de começar, separe:</div>
       <div class="precisa">
         <div class="item" data-on="1.2" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><b>Um computador</b><span>O painel da Meta não funciona direito no celular.</span></div>
-        <div class="item destaque" data-on="2.6" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg></div><b>Um número só do atendimento</b><span>Chip novo ou fixo. <b style="display:inline;font-size:19px">Não pode estar no WhatsApp do celular.</b></span></div>
-        <div class="item" data-on="4.0" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div><b>O seu Facebook</b><span>O que administra a empresa na Meta.</span></div>
+        <div class="item destaque" data-on="2.6" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg></div><b>Um chip só do atendimento</b><span>Não use o seu número pessoal. <b style="display:inline;font-size:19px">Se ele já teve WhatsApp, apague a conta antes.</b></span></div>
+        <div class="item" data-on="4.0" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div><b>O seu Facebook</b><span>O que administra a página da empresa.</span></div>
       </div>
     </div></div>
   </section>
 
+  <!-- 0. tirar o chip do WhatsApp -->
+  <section class="scene" data-dur="12" data-passo="1" data-toque
+    data-cursor='[[1.8,"#c0-menu",1],[3.8,"#c0-conta",1],[5.8,"#c0-apagar",1],[8.6,"#c0-ok",1]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera">
+      <div class="cel"><div class="tela">
+        <div class="cel-status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="cel-topo" style="color:#12805c">WhatsApp<span class="dir" id="c0-menu"><svg width="24" height="24" viewBox="0 0 24 24" fill="#111"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></span></div>
+        <div class="cel-item"><div><b>Fornecedor</b><small>Chega amanhã cedo</small></div></div>
+        <div class="cel-item"><div><b>Mãe</b><small>Bom dia!</small></div></div>
+        <div class="cel-item"><div><b>Grupo da loja</b><small>Ana: fechou o caixa?</small></div></div>
+        <div class="cel-pagina" data-on="2.0" data-anim="lado">
+          <div class="cel-status"><span>9:41</span><span>●●● ▮</span></div>
+          <div class="cel-topo">‹ &nbsp;Configurações</div>
+          <div class="cel-item" id="c0-conta"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><div>Conta<small>Segurança, mudar número</small></div><span class="seta">›</span></div>
+          <div class="cel-item"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><div>Privacidade</div><span class="seta">›</span></div>
+          <div class="cel-item"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><div>Conversas</div><span class="seta">›</span></div>
+          <div class="cel-pagina" data-on="4.0" data-anim="lado">
+            <div class="cel-status"><span>9:41</span><span>●●● ▮</span></div>
+            <div class="cel-topo">‹ &nbsp;Conta</div>
+            <div class="cel-item"><div>Confirmação em duas etapas</div><span class="seta">›</span></div>
+            <div class="cel-item"><div>Mudar número</div><span class="seta">›</span></div>
+            <div class="cel-item" id="c0-apagar"><div style="color:#d1242f">Apagar conta</div><span class="seta">›</span></div>
+            <div class="cel-pagina" data-on="6.0" data-anim="lado">
+              <div class="cel-status"><span>9:41</span><span>●●● ▮</span></div>
+              <div class="cel-topo">‹ &nbsp;Apagar conta</div>
+              <div style="padding:16px;font-size:15px;color:#555">Confirme o número do chip:</div>
+              <div style="margin:0 16px;padding:10px 12px;border-bottom:2px solid #12805c;font:17px 'DM Mono',monospace"><span data-digita="+55 11 91234-5678" data-t="6.4-7.8"></span></div>
+              <div id="c0-ok" style="margin:22px 16px 0;background:#d1242f;color:#fff;border-radius:22px;padding:11px;text-align:center;font-weight:700" data-aperta="8.6">Apagar conta</div>
+              <div class="ok" data-on="9.0" style="margin:16px"><i></i> Chip livre</div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="caminho">
+        <h4>No WhatsApp do celular com o chip:</h4>
+        <div data-marca="1.8"><i>1</i>⋮ Configurações</div>
+        <div data-marca="3.8"><i>2</i>Conta</div>
+        <div data-marca="5.8"><i>3</i>Apagar conta</div>
+        <div data-marca="8.6"><i>4</i>Espere uns 3 minutos</div>
+      </div>
+    </div>
+    <div class="legenda"><div class="passo-n">1</div><div><h3>Tire o chip do WhatsApp</h3><p>Se o chip já teve WhatsApp, apague a conta no celular. <span class="alerta">Sem isso a Meta recusa.</span></p></div></div>
+  </section>
+
   <!-- 0. Helpy aberto ao lado -->
-  <section class="scene" data-dur="10" data-passo="1"
+  <section class="scene" data-dur="10" data-passo="2"
     data-cursor='[[1.8,"#w0-con",1],[4.6,1010,470,0]]'
     data-cam='[[0,1,null],[2.6,1.06,".modal .card"]]'>
     <div class="camera"><div class="janela helpy"><div data-barra="helpysupport.com/painel/canais"></div>
@@ -43,11 +88,11 @@
           <div class="faixa" data-on="3.4" style="margin:6px 0 0">Pode deixar esta janela aberta enquanto faz.</div>
         </div></div>
       </div></div></div>
-    <div class="legenda"><div class="passo-n">1</div><div><h3>Deixe o Helpy aberto ao lado</h3><p>Em <b>Canais → WhatsApp → Conectar</b>. Você vai copiar da Meta e colar aqui.</p></div></div>
+    <div class="legenda"><div class="passo-n">2</div><div><h3>Deixe o Helpy aberto ao lado</h3><p>Em <b>Canais → WhatsApp → Conectar</b>. Você vai copiar da Meta e colar aqui.</p></div></div>
   </section>
 
   <!-- 1. criar o app -->
-  <section class="scene" data-dur="11" data-passo="2"
+  <section class="scene" data-dur="11" data-passo="3"
     data-cursor='[[1.8,"#w1-nome",1],[3.8,"#w1-av",1],[5.6,"#w1-zap",1],[7.4,"#w1-criar",1]]'
     data-cam='[[0,1.05,"#w1-form"]]'>
     <div class="camera"><div class="janela"><div data-barra="developers.facebook.com/apps"></div>
@@ -68,71 +113,89 @@
             </div>
           </div>
         </div></div></div></div>
-    <div class="legenda"><div class="passo-n">2</div><div><h3>Crie o app na Meta</h3><p>Em <b>developers.facebook.com/apps</b>: Criar app e marque <b>Conectar-se com clientes pelo WhatsApp</b>.</p></div></div>
+    <div class="legenda"><div class="passo-n">3</div><div><h3>Crie o app na Meta</h3><p>Em <b>developers.facebook.com/apps</b>: Criar app e marque <b>Conectar-se com clientes pelo WhatsApp</b>.</p></div></div>
   </section>
 
-  <!-- 1b. personalizar -->
-  <section class="scene" data-dur="9.5" data-passo="3"
-    data-cursor='[[1.8,"#w1b-casos",1],[4.2,"#w1b-pers",1],[6.0,1010,470,0]]'
-    data-cam='[[0,1,null]]'>
-    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com/apps/lumi-cosmeticos"></div>
-      <div class="conteudo"><div class="lateral"><b>Lumi Cosméticos</b><div>Painel</div><div id="w1b-casos" data-marca="1.8">✎ Casos de uso</div><div>Configurações do app</div></div>
-        <div class="area">
-          <div class="troca">
-            <div data-off="2.1"><h2>Painel do app</h2><p class="sub">Seu app foi criado.</p><div class="faixa" style="width:560px">Para continuar, abra <b>&nbsp;Casos de uso&nbsp;</b> no menu da esquerda.</div></div>
-            <div data-on="2.2">
-              <h2>Casos de uso</h2><p class="sub">O que o seu app faz.</p>
-              <div class="opcao" style="width:700px"><div class="zap"><svg viewBox="0 0 24 24" fill="#12805c"><circle cx="12" cy="12" r="9"/></svg></div><div><b>Conectar-se com clientes pelo WhatsApp</b><small>Número, mensagens e webhooks</small></div><div style="flex:1"></div><button class="btn btn-claro" id="w1b-pers" data-aperta="4.2">Personalizar</button></div>
-              <div class="ok" data-on="4.6"><i></i> Abriu a configuração do WhatsApp</div>
-            </div>
-          </div>
+  <!-- 1b. site da empresa -->
+  <section class="scene" data-dur="9.5" data-passo="4"
+    data-cursor='[[1.8,"#w1b-site",1],[4.6,"#w1b-salvar",1],[6.4,1010,470,0]]'
+    data-cam='[[0,1.04,"#w1b-form"]]'>
+    <div class="camera"><div class="janela"><div data-barra="business.facebook.com · Informações da empresa"></div>
+      <div class="conteudo"><div data-lateral="∞ Configurações do negócio;Informações da empresa*;Usuários;Contas"></div>
+        <div class="area" id="w1b-form">
+          <h2>Informações da empresa</h2><p class="sub">Se a Meta pedir estes dados, preencha assim.</p>
+          <div class="campo" style="width:560px"><label>Nome da empresa</label><div class="input">Lumi Cosméticos</div></div>
+          <div class="campo" style="width:560px"><label>Site</label><div class="input" id="w1b-site"><span data-digita="instagram.com/lumicosmeticos" data-t="2.0-3.6"></span></div><span class="dica">Sem site? Use o Instagram da empresa ou o link do chat do Helpy.</span></div>
+          <div class="linha"><button class="btn btn-azul" id="w1b-salvar" data-aperta="4.6">Salvar</button><div class="ok" data-on="4.95"><i></i> Salvo</div></div>
         </div></div></div></div>
-    <div class="legenda"><div class="passo-n">3</div><div><h3>Abra a configuração do WhatsApp</h3><p>No app criado: <b>Casos de uso</b> e <b>Personalizar</b>, ao lado do WhatsApp.</p></div></div>
+    <div class="legenda"><div class="passo-n">4</div><div><h3>Sem site? Use o Instagram</h3><p>No campo <b>Site</b>, vale o Instagram da empresa ou o link do chat do Helpy.</p></div></div>
   </section>
 
-  <!-- 2. número -->
-  <section class="scene" data-dur="11" data-passo="4"
-    data-cursor='[[1.8,"#w2-nome",1],[3.4,"#w2-num",1],[5.4,"#w2-env",1],[6.9,"#w2-cod",1],[8.5,"#w2-ver",1]]'
-    data-cam='[[0,1.04,"#w2-linha"],[5.6,1.06,"#w2-ver"]]'>
-    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · WhatsApp · Personalizar"></div>
-      <div class="conteudo"><div data-lateral="Lumi Cosméticos;Etapa 1. Experimente;Etapa 2. Produção*;Configurar webhooks"></div>
+  <!-- 2. número no WhatsApp Manager -->
+  <section class="scene" data-dur="12.5" data-passo="5"
+    data-cursor='[[1.8,"#w2-add",1],[3.0,"#w2-nome",1],[4.6,"#w2-num",1],[6.4,"#w2-env",1],[7.6,"#w2-cod",1],[9.0,"#w2-ver",1],[10.6,1010,470,0]]'
+    data-cam='[[0,1,null],[2.4,1.04,"#w2-card"]]'>
+    <div class="camera"><div class="janela"><div data-barra="business.facebook.com/wa/manage/phone-numbers"></div>
+      <div class="conteudo"><div data-lateral="∞ WhatsApp Manager;Visão geral;Números de telefone*;Modelos de mensagem"></div>
         <div class="area">
-          <h2>Registre seu número de telefone</h2><p class="sub">É o número que os clientes vão chamar.</p>
-          <div class="linha" id="w2-linha" style="align-items:flex-start">
-            <div class="campo" style="flex:1"><label>Nome de exibição (o cliente vê)</label><div class="input" id="w2-nome"><span data-digita="Lumi Cosméticos" data-t="2.0-3.0"></span></div></div>
-            <div class="campo" style="flex:1"><label>Número de telefone</label><div class="input mono" id="w2-num"><span data-digita="+55 11 91234-5678" data-t="3.6-4.8"></span></div></div>
-          </div>
+          <div class="linha" style="justify-content:space-between"><div><h2>Números de telefone</h2><p class="sub" data-realce="0.6-1.6">Empresa: <b>Lumi Cosméticos ▾</b> (a mesma do app)</p></div><button class="btn btn-azul" id="w2-add" data-aperta="1.8">Adicionar número de telefone</button></div>
+          <div class="opcao" data-on="9.4" style="width:640px"><div class="zap"><svg viewBox="0 0 24 24" fill="#12805c"><circle cx="12" cy="12" r="9"/></svg></div><div><b>+55 11 91234-5678</b><small>Lumi Cosméticos · nome em análise</small></div></div>
+          <div class="ok" data-on="9.6"><i></i> Número adicionado</div>
+        </div>
+        <div class="modal" data-on="2.1" data-off="9.25"><div class="card" id="w2-card">
+          <h2>Adicionar número de telefone</h2>
+          <div class="campo"><label>Nome de exibição (o cliente vê)</label><div class="input" id="w2-nome"><span data-digita="Lumi Cosméticos" data-t="3.1-4.0"></span></div></div>
+          <div class="campo"><label>Número do chip</label><div class="input mono" id="w2-num"><span data-digita="+55 11 91234-5678" data-t="4.7-5.9"></span></div></div>
           <div class="linha" style="align-items:flex-end">
-            <button class="btn btn-azul" id="w2-env" data-aperta="5.4">Enviar código por SMS</button>
-            <div class="campo" data-on="5.8" style="width:220px;margin:0"><label>Código que chegou</label><div class="input mono" id="w2-cod" style="letter-spacing:.35em"><span data-digita="482913" data-t="7.1-7.8"></span></div></div>
-            <button class="btn btn-azul" id="w2-ver" data-on="5.8" data-aperta="8.5">Verificar</button>
+            <button class="btn btn-azul" id="w2-env" data-aperta="6.4">Enviar SMS</button>
+            <div class="campo" data-on="6.8" style="width:200px;margin:0"><label>Código do SMS</label><div class="input mono" id="w2-cod" style="letter-spacing:.35em"><span data-digita="482913" data-t="7.8-8.4"></span></div></div>
+            <button class="btn btn-azul" id="w2-ver" data-on="6.8" data-aperta="9.0">Verificar</button>
           </div>
-          <div class="ok" data-on="8.85" style="margin-top:16px"><i></i> Número verificado</div>
-        </div></div></div></div>
-    <div class="legenda"><div class="passo-n">4</div><div><h3>Registre o número da empresa</h3><p>Em <b>Etapa 2</b>, um número só do atendimento. <span class="alerta">Ele não pode estar no WhatsApp do celular.</span></p></div></div>
+        </div></div>
+      </div></div></div>
+    <div class="legenda"><div class="passo-n">5</div><div><h3>Cadastre o chip no WhatsApp Manager</h3><p>Em <b>Números de telefone → Adicionar</b>, na mesma empresa do app. Confirme o SMS.</p></div></div>
   </section>
 
-  <!-- 3. copiar e colar os dois números -->
-  <section class="scene" data-dur="12" data-passo="5"
-    data-cursor='[[1.8,"#w3-a",1],[3.2,"#w3-ca",1],[5.0,"#w3-b",1],[6.4,"#w3-cb",1],[8.2,1010,470,0]]'
+  <!-- 3a. identificação do número -->
+  <section class="scene" data-dur="9" data-passo="6"
+    data-cursor='[[1.8,"#w3-a",1],[3.4,"#w3-ca",1],[5.4,1010,470,0]]'
     data-cam='[[0,1,null]]'>
-    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · WhatsApp · Configuração da API"></div>
-      <div class="conteudo"><div data-lateral="Lumi Cosméticos;Etapa 1. Experimente;Etapa 2. Produção*;Configurar webhooks"></div>
+    <div class="camera"><div class="janela"><div data-barra="business.facebook.com/wa/manage/phone-numbers"></div>
+      <div class="conteudo"><div data-lateral="∞ WhatsApp Manager;Visão geral;Números de telefone*;Modelos de mensagem"></div>
         <div class="area">
-          <h2>Seu número</h2><p class="sub">+55 11 91234-5678 · Lumi Cosméticos</p>
-          <div class="id" style="width:400px;margin-bottom:14px" data-realce="1.4-3.4"><small>Phone Number ID</small><div class="v">113456789012345 <span class="copiar" id="w3-a" data-copiar="1.8-3.0"></span></div></div>
-          <div class="id" style="width:400px" data-realce="4.6-6.6"><small>Identificação da conta de mensagens</small><div class="v">198765432109876 <span class="copiar" id="w3-b" data-copiar="5.0-6.2"></span></div></div>
+          <h2>Números de telefone</h2><p class="sub">Clique no número para ver os detalhes.</p>
+          <div class="opcao" style="width:600px"><div class="zap"><svg viewBox="0 0 24 24" fill="#12805c"><circle cx="12" cy="12" r="9"/></svg></div><div><b>+55 11 91234-5678</b><small>Lumi Cosméticos</small></div></div>
+          <div class="id" style="width:460px" data-realce="1.2-3.0"><small>Identificação do número de telefone</small><div class="v">113456789012345 <span class="copiar" id="w3-a" data-copiar="1.8-3.0"></span></div></div>
         </div></div></div>
       <div class="mini" data-on="2.3" data-anim="painel"><div class="mini-topo"><span data-logo></span> Conectar WhatsApp <small>helpysupport.com</small></div><div class="mini-corpo">
-        <div class="campo"><label>Identificação do número</label><div class="input mono" id="w3-ca"><span data-digita="113456789012345" data-t="3.3-3.45" data-cola></span><span class="colado" data-on="3.5" data-som="nao">✓ colado</span></div></div>
-        <div class="campo"><label>Identificação da conta</label><div class="input mono" id="w3-cb"><span data-digita="198765432109876" data-t="6.5-6.65" data-cola></span><span class="colado" data-on="6.7" data-som="nao">✓ colado</span></div></div>
+        <div class="campo"><label>Identificação do número</label><div class="input mono" id="w3-ca"><span data-digita="113456789012345" data-t="3.5-3.65" data-cola></span><span class="colado" data-on="3.7" data-som="nao">✓ colado</span></div></div>
+        <div class="campo"><label>Identificação da conta</label><div class="input mono"></div></div>
       </div></div>
     </div>
-    <div class="legenda"><div class="passo-n">5</div><div><h3>Copie e cole os dois números</h3><p>Copie um, cole no Helpy. Depois copie o outro e cole também.</p></div></div>
+    <div class="legenda"><div class="passo-n">6</div><div><h3>Copie a identificação do número</h3><p>Está embaixo do número. Cole em <b>Identificação do número</b>, no Helpy.</p></div></div>
+  </section>
+
+  <!-- 3b. identificação da conta -->
+  <section class="scene" data-dur="10" data-passo="7"
+    data-cursor='[[1.8,"#w3-conta",1],[3.6,"#w3-b",1],[5.2,"#w3-cb",1],[7.0,1010,470,0]]'
+    data-cam='[[0,1,null]]'>
+    <div class="camera"><div class="janela"><div data-barra="business.facebook.com/settings/whatsapp-business-accounts"></div>
+      <div class="conteudo"><div data-lateral="∞ Configurações do negócio;Usuários;Contas;Contas do WhatsApp*;Apps"></div>
+        <div class="area">
+          <h2>Contas do WhatsApp</h2><p class="sub">A conta onde o chip entrou.</p>
+          <div class="opcao" id="w3-conta" data-marca="1.8" style="width:420px"><div class="zap"><svg viewBox="0 0 24 24" fill="#12805c"><circle cx="12" cy="12" r="9"/></svg></div><div><b>Lumi Cosméticos</b><small>+55 11 91234-5678</small></div></div>
+          <div class="id" data-on="2.1" style="width:460px" data-realce="2.9-4.8"><small>Identificação (embaixo do nome da conta)</small><div class="v">198765432109876 <span class="copiar" id="w3-b" data-copiar="3.6-4.8"></span></div></div>
+        </div></div></div>
+      <div class="mini" data-on="4.1" data-anim="painel"><div class="mini-topo"><span data-logo></span> Conectar WhatsApp <small>helpysupport.com</small></div><div class="mini-corpo">
+        <div class="campo"><label>Identificação do número</label><div class="input mono">113456789012345</div></div>
+        <div class="campo"><label>Identificação da conta</label><div class="input mono" id="w3-cb"><span data-digita="198765432109876" data-t="5.3-5.45" data-cola></span><span class="colado" data-on="5.5" data-som="nao">✓ colado</span></div></div>
+      </div></div>
+    </div>
+    <div class="legenda"><div class="passo-n">7</div><div><h3>Copie a identificação da conta</h3><p>Em <b>Contas do WhatsApp</b>, clique na conta do chip e copie a <b>Identificação</b>.</p></div></div>
   </section>
 
   <!-- 4a. usuário Helpy -->
-  <section class="scene" data-dur="12" data-passo="6"
+  <section class="scene" data-dur="12" data-passo="8"
     data-cursor='[[1.8,"#w4-add",1],[3.0,"#w4-nome",1],[4.2,"#w4-criar",1],[5.8,"#w4-ativos",1],[7.4,"#w4-k1",1],[8.6,"#w4-k2",1],[9.6,"#w4-salvar",1]]'
     data-cam='[[0,1,null],[5.4,1.04,"#w4-modal2"]]'>
     <div class="camera"><div class="janela"><div data-barra="business.facebook.com/settings/system-users"></div>
@@ -140,7 +203,7 @@
         <div class="area">
           <div class="linha" style="justify-content:space-between"><div><h2>Usuários do sistema</h2><p class="sub">Um "usuário robô" da empresa, só para o Helpy.</p></div><button class="btn btn-azul" id="w4-add" data-aperta="1.8">Adicionar</button></div>
           <div class="opcao" data-on="4.5"><div style="width:44px;height:44px;border-radius:50%;background:#e8f0fe;display:grid;place-items:center;font-weight:700;color:#0866ff">H</div><div><b>Helpy</b><small>Administrador</small></div><div style="flex:1"></div><button class="btn btn-claro" id="w4-ativos" data-aperta="5.8">Atribuir ativos</button></div>
-          <div class="ok" data-on="10.0"><i></i> Controle total no app e no WhatsApp</div>
+          <div class="ok" data-on="10.0"><i></i> Controle total no app e na conta do chip</div>
         </div>
         <div class="modal" data-on="2.1" data-off="4.35"><div class="card">
           <h2>Adicionar usuário do sistema</h2>
@@ -151,15 +214,15 @@
         <div class="modal" id="w4-modal2" data-on="6.1" data-off="9.85"><div class="card">
           <h2>Atribuir ativos a Helpy</h2>
           <div class="opcao"><div><b>App</b><small>Lumi Cosméticos</small></div><div style="flex:1"></div>Controle total&nbsp;<span class="chave" id="w4-k1" data-check="7.4"></span></div>
-          <div class="opcao"><div><b>Conta do WhatsApp</b><small>Lumi Cosméticos</small></div><div style="flex:1"></div>Controle total&nbsp;<span class="chave" id="w4-k2" data-check="8.6"></span></div>
+          <div class="opcao"><div><b>Conta do WhatsApp</b><small>Lumi Cosméticos · a do chip</small></div><div style="flex:1"></div>Controle total&nbsp;<span class="chave" id="w4-k2" data-check="8.6"></span></div>
           <button class="btn btn-azul" id="w4-salvar" data-aperta="9.6">Salvar</button>
         </div></div>
       </div></div></div>
-    <div class="legenda"><div class="passo-n">6</div><div><h3>Crie o usuário Helpy</h3><p>Em <b>Usuários do sistema</b>: adicione "Helpy" e dê <b>Controle total</b> no app e no WhatsApp.</p></div></div>
+    <div class="legenda"><div class="passo-n">8</div><div><h3>Crie o usuário Helpy</h3><p>Em <b>Usuários do sistema</b>: crie "Helpy" e dê <b>Controle total</b> no app e na conta do chip.</p></div></div>
   </section>
 
   <!-- 4b. token -->
-  <section class="scene" data-dur="13" data-passo="7"
+  <section class="scene" data-dur="13" data-passo="9"
     data-cursor='[[1.8,"#w5-gerar",1],[3.0,"#w5-app",1],[4.2,"#w5-nunca",1],[5.2,"#w5-p1",1],[5.9,"#w5-p2",1],[6.9,"#w5-ok",1],[8.2,"#w5-cop",1],[9.6,"#w5-campo",1],[11.0,1010,470,0]]'
     data-cam='[[0,1,null]]'>
     <div class="camera"><div class="janela"><div data-barra="business.facebook.com/settings/system-users"></div>
@@ -185,11 +248,11 @@
         <div class="campo"><label>Token de acesso</label><div class="input mono" id="w5-campo"><span data-digita="••••••••••••••••••••" data-t="9.7-9.85" data-cola></span><span class="colado" data-on="9.9" data-som="nao">✓ colado</span></div></div>
       </div></div>
     </div>
-    <div class="legenda"><div class="passo-n">7</div><div><h3>Gere a senha de acesso (token)</h3><p>Validade <b>Nunca</b> e as duas permissões. <span class="alerta">Copie na hora: aparece uma vez só.</span></p></div></div>
+    <div class="legenda"><div class="passo-n">9</div><div><h3>Gere a senha de acesso (token)</h3><p>Validade <b>Nunca</b> e as duas permissões. <span class="alerta">Copie na hora: aparece uma vez só.</span></p></div></div>
   </section>
 
   <!-- 5. chave secreta -->
-  <section class="scene" data-dur="10" data-passo="8"
+  <section class="scene" data-dur="10" data-passo="10"
     data-cursor='[[1.8,"#w6-mostrar",1],[3.3,"#w6-cop",1],[4.8,"#w6-campo",1],[6.4,1010,470,0]]'
     data-cam='[[0,1,null]]'>
     <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · Configurações do app · Básico"></div>
@@ -204,11 +267,11 @@
         <div class="campo"><label>Chave secreta do app</label><div class="input mono" id="w6-campo"><span data-digita="••••••••••••••••" data-t="4.9-5.05" data-cola></span><span class="colado" data-on="5.1" data-som="nao">✓ colado</span></div></div>
       </div></div>
     </div>
-    <div class="legenda"><div class="passo-n">8</div><div><h3>Copie a chave secreta</h3><p>Em <b>Configurações do app → Básico</b>: Mostrar, copie e cole no Helpy.</p></div></div>
+    <div class="legenda"><div class="passo-n">10</div><div><h3>Copie a chave secreta</h3><p>Em <b>Configurações do app → Básico</b>: Mostrar, copie e cole no Helpy.</p></div></div>
   </section>
 
   <!-- 6. conectar -->
-  <section class="scene" data-dur="9" data-passo="9"
+  <section class="scene" data-dur="9" data-passo="11"
     data-cursor='[[2.0,"#w7-ok",1],[4.4,1010,470,0]]'
     data-cam='[[0,1,null]]'>
     <div class="camera"><div class="janela helpy"><div data-barra="helpysupport.com/painel/canais"></div>
@@ -217,6 +280,7 @@
           <h2>Canais</h2><p class="sub">O mesmo assistente onde o seu cliente já conversa.</p>
           <div class="opcao canal-card"><div class="zap"><svg viewBox="0 0 24 24" fill="#12805c"><circle cx="12" cy="12" r="9"/></svg></div><div><b>WhatsApp</b><small>+55 11 91234-5678</small></div><div style="flex:1"></div><span class="badge-ok" data-on="2.7">● Conectado</span></div>
           <div class="ok" data-on="2.8" style="margin-top:6px"><i></i> WhatsApp conectado · a foto do assistente já foi para o número</div>
+          <div class="faixa" data-on="3.6" style="width:620px;margin-top:14px"><span>Conta nova? O card fica em <b>Aguardando a Meta</b>: ela analisa em até 2 dias e o número liga sozinho.</span></div>
         </div>
         <div class="modal" data-off="2.35"><div class="card">
           <h2>Conectar WhatsApp</h2>
@@ -226,7 +290,7 @@
           <button class="btn btn-helpy" id="w7-ok" data-aperta="2.0">Conectar</button>
         </div></div>
       </div></div></div>
-    <div class="legenda"><div class="passo-n">9</div><div><h3>Clique em Conectar</h3><p>O Helpy confere tudo na hora. Se algo estiver errado, ele diz o quê.</p></div></div>
+    <div class="legenda"><div class="passo-n">11</div><div><h3>Clique em Conectar</h3><p>O Helpy confere tudo na hora. Se algo estiver errado, ele diz o quê.</p></div></div>
   </section>
 
   <!-- final da parte 1 -->
@@ -234,7 +298,7 @@
     <div class="capa"><div>
       <div class="etiqueta" data-on="0">Parte 1 concluída</div>
       <h1 data-on="0">Conectado! Falta a <span>Parte 2</span>.</h1>
-      <div class="leva" data-on="0.4" style="max-width:860px;margin:0 auto 26px">Ligar os avisos de mensagem e publicar o app. O vídeo está no WhatsApp conectado, em <b>Canais</b>.</div>
+      <div class="leva" data-on="0.4" style="max-width:860px;margin:0 auto 26px">Ligar os avisos de mensagem e publicar o app. O vídeo está no WhatsApp conectado, em <b>Canais → Configurar</b>.</div>
       <div class="assinatura" data-on="0.8" style="justify-content:center"><span data-logo></span> helpysupport.com</div>
     </div></div>
   </section>
