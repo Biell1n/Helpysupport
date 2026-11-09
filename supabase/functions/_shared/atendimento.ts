@@ -1148,6 +1148,13 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
             ? `falando pelo ${{ whatsapp: 'WhatsApp', instagram: 'Instagram (Direct)', discord: 'Discord' }[r.canal.tipo]}${r.canal.nome ? ` (${r.canal.nome})` : ''}; já está identificado (trate como quem entrou na conta). Não fale de botão de entrar nem de link; respostas curtas, como numa conversa de mensagens`
             : r.cliente ? `entrou na conta${r.cliente.nome ? ` (${r.cliente.nome})` : ''}` : 'não entrou na conta'
       }.${
+        // primeira resposta: no site a saudação já apareceu no topo; nos apps, ninguém se apresentou ainda
+        !historico.some((m) => m.role !== 'user')
+          ? r.canal
+            ? '\nPRIMEIRA RESPOSTA: apresente-se em uma frase curta e responda.'
+            : '\nPRIMEIRA RESPOSTA: a saudação com o seu nome já apareceu na tela. Comece direto pela resposta, sem "Oi" e sem dizer quem você é.'
+          : ''
+      }${
         agenda
           ? `\nJÁ MARCADO NESTA CONVERSA: ${marcados.length ? `\n${marcados.map((m) => `- ${descreverAgendamento(m, fuso)}`).join('\n')}` : 'nada ainda.'}`
           : ''
