@@ -20,7 +20,7 @@ export const GUIAS = {
   whatsapp: {
     tempo: 'uns 20 minutos',
     video: '/videos/conectar-whatsapp-1.mp4',
-    duracaoVideo: 'parte 1 de 2 · 2 min e 20 s',
+    duracaoVideo: 'parte 1 de 2 · 2 min e 17 s',
     videoDepois: '/videos/conectar-whatsapp-2.mp4',
     duracaoDepois: 'parte 2 de 2 · 1 min',
     antes: [
@@ -180,7 +180,7 @@ export const GUIAS = {
   discord: {
     tempo: 'uns 2 minutos',
     video: '/videos/conectar-discord.mp4',
-    duracaoVideo: '1 min e 10 s',
+    duracaoVideo: '1 min e 12 s',
     antes: ['Ser administrador (ou ter "Gerenciar servidor") no servidor do Discord onde o assistente vai atender.'],
     passos: [
       { titulo: 'Escolha o assistente', itens: [<>Ele vai atender no servidor com o próprio nome.</>] },
