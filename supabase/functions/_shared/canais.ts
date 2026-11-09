@@ -90,7 +90,7 @@ export class ErroDoCanal extends Error {
 }
 
 /** Texto da Meta quando a conta nova do WhatsApp Business ainda está em análise: o canal fica "aguardando", não "com erro". */
-export const ESPERA_META = 'A Meta ainda está analisando a sua conta do WhatsApp Business. Costuma levar de algumas horas a 2 dias. Quando ela aprovar, clique em "Testar conexão" e o número começa a responder.';
+export const ESPERA_META = 'A Meta ainda está analisando a sua conta do WhatsApp Business. Costuma levar de algumas horas a 2 dias. Quando ela aprovar, o número começa a responder sozinho (o Helpy confere a cada 30 minutos).';
 
 /** Status do canal para um texto de erro: a análise da Meta é espera, não erro. */
 export const statusDoErro = (texto: string | null | undefined) => (texto === ESPERA_META ? 'pendente' : 'erro');
@@ -110,7 +110,8 @@ function explicar(servico: string, status: number, corpo: string) {
   let discord = 0;
   try { discord = Number(JSON.parse(corpo)?.code) || 0; } catch { /* corpo não é JSON */ }
   const code = meta.code ?? 0;
-  const tudo = `${corpo} ${meta.error_user_title ?? ''}`;
+  // o corpo vem com os acentos escapados (\u00e3): o texto para comparar sai dos campos já lidos
+  const tudo = [corpo, meta.message, meta.error_user_title, meta.error_user_msg, meta.error_data?.details].filter(Boolean).join(' ');
 
   // janela de 24 h: fora dela só dá para mandar modelo aprovado
   if (code === 131047 || meta.error_subcode === 2534022 || /re-engagement|allowed window/i.test(tudo)) {
