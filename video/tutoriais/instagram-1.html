@@ -20,7 +20,7 @@
       <div class="precisa">
         <div class="item destaque" data-on="1.2" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></div><b>Conta profissional</b><span>Configurações → Tipo de conta e ferramentas.</span></div>
         <div class="item" data-on="2.6" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><b>Um computador</b><span>O painel da Meta não funciona direito no celular.</span></div>
-        <div class="item" data-on="4.0" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><b>Uns 10 minutos</b><span>Já tem o app da Meta do WhatsApp? Use o mesmo.</span></div>
+        <div class="item" data-on="4.0" data-anim="pop"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><b>Uns 10 minutos</b><span>É feito uma vez só.</span></div>
       </div>
     </div></div>
   </section>
@@ -90,35 +90,33 @@
 
   <!-- 2. criar o app -->
   <section class="scene" data-dur="12" data-passo="3"
-    data-cursor='[[1.8,"#j2-outro",1],[2.8,"#j2-av1",1],[3.8,"#j2-emp",1],[4.8,"#j2-av2",1],[5.6,"#j2-nome",1],[6.9,"#j2-criar",1],[8.6,"#j2-config",1],[10.0,"#j2-api",1]]'
+    data-cursor='[[1.8,"#j2-nome",1],[3.6,"#j2-av1",1],[4.8,"#j2-filtro",1],[6.2,"#j2-ig",1],[7.6,"#j2-av2",1],[9.2,"#j2-criar",1]]'
     data-cam='[[0,1,null]]'>
-    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com/apps"></div>
+    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com/apps · Criar um app"></div>
       <div class="conteudo"><div data-lateral="∞ Meta for Developers;Meus apps*;Ferramentas"></div>
         <div class="area">
           <div class="troca">
-            <div data-off="3.05"><h2>Qual o caso de uso?</h2><p class="sub">Criar app</p>
-              <div class="opcao" style="width:520px" id="j2-outro" data-marca="1.8"><div class="caixa" data-check="1.8" style="border-radius:50%"></div><b>Outro</b></div>
-              <button class="btn btn-azul" id="j2-av1" data-aperta="2.8">Avançar</button></div>
-            <div data-on="3.1" data-off="5.05"><h2>Tipo de app</h2><p class="sub">Criar app</p>
-              <div class="opcao" style="width:520px" id="j2-emp" data-marca="3.8"><div class="caixa" data-check="3.8" style="border-radius:50%"></div><b>Empresa</b></div>
-              <button class="btn btn-azul" id="j2-av2" data-aperta="4.8">Avançar</button></div>
-            <div data-on="5.1" data-off="7.25"><h2>Detalhes do app</h2><p class="sub">Criar app</p>
-              <div class="campo" style="width:520px"><label>Nome do app</label><div class="input" id="j2-nome"><span data-digita="Lumi Cosméticos" data-t="5.7-6.5"></span></div></div>
-              <button class="btn btn-azul" id="j2-criar" data-aperta="6.9">Criar app</button></div>
-            <div data-on="7.3"><h2>Adicionar produtos ao app</h2><p class="sub">Lumi Cosméticos</p>
-              <div class="opcao" style="width:640px"><div class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></div><div><b>Instagram</b><small>Mensagens do Direct</small></div><div style="flex:1"></div><button class="btn btn-azul" id="j2-config" data-aperta="8.6">Configurar</button></div>
-              <div class="opcao" style="width:640px" id="j2-api" data-on="9.0" data-marca="10.0"><div class="caixa" data-check="10.0" style="border-radius:50%"></div><div><b>API com login do Instagram</b><small>É a que o Helpy usa</small></div></div></div>
+            <div data-off="3.95"><h2>Detalhes do app</h2><p class="sub">Criar um app</p>
+              <div class="campo" style="width:520px"><label>Nome do app</label><div class="input" id="j2-nome"><span data-digita="Lumi Cosméticos" data-t="1.9-2.8"></span></div></div>
+              <button class="btn btn-azul" id="j2-av1" data-aperta="3.6">Avançar</button></div>
+            <div data-on="4.0" data-off="8.0"><h2>Casos de uso</h2><p class="sub">Filtrar por: <span id="j2-filtro" data-marca="4.8" style="padding:2px 8px;border-radius:6px">Gerenciamento de conteúdo</span></p>
+              <div class="opcao" style="width:640px"><div class="caixa"></div><div>Criar e gerenciar anúncios com a API de Marketing</div></div>
+              <div class="opcao" style="width:640px" id="j2-ig" data-on="5.0" data-marca="6.2"><div class="caixa" data-check="6.2"></div><div><b>Gerenciar mensagens e conteúdo no Instagram</b><small>É o que o Helpy usa para responder o Direct</small></div></div>
+              <button class="btn btn-azul" id="j2-av2" data-aperta="7.6">Avançar</button></div>
+            <div data-on="8.05"><h2>Visão geral</h2><p class="sub">Empresa: Lumi Cosméticos · Requisitos: ok</p>
+              <button class="btn btn-azul" id="j2-criar" data-aperta="9.2">Criar app</button>
+              <div class="ok" data-on="9.55" style="margin-top:14px"><i></i> App criado</div></div>
           </div>
         </div></div></div></div>
-    <div class="legenda"><div class="passo-n">3</div><div><h3>Crie o app e adicione o Instagram</h3><p><b>Criar app → Outro → Empresa</b>. No Instagram: <b>Configurar → API com login</b>.</p></div></div>
+    <div class="legenda"><div class="passo-n">3</div><div><h3>Crie o app na Meta</h3><p><b>Criar app</b> e marque <b>Gerenciar mensagens e conteúdo no Instagram</b>.</p></div></div>
   </section>
 
   <!-- 3. token -->
   <section class="scene" data-dur="12" data-passo="4"
     data-cursor='[[1.8,"#j3-add",1],[3.4,"#j3-cont",1],[5.4,"#j3-gerar",1],[6.9,"#j3-cop",1],[8.3,"#j3-campo",1],[9.8,1010,470,0]]'
     data-cam='[[0,1,null]]'>
-    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · Instagram · Configuração da API"></div>
-      <div class="conteudo"><div data-lateral="Lumi Cosméticos;API com login do Instagram*;Webhooks"></div>
+    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · Casos de uso · Personalizar"></div>
+      <div class="conteudo"><div data-lateral="Instagram;Configuração da API com login do Instagram*;Permissões e recursos"></div>
         <div class="area">
           <h2>Gerar tokens de acesso</h2><p class="sub">Entre com a conta do Instagram da empresa.</p>
           <button class="btn btn-azul" id="j3-add" data-aperta="1.8">Adicionar conta</button>
@@ -145,10 +143,10 @@
   <section class="scene" data-dur="10" data-passo="5"
     data-cursor='[[1.8,"#j4-mostrar",1],[3.3,"#j4-cop",1],[4.8,"#j4-campo",1],[6.4,1010,470,0]]'
     data-cam='[[0,1,null]]'>
-    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · Instagram · Configuração da API"></div>
-      <div class="conteudo"><div data-lateral="Lumi Cosméticos;API com login do Instagram*;Webhooks"></div>
+    <div class="camera"><div class="janela"><div data-barra="developers.facebook.com · Casos de uso · Personalizar"></div>
+      <div class="conteudo"><div data-lateral="Instagram;Configuração da API com login do Instagram*;Permissões e recursos"></div>
         <div class="area">
-          <h2>Configuração da API</h2><p class="sub">Na mesma página, um pouco acima.</p>
+          <h2>Configuração da API com login do Instagram</h2><p class="sub">No topo da mesma página.</p>
           <div class="campo" style="width:560px"><label>Chave secreta do app do Instagram</label>
             <div class="linha"><div class="input mono" style="flex:1"><span class="troca"><span data-off="2.0">••••••••••••••••••••••••</span><span data-on="2.05">8c41d0e9a7f24b13b9e6</span></span></div>
               <button class="btn btn-claro" id="j4-mostrar" data-aperta="1.8">Mostrar</button><span class="copiar" id="j4-cop" data-copiar="3.3-4.5"></span></div></div>
@@ -187,7 +185,7 @@
     <div class="capa"><div>
       <div class="etiqueta" data-on="0">Parte 1 concluída</div>
       <h1 data-on="0">Conectado! Falta a <span>Parte 2</span>.</h1>
-      <div class="leva" data-on="0.4" style="max-width:860px;margin:0 auto 26px">Ligar os avisos de mensagem e publicar o app. O vídeo está no Instagram conectado, em <b>Canais</b>.</div>
+      <div class="leva" data-on="0.4" style="max-width:860px;margin:0 auto 26px">Ligar os avisos de mensagem e publicar o app. O vídeo está no Instagram conectado, em <b>Canais → Configurar</b>.</div>
       <div class="assinatura" data-on="0.8" style="justify-content:center"><span data-logo></span> helpysupport.com</div>
     </div></div>
   </section>

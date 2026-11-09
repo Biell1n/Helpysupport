@@ -20,7 +20,7 @@ export const GUIAS = {
   whatsapp: {
     tempo: 'uns 20 minutos',
     video: '/videos/conectar-whatsapp-1.mp4',
-    duracaoVideo: 'parte 1 de 2 · 2 min e 20 s',
+    duracaoVideo: 'parte 1 de 2 · 2 min e 17 s',
     videoDepois: '/videos/conectar-whatsapp-2.mp4',
     duracaoDepois: 'parte 2 de 2 · 1 min',
     antes: [
@@ -54,15 +54,15 @@ export const GUIAS = {
         titulo: 'Cadastre o chip',
         itens: [
           <>Abra o <A href={GERENCIADOR}>WhatsApp Manager → Números de telefone</A>. No topo, confira se está selecionada a <b>mesma empresa do app</b>.</>,
-          <>Clique em <b>Adicionar número de telefone</b>. Preencha o <b>nome de exibição</b> (o que o cliente vê; a Meta aprova em algumas horas) e o número do chip, com +55 e DDD. Confirme o código do SMS.</>,
+          <>Clique em <b>Adicionar telefone</b>. Preencha o <b>nome de exibição</b> (o que o cliente vê; a Meta aprova em algumas horas) e o número do chip, com +55 e DDD. Confirme o código do SMS.</>,
           <>Se a Meta pedir "dados da empresa para os novos ativos" ou der erro de política, você está criando uma empresa nova sem querer. Feche e adicione pelo WhatsApp Manager, na empresa do app.</>,
         ],
       },
       {
         titulo: 'Copie os dois números',
         itens: [
-          <><b>Identificação do número:</b> no WhatsApp Manager, em <b>Números de telefone</b>, clique no número: a <b>Identificação do número de telefone</b> aparece nos detalhes. Cole em "Identificação do número", aqui ao lado.</>,
-          <><b>Identificação da conta:</b> abra as <A href={CONTAS_WA}>configurações do negócio → Contas do WhatsApp</A>, clique na conta onde o chip entrou e copie a <b>Identificação</b>, embaixo do nome. Cole em "Identificação da conta".</>,
+          <><b>Identificação do número:</b> no WhatsApp Manager, em <b>Números de telefone</b>, clique no número: a <b>Identificação do número de telefone</b> aparece logo embaixo dele. Cole em "Identificação do número", aqui ao lado.</>,
+          <><b>Identificação da conta:</b> abra as <A href={CONTAS_WA}>configurações do negócio</A> → <b>Contas → Contas de mensagens</b>, clique na conta onde o chip entrou e copie a <b>Identificação</b>, embaixo do nome. Cole em "Identificação da conta".</>,
         ],
       },
       {
@@ -92,7 +92,7 @@ export const GUIAS = {
         depois: true,
         titulo: 'Ligue os avisos de mensagem nova',
         itens: [
-          <>No app, abra <b>Casos de uso → Personalizar</b> (ao lado do WhatsApp) <b>→ Configuração → Configurar webhooks</b>.</>,
+          <>No app, abra <b>Casos de uso → Personalizar</b> (ao lado do WhatsApp) <b>→ Etapa 2. Configuração de produção → Configurar webhooks</b>.</>,
           <>Cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostra em <b>Canais → Configurar</b> e clique em <b>Verificar e salvar</b>.</>,
           <>Logo abaixo, em <b>Campos do webhook</b>, assine <b>messages</b>.</>,
         ],
@@ -131,8 +131,9 @@ export const GUIAS = {
       {
         titulo: 'Crie o app na Meta',
         itens: [
-          <>Abra o <A href={META}>painel de apps da Meta</A>, clique em <b>Criar app</b>, escolha <b>Outro</b> e o tipo <b>Empresa</b>. (Se já criou um para o WhatsApp, pode usar o mesmo.)</>,
-          <>Na lista de produtos, clique em <b>Configurar</b> no <b>Instagram</b> e escolha <b>API com login do Instagram</b>.</>,
+          <>Abra o <A href={META}>painel de apps da Meta</A> e clique em <b>Criar app</b>. Dê o nome da empresa e clique em <b>Avançar</b>.</>,
+          <>Em <b>Casos de uso</b>, filtre por <b>Gerenciamento de conteúdo</b> e marque <b>Gerenciar mensagens e conteúdo no Instagram</b>. Escolha o portfólio da empresa e conclua com <b>Criar app</b>.</>,
+          <>No painel do app, clique em <b>Personalizar</b> no caso de uso do Instagram e abra <b>Configuração da API com login do Instagram</b>. Se aparecer <b>Adicionar todas as permissões necessárias</b>, clique.</>,
         ],
       },
       {
@@ -145,7 +146,7 @@ export const GUIAS = {
       {
         titulo: 'Copie a chave secreta',
         itens: [
-          <>Na mesma página (Configuração da API com login do Instagram), clique em <b>Mostrar</b> na <b>Chave secreta do app do Instagram</b>, copie e cole no campo de mesmo nome aqui ao lado.</>,
+          <>No topo da mesma página, clique em <b>Mostrar</b> na <b>Chave secreta do app do Instagram</b>, copie e cole no campo de mesmo nome aqui ao lado. (É diferente da chave em Configurações do app.)</>,
         ],
       },
       {
@@ -156,23 +157,30 @@ export const GUIAS = {
         depois: true,
         titulo: 'Ligue os avisos no app',
         itens: [
-          <>Na página do Instagram no app, em <b>Configurar webhooks</b>, cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostrar e clique em <b>Verificar e salvar</b>.</>,
+          <>Na mesma página do Instagram no app, em <b>Configurar webhooks</b>, cole a <b>URL de callback</b> e o <b>Verificar token</b> que o Helpy mostra em <b>Canais → Configurar</b> e clique em <b>Verificar e salvar</b>.</>,
           <>Assine o campo <b>messages</b>.</>,
-          <>Em <b>Configurações do app → Básico</b>, cole na URL da Política de Privacidade a política que o Helpy gera para a sua empresa (aparece no canal conectado, em Canais → Configurar).</>,
-          <>Troque o <b>Modo do app</b> para <b>Ao vivo</b>. Para atender qualquer pessoa (não só quem é testador do app), a Meta pede a revisão da permissão <i>instagram_business_manage_messages</i>; enquanto ela não sai, teste com a sua própria conta.</>,
+        ],
+      },
+      {
+        depois: true,
+        titulo: 'Peça a liberação e publique',
+        itens: [
+          <>Em <b>Configurações do app → Básico</b>, cole a política que o Helpy gera para a sua empresa (em <b>Canais → Configurar</b>) na <b>URL da Política de Privacidade</b> e na de <b>Exclusão de dados</b>. Salve.</>,
+          <>Em <b>Revisão do app</b>, solicite <i>instagram_business_manage_messages</i>. A Meta pede a <b>verificação da empresa</b> e uma gravação de tela do atendimento; a análise leva alguns dias.</>,
+          <>Quando aprovar, clique em <b>Publicar</b>, no menu da esquerda. Até lá, o assistente já responde quem está em <b>Funções do app → Testadores</b>: dá para testar com a sua própria conta.</>,
         ],
       },
     ],
     erros: [
       ['Mensagem não chega no Helpy', 'Confira "Permitir acesso às mensagens" no app do Instagram e se o campo "messages" está assinado no webhook.'],
-      ['Só responde para mim', 'O app ainda está em modo de teste ou sem a revisão da permissão de mensagens. Peça a revisão na Meta.'],
+      ['Só responde para mim', 'A Meta ainda não liberou a permissão de mensagens ou o app não foi publicado. Até lá, só quem é testador do app recebe resposta.'],
     ],
   },
 
   discord: {
     tempo: 'uns 2 minutos',
     video: '/videos/conectar-discord.mp4',
-    duracaoVideo: '1 min e 10 s',
+    duracaoVideo: '1 min e 12 s',
     antes: ['Ser administrador (ou ter "Gerenciar servidor") no servidor do Discord onde o assistente vai atender.'],
     passos: [
       { titulo: 'Escolha o assistente', itens: [<>Ele vai atender no servidor com o próprio nome.</>] },
@@ -182,9 +190,11 @@ export const GUIAS = {
         titulo: 'Configure os tickets no Discord',
         itens: [
           <>No servidor, digite <b>/helpy-config</b> (só quem administra vê esse comando).</>,
-          <>Jeito mais rápido: clique em <b>⚡ Montar tudo pra mim</b>. O bot cria a categoria <b>Atendimento</b>, o canal <b>#abrir-atendimento</b> (com o botão), o canal <b>#equipe-atendimento</b> (só a equipe vê os avisos) e o cargo <b>Equipe de atendimento</b>, tudo com as permissões certas. Depois é só dar o cargo para quem atende.</>,
+          <>Jeito mais rápido: clique em <b>⚡ Montar tudo pra mim</b>. O bot mostra o que vai criar: a categoria <b>Atendimento</b>, o canal <b>#abrir-atendimento</b> (com o botão), o canal <b>#equipe-atendimento</b> (só a equipe vê os avisos) e o cargo <b>Equipe de atendimento</b>.</>,
+          <>Se ele pedir, clique em <b>Dar permissões para montar</b> e autorize no Discord. Depois clique em <b>⚡ Criar agora</b>: ele cria tudo com as permissões certas e já publica o botão <b>Abrir atendimento</b>.</>,
+          <>Por fim, dê o cargo <b>Equipe de atendimento</b> para quem atende: clique no nome da pessoa, no <b>+</b> e escolha o cargo.</>,
           <>Prefere do seu jeito? Escolha nos menus o canal do atendimento, o cargo da equipe e o canal de avisos, ou abra o <b>📋 Passo a passo</b>, que explica o que criar e quais permissões marcar.</>,
-          <>O menu mostra com ✅ e ❌ o que está faltando. Quando estiver tudo certo, clique em <b>Publicar o botão</b>: o cliente clica em <b>Abrir atendimento</b> e conversa com o assistente num tópico privado.</>,
+          <>Montando do seu jeito, o menu mostra com ✅ e ❌ o que está faltando. Quando estiver tudo certo, clique em <b>Publicar o botão</b>: o cliente clica em <b>Abrir atendimento</b> e conversa com o assistente num tópico privado.</>,
         ],
       },
     ],
