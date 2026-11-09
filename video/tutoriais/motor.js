@@ -56,7 +56,7 @@
   const cursor = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   cursor.setAttribute('class', 'cursor');
   cursor.setAttribute('viewBox', '0 0 24 24');
-  cursor.innerHTML = '<path d="M4 2l15 9-6.5 1.5L16 20l-3 1.4-3.4-7.5L4 18z" fill="#0b1a2c" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>';
+  cursor.innerHTML = '<path d="M5 3v16.2l4.1-3.9 2.7 6.3 2.6-1.1-2.6-6.2h5.8z" fill="#0b1a2c" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>';
   const dedo = document.createElement('div');
   dedo.className = 'dedo';
   const ripple = document.createElement('div');
@@ -311,7 +311,7 @@
         // leve arco
         const nx = -(pb[1] - pa[1]);
         const ny = pb[0] - pa[0];
-        const arco = Math.sin(Math.PI * e) * 0.06;
+        const arco = Math.sin(Math.PI * e) * 0.035;
         x = pa[0] + (pb[0] - pa[0]) * e + nx * arco;
         y = pa[1] + (pb[1] - pa[1]) * e + ny * arco;
       } else { x = pa[0]; y = pa[1]; }
@@ -327,7 +327,8 @@
     }
     ultimo = [x, y];
     cursor.style.opacity = vis;
-    cursor.style.transform = `translate(${x - 4}px, ${y - 2}px) scale(${aperto})`;
+    // a ponta da seta (5,3 no desenho de 24, 30 px na tela) cai exatamente no alvo
+    cursor.style.transform = `translate(${x - 6.25}px, ${y - 3.75}px) scale(${aperto})`;
     dedo.style.opacity = toque * 0.9;
     dedo.style.transform = `translate(${x}px, ${y}px) scale(${aperto})`;
   };
