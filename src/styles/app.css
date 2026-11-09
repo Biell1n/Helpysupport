@@ -2781,7 +2781,7 @@
   gap: 8px;
 }
 
-.canais-ligados { margin-top: 28px; }
+.canais-ligados { margin-bottom: 28px; }
 .canais-ligados-titulo { font-size: 16px; margin: 0 0 12px; }
 .canais-ligados-grade {
   display: grid;
