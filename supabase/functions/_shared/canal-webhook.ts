@@ -31,7 +31,8 @@ import {
 } from './canais.ts';
 import { atenderNoCanal } from './canal-atender.ts';
 import { helpyNoTicket, type Interacao, interacaoDoTicket, type MensagemGateway, mensagemDoGateway, ticketDo } from './discord-tickets.ts';
-import { registrarComandosHelpy } from './canais.ts';
+import { ESPERA_META, guardarSegredo, registrarComandosHelpy, registrarWhatsApp } from './canais.ts';
+import { alertar } from './atendimento.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -367,12 +368,55 @@ async function gateway(req: Request): Promise<Response> {
 /** O pedido veio da Meta ou do Discord (e não do chat)? */
 export function ehDoCanal(req: Request): boolean {
   const q = new URL(req.url).searchParams;
-  return q.has('canal') || q.has('discord');
+  return q.has('canal') || q.has('discord') || q.has('pendentes');
+}
+
+/**
+ * Números do WhatsApp esperando a análise da Meta: o agendador do banco chama aqui de tempos em tempos.
+ * Quando a Meta aprova, o número é ativado sozinho e o dono recebe um aviso. Sem segredo no endereço,
+ * então só roda uma vez a cada 15 minutos, não importa quem chame.
+ */
+async function rechecarPendentes(): Promise<Response> {
+  const agora = new Date();
+  const { data: ultima } = await admin.from('helpy_servicos').select('visto_em').eq('nome', 'meta-pendentes').maybeSingle();
+  if (ultima && agora.getTime() - new Date(ultima.visto_em).getTime() < 15 * 60e3) return ok('cedo');
+  await admin.from('helpy_servicos').upsert({ nome: 'meta-pendentes', visto_em: agora.toISOString() });
+
+  const { data: canais } = await admin.from('canais').select('id, owner_id, externo_id, nome, status, erro')
+    .eq('tipo', 'whatsapp').or('status.eq.pendente,erro.ilike.%não verificada%').limit(50);
+  let ativados = 0;
+  for (const c of canais ?? []) {
+    try {
+      const segredo = await segredoDo(admin, c.id);
+      const pin = segredo.pin ?? String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+      if (!segredo.pin) await guardarSegredo(admin, c.id, { ...segredo, pin });
+      const aviso = await registrarWhatsApp(c.externo_id, segredo.token, pin);
+      if (aviso === ESPERA_META) {
+        if (c.status !== 'pendente' || c.erro !== aviso) await admin.from('canais').update({ status: 'pendente', erro: aviso }).eq('id', c.id);
+        continue;
+      }
+      if (aviso) {
+        await admin.from('canais').update({ status: 'erro', erro: aviso }).eq('id', c.id);
+        continue;
+      }
+      await admin.from('canais').update({ status: 'ativo', erro: null }).eq('id', c.id);
+      ativados++;
+      await alertar(admin, c.owner_id, {
+        origem: 'sistema', chave: `whatsapp-aprovado:${c.id}`, assunto: 'A Meta aprovou o seu WhatsApp',
+        detalhe: `O número ${c.nome ?? ''} já está respondendo os clientes. Mande uma mensagem de outro celular para ver funcionando.`.replace(/\s+/g, ' '),
+      });
+    } catch (e) {
+      console.error('pendentes:', c.id, e);
+    }
+  }
+  return ok(`ok ${ativados}/${canais?.length ?? 0}`);
 }
 
 export async function receberDoCanal(req: Request): Promise<Response> {
   try {
-    const discordId = new URL(req.url).searchParams.get('discord');
+    const q = new URL(req.url).searchParams;
+    if (q.has('pendentes')) return await rechecarPendentes();
+    const discordId = q.get('discord');
     return discordId ? await discord(req, discordId) : await meta(req);
   } catch (e) {
     console.error('canal-webhook:', e);
