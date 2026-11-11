@@ -509,7 +509,7 @@ export default function Canais() {
       const r = await chamar('canais', { action, canal_id: canal.id, ...extra });
       if (action === 'testar') {
         if (r.ok) avisar('Tudo certo com a conexão', { texto: 'O canal está respondendo.' });
-        else if (r.aguardando) avisar('Ainda em análise na Meta', { texto: 'Quando ela aprovar, o número liga sozinho.' });
+        else if (r.aguardando) avisar('Aguardando a Meta', { texto: r.erro });
         else avisar('A conexão falhou', { erro: true, texto: r.erro });
       }
       // o número do WhatsApp passa a ter a foto do assistente novo

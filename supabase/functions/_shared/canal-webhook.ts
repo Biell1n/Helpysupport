@@ -31,7 +31,7 @@ import {
 } from './canais.ts';
 import { atenderNoCanal } from './canal-atender.ts';
 import { helpyNoTicket, type Interacao, interacaoDoTicket, type MensagemGateway, mensagemDoGateway, ticketDo } from './discord-tickets.ts';
-import { ESPERA_META, guardarSegredo, registrarComandosHelpy, registrarWhatsApp } from './canais.ts';
+import { ativarEGravar, guardarSegredo, registrarComandosHelpy } from './canais.ts';
 import { alertar } from './atendimento.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
@@ -382,27 +382,21 @@ async function rechecarPendentes(): Promise<Response> {
   if (ultima && agora.getTime() - new Date(ultima.visto_em).getTime() < 15 * 60e3) return ok('cedo');
   await admin.from('helpy_servicos').upsert({ nome: 'meta-pendentes', visto_em: agora.toISOString() });
 
-  const { data: canais } = await admin.from('canais').select('id, owner_id, externo_id, nome, status, erro')
-    .eq('tipo', 'whatsapp').or('status.eq.pendente,erro.ilike.%não verificada%').limit(50);
+  // "pendente" = esperando a análise da conta ou o limite de tentativas da Meta; o texto antigo do limite também entra
+  const { data: canais } = await admin.from('canais').select('id, owner_id, externo_id, nome, status, erro, config')
+    .eq('tipo', 'whatsapp').or('status.eq.pendente,erro.ilike.%não verificada%,erro.ilike.%muitas tentativas para este número%').limit(50);
   let ativados = 0;
   for (const c of canais ?? []) {
     try {
       const segredo = await segredoDo(admin, c.id);
       const pin = segredo.pin ?? String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
       if (!segredo.pin) await guardarSegredo(admin, c.id, { ...segredo, pin });
-      const aviso = await registrarWhatsApp(c.externo_id, segredo.token, pin);
-      if (aviso === ESPERA_META) {
-        if (c.status !== 'pendente' || c.erro !== aviso) await admin.from('canais').update({ status: 'pendente', erro: aviso }).eq('id', c.id);
-        continue;
-      }
-      if (aviso) {
-        await admin.from('canais').update({ status: 'erro', erro: aviso }).eq('id', c.id);
-        continue;
-      }
-      await admin.from('canais').update({ status: 'ativo', erro: null }).eq('id', c.id);
+      // lê a análise da conta (sem limite) e só tenta ativar quando faz sentido e no intervalo certo
+      const r = await ativarEGravar(admin, { ...c, status: 'pendente' }, segredo.token, pin);
+      if (r.status !== 'ativo') continue;
       ativados++;
       await alertar(admin, c.owner_id, {
-        origem: 'sistema', chave: `whatsapp-aprovado:${c.id}`, assunto: 'A Meta aprovou o seu WhatsApp',
+        origem: 'sistema', chave: `whatsapp-aprovado:${c.id}`, assunto: 'O seu WhatsApp está ativo',
         detalhe: `O número ${c.nome ?? ''} já está respondendo os clientes. Mande uma mensagem de outro celular para ver funcionando.`.replace(/\s+/g, ' '),
       });
     } catch (e) {

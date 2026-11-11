@@ -92,8 +92,11 @@ export class ErroDoCanal extends Error {
 /** Texto da Meta quando a conta nova do WhatsApp Business ainda está em análise: o canal fica "aguardando", não "com erro". */
 export const ESPERA_META = 'A Meta ainda está analisando a sua conta do WhatsApp Business. Costuma levar de algumas horas a 2 dias. Quando ela aprovar, o número começa a responder sozinho (o Helpy confere a cada 30 minutos).';
 
-/** Status do canal para um texto de erro: a análise da Meta é espera, não erro. */
-export const statusDoErro = (texto: string | null | undefined) => (texto === ESPERA_META ? 'pendente' : 'erro');
+/** A Meta só aceita 10 tentativas de ativar o mesmo número a cada 3 dias. */
+export const LIMITE_META = 'A Meta segurou a ativação deste número por excesso de tentativas (ela aceita 10 a cada 3 dias). Não precisa fazer nada: o Helpy tenta de novo sozinho, com intervalo, até ativar.';
+
+/** Status do canal para um texto de erro: análise e limite da Meta são espera, não erro. */
+export const statusDoErro = (texto: string | null | undefined) => (texto === ESPERA_META || texto === LIMITE_META ? 'pendente' : 'erro');
 
 /** Tira HTML, "(#123)" e espaços sobrando do texto que vem da Meta. */
 function limpar(t: string) {
@@ -123,6 +126,8 @@ function explicar(servico: string, status: number, corpo: string) {
     return 'O token deste canal venceu ou foi cancelado. Gere um novo na Meta e cole em Configurar → Trocar token.';
   }
   if (/n[ãa]o verificad|not verified|unverified|em an[áa]lise|under review|pending review/i.test(tudo)) return ESPERA_META;
+  // registrar/desregistrar o mesmo número: 10 vezes a cada 72 horas
+  if (code === 133016 || /muitas tentativas para este n[úu]mero|register.{0,12}deregister|too many attempts for this phone/i.test(tudo)) return LIMITE_META;
   if (code === 133010) return 'O número ainda não foi ativado no WhatsApp. Clique em "Testar conexão" para ativar.';
   if (code === 133005 || /two.step|duas etapas/i.test(tudo)) {
     return 'Este número tem verificação em duas etapas ligada. No WhatsApp Manager, abra o número → Verificação em duas etapas, desligue e clique em "Testar conexão".';
@@ -357,28 +362,84 @@ export async function conferirWhatsApp(phoneNumberId: string, token: string) {
 }
 
 /**
- * Número novo na API da Meta precisa ser "registrado" uma vez; sem isso ele recebe
- * mensagens mas não consegue responder. Registra se ainda não estiver. Devolve null
- * quando está tudo certo, ou o motivo para mostrar no painel.
+ * Situação da análise da conta do WhatsApp Business na Meta. É só leitura:
+ * pode ser consultada à vontade, ao contrário da ativação do número.
  */
-export async function registrarWhatsApp(phoneNumberId: string, token: string, pin: string): Promise<string | null> {
-  const id = encodeURIComponent(phoneNumberId);
+export async function revisaoDaContaWhatsApp(wabaId: string | undefined | null, token: string): Promise<'APPROVED' | 'PENDING' | 'REJECTED' | null> {
+  if (!wabaId) return null;
   try {
-    const st = await pedir(`${GRAPH}/${id}?fields=platform_type`, { headers: { Authorization: `Bearer ${token}` } }, 'O WhatsApp') as { platform_type?: string };
-    if (st?.platform_type === 'CLOUD_API') return null;
-  } catch { /* não deu para conferir: tenta registrar mesmo assim */ }
-  try {
-    await pedir(`${GRAPH}/${id}/register`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messaging_product: 'whatsapp', pin }),
-    }, 'O WhatsApp');
+    const r = await pedir(`${GRAPH}/${encodeURIComponent(wabaId)}?fields=account_review_status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }, 'O WhatsApp') as { account_review_status?: string };
+    const st = String(r?.account_review_status ?? '').toUpperCase();
+    return st === 'APPROVED' || st === 'PENDING' || st === 'REJECTED' ? st : null;
+  } catch {
     return null;
-  } catch (e) {
-    return (e as Error).message;
   }
 }
 
+export const RECUSADA_META = 'A Meta não aprovou a conta do WhatsApp Business. Abra o WhatsApp Manager para ver o motivo e pedir uma nova análise; depois clique em "Testar conexão".';
+
+/** Intervalo entre tentativas de ativar o número quando a Meta segura: 8 h dá 9 em 3 dias (o limite dela é 10). */
+const ESPERA_ENTRE_ATIVACOES = 8 * 3600e3;
+
+export interface Ativacao {
+  status: 'ativo' | 'pendente' | 'erro';
+  erro: string | null;
+  /** quando o Helpy pode tentar ativar de novo (vai para config.registro_apos) */
+  registro_apos: string | null;
+}
+
+/**
+ * Número novo precisa ser "registrado" uma vez na Meta; sem isso ele recebe mensagens
+ * mas não consegue responder. Como a Meta limita as tentativas (10 a cada 72 h por número),
+ * primeiro lê o que não tem limite (se já está ativo e a análise da conta) e só então tenta,
+ * nunca antes de `registroApos`.
+ */
+export async function ativarWhatsApp(o: { numero: string; waba?: string | null; token: string; pin: string; registroApos?: string | null }): Promise<Ativacao> {
+  const id = encodeURIComponent(o.numero);
+  const cab = { Authorization: `Bearer ${o.token}` };
+  try {
+    const st = await pedir(`${GRAPH}/${id}?fields=platform_type`, { headers: cab }, 'O WhatsApp') as { platform_type?: string };
+    if (st?.platform_type === 'CLOUD_API') return { status: 'ativo', erro: null, registro_apos: null };
+  } catch { /* não deu para conferir: segue */ }
+
+  const revisao = await revisaoDaContaWhatsApp(o.waba, o.token);
+  if (revisao === 'PENDING') return { status: 'pendente', erro: ESPERA_META, registro_apos: o.registroApos ?? null };
+  if (revisao === 'REJECTED') return { status: 'erro', erro: RECUSADA_META, registro_apos: null };
+
+  const libera = o.registroApos ? Date.parse(o.registroApos) : 0;
+  if (libera > Date.now()) return { status: 'pendente', erro: LIMITE_META, registro_apos: o.registroApos! };
+
+  try {
+    await pedir(`${GRAPH}/${id}/register`, {
+      method: 'POST',
+      headers: { ...cab, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', pin: o.pin }),
+    }, 'O WhatsApp');
+    return { status: 'ativo', erro: null, registro_apos: null };
+  } catch (e) {
+    const erro = (e as Error).message.slice(0, 500);
+    if (erro === ESPERA_META || erro === LIMITE_META) {
+      return { status: 'pendente', erro, registro_apos: new Date(Date.now() + ESPERA_ENTRE_ATIVACOES).toISOString() };
+    }
+    return { status: 'erro', erro, registro_apos: null };
+  }
+}
+
+/** Ativa o número (se faltar) e grava no canal a situação e quando dá para tentar de novo. */
+export async function ativarEGravar(db: SupabaseClient, canal: Pick<Canal, 'id' | 'externo_id' | 'status' | 'config'>, token: string, pin: string) {
+  const r = await ativarWhatsApp({
+    numero: canal.externo_id, waba: canal.config?.waba_id as string | undefined, token, pin,
+    registroApos: canal.config?.registro_apos as string | undefined,
+  });
+  const config: Record<string, unknown> = { ...(canal.config ?? {}) };
+  if (r.registro_apos) config.registro_apos = r.registro_apos;
+  else delete config.registro_apos;
+  const status = r.status === 'ativo' ? (canal.status === 'pausado' ? 'pausado' : 'ativo') : r.status;
+  await db.from('canais').update({ status, erro: r.erro, config }).eq('id', canal.id);
+  return { ...r, status, config };
+}
 
 /**
  * Põe a foto no perfil do número de WhatsApp. A Meta pede o envio em etapas:
