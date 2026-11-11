@@ -25,7 +25,7 @@ import { alertar, type Assistant, responder } from '../_shared/atendimento.ts';
 import { bloqueioAtivo, textoDoBloqueio } from '../_shared/bloqueios.ts';
 import { inicioDoMes, limitePorConversa, planOf, trialExpirado } from '../_shared/plans.ts';
 import { normalizeConfig, sugestoesIniciais, valueOf } from '../_shared/schema.ts';
-import { COBRANCA_EXTRA_PRONTA, MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from '../_shared/extra.ts';
+import { COBRANCA_EXTRA_PRONTA, MOTIVO_APRENDIZ, MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from '../_shared/extra.ts';
 import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
 
 const MAX_CHARS = 2000;
@@ -46,6 +46,7 @@ const PEDE_LOGIN =
 const MUITA_PROCURA =
   'Estamos recebendo muitas conversas agora. Para continuar, entre com sua conta tocando em "Entrar", aqui embaixo. Leva poucos segundos.';
 
+const COM_A_EQUIPE = 'Recebemos sua mensagem. Alguém da nossa equipe responde por aqui mesmo.';
 const RECADO =
   'Obrigado pela mensagem! No momento o atendimento automático está indisponível, mas sua mensagem já chegou para a equipe. Se quiser, deixe aqui seu nome e um contato (WhatsApp ou e-mail) que respondemos por esta mesma conversa.';
 
@@ -288,6 +289,9 @@ Deno.serve(async (req) => {
       : null;
     let c = await conversaDo(assistant.id, visitorId, clienteId, body.conversation_id);
     let recado = false;
+    // modo aprendiz: a equipe atende e o assistente só aprende (o teste do painel continua respondendo)
+    const aprendiz = !teste && assistant.modo === 'aprendiz';
+    let novaComAEquipe = false;
     const ipHash = c ? null : await hashDoIp(req);
 
     // em timeout ou banido nesta empresa: nem abre conversa nem chama a IA
@@ -331,8 +335,13 @@ Deno.serve(async (req) => {
           if ((doIpAqui ?? 0) >= CONVERSAS_REDE_DIA) throw new UserError('Você já abriu várias conversas hoje. Continue na conversa que você já abriu ou tente amanhã.', 429);
         }
 
-        const { atendimentos: mes } = await usoDoMes(admin, assistant.owner_id);
-        if (trialExpirado(profile)) recado = true;
+        // modo aprendiz: quem atende é a equipe; sem login não entra na fila (seria a porta do spam)
+        if (aprendiz && !cliente) {
+          return json({ conversation_id: null, status: 'bot', message: `Por aqui quem atende é a nossa equipe. ${PEDE_LOGIN}`, modo: 'login', precisa_login: true });
+        }
+        const { atendimentos: mes } = aprendiz ? { atendimentos: 0 } : await usoDoMes(admin, assistant.owner_id);
+        if (aprendiz) recado = false;
+        else if (trialExpirado(profile)) recado = true;
         else if (mes >= plan.atendimentos) {
           // crédito avulso gasto de um em um no banco: dois atendimentos ao mesmo tempo não usam o mesmo
           const { data: gastou } = profile.creditos_extra > 0 ? await admin.rpc('helpy_gastar_credito', { p_dono: profile.id }) : { data: false };
@@ -359,7 +368,9 @@ Deno.serve(async (req) => {
           ip_hash: ipHash,
           teste,
           ...(clienteInfo ? { cliente_id: clienteInfo.id, cliente_email: clienteInfo.email, lead_nome: clienteInfo.nome, lead_contato: clienteInfo.email } : {}),
-          ...(recado
+          ...(aprendiz
+            ? { status: 'waiting', titulo: 'Atendimento', motivo: MOTIVO_APRENDIZ, escalado_em: new Date().toISOString(), aprendiz: true }
+            : recado
             ? { status: 'waiting', titulo: 'Recado', motivo: MOTIVO_RECADO, escalado_em: new Date().toISOString() }
             : {}),
         })
@@ -367,6 +378,7 @@ Deno.serve(async (req) => {
         .single();
       if (error) throw error;
       c = nova as Conversa;
+      novaComAEquipe = aprendiz;
     } else {
       const minuto = new Date(Date.now() - 60_000).toISOString();
       const { count: recentes } = await admin.from('conversation_messages').select('id', { count: 'exact', head: true })
@@ -417,6 +429,19 @@ Deno.serve(async (req) => {
     if (recado) {
       await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'system', content: RECADO });
       return json({ ...estado(c), message: RECADO, modo: 'recado' });
+    }
+
+    // conversa que estava com o assistente quando o modo aprendiz foi ligado: passa para a equipe
+    if (aprendiz && c.status === 'bot') {
+      await admin.from('conversations').update({
+        status: 'waiting', titulo: 'Atendimento', motivo: MOTIVO_APRENDIZ, escalado_em: new Date().toISOString(),
+      }).eq('id', c.id);
+      c.status = 'waiting';
+      novaComAEquipe = true;
+    }
+    if (novaComAEquipe) {
+      await admin.from('conversation_messages').insert({ conversation_id: c.id, role: 'system', content: COM_A_EQUIPE });
+      return json({ ...estado(c), message: COM_A_EQUIPE, modo: 'recado' });
     }
 
     // a equipe assumiu (ou vai assumir): a IA sai de cena e não custa nada

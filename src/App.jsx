@@ -15,6 +15,7 @@ const Painel = lazy(() => import('@/pages/Painel'));
 const Assistentes = lazy(() => import('@/pages/Assistentes'));
 const Builder = lazy(() => import('@/pages/builder/Builder'));
 const Testar = lazy(() => import('@/pages/Testar'));
+const Aprendizado = lazy(() => import('@/pages/Aprendizado'));
 const Atendimentos = lazy(() => import('@/pages/Atendimentos'));
 const Dados = lazy(() => import('@/pages/Dados'));
 const Agenda = lazy(() => import('@/pages/Agenda'));
@@ -78,6 +79,7 @@ export default function App() {
               <Route index element={<Inicio />} />
               <Route path="assistentes" element={<SoEmpresa><Assistentes /></SoEmpresa>} />
               <Route path="assistentes/:id/testar" element={<SoEmpresa><Testar /></SoEmpresa>} />
+              <Route path="assistentes/:id/aprendizado" element={<SoEmpresa><Aprendizado /></SoEmpresa>} />
               <Route path="atendimentos" element={<EmpresaOuEquipe><Atendimentos /></EmpresaOuEquipe>} />
               <Route path="canais" element={<SoEmpresa><Canais /></SoEmpresa>} />
               <Route path="canais/discord" element={<SoEmpresa><DiscordVolta /></SoEmpresa>} />

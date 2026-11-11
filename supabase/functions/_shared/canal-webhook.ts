@@ -30,9 +30,10 @@ import {
   type TipoCanal,
 } from './canais.ts';
 import { atenderNoCanal } from './canal-atender.ts';
-import { helpyNoTicket, type Interacao, interacaoDoTicket, type MensagemGateway, mensagemDoGateway, ticketDo } from './discord-tickets.ts';
+import { helpyNoTicket, type Interacao, interacaoDoTicket, type MensagemGateway, mensagemDoGateway, sondarTickets, ticketDo } from './discord-tickets.ts';
 import { ativarEGravar, guardarSegredo, registrarComandosHelpy } from './canais.ts';
 import { alertar } from './atendimento.ts';
+import { aprenderPendentes } from './aprendizado.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -287,7 +288,7 @@ async function discord(req: Request, alvo: string): Promise<Response> {
     // tickets, botões e menu de configuração
     const r = interacaoDoTicket(i, canal);
     if (r) {
-      if (r.depois) depois(r.depois());
+      depois((r.depois ? r.depois() : Promise.resolve()).then(() => sondarTickets({ seParado: true })));
       return jsonOk(r.resposta);
     }
   }
@@ -366,9 +367,33 @@ async function gateway(req: Request): Promise<Response> {
 }
 
 /** O pedido veio da Meta ou do Discord (e não do chat)? */
+/**
+ * As rodadas automáticas (aprender, conferir a Meta, ler os tickets do Discord) só valem
+ * quando quem chama é o agendador do banco: ele manda a senha que fica no cofre.
+ */
+async function doAgendador(req: Request): Promise<boolean> {
+  const veio = req.headers.get('X-Helpy-Agendador') ?? '';
+  if (veio.length < 20 || veio.length > 200) return false;
+  const { data } = await admin.rpc('helpy_agendador_ok', { p_senha: veio });
+  return data === true;
+}
+
+/**
+ * Atendimentos da equipe que terminaram: o agendador do banco chama aqui e o Helpy aprende com eles.
+ * Cada conversa é lida uma vez só; chamar de fora não faz nada além de adiantar a rodada.
+ */
+async function rodadaDeAprendizado(): Promise<Response> {
+  const agora = new Date();
+  const { data: ultima } = await admin.from('helpy_servicos').select('visto_em').eq('nome', 'aprendizado').maybeSingle();
+  if (ultima && agora.getTime() - new Date(ultima.visto_em).getTime() < 60e3) return ok('cedo');
+  await admin.from('helpy_servicos').upsert({ nome: 'aprendizado', visto_em: agora.toISOString() });
+  const r = await aprenderPendentes(admin);
+  return ok(`ok ${r.lidas} lidas, ${r.novos} aprendizados`);
+}
+
 export function ehDoCanal(req: Request): boolean {
   const q = new URL(req.url).searchParams;
-  return q.has('canal') || q.has('discord') || q.has('pendentes');
+  return q.has('canal') || q.has('discord') || q.has('pendentes') || q.has('aprender');
 }
 
 /**
@@ -409,7 +434,14 @@ async function rechecarPendentes(): Promise<Response> {
 export async function receberDoCanal(req: Request): Promise<Response> {
   try {
     const q = new URL(req.url).searchParams;
-    if (q.has('pendentes')) return await rechecarPendentes();
+    if (q.has('pendentes') || q.has('aprender') || q.get('discord') === 'sondar') {
+      if (!(await doAgendador(req))) return ok('', 401);
+      if (q.has('pendentes')) return await rechecarPendentes();
+      // estas duas demoram: respondem na hora e seguem trabalhando
+      if (q.has('aprender')) depois(rodadaDeAprendizado());
+      else depois(sondarTickets());
+      return ok('ok');
+    }
     const discordId = q.get('discord');
     return discordId ? await discord(req, discordId) : await meta(req);
   } catch (e) {

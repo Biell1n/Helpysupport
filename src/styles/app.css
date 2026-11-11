@@ -4912,3 +4912,33 @@
   font-size: 20px;
   margin-bottom: 6px;
 }
+
+/* Aprendizado: o que o assistente aprendeu com a equipe */
+.voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--tinta-2);
+  text-decoration: none;
+}
+.voltar:hover { color: var(--tinta); }
+.aprendido {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--linha);
+  border-radius: var(--r);
+  background: var(--branco);
+}
+.aprendido-texto b { display: block; font-size: 15px; }
+.aprendido-texto p { margin: 4px 0 6px; color: var(--tinta-2); line-height: 1.5; overflow-wrap: anywhere; }
+.aprendido-texto .faint { font-size: 12.5px; }
+.aprendido-acoes { display: flex; gap: 6px; margin-left: -8px; }
+@media (min-width: 720px) {
+  .aprendido:not(form) { grid-template-columns: 1fr auto; align-items: start; }
+  .aprendido-acoes { margin-left: 0; }
+}
+@media (max-width: 520px) { .tipo-conta { grid-template-columns: 1fr; } }

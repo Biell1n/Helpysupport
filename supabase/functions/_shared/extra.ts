@@ -64,6 +64,8 @@ export async function usarExtra(db: SupabaseClient, p: PerfilExtra, tipo: 'atend
 }
 
 /** Motivo gravado na conversa que chegou com a cota esgotada (o painel não consegue mudar). */
+/** Conversa que foi direto para a equipe porque o assistente está em modo aprendiz. */
+export const MOTIVO_APRENDIZ = 'O assistente está aprendendo: a equipe atende e ele observa.';
 export const MOTIVO_RECADO = 'Chegou com a cota do plano esgotada: o assistente não respondeu.';
 
 /**
