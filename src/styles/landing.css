@@ -45,10 +45,12 @@
   animation: lp-entra 1.2s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0s) forwards;
 }
 
+/* a primeira tela chega com rampa de velocidade: sobe de mais longe, desembaçando */
 @keyframes lp-entra {
   from {
     opacity: 0;
-    translate: 0 30px;
+    translate: 0 54px;
+    filter: blur(14px);
   }
   to {
     opacity: 1;
@@ -2345,4 +2347,31 @@
 @media (max-width: 860px) {
   .lp-noite { padding: 18px 14px 0; border-radius: 24px; }
   .lp-noite-lista { height: 360px; }
+}
+
+/* o robô da primeira tela chega de baixo, cresce passando um pouco do tamanho e assenta */
+.lp-robo-flutua.lp-entra {
+  animation-name: lp-entra-robo;
+  animation-duration: 1.5s;
+}
+@keyframes lp-entra-robo {
+  from {
+    opacity: 0;
+    translate: 0 90px;
+    scale: 0.8;
+    rotate: -7deg;
+    filter: blur(12px);
+  }
+  38% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  62% {
+    scale: 1.035;
+    rotate: 1.2deg;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
 }
