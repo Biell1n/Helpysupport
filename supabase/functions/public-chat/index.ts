@@ -205,7 +205,10 @@ Deno.serve(async (req) => {
 
     if (action === 'history') {
       const c = await conversaDo(assistant.id, visitorId, clienteId, body.conversation_id);
-      if (!c || Date.now() - new Date(c.last_message_at).getTime() > 7 * 864e5) return json({ messages: [] });
+      // conversa parada há mais de uma semana: o chat recomeça do zero. Menos quando a própria pessoa,
+      // conectada, pediu para abrir aquela conversa em "Minhas conversas": aí o histórico sempre aparece.
+      const pediuParaAbrir = body.abrir === true && !!c?.cliente_id && c.cliente_id === clienteId;
+      if (!c || (!pediuParaAbrir && Date.now() - new Date(c.last_message_at).getTime() > 7 * 864e5)) return json({ messages: [] });
       const { data: msgs } = await admin
         .from('conversation_messages')
         .select('role, content, author_name, created_at')
