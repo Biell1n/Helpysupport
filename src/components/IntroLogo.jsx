@@ -35,9 +35,12 @@ const cl = (x) => Math.max(0, Math.min(1, x));
 const jan = (t, a, b) => cl((t - a) / (b - a));
 const inOut = (x) => ((x = cl(x)), x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 const outCubic = (x) => 1 - Math.pow(1 - cl(x), 3);
-const outQuart = (x) => 1 - Math.pow(1 - cl(x), 4);
 const outBack = (x, k = 1.7) => ((x = cl(x)), 1 + (k + 1) * Math.pow(x - 1, 3) + k * Math.pow(x - 1, 2));
 const sino = (t, a, b) => Math.pow(Math.sin(Math.PI * jan(t, a, b)), 2);
+// "velocity": dispara, freia forte e assenta devagar (a rampa de velocidade da edição de vídeo)
+const expo = (x) => ((x = cl(x)), x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+// mola: chega rápido, passa do ponto e assenta balançando (dt em segundos desde o início)
+const mola = (dt, freq = 3, amortece = 9) => (dt <= 0 ? 0 : 1 - Math.exp(-amortece * dt) * Math.cos(2 * Math.PI * freq * dt));
 const lerp = (a, b, x) => a + (b - a) * x;
 
 /** Pontos-chave (tempo, valor, velocidade): a velocidade continua nas viradas, nada trava. */
@@ -61,7 +64,20 @@ function chaves(...p) {
 const { escala: E, vao: VAO, linhaBase: BASE } = CONJUNTO;
 const LARG = 200 + VAO + NOME.largura * E; // largura do conjunto final
 const X0 = (LARG - 200) / 2; // começa com o balão no centro da tela
-const deslize = chaves([2.85, 0, 0], [3.35, 0.62, 1.55], [4.05, 1, 0.05]);
+const deslize = chaves([2.85, 0, 0], [3.12, 0.6, 2.4], [3.4, 0.9, 0.5], [4.05, 1, 0]);
+
+// gotas do estouro: direção (radianos), distância e raio
+const GOTAS = [[-2.5, 118, 13], [-1.75, 104, 10], [-1.05, 126, 14], [-0.3, 110, 11], [3.5, 96, 9]];
+
+/** Liga o filtro "líquido" de um grupo com a força pedida (0 = desligado, traço nítido). */
+function gooDe(grupo, borra, forca) {
+  if (forca < 0.15) {
+    if (grupo.hasAttribute('filter')) grupo.removeAttribute('filter');
+    return;
+  }
+  borra.setAttribute('stdDeviation', forca.toFixed(2));
+  if (!grupo.hasAttribute('filter')) grupo.setAttribute('filter', `url(#${borra.parentNode.id})`);
+}
 
 function pilula(el, cx, cy, w, h) {
   w = Math.max(w, 0);
@@ -82,13 +98,33 @@ function arco(el, cx, yOlho, p) {
 
 /** Desenha o quadro do instante t (em segundos). */
 function desenhar(t, el) {
-  // 1) o balãozinho de "digitando…" (pílula) aparece com um pulinho
-  const e = outBack(jan(t, T.entra, T.entra + 0.5), 1.9);
-  // 2) cresce até o tamanho do balão-senha, solta a pontinha e leva o picote dos lados
-  const c = outBack(jan(t, T.cresce, T.cresce + 0.55), 1.5);
-  const tp = outBack(jan(t, T.pontinha, T.pontinha + 0.4), 2.2);
-  const f = 14 * outBack(jan(t, T.picote, T.picote + 0.28), 2.6);
-  el.forma.setAttribute('d', senha({ w: lerp(96, 160, c), h: lerp(40, 136, c), r: lerp(20, 42, c), f: Math.max(0, f), t: Math.max(0, tp) }));
+  // 1) o balãozinho de "digitando…" cai de cima esticado, amassa ao pousar e assenta como gelatina
+  const e = mola(t - T.entra, 2.7, 9.5);
+  const queda = -34 * (1 - expo(jan(t, T.entra, T.entra + 0.3)));
+  const nasceEstica = -0.16 * (1 - expo(jan(t, T.entra, T.entra + 0.2))) + 0.11 * sino(t, T.entra + 0.12, T.entra + 0.44);
+
+  // 2) cresce como líquido: antes encolhe um pouco (pega impulso), depois a altura dispara na
+  //    frente e a largura vem atrás, cada uma com a sua mola. Nada de "uma reta que estica".
+  const impulso = sino(t, T.cresce - 0.16, T.cresce + 0.06);
+  const ch = mola(t - T.cresce, 2.9, 8.5);
+  const cw = mola(t - T.cresce - 0.05, 2.4, 8);
+  const w = lerp(96, 160, cw) + 12 * impulso;
+  const h = lerp(40, 136, ch) - 8 * impulso;
+  const tp = Math.max(0, mola(t - T.pontinha, 3.3, 10));
+  const f = Math.max(0, 14 * mola(t - T.picote, 4.2, 12));
+  el.forma.setAttribute('d', senha({ w, h, r: Math.min(lerp(20, 42, cl((cw + ch) / 2)), w / 2, h / 2), f, t: tp }));
+  // gotas que espirram no estouro e somem no ar (com o filtro, saem do corpo como líquido)
+  el.gotas.forEach((g, i) => {
+    const u = jan(t, T.cresce + 0.03 + i * 0.025, T.cresce + 0.62 + i * 0.04);
+    const [ang, dist, raio] = GOTAS[i];
+    const d = dist * expo(u);
+    g.setAttribute('cx', 100 + Math.cos(ang) * d);
+    g.setAttribute('cy', 92 + Math.sin(ang) * d - 14 * Math.sin(Math.PI * u));
+    g.setAttribute('r', u <= 0 || u >= 1 ? 0 : raio * (1 - u * u));
+  });
+  // o "líquido": borra e recorta o corpo enquanto ele se transforma; depois fica nítido
+  const gosma = 7 * jan(t, T.cresce - 0.2, T.cresce - 0.05) * (1 - inOut(jan(t, T.cresce + 0.55, T.cresce + 0.9)));
+  gooDe(el.liquido, el.borraCorpo, gosma);
   // o picote dá um "clique": o corpo achata de leve e volta
   const clique = 0.035 * sino(t, T.picote, T.picote + 0.26);
 
@@ -106,11 +142,11 @@ function desenhar(t, el) {
   const dp = t - T.pisca;
   const mexe = dp > 0 ? 10 * Math.exp(-3.6 * dp) * Math.sin((2 * Math.PI * dp) / 0.62) : 0;
 
-  const rot = -10 * (1 - outCubic(jan(t, T.entra, T.entra + 0.9))) + balanca + inclina + mexe;
+  const rot = -14 * (1 - expo(jan(t, T.entra, T.entra + 0.7))) + balanca + inclina + mexe;
   const pulo = -9 * sino(t, T.pisca - 0.05, T.pisca + 0.42);
-  const acha = 0.045 * sino(t, T.pisca + 0.28, T.pisca + 0.6) + clique;
+  const acha = 0.045 * sino(t, T.pisca + 0.28, T.pisca + 0.6) + clique + nasceEstica;
   const s = e * (1 + respiraOnda + respira);
-  el.cabeca.setAttribute('transform', `translate(0 ${pulo + flutua}) rotate(${rot} 100 92)`);
+  el.cabeca.setAttribute('transform', `translate(0 ${pulo + flutua + queda}) rotate(${rot} 100 92)`);
   el.corpo.setAttribute('transform', `translate(100 92) scale(${s * (1 + acha)} ${s * (1 - acha)}) translate(-100 -92)`);
 
   // 3) os pontinhos digitam e as pontas viram os olhinhos (que depois olham para o nome)
@@ -121,12 +157,16 @@ function desenhar(t, el) {
   const feliz = t < P + 0.09 ? 0 : outBack(jan(t, P + 0.09, P + 0.32), 1.6) * (1 - inOut(jan(t, P + 0.7, P + 0.86)));
   const reabre = outBack(jan(t, P + 0.86, P + 1.06), 2.0);
   const emArco = t >= P + 0.09 && t < P + 0.86;
+  // os pontinhos se juntam numa ponte líquida e ela se parte nos dois olhos
+  const ponte = inOut(jan(t, T.vira[0], T.vira[0] + 0.16)) * (1 - expo(jan(t, T.vira[0] + 0.2, T.vira[1])));
+  const olhoAlto = mola(t - T.vira[0] - 0.16, 2.8, 8.5);
+  gooDe(el.brancos, el.borraOlhos, 5 * jan(t, T.vira[0] - 0.08, T.vira[0]) * (1 - inOut(jan(t, T.vira[1], T.vira[1] + 0.18))));
   [[76, OLHOS[0].cx], [100, 100], [124, OLHOS[1].cx]].forEach(([x0, x1], i) => {
-    const nasce = outBack(jan(t, T.pontos + i * 0.07, T.pontos + 0.33 + i * 0.07), 2);
+    const nasce = Math.max(0, mola(t - T.pontos - i * 0.07, 3.4, 10));
     const cy = lerp(92 - 8 * ondas[i], OLHOS[0].cy, v);
     if (i === 1) {
-      const d = 20 * nasce * (1 - inOut(jan(t, T.vira[0], T.vira[0] + 0.3)));
-      pilula(el.pontos[i], 100, cy, d, d);
+      const some = 1 - expo(jan(t, T.vira[0] + 0.2, T.vira[1] - 0.05));
+      pilula(el.pontos[i], 100, cy, (20 + 34 * ponte) * nasce * some, (20 - 7 * ponte) * nasce * some);
       return;
     }
     const cx = lerp(x0, x1, v) + olha;
@@ -139,7 +179,7 @@ function desenhar(t, el) {
     }
     arc.style.opacity = 0;
     const w = lerp(20, OLHOS[0].w, v) * nasce;
-    let h = lerp(20, OLHOS[0].h, outBack(v, 1.3)) * nasce;
+    let h = lerp(20, OLHOS[0].h, olhoAlto) * nasce;
     if (t >= P) h = t < P + 0.09 ? lerp(OLHOS[0].h, 15, fecha) : lerp(15, OLHOS[0].h, reabre);
     pilula(el.pontos[i], cx, cy, w, h);
   });
@@ -147,9 +187,10 @@ function desenhar(t, el) {
   // o conjunto desliza para a esquerda e o nome entra letra por letra, vindo de trás do balão
   el.conjunto.setAttribute('transform', `translate(${X0 * (1 - deslize(t))} 0)`);
   el.letras.forEach((l, j) => {
-    const kl = outQuart(jan(t, T.nome + 0.1 + j * 0.055, T.nome + 0.75 + j * 0.055));
-    l.style.opacity = kl;
-    l.setAttribute('transform', `translate(${LETRAS[j].x - 40 * (1 - kl)} ${10 * (1 - kl)})`);
+    const u = jan(t, T.nome + 0.1 + j * 0.055, T.nome + 0.85 + j * 0.055);
+    const kl = expo(u);
+    l.style.opacity = cl(u * 5);
+    l.setAttribute('transform', `translate(${LETRAS[j].x - 86 * (1 - kl)} ${6 * (1 - kl)}) skewX(${-26 * (1 - kl)})`);
   });
 }
 
@@ -296,9 +337,12 @@ export default function IntroLogo({ onSaindo, onFim }) {
       const c = { x: L.left + L.width / 2, y: L.top + L.height / 2 };
       const dx = b.left - c.x - s * (a.left - c.x);
       const dy = b.top - c.y - s * (a.top - c.y);
-      logo.animate([{ transform: 'none' }, { transform: `translate(${dx}px, ${dy}px) scale(${s})` }], {
-        duration: dur, easing: 'cubic-bezier(0.65, 0, 0.2, 1)', fill: 'forwards',
-      });
+      logo.animate([
+        { transform: 'none', easing: 'cubic-bezier(0.3, 0, 0.6, 1)' },
+        // impulso: recua um pouco no sentido contrário e cresce de leve antes de disparar
+        { offset: 0.2, transform: `translate(${-dx * 0.035}px, ${-dy * 0.06}px) scale(1.05)`, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+        { transform: `translate(${dx}px, ${dy}px) scale(${s})` },
+      ], { duration: dur, fill: 'forwards' });
     }
     encerrar(false);
   }, [encerrar]);
@@ -313,6 +357,11 @@ export default function IntroLogo({ onSaindo, onFim }) {
       arcos: [...r.querySelectorAll('.ab-arco')],
       conjunto: r.querySelector('.ab-conjunto'),
       pontos: [...r.querySelectorAll('.ab-ponto')],
+      gotas: [...r.querySelectorAll('.ab-gota')],
+      liquido: r.querySelector('.ab-liquido'),
+      brancos: r.querySelector('.ab-brancos'),
+      borraCorpo: r.querySelector('#ab-goo-corpo feGaussianBlur'),
+      borraOlhos: r.querySelector('#ab-goo-olhos feGaussianBlur'),
       letras: [...r.querySelectorAll('.ab-letra')],
     };
     desenhar(0, el);
@@ -368,13 +417,27 @@ export default function IntroLogo({ onSaindo, onFim }) {
       <div className="abertura-fundo" />
       <div className="abertura-logo">
         <svg className="abertura-svg" viewBox={`0 -40 ${LARG} 280`}>
+          <defs>
+            {/* filtro "líquido": borra e recorta de novo, então formas próximas se fundem como gotas */}
+            {['ab-goo-corpo', 'ab-goo-olhos'].map((id) => (
+              <filter key={id} id={id} x="-60%" y="-60%" width="220%" height="220%" colorInterpolationFilters="sRGB">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="0" result="b" />
+                <feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" />
+              </filter>
+            ))}
+          </defs>
           <g className="ab-conjunto">
             <rect className="ab-caixa" width="200" height="200" fill="none" />
             <g className="ab-cabeca">
-              <g className="ab-corpo">
-                <path className="ab-forma" fill={CORES.azul} />
+              <g className="ab-liquido">
+                <g className="ab-corpo">
+                  <path className="ab-forma" fill={CORES.azul} />
+                </g>
+                {GOTAS.map((_, i) => <circle key={i} className="ab-gota" r="0" fill={CORES.azul} />)}
               </g>
-              {[0, 1, 2].map((i) => <rect key={i} className="ab-ponto" fill={CORES.branco} />)}
+              <g className="ab-brancos">
+                {[0, 1, 2].map((i) => <rect key={i} className="ab-ponto" fill={CORES.branco} />)}
+              </g>
               {[0, 1].map((i) => (
                 <path key={i} className="ab-arco" fill="none" stroke={CORES.branco} strokeWidth="15" strokeLinecap="round" opacity="0" />
               ))}

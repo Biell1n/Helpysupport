@@ -857,3 +857,76 @@ button, input, select, textarea {
   border: 0;
 }
 
+
+/* ============================================================
+   Movimento: uma linguagem só para o painel inteiro.
+   --vel  = rampa de velocidade (dispara, freia forte e assenta devagar)
+   --mola = passa um pouco do ponto e volta (para o que "pousa": janelas, avisos)
+   Quem pediu menos movimento no sistema não vê nada disso (regra lá em cima).
+   ============================================================ */
+:root {
+  --vel: cubic-bezier(0.16, 1, 0.3, 1);
+  --mola: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@supports (animation-timing-function: linear(0, 1)) {
+  :root {
+    --mola: linear(0, 0.22 5%, 0.62 12%, 0.94 20%, 1.08 27%, 1.12 33%, 1.09 41%, 1.03 51%, 0.99 62%, 0.995 78%, 1);
+  }
+}
+
+/* cada tela entra em camadas: o título primeiro, o resto logo atrás */
+.page > *:not(.backdrop) {
+  animation: tela-entra 0.75s var(--vel) backwards;
+}
+.page > .page-head { animation-name: tela-entra-foco; }
+.page > *:nth-child(2) { animation-delay: 0.05s; }
+.page > *:nth-child(3) { animation-delay: 0.1s; }
+.page > *:nth-child(4) { animation-delay: 0.15s; }
+.page > *:nth-child(5) { animation-delay: 0.2s; }
+.page > *:nth-child(n + 6) { animation-delay: 0.25s; }
+
+@keyframes tela-entra {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+}
+/* o título chega "em foco": sobe menos e desembaça */
+@keyframes tela-entra-foco {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(8px);
+  }
+}
+
+/* cartões de uma lista ou grade chegam em cascata */
+.page > .stack > .card,
+.page > .stack-sm > *,
+.page [class$='-grade'] > .card {
+  animation: tela-entra 0.7s var(--vel) backwards;
+}
+.page > .stack > .card:nth-child(2), .page > .stack-sm > *:nth-child(2), .page [class$='-grade'] > .card:nth-child(2) { animation-delay: 0.06s; }
+.page > .stack > .card:nth-child(3), .page > .stack-sm > *:nth-child(3), .page [class$='-grade'] > .card:nth-child(3) { animation-delay: 0.12s; }
+.page > .stack > .card:nth-child(4), .page > .stack-sm > *:nth-child(4), .page [class$='-grade'] > .card:nth-child(4) { animation-delay: 0.18s; }
+.page > .stack > .card:nth-child(n + 5), .page > .stack-sm > *:nth-child(n + 5), .page [class$='-grade'] > .card:nth-child(n + 5) { animation-delay: 0.24s; }
+
+/* janelas pousam com mola; a gaveta dispara da direita e assenta */
+.backdrop { animation: aparecer 0.25s ease; }
+.modal { animation: janela-pousa 0.55s var(--mola), aparecer 0.2s ease; }
+.drawer { animation: gaveta-chega 0.6s var(--vel); }
+.toast { animation: aviso-pousa 0.55s var(--mola), aparecer 0.18s ease; }
+
+@keyframes janela-pousa {
+  from { transform: translateY(26px) scale(0.93); }
+}
+@keyframes gaveta-chega {
+  from { transform: translateX(72px); opacity: 0; }
+}
+@keyframes aviso-pousa {
+  from { transform: translateY(20px) scale(0.9); }
+}
+
+/* botões respondem ao toque: afundam e voltam */
+.btn { transition: transform 0.35s var(--vel), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; }
+.btn:active:not(:disabled) { transform: scale(0.96); transition-duration: 0.08s; }
