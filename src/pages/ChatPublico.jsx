@@ -108,7 +108,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           setConversa(doLink);
         }
         if (salva) {
-          const h = await chamar('public-chat', { ...base, action: 'history', conversation_id: salva, visitor_id: visitorId });
+          const h = await chamar('public-chat', { ...base, action: 'history', conversation_id: salva, visitor_id: visitorId, abrir: !!doLink });
           if (!vivo) return;
           if (h.messages?.length) {
             setMensagens(h.messages);
