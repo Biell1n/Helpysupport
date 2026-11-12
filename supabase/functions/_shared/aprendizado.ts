@@ -30,11 +30,13 @@ Não aprenda:
 - preço e estoque de um produto específico (mudam e ficam na tabela de dados do negócio);
 - dados pessoais: nome, telefone, e-mail, endereço, documento;
 - o que o cliente afirmou sem a equipe confirmar, nem o que o atendente virtual disse (linhas "Assistente:");
-- o que já está em "O que o atendente já sabe", a não ser que a equipe tenha dito algo diferente. Nesse caso devolva a versão nova e, se ela corrige um item numerado de "Já aprendeu", ponha o número dele em "substitui".
+- o que já está em "O que o atendente já sabe" e a equipe só repetiu.
+
+"O que o atendente já sabe" serve só para você ver o que é novidade. Nunca copie nada de lá para a resposta. Se a equipe disse algo diferente do que está lá (outro prazo, outra condição, outro horário), vale o que a equipe disse: escreva a regra como a equipe falou, com todas as condições que ela deu, mesmo contradizendo a ficha. Se isso corrige um item numerado de "Já aprendeu", ponha o número dele em "substitui".
 
 Cada aprendizado tem:
 - "pergunta": como um cliente perguntaria, curta;
-- "resposta": a informação da equipe em uma a três frases, escrita para o atendente usar com qualquer cliente, sem citar a pessoa deste atendimento;
+- "resposta": só o que a equipe informou neste atendimento, fiel ao que ela disse (prazos, condições, dias e horários exatos), em uma a três frases, escrita para o atendente usar com qualquer cliente, sem citar a pessoa deste atendimento;
 - "substitui": o número do item de "Já aprendeu" que ele corrige, ou 0 quando é novo.
 
 Na dúvida entre regra geral e caso isolado, não aprenda. É comum não haver nada para aprender: devolva a lista vazia. No máximo ${MAX_POR_ATENDIMENTO} itens.
