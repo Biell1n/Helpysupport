@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Copy, ExternalLink, ImageOff, MessageCircle, Pencil, Plus, Power, QrCode, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, GraduationCap, ImageOff, MessageCircle, Pencil, Plus, Power, QrCode, RefreshCw, Trash2 } from 'lucide-react';
 import MenuMais from '@/components/MenuMais';
 import { apagarFoto } from '@/lib/fotos';
 import { supabase, chamar } from '@/lib/supabase';
@@ -28,7 +28,7 @@ export default function Assistentes() {
   const carregar = useCallback(async () => {
     const { data } = await supabase
       .from('assistants')
-      .select('id, name, business_type, business_model, public_token, is_public, updated_at, foto_url')
+      .select('id, name, business_type, business_model, public_token, is_public, updated_at, foto_url, modo')
       .order('created_at');
     setLista(data ?? []);
   }, []);
@@ -137,6 +137,7 @@ export default function Assistentes() {
               <div className="assistente-acoes">
                 <Link to={`/painel/assistentes/${a.id}/testar`} className="btn btn-ghost btn-sm"><MessageCircle /> Testar</Link>
                 <Link to={`/painel/assistentes/${a.id}/editar`} className="btn btn-ghost btn-sm"><Pencil /> Editar</Link>
+                <Link to={`/painel/assistentes/${a.id}/aprendizado`} className="btn btn-ghost btn-sm"><GraduationCap /> Aprendizado</Link>
                 <MenuMais
                   rotulo={`Mais ações de ${a.name}`}
                   itens={[
@@ -153,6 +154,7 @@ export default function Assistentes() {
 
             <div className="assistente-link">
               <span className={`badge ${a.is_public ? 'badge-closed' : 'badge-bot'}`}>{a.is_public ? 'Link no ar' : 'Link desligado'}</span>
+              {a.modo === 'aprendiz' && <Link to={`/painel/assistentes/${a.id}/aprendizado`} className="badge badge-human">Só aprendendo</Link>}
               <code className="mono">{linkPublico(a.public_token)}</code>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => copiar(a.public_token)}><Copy /> Copiar link</button>
             </div>

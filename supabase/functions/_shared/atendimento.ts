@@ -35,6 +35,8 @@ export interface Assistant {
   meta?: { briefing?: string; materiais?: Array<{ nome: string; texto: string }> } | null;
   public_token?: string | null;
   is_public?: boolean | null;
+  /** 'aprendiz': a equipe atende e o assistente só aprende */
+  modo?: string | null;
 }
 
 /** Como o dono configurou os chamados deste assistente. */
@@ -1066,6 +1068,9 @@ async function canaisDaEmpresa(db: SupabaseClient, a: Assistant): Promise<string
 // Uma rodada de resposta
 // ------------------------------------------------------------
 
+/** Quantos aprendizados entram nas respostas (os mais novos). */
+const MAX_APRENDIZADOS = 60;
+
 export async function responder(r: Rodada, historico: Array<{ role: string; content: string }>) {
   const a = { ...r.assistant, config: normalizeConfig(r.assistant.config) };
   const rr = { ...r, assistant: a };
@@ -1102,8 +1107,21 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   const daEquipe = ((a.config.collections?.faq ?? []) as Array<Record<string, string>>)
     .filter((f) => f?.equipe && f?.pergunta && f?.resposta)
     .map((f) => `- ${f.pergunta}: ${f.resposta}`);
+  // o que ele aprendeu com os atendimentos da equipe (Assistentes → Aprendizado)
+  const { data: aprendidos } = await r.db.from('aprendizados').select('pergunta, resposta')
+    .eq('assistant_id', a.id).eq('ativo', true).order('criado_em', { ascending: false }).limit(MAX_APRENDIZADOS);
+  const aprendido = ((aprendidos ?? []) as Array<{ pergunta: string; resposta: string }>).reverse()
+    .map((x) => `- ${x.pergunta}: ${x.resposta}`);
   const system: Anthropic.TextBlockParam[] = [
     { type: 'text', text: systemPrompt(a, tabelas, agenda, loja, rr.vendas.agendaPaga, anota), cache_control: { type: 'ephemeral' } },
+    // muda só quando ele aprende algo novo: fica em cache junto com a ficha
+    ...(aprendido.length
+      ? [{
+        type: 'text' as const,
+        text: `APRENDIDO COM A EQUIPE (respostas que a equipe deu em atendimentos anteriores; valem como informação confirmada do negócio e, se forem diferentes da ficha, valem mais):\n${aprendido.join('\n')}\nUse quando o cliente tocar no assunto, aplicando ao caso dele. Não diga que "aprendeu" nem cite outros atendimentos.`,
+        cache_control: { type: 'ephemeral' as const },
+      }]
+      : []),
     // o dono ligou "vender no chat", mas a conta de recebimento não está pronta: nada de prometer link
     ...(querVenda && !recebe
       ? [{

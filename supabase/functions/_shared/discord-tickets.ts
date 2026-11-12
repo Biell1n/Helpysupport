@@ -56,6 +56,7 @@ export interface Ticket {
   fechado_em: string | null;
 }
 
+const SONDAGEM = 'discord-sondagem';
 const contatoDo = (thread: string) => `ticket:${thread}`;
 export const nomeDe = (m: Membro | undefined, p: Pessoa | undefined) =>
   String(m?.nick || p?.global_name || p?.username || 'Alguém').slice(0, 80);
@@ -66,10 +67,14 @@ export function ehAdmin(m: Membro | undefined) {
   return (p & PERM.ADMINISTRADOR) !== 0n || (p & PERM.GERENCIAR_SERVIDOR) !== 0n;
 }
 
-/** O servidor que fica ligado no Discord deu sinal de vida nos últimos minutos? */
+/**
+ * A conversa livre nos tickets funciona? Sim quando o Helpy lê os tickets sozinho
+ * (a sondagem, instalada junto com o agendador do banco) ou quando o servidor
+ * ligado no Discord deu sinal de vida nos últimos minutos.
+ */
 export async function gatewayLigado(): Promise<boolean> {
-  const { data } = await admin.from('helpy_servicos').select('visto_em').eq('nome', 'discord-gateway').maybeSingle();
-  return !!data && Date.now() - new Date(data.visto_em).getTime() < 5 * 60e3;
+  const { data } = await admin.from('helpy_servicos').select('nome, visto_em').in('nome', ['discord-gateway', SONDAGEM]);
+  return (data ?? []).some((x) => x.nome === SONDAGEM || Date.now() - new Date(x.visto_em).getTime() < 5 * 60e3);
 }
 
 export async function ticketDo(thread: string | undefined): Promise<Ticket | null> {
@@ -831,6 +836,89 @@ export async function mensagemDoGateway(m: MensagemGateway) {
   const resposta = await noTicket(t, canal, m.author, m.member, texto);
   if (resposta) await postarNoTopico(admin, canal, t.thread_id, resposta);
   if (m.author.id === t.cliente_id) await chamarEquipeSePreciso(t, canal);
+}
+
+// ------------------------------------------------------------
+// Sondagem: o Helpy lê os tickets abertos sozinho, sem servidor ligado
+// ------------------------------------------------------------
+// O Discord só empurra as mensagens digitadas para um programa conectado o tempo todo.
+// Em vez dele, o agendador do banco chama aqui a cada minuto e esta função fica quase
+// um minuto lendo as mensagens novas de cada ticket aberto, de poucos em poucos segundos.
+
+const ENTRE_VOLTAS = 3500;
+type TicketAberto = Ticket & { lido_ate: string | null; ativo_em: string | null; criado_em: string };
+type MensagemRest = {
+  id: string; type: number; content?: string; webhook_id?: string; attachments?: unknown[];
+  author?: Pessoa & { bot?: boolean };
+};
+
+/** Lê o que chegou num ticket desde a última leitura e passa para o atendimento, na ordem. */
+async function lerTicket(t: TicketAberto): Promise<number> {
+  let msgs: MensagemRest[];
+  try {
+    // os ids do Discord crescem com o tempo: "depois do tópico" pega desde a primeira mensagem
+    msgs = await botHelpy(`/channels/${t.thread_id}/messages?after=${t.lido_ate ?? t.thread_id}&limit=50`) as MensagemRest[];
+  } catch (e) {
+    // o tópico foi apagado no Discord: o ticket acabou
+    if (e instanceof ErroDoCanal && e.status === 404) {
+      await admin.from('discord_tickets').update({ fechado_em: new Date().toISOString() }).eq('thread_id', t.thread_id);
+    }
+    return 0;
+  }
+  if (!Array.isArray(msgs) || !msgs.length) return 0;
+  msgs.sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+  const deGente = msgs.filter((m) => m.author && !m.author.bot && !m.webhook_id && (m.type === 0 || m.type === 19));
+  // anota até onde leu antes de atender: outra volta não pega as mesmas mensagens
+  await admin.from('discord_tickets').update({
+    lido_ate: msgs[msgs.length - 1].id,
+    ...(deGente.length ? { ativo_em: new Date().toISOString() } : {}),
+  }).eq('thread_id', t.thread_id);
+  for (const m of deGente) {
+    await mensagemDoGateway({
+      id: m.id, channel_id: t.thread_id, content: m.content ?? '', anexos: m.attachments?.length ?? 0,
+      author: { id: m.author!.id, username: m.author!.username, global_name: m.author!.global_name ?? null },
+    }).catch((e) => console.error('sondagem:', t.thread_id, e));
+  }
+  return deGente.length;
+}
+
+/**
+ * Uma rodada de leitura dos tickets (quase um minuto). Ticket com conversa recente é lido
+ * a cada poucos segundos; parado há mais tempo, com intervalo maior.
+ * `seParado`: só começa se nenhuma rodada deu sinal nos últimos segundos (quando quem chama
+ * é um clique no Discord, e não o agendador).
+ */
+export async function sondarTickets(o: { seParado?: boolean; duracaoMs?: number } = {}): Promise<{ voltas: number; mensagens: number }> {
+  if (o.seParado) {
+    const { data } = await admin.from('helpy_servicos').select('visto_em').eq('nome', SONDAGEM).maybeSingle();
+    if (data && Date.now() - new Date(data.visto_em).getTime() < 8000) return { voltas: 0, mensagens: 0 };
+  }
+  const fim = Date.now() + (o.duracaoMs ?? 55_000);
+  let voltas = 0;
+  let mensagens = 0;
+  for (;;) {
+    const { data } = await admin.from('discord_tickets')
+      .select('thread_id, canal_id, cliente_id, cliente_nome, status_avisado, fechado_em, lido_ate, ativo_em, criado_em')
+      .is('fechado_em', null).order('criado_em', { ascending: false }).limit(200);
+    const abertos = (data ?? []) as TicketAberto[];
+    if (!abertos.length) break;
+    const agora = Date.now();
+    const daVez = abertos.filter((t) => {
+      const parado = agora - new Date(t.ativo_em ?? t.criado_em).getTime();
+      if (parado < 20 * 60e3) return true; // conversa acontecendo: toda volta
+      if (parado < 24 * 3600e3) return voltas % 4 === 0; // hoje: a cada ~15 s
+      return voltas === 0; // antigos: uma vez por rodada
+    });
+    for (let i = 0; i < daVez.length; i += 5) {
+      const lidas = await Promise.all(daVez.slice(i, i + 5).map(lerTicket));
+      mensagens += lidas.reduce((a, b) => a + b, 0);
+    }
+    voltas++;
+    await admin.from('helpy_servicos').upsert({ nome: SONDAGEM, visto_em: new Date().toISOString(), info: { tickets: abertos.length } });
+    if (Date.now() + ENTRE_VOLTAS >= fim) break;
+    await new Promise((r) => setTimeout(r, ENTRE_VOLTAS));
+  }
+  return { voltas, mensagens };
 }
 
 /** Painel → Discord: a equipe mudou o status da conversa (assumiu, devolveu, encerrou, reabriu). */

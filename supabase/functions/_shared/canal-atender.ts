@@ -13,7 +13,7 @@ import { profileOf, usoDoMes } from './db.ts';
 import { bloqueioAtivo } from './bloqueios.ts';
 import { limitePorConversa, planOf, trialExpirado } from './plans.ts';
 import { type Canal, enviarPeloCanal, noPrivadoDoDiscord, NOMES } from './canais.ts';
-import { MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from './extra.ts';
+import { MOTIVO_APRENDIZ, MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from './extra.ts';
 
 const PASSOU_PARA_EQUIPE =
   'Vou passar para alguém da equipe continuar daqui. É só aguardar: respondemos por aqui mesmo.';
@@ -54,6 +54,8 @@ export async function atenderNoCanal(
   if (!assistant) return null;
   const profile = await profileOf(canal.owner_id);
   const plan = planOf(profile);
+  // modo aprendiz: a equipe atende tudo e o assistente só aprende com os atendimentos
+  const aprendiz = (assistant as Assistant).modo === 'aprendiz';
   await db.from('canais').update({ ultimo_evento_em: new Date().toISOString() }).eq('id', canal.id);
 
   if (canal.tipo !== 'discord' && plan.canaisMeta === 0) {
@@ -85,11 +87,14 @@ export async function atenderNoCanal(
   let recado = false;
 
   if (!c || velha) {
-    const { atendimentos: mes } = await usoDoMes(db, canal.owner_id);
-    if (trialExpirado(profile)) recado = true;
-    else if (mes >= plan.atendimentos) {
-      const { data: gastou } = profile.creditos_extra > 0 ? await db.rpc('helpy_gastar_credito', { p_dono: profile.id }) : { data: false };
-      if (!gastou && !(await usarExtra(db, profile, 'atendimento'))) recado = true;
+    // com a equipe atendendo, a cota de atendimentos automáticos não entra na conta
+    if (!aprendiz) {
+      const { atendimentos: mes } = await usoDoMes(db, canal.owner_id);
+      if (trialExpirado(profile)) recado = true;
+      else if (mes >= plan.atendimentos) {
+        const { data: gastou } = profile.creditos_extra > 0 ? await db.rpc('helpy_gastar_credito', { p_dono: profile.id }) : { data: false };
+        if (!gastou && !(await usarExtra(db, profile, 'atendimento'))) recado = true;
+      }
     }
     const contatoTexto = contato.rotulo || (contato.telefone ? `+${contato.telefone}` : `${NOMES[canal.tipo]} ${contato.id}`);
     const { data: nova, error } = await db.from('conversations').insert({
@@ -100,7 +105,9 @@ export async function atenderNoCanal(
       contato_externo: contato.id,
       lead_nome: contato.nome?.slice(0, 120) || null,
       lead_contato: contatoTexto.slice(0, 120),
-      ...(recado
+      ...(aprendiz
+        ? { status: 'waiting', titulo: 'Atendimento', motivo: MOTIVO_APRENDIZ, escalado_em: new Date().toISOString(), aprendiz: true }
+        : recado
         ? { status: 'waiting', titulo: 'Recado', motivo: MOTIVO_RECADO, escalado_em: new Date().toISOString() }
         : {}),
     }).select('id, status, escalado_em, last_message_at').single();
@@ -118,6 +125,13 @@ export async function atenderNoCanal(
   if (recado) {
     await db.from('conversation_messages').insert({ conversation_id: c.id, role: 'system', content: RECADO });
     return RECADO;
+  }
+  // conversa que estava com o assistente quando o modo aprendiz foi ligado: passa para a equipe
+  if (aprendiz && c.status === 'bot') {
+    await db.from('conversations').update({
+      status: 'waiting', titulo: 'Atendimento', motivo: MOTIVO_APRENDIZ, escalado_em: new Date().toISOString(),
+    }).eq('id', c.id);
+    c.status = 'waiting';
   }
   // a equipe está no atendimento: a IA não fala por cima
   if (c.status === 'waiting' || c.status === 'human') return null;
