@@ -122,6 +122,8 @@ Deno.serve(async (req) => {
         throw new UserError('Só a empresa pode mexer na agenda.', 403);
       }
       const { data: cfg } = await admin.from('agenda_config').select('*').eq('owner_id', conta).maybeSingle();
+      // sem agenda ligada, o chamado só não mostra o bloco de horários (não é erro)
+      if (!cfg?.ativa && action === 'agenda_ver') return json({ desligada: true });
       if (!cfg?.ativa) throw new UserError('A agenda está desligada. Ligue em Agenda → Horários.');
       const agenda = cfg as AgendaConfig;
 

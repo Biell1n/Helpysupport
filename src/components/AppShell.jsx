@@ -185,7 +185,7 @@ export default function AppShell() {
   const { user, profile, nome, signOut, tipo } = useAuth();
   const [uso, recarregarUso] = useUso();
   const usa = useMenu(user?.id, tipo);
-  usePrecos(); // com os preços de teste, ajusta a cota do Essencial antes das telas lerem
+  usePrecos(!!profile && tipo !== 'cliente'); // com os preços de teste, ajusta a cota do Essencial antes das telas lerem
   const { pathname, search } = useLocation();
   const [mais, setMais] = useState(false);
   useEffect(() => setMais(false), [pathname, search]);

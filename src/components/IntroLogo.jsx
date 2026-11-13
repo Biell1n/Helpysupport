@@ -100,15 +100,17 @@ function arco(el, cx, yOlho, p) {
 function desenhar(t, el) {
   // 1) o balãozinho de "digitando…" cai de cima esticado, amassa ao pousar e assenta como gelatina
   const e = mola(t - T.entra, 2.7, 9.5);
-  const queda = -34 * (1 - expo(jan(t, T.entra, T.entra + 0.3)));
-  const nasceEstica = -0.16 * (1 - expo(jan(t, T.entra, T.entra + 0.2))) + 0.11 * sino(t, T.entra + 0.12, T.entra + 0.44);
+  const queda = -18 * (1 - expo(jan(t, T.entra, T.entra + 0.3)));
+  const nasceEstica = -0.1 * (1 - expo(jan(t, T.entra, T.entra + 0.2))) + 0.08 * sino(t, T.entra + 0.12, T.entra + 0.44);
 
   // 2) cresce como líquido: antes encolhe um pouco (pega impulso), depois a altura dispara na
   //    frente e a largura vem atrás, cada uma com a sua mola. Nada de "uma reta que estica".
   const impulso = sino(t, T.cresce - 0.16, T.cresce + 0.06);
   const ch = mola(t - T.cresce, 2.9, 8.5);
   const cw = mola(t - T.cresce - 0.05, 2.4, 8);
-  const w = lerp(96, 160, cw) + 12 * impulso;
+  // nasce de um pingo: começa quase redondo e escorre para os lados até virar a pílula
+  const escorre = lerp(34, 96, mola(t - T.entra - 0.1, 2.4, 8));
+  const w = lerp(escorre, 160, cw) + 12 * impulso;
   const h = lerp(40, 136, ch) - 8 * impulso;
   const tp = Math.max(0, mola(t - T.pontinha, 3.3, 10));
   const f = Math.max(0, 14 * mola(t - T.picote, 4.2, 12));
@@ -122,8 +124,21 @@ function desenhar(t, el) {
     g.setAttribute('cy', 92 + Math.sin(ang) * d - 14 * Math.sin(Math.PI * u));
     g.setAttribute('r', u <= 0 || u >= 1 ? 0 : raio * (1 - u * u));
   });
-  // o "líquido": borra e recorta o corpo enquanto ele se transforma; depois fica nítido
-  const gosma = 7 * jan(t, T.cresce - 0.2, T.cresce - 0.05) * (1 - inOut(jan(t, T.cresce + 0.55, T.cresce + 0.9)));
+  // três pingos caem em sequência, fundem-se no corpo e deixam uma ondinha correndo pela pílula
+  el.pingos.forEach((g, i) => {
+    const t0 = T.entra + 0.03 + i * 0.075;
+    const cai = expo(jan(t, t0, t0 + 0.26));
+    const dt = t - (t0 + 0.18);
+    const ondinha = dt > 0 ? 12 * Math.exp(-5 * dt) * Math.sin(2 * Math.PI * 2.5 * dt) : 0;
+    g.setAttribute('cx', 72 + i * 28);
+    g.setAttribute('cy', lerp(-78, 92, cai) - ondinha);
+    g.setAttribute('r', t < t0 || t > T.entra + 1.2 ? 0 : 20 * (0.5 + 0.5 * cai));
+  });
+  // o "líquido": borra e recorta o corpo enquanto ele nasce e enquanto se transforma; depois fica nítido
+  const gosma = Math.max(
+    t < T.entra ? 0 : 6.5 * (1 - inOut(jan(t, T.entra + 0.7, T.entra + 1.1))),
+    7 * jan(t, T.cresce - 0.2, T.cresce - 0.05) * (1 - inOut(jan(t, T.cresce + 0.55, T.cresce + 0.9))),
+  );
   gooDe(el.liquido, el.borraCorpo, gosma);
   // o picote dá um "clique": o corpo achata de leve e volta
   const clique = 0.035 * sino(t, T.picote, T.picote + 0.26);
@@ -358,6 +373,7 @@ export default function IntroLogo({ onSaindo, onFim }) {
       conjunto: r.querySelector('.ab-conjunto'),
       pontos: [...r.querySelectorAll('.ab-ponto')],
       gotas: [...r.querySelectorAll('.ab-gota')],
+      pingos: [...r.querySelectorAll('.ab-pingo')],
       liquido: r.querySelector('.ab-liquido'),
       brancos: r.querySelector('.ab-brancos'),
       borraCorpo: r.querySelector('#ab-goo-corpo feGaussianBlur'),
@@ -434,6 +450,7 @@ export default function IntroLogo({ onSaindo, onFim }) {
                   <path className="ab-forma" fill={CORES.azul} />
                 </g>
                 {GOTAS.map((_, i) => <circle key={i} className="ab-gota" r="0" fill={CORES.azul} />)}
+                {[0, 1, 2].map((i) => <circle key={i} className="ab-pingo" r="0" fill={CORES.azul} />)}
               </g>
               <g className="ab-brancos">
                 {[0, 1, 2].map((i) => <rect key={i} className="ab-ponto" fill={CORES.branco} />)}
