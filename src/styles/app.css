@@ -5067,3 +5067,19 @@ a.badge { text-decoration: none; }
 @media (max-width: 760px) {
   .kpi-faixa[data-colunas='4'] { grid-template-columns: 1fr; }
 }
+
+.onde-ensinar { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.onde-ensinar > * {
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  padding: 12px 14px;
+  border: 1px solid var(--linha);
+  border-radius: var(--r);
+  color: var(--tinta);
+  text-decoration: none;
+  transition: border-color 0.2s ease, transform 0.35s var(--vel);
+}
+.onde-ensinar > a:hover { border-color: var(--azul-forte); transform: translateY(-2px); }
+.onde-ensinar > div { background: var(--papel); border-style: dashed; }
+.onde-ensinar span { font-size: 13px; color: var(--tinta-2); line-height: 1.4; }

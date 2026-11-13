@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Copy, ExternalLink, GraduationCap, ImageOff, MessageCircle, Pencil, Plus, Power, QrCode, RefreshCw, Trash2 } from 'lucide-react';
+import { Code2, Copy, ExternalLink, GraduationCap, ImageOff, MessageCircle, Pencil, Plus, Power, QrCode, RefreshCw, Trash2 } from 'lucide-react';
 import MenuMais from '@/components/MenuMais';
 import { apagarFoto } from '@/lib/fotos';
 import { supabase, chamar } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toasts';
-import { Confirmar } from '@/components/Modal';
+import { Confirmar, Modal } from '@/components/Modal';
 import { Marca } from '@/components/Logo';
 import { planOf } from '@/lib/plans';
 import { MODELOS } from '@/lib/documento';
@@ -24,6 +24,7 @@ export default function Assistentes() {
   const [excluir, setExcluir] = useState(null);
   const [trocando, setTrocando] = useState(null);
   const [qr, setQr] = useState(null);
+  const [noSite, setNoSite] = useState(null);
 
   const carregar = useCallback(async () => {
     const { data } = await supabase
@@ -143,6 +144,7 @@ export default function Assistentes() {
                   itens={[
                     { rotulo: 'Abrir o chat', Icone: ExternalLink, href: linkPublico(a.public_token) },
                     { rotulo: 'QR code', Icone: QrCode, onClick: () => setQr(a) },
+                    { rotulo: 'Colocar no meu site', Icone: Code2, onClick: () => setNoSite(a) },
                     { rotulo: a.is_public ? 'Desligar o link' : 'Ligar o link', Icone: Power, onClick: () => alternar(a) },
                     { rotulo: 'Trocar link', Icone: RefreshCw, onClick: () => setTrocando(a) },
                     { rotulo: 'Remover foto', Icone: ImageOff, oculto: !a.foto_url, onClick: () => tirarFoto(a) },
@@ -163,6 +165,43 @@ export default function Assistentes() {
       </div>
 
       <QrAssistente assistente={qr} link={qr ? linkPublico(qr.public_token) : ''} onFechar={() => setQr(null)} />
+
+      <Modal aberto={!!noSite} onFechar={() => setNoSite(null)} largura={560}>
+        {noSite && (() => {
+          const codigo = `<script src="${window.location.origin}/widget.js" data-helpy="${noSite.public_token}" async></script>`;
+          return (
+            <div className="stack" style={{ padding: 24 }}>
+              <div>
+                <h2 style={{ margin: 0 }}>Colocar {noSite.name} no seu site</h2>
+                <p className="muted" style={{ margin: '6px 0 0', fontSize: 14 }}>
+                  Um botão de chat aparece no canto do seu site. O cliente clica e conversa com o assistente sem sair da página.
+                </p>
+              </div>
+              <label className="field">
+                <span className="label">Cole este código no seu site, antes de <code>&lt;/body&gt;</code></span>
+                <textarea className="textarea mono" readOnly rows={3} value={codigo} onFocus={(e) => e.target.select()} style={{ fontSize: 13 }} />
+              </label>
+              <div className="row row-wrap" style={{ gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(codigo);
+                    avisar('Código copiado', { texto: 'Cole no seu site ou mande para quem cuida dele.' });
+                  }}
+                >
+                  <Copy /> Copiar código
+                </button>
+                <a className="btn btn-ghost" href={`/widget-exemplo.html?a=${noSite.public_token}`} target="_blank" rel="noreferrer"><ExternalLink /> Ver como fica</a>
+              </div>
+              <p className="faint" style={{ margin: 0, fontSize: 13 }}>
+                Funciona em WordPress, Wix, Shopify, Nuvemshop e sites próprios (onde der para colar um código). Quer outra cor ou o botão do outro lado?
+                Acrescente <code>data-cor="#0a7d4f"</code> ou <code>data-lado="esquerda"</code> no código.
+              </p>
+            </div>
+          );
+        })()}
+      </Modal>
 
       <Confirmar
         aberto={!!excluir}

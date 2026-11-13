@@ -25,7 +25,7 @@ const SERVICOS = [
   {
     tipo: 'whatsapp',
     nome: 'WhatsApp',
-    frase: 'Responde no número da empresa, pela API oficial da Meta. Sem chip no celular, sem risco de bloqueio.',
+    frase: 'Responde no número da empresa, pelo caminho oficial da Meta. Sem chip no celular, sem risco de bloqueio.',
     meta: true,
   },
   {

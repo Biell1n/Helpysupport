@@ -164,6 +164,16 @@ export default function Aprendizado() {
         </section>
       )}
 
+      <section className="card" style={{ marginBottom: 16 }}>
+        <h2 className="card-title" style={{ margin: '0 0 10px' }}>Onde ensinar cada coisa</h2>
+        <div className="onde-ensinar">
+          <Link to={`/painel/assistentes/${id}/editar`}><b>Como o negócio funciona</b><span>Horário, endereço, regras e jeito de falar. Em Editar.</span></Link>
+          <Link to="/painel/dados"><b>Preços, estoque e listas</b><span>O que muda sempre. Em Dados.</span></Link>
+          <Link to="/painel/avisos"><b>O que ele não soube responder</b><span>Você responde uma vez e ele não pergunta de novo. Em Avisos.</span></Link>
+          <div><b>O resto ele aprende sozinho</b><span>Com o que a equipe responde nos atendimentos. É a lista aqui embaixo.</span></div>
+        </div>
+      </section>
+
       <h2 className="canais-ligados-titulo">O que ele aprendeu{lista?.length ? ` (${lista.length})` : ''}</h2>
       {lista === null && <div className="skeleton" style={{ height: 160 }} />}
       {lista?.length === 0 && (
