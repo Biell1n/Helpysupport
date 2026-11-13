@@ -221,7 +221,8 @@ export async function montarItens(
     itens.push({
       produto: nomeNoPedido(achado.nome, opcao, obs), quantidade: qtd, preco, subtotal: Math.round(preco * qtd * 100) / 100,
       ...(opcao || obs ? { base: achado.nome, ...(opcao ? { opcao } : {}), ...(obs ? { obs } : {}) } : {}),
-      ...(achado.tabela_id ? { tabela_id: achado.tabela_id, linha_id: achado.linha_id, estoque_chave: achado.estoqueChave } : {}),
+      // só leva a coluna de estoque o item que controla estoque: célula vazia não é zero, e finalizar o pedido não pode escrever "0" nela
+      ...(achado.tabela_id ? { tabela_id: achado.tabela_id, linha_id: achado.linha_id, ...(achado.estoque != null && Number.isFinite(achado.estoque) ? { estoque_chave: achado.estoqueChave } : {}) } : {}),
     });
   }
   return { itens, problemas };
@@ -354,29 +355,10 @@ export async function anotarPedido(
   if (!pedidos.length) return { erro: 'Diga quais produtos e quantas unidades.' };
   const { itens: achados, problemas } = await montarItens(db, pedidos, tabelas, catalogo, { ownerId: ctx.ownerId, conversationId: ctx.conversationId });
   if (problemas.length) return { erro: 'O pedido NÃO foi anotado.', problemas };
-  // a chave do estoque fica no item: quando a equipe finaliza, a peça sai da tabela
+  // a chave do estoque fica no item: quando a equipe finaliza, a quantidade sai da tabela
   const itens = achados;
-  // peça já separada em outro pedido aberto (anotado ou esperando pagamento) não pode ser vendida de novo
-  const comEstoque = itens.filter((i) => i.linha_id && i.estoque_chave);
-  if (comEstoque.length) {
-    const { data: abertos } = await db.from('pedidos').select('itens, conversation_id').eq('owner_id', ctx.ownerId).in('status', ['anotado', 'aguardando']).limit(300);
-    const reservado = new Map<string, number>();
-    for (const p of abertos ?? []) {
-      if (ctx.conversationId && p.conversation_id === ctx.conversationId) continue; // o pedido desta conversa é o mesmo cliente
-      for (const it of (p.itens ?? []) as Item[]) if (it.linha_id) reservado.set(it.linha_id, (reservado.get(it.linha_id) ?? 0) + Number(it.quantidade || 0));
-    }
-    const { data: linhas } = await db.from('tabela_linhas').select('id, dados').in('id', comEstoque.map((i) => i.linha_id!));
-    const presos: string[] = [];
-    for (const it of comEstoque) {
-      const dados = (linhas ?? []).find((l) => l.id === it.linha_id)?.dados as Record<string, unknown> | undefined;
-      const estoque = Number(String(dados?.[it.estoque_chave!] ?? '').replace(',', '.'));
-      const livre = Number.isFinite(estoque) ? estoque - (reservado.get(it.linha_id!) ?? 0) : Infinity;
-      if (livre < it.quantidade) presos.push(livre <= 0 ? `${it.produto}: já está separado no pedido de outra pessoa` : `${it.produto}: só ${livre} livre`);
-    }
-    if (presos.length) {
-      return { erro: 'O pedido NÃO foi anotado: item já reservado em outro pedido.', problemas: presos, mensagem: 'Explique que essa peça já foi separada para outra pessoa e ofereça outras parecidas do catálogo. Não diga que tem.' };
-    }
-  }
+  // estoque e o que já está separado em pedidos abertos de outras pessoas: montarItens já conferiu
+  // (célula de estoque vazia quer dizer que o item não controla estoque, não que acabou)
   const subtotal = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
   if (!(subtotal > 0)) return { erro: 'O pedido NÃO foi anotado: os itens estão sem preço na tabela. Ofereça a equipe para fechar.' };
   const entrega = args.entrega === 'retirada' ? 'retirada' : args.entrega === 'entrega' ? 'entrega' : null;
