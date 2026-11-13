@@ -21,7 +21,7 @@ export default function AgendaDoChamado({ conversa, onMudou }) {
   const [ocupado, setOcupado] = useState(false);
 
   const carregar = useCallback(
-    () => chamar('conta', { action: 'agenda_ver', conversation_id: conversa.id }).then(setInfo).catch(() => setInfo(false)),
+    () => chamar('conta', { action: 'agenda_ver', conversation_id: conversa.id }).then((r) => setInfo(r?.desligada ? false : r)).catch(() => setInfo(false)),
     [conversa.id],
   );
   useEffect(() => {

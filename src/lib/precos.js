@@ -26,15 +26,16 @@ function buscar() {
 }
 
 /** Preços em vigor. Começa com os padrão e troca quando o servidor responde. */
-export function usePrecos() {
+export function usePrecos(buscarAgora = true) {
   const [precos, setPrecos] = useState(guardados ?? PRECOS_PADRAO);
   useEffect(() => {
-    if (guardados) return undefined;
+    // conta de cliente não tem plano: não pergunta (o servidor recusaria)
+    if (guardados || !buscarAgora) return undefined;
     let vivo = true;
     buscar().then((p) => vivo && setPrecos(p));
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [buscarAgora]);
   return precos;
 }
