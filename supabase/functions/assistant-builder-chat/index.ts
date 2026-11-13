@@ -887,6 +887,13 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
         if (!cur.includes(String(input.atributo))) cur.push(String(input.atributo));
         cfg.declined.item_fields[k] = cur;
       } else if (fields.has(k)) {
+        // a pessoa já contou como entrega (em outro campo): isso não se dispensa, se grava no lugar certo
+        if (['entrega', 'frete_chat'].includes(k)) {
+          const onde = Object.entries(cfg.fields).find(([kk, f]) => !['entrega', 'frete_chat'].includes(kk) && f?.status === 'confirmado' && /\b(entreg\w+|frete|taxa de|delivery|retirad\w+)\b/i.test(String(f.value ?? '')));
+          if (onde) {
+            return { erro: `Não dispense ${k}: a pessoa já contou como entrega (está em ${onde[0]}: "${String(onde[1].value).slice(0, 160)}"). Grave agora em entrega o que ela disse sobre entrega e retirada e, em frete_chat, só a regra do valor que o pedido aplica (ex.: "R$ 5", "grátis acima de R$ 80, senão R$ 6", "só retirada").` };
+          }
+        }
         cfg.fields[k] = { value: '', status: 'ignorado' };
       } else if (cols.has(k)) {
         if (!cfg.declined.collections.includes(k)) cfg.declined.collections.push(k);
@@ -1189,6 +1196,7 @@ Tabelas em Dados servem só para o que o assistente CONSULTA ao responder: produ
 
 CAMPOS QUE SE CONFUNDEM
 - Campo que não está no documento não existe para este negócio: não pergunte sobre ele.
+- entrega e frete_chat: tudo o que a pessoa disser sobre entrega (para onde, prazo, taxa, retirada) vai em entrega, mesmo quando ela contou logo na primeira mensagem, antes de o campo existir. A taxa vira também a regra de frete_chat, que é o valor que o pedido pelo chat aplica sozinho (ex.: "R$ 5", "grátis acima de R$ 80, senão R$ 6", "só retirada"). onde_encontrar é só endereço, site e redes.
 - tom_de_voz = o jeito de falar, inclusive listas de comportamento ("simpático, nunca pressionar").
 - regras = proibições. Sempre acrescentar, nunca substituir.
 - assuntos_cobertos = lista de temas. Não é FAQ.
