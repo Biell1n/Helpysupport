@@ -5068,7 +5068,8 @@ a.badge { text-decoration: none; }
   .kpi-faixa[data-colunas='4'] { grid-template-columns: 1fr; }
 }
 
-.onde-ensinar { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.onde-ensinar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .onde-ensinar { grid-template-columns: 1fr; } }
 .onde-ensinar > * {
   display: grid;
   gap: 3px;
