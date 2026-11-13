@@ -160,6 +160,9 @@ async function carrinhoDaConversa(db: SupabaseClient, conversationId: string): P
 const itensDoCarrinho = (c: NoCarrinho[]): ItemPedido[] =>
   c.map((i) => ({ produto: i.base ?? i.produto, quantidade: i.quantidade, ...(i.opcao ? { opcao: i.opcao } : {}), ...(i.obs ? { obs: i.obs } : {}) }));
 
+/** Ferramentas que só avisam a equipe: não mudam o que está sendo dito ao cliente. */
+const SO_AVISAM = new Set(['registrar_lacuna', 'avisar_equipe', 'registrar_contato']);
+
 const toolName = (nome: string) => `consultar_${slug(nome) || 'tabela'}`.slice(0, 60);
 
 function contatosDiretos(cfg: Config) {
@@ -314,7 +317,7 @@ ${blocoMateriais}
 REGRAS
 Tom de voz: ${tom || 'cordial, direto e prestativo'}
 ${regras ? `Limites definidos pelo dono — cumpra à risca:\n${regras}\n` : ''}
-Ferramentas: use, não improvise.
+Ferramentas: use, não improvise. Escreva a resposta depois do resultado delas: não anuncie antes o que vai consultar nem diga que fez algo antes de a ferramenta confirmar.
 - Antes de afirmar um detalhe de um item (ou o preço, quando houver), consulte (buscar_catalogo ou a tabela).
 ${model === 'educacional' ? '' : '- Interesse real: peça nome e um contato e chame registrar_contato. Nunca invente o dado.'}
 - Antes de dizer que não sabe, confira as PERGUNTAS FREQUENTES da ficha: são respostas da equipe e valem mais que anotações da tabela ("a confirmar").
@@ -1234,6 +1237,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
 
   const usage: UsageTotals = emptyUsage();
   let texto = '';
+  const ditoAntes: string[] = [];
   let modelo = MODELS.atendimento;
   const usadas = new Set<string>();
   for (let i = 0; i < 6; i++) {
@@ -1284,6 +1288,11 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     }
     if (res.stop_reason !== 'tool_use') break;
 
+    // O que ele escreveu junto de uma ferramenta que só avisa a equipe ("vou confirmar com a equipe")
+    // faz parte da resposta. Antes, só o trecho escrito depois chegava ao cliente, e a mensagem saía pela metade.
+    const chamadas = res.content.filter((b) => b.type === 'tool_use').map((b) => (b as { name: string }).name);
+    if (t && chamadas.length && chamadas.every((n) => SO_AVISAM.has(n))) ditoAntes.push(t);
+
     msgs.push({ role: 'assistant', content: res.content });
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const b of res.content) {
@@ -1300,6 +1309,9 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     }
     msgs.push({ role: 'user', content: results });
   }
+
+  const inicio = ditoAntes.filter((p) => p !== texto && !texto.includes(p));
+  if (inicio.length) texto = [...inicio, texto].join(' ');
 
   // disse que passou para a equipe sem chamar a ferramenta: registra a dúvida mesmo assim,
   // senão a promessa fica falsa e ninguém responde
