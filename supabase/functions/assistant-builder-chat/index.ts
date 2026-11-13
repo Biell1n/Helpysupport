@@ -26,7 +26,7 @@
 import type Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, configLigada, profileOf, requireUser } from '../_shared/db.ts';
-import { vendeOnline } from '../_shared/pedidos.ts';
+import { precosPorOpcao, vendeOnline } from '../_shared/pedidos.ts';
 import { addUsage, anthropic, emptyUsage, logUsage, MODELS, textOf } from '../_shared/ai.ts';
 import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { colunasDe, lerAbas, registrosDe } from '../_shared/planilha.ts';
@@ -826,9 +826,17 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
       cfg.collections[c.key] = list;
       cfg.declined.collections = cfg.declined.collections.filter((k) => k !== c.key);
       touched.add(c.key);
+      // preço que muda com a opção escrito em palavras ("broto R$ 30 a menos") o pedido não consegue cobrar
+      const precoK = c.item_fields.find((f) => PRICE_RE.test(f.key))?.key;
+      const soltos = precoK
+        ? list.filter((it) => Object.entries(it).some(([k, v]) => k !== precoK && !k.startsWith('_') && /r\$\s*\d|\d\s*(reais\s*)?a\s+(menos|mais)\b/i.test(String(v)))).map((it) => String(it[idKey(c)] ?? ''))
+        : [];
       return {
         novos, atualizados, total: list.length,
         ...(rejeitados ? { rejeitados, motivo: `item sem ${c.item_fields[0].label}` } : {}),
+        ...(soltos.length
+          ? { corrigir: `Em ${soltos.slice(0, 8).join(', ')} há valor escrito fora do atributo "${precoK}". Se o preço muda com a opção (tamanho, versão), regrave esses itens agora com TODAS as opções e o valor final de cada uma no atributo "${precoK}", separadas por ponto e vírgula (ex.: "Grande 48; Broto 18"), fazendo a conta você mesmo, e tire o valor do outro atributo.` }
+          : {}),
       };
     }
 
@@ -956,7 +964,9 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
 
       const colunas = c.item_fields.map((f, i) => ({
         tabela_id: tab.id, chave: f.key, rotulo: f.label, ordem: i,
-        tipo: PRICE_RE.test(f.key) ? 'moeda' : f.type === 'textarea' ? 'texto_longo' : 'texto',
+        tipo: PRICE_RE.test(f.key)
+          ? ((cfg.collections[c.key] ?? []).some((it) => precosPorOpcao(it?.[f.key]).length) ? 'texto' : 'moeda')
+          : f.type === 'textarea' ? 'texto_longo' : 'texto',
         obrigatoria: !!f.required, identifica: i === 0, chave_primaria: i === 0, unica: i === 0,
       }));
       // estoque: a quantidade que a pessoa contou ("12 em estoque", "esgotado") vai para uma coluna de número,
@@ -1188,6 +1198,9 @@ CAMPOS QUE SE CONFUNDEM
   Com chamados ligados, o cliente JÁ fala com a equipe na própria conversa (a equipe assume o chamado e responde ali). Então o contato é só um extra opcional: pergunte uma vez só, no fim, deixando claro que pode pular. Ex.: "Quando alguém precisa de vocês, o chamado já cai no painel e vocês respondem por aqui mesmo. Quer deixar também um WhatsApp ou telefone para casos fora disso? Se preferir tudo pelo Helpy, é só pular." Nunca diga que esse contato é necessário para o cliente falar com vocês.
   Com chamados desligados, o contato é o único jeito de o cliente falar com alguém: aí vale perguntar normalmente.
 - Pagamento, entrega, garantia, endereço ficam em "Como funciona". Se não houver campo, crie.
+
+PREÇO QUE MUDA COM A OPÇÃO
+Quando o tamanho ou a versão muda o preço (grande e pequeno, 300 ml e 500 ml, plano mensal e anual), o atributo de preço do item leva todas as opções com o valor final de cada uma, separadas por ponto e vírgula: "Grande 48; Broto 18". Faça a conta você ("o broto custa 30 a menos" vira o valor de cada item). Nunca deixe a diferença escrita em palavras em outro atributo nem só nas regras: o pedido pelo chat cobra o que está no atributo de preço. Opção que não muda o preço (cor, sabor) fica no atributo de opções. Adicional cobrado à parte (borda, embalagem para presente) é um item próprio da lista, com o preço dele.
 
 NUNCA PREENCHA COM ENFEITE
 Nunca grave "Consultar", "Sob consulta", "A definir", "Varia", "N/A" ou parecido. Se ela não disse o preço, deixe o preço de fora do item. Campo vazio é uma pergunta que ainda será feita; "Consultar" é uma resposta errada para sempre.

@@ -13,7 +13,7 @@ import { bloquearConversa, TIMEOUT_MAX, TIMEOUT_MIN, textoDoBloqueio } from './b
 import Anthropic from 'npm:@anthropic-ai/sdk@^0.131.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { buscar, categorias } from './busca.ts';
-import { anotarPedido, cancelarPedido, cobrarHorario, fecharPedido, MINIMO_COBRANCA, montarItens, valorDaReserva, vendeOnline } from './pedidos.ts';
+import { anotarPedido, cancelarPedido, cobrarHorario, fecharPedido, type ItemPedido, MINIMO_COBRANCA, montarItens, valorDaReserva, vendeOnline } from './pedidos.ts';
 import { addUsage, anthropic, emptyUsage, MODELS, textOf, type UsageTotals } from './ai.ts';
 import {
   type AgendaConfig, agendamentosDaConversa, alterarAgendamento, carregarAgenda, descreverAgendamento, hojeNoFuso, horariosLivres, marcar,
@@ -148,6 +148,18 @@ const reaisBR = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', cu
 const catalogos = (schema: Schema, cfg: Config): CollectionDef[] =>
   allCollections(schema).filter((c) => !['contatos', 'faq'].includes(c.key) && (cfg.collections[c.key]?.length ?? 0) > 0);
 
+type NoCarrinho = { produto: string; quantidade: number; base?: string; opcao?: string; obs?: string };
+
+/** O carrinho guardado na conversa. */
+async function carrinhoDaConversa(db: SupabaseClient, conversationId: string): Promise<NoCarrinho[]> {
+  const { data } = await db.from('conversations').select('carrinho').eq('id', conversationId).maybeSingle();
+  return (Array.isArray(data?.carrinho) ? data.carrinho : []) as NoCarrinho[];
+}
+
+/** Os itens do carrinho do jeito que o pedido entende: nome do catálogo, opção e observação. */
+const itensDoCarrinho = (c: NoCarrinho[]): ItemPedido[] =>
+  c.map((i) => ({ produto: i.base ?? i.produto, quantidade: i.quantidade, ...(i.opcao ? { opcao: i.opcao } : {}), ...(i.obs ? { obs: i.obs } : {}) }));
+
 const toolName = (nome: string) => `consultar_${slug(nome) || 'tabela'}`.slice(0, 60);
 
 function contatosDiretos(cfg: Config) {
@@ -279,10 +291,10 @@ ${blocoTabelas}
 ${blocoAgenda}
 ${loja && anota ? `
 VENDA PELO CHAT (SEM PAGAMENTO POR AQUI)
-Você monta o pedido aqui e a equipe finaliza. Quando a pessoa disser claramente o que quer (produto e quantidade), ponha no carrinho NA MESMA resposta. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Quando a pessoa decidir comprar: confirme produtos, quantidades e o total; pergunte se é entrega ou retirada (conforme a ficha; se for entrega, peça o endereço completo); peça o nome e um telefone ou e-mail (no WhatsApp e no Instagram o contato já vem do app, só peça o nome). Com o "pode fechar", chame fechar_pedido e siga a "mensagem" que ela devolve. Ela ANOTA o pedido para a equipe: não existe link de pagamento por aqui, a equipe combina o pagamento${valueOf(cfg, 'entrega') ? '' : ' e a entrega'}. Nunca invente link, frete, prazo nem forma de pagamento além do que está na ficha. Não diga que está pago nem confirmado: diga que está anotado e a equipe vai falar com a pessoa. Depois de anotado, se a pessoa quiser mais algo, é um pedido novo.` : ''}
+Você monta o pedido aqui e a equipe finaliza. Quando a pessoa disser claramente o que quer (produto e quantidade), ponha no carrinho NA MESMA resposta. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Em cada item: se o catálogo traz mais de um preço para ele (por tamanho ou versão, como "Grande 48; Broto 18"), mande em opcao a que a pessoa escolheu (se ela não disse, pergunte antes); o que ela pedir e não muda o preço (cor, sabor, como quer, um recado) vai em obs. O valor de cada item é o que o carrinho devolve: nunca faça a conta de cabeça nem diga um total diferente dele. Quando a pessoa decidir comprar: confirme produtos, quantidades e o total; pergunte se é entrega ou retirada (conforme a ficha; se for entrega, peça o endereço completo); peça o nome e um telefone ou e-mail (no WhatsApp e no Instagram o contato já vem do app, só peça o nome). Com o "pode fechar", chame fechar_pedido e siga a "mensagem" que ela devolve. Ela ANOTA o pedido para a equipe: não existe link de pagamento por aqui, a equipe combina o pagamento${valueOf(cfg, 'entrega') ? '' : ' e a entrega'}. Nunca invente link, frete, prazo nem forma de pagamento além do que está na ficha. Não diga que está pago nem confirmado: diga que está anotado e a equipe vai falar com a pessoa. Depois de anotado, se a pessoa quiser mais algo, é um pedido novo.` : ''}
 ${loja && !anota ? `
 VENDA PELO CHAT
-Você fecha a compra aqui mesmo. Quando a pessoa disser claramente o que quer (produto e quantidade), ponha no carrinho NA MESMA resposta, sem condicionar a outra pergunta. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL: foi ela que mudou, então siga com o que está lá, sem perguntar de novo a quantidade. Quando a pessoa decidir comprar: confirme os produtos e as quantidades e resolva a entrega conforme ENTREGA NA VENDA PELO CHAT (abaixo); se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e siga a "mensagem" que ela devolve (no chat do site o pedido aparece sozinho na tela como recibo, com o botão de pagar; nos outros canais mande o resumo e o link exatamente como vieram). Depois que o pedido foi fechado, o link tem valor fixo: não ofereça incluir itens "nesse pedido"; se a pessoa quiser mais algo, é um pedido novo. Não fique oferecendo o mesmo produto de novo. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.
+Você fecha a compra aqui mesmo. Quando a pessoa disser claramente o que quer (produto e quantidade), ponha no carrinho NA MESMA resposta, sem condicionar a outra pergunta. A conversa tem um carrinho (veja CARRINHO ATUAL): quando a pessoa escolher, trocar ou tirar um produto (ou mudar a quantidade), chame atualizar_carrinho com o carrinho inteiro. Em cada item: se o catálogo traz mais de um preço para ele (por tamanho ou versão, como "Grande 48; Broto 18"), mande em opcao a que a pessoa escolheu (se ela não disse, pergunte antes); o que ela pedir e não muda o preço (cor, sabor, como quer, um recado) vai em obs. O valor de cada item é o que o carrinho devolve: nunca faça a conta de cabeça nem diga um total diferente dele. Se ela mudar a quantidade pelo carrinho, a mudança aparece em CARRINHO ATUAL: foi ela que mudou, então siga com o que está lá, sem perguntar de novo a quantidade. Quando a pessoa decidir comprar: confirme os produtos e as quantidades e resolva a entrega conforme ENTREGA NA VENDA PELO CHAT (abaixo); se for entrega, peça o endereço completo. O frete NÃO é você que calcula: fechar_pedido aplica a regra da empresa e devolve o valor. Nunca prometa calcular frete nem "confirmar a entrega com a equipe" antes de fechar. Com o "pode fechar", chame fechar_pedido e siga a "mensagem" que ela devolve (no chat do site o pedido aparece sozinho na tela como recibo, com o botão de pagar; nos outros canais mande o resumo e o link exatamente como vieram). Depois que o pedido foi fechado, o link tem valor fixo: não ofereça incluir itens "nesse pedido"; se a pessoa quiser mais algo, é um pedido novo. Não fique oferecendo o mesmo produto de novo. Não pergunte a forma de pagamento: no link a pessoa escolhe Pix (com QR code), cartão ou boleto. Nunca invente link nem preço. Quando o pagamento cair, aparece um aviso nesta conversa.
 
 ENTREGA NA VENDA PELO CHAT (vale mais que as observações da ficha sobre entrega e retirada)
 ${(() => {
@@ -435,7 +447,12 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
             type: 'array',
             items: {
               type: 'object',
-              properties: { produto: { type: 'string', description: 'Nome exato do produto no catálogo' }, quantidade: { type: 'integer', minimum: 1 } },
+              properties: {
+                produto: { type: 'string', description: 'Nome exato do item no catálogo' },
+                quantidade: { type: 'integer', minimum: 1 },
+                opcao: { type: 'string', description: 'Só quando o item tem preço por opção (tamanho, versão): a opção que a pessoa escolheu, como está no catálogo' },
+                obs: { type: 'string', description: 'O que a pessoa pediu neste item e não muda o preço: cor, sabor, como quer, recado. Curto.' },
+              },
               required: ['produto', 'quantidade'],
             },
           },
@@ -455,7 +472,12 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
             type: 'array',
             items: {
               type: 'object',
-              properties: { produto: { type: 'string', description: 'Nome exato do produto no catálogo' }, quantidade: { type: 'integer', minimum: 1 } },
+              properties: {
+                produto: { type: 'string', description: 'Nome exato do item no catálogo' },
+                quantidade: { type: 'integer', minimum: 1 },
+                opcao: { type: 'string', description: 'Só quando o item tem preço por opção (tamanho, versão): a opção que a pessoa escolheu, como está no catálogo' },
+                obs: { type: 'string', description: 'O que a pessoa pediu neste item e não muda o preço: cor, sabor, como quer, recado. Curto.' },
+              },
               required: ['produto', 'quantidade'],
             },
           },
@@ -700,10 +722,18 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     const catalogo = catalogos(assistant.schema, cfg).flatMap((c) =>
       (cfg.collections[c.key] ?? []).map((it) => Object.fromEntries(c.item_fields.map((f) => [f.key, String(it?.[f.key] ?? '')])))
     );
-    const pedidos = (Array.isArray(args.itens) ? args.itens : []).slice(0, 30) as { produto: string; quantidade: number }[];
+    // item que já está no carrinho e voltou só com o nome que aparece na tela: mantém a opção e a observação dele
+    const antes = await carrinhoDaConversa(db, conversationId);
+    const pedidos = ((Array.isArray(args.itens) ? args.itens : []).slice(0, 30) as ItemPedido[]).map((p) => {
+      const igual = antes.find((c) => c.produto === p.produto && c.base);
+      return igual && !p.opcao && !p.obs ? { ...p, produto: igual.base!, opcao: igual.opcao, obs: igual.obs } : p;
+    });
     const { itens, problemas } = pedidos.length ? await montarItens(db, pedidos, tabelas, catalogo, { ownerId: assistant.owner_id, conversationId }) : { itens: [], problemas: [] };
     if (problemas.length) return { erro: 'O carrinho NÃO mudou.', problemas };
-    const carrinho = itens.map((i) => ({ produto: i.produto, quantidade: i.quantidade, preco: i.preco, subtotal: i.subtotal }));
+    const carrinho = itens.map((i) => ({
+      produto: i.produto, quantidade: i.quantidade, preco: i.preco, subtotal: i.subtotal,
+      ...(i.base ? { base: i.base, opcao: i.opcao, obs: i.obs } : {}),
+    }));
     await db.from('conversations').update({ carrinho }).eq('id', conversationId);
     const total = carrinho.reduce((s2, i) => s2 + i.subtotal, 0);
     return {
@@ -720,12 +750,10 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
         (cfg.collections[c.key] ?? []).map((it) => Object.fromEntries(c.item_fields.map((f) => [f.key, String(it?.[f.key] ?? '')])))
       );
       if (!Array.isArray(args.itens) || !args.itens.length) {
-        const { data: conv } = await db.from('conversations').select('carrinho').eq('id', conversationId).maybeSingle();
-        const doCarrinho = (Array.isArray(conv?.carrinho) ? conv.carrinho : []) as { produto: string; quantidade: number }[];
-        args = { ...args, itens: doCarrinho.map((i) => ({ produto: i.produto, quantidade: i.quantidade })) };
+        args = { ...args, itens: itensDoCarrinho(await carrinhoDaConversa(db, conversationId)) };
       }
       const anotado = await anotarPedido(db, { ownerId: assistant.owner_id, assistantId: assistant.id, conversationId, teste: r.teste, regraFrete: valueOf(cfg, 'frete_chat') },
-        args as { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; cliente_contato?: string; entrega?: string; endereco?: string }, tabelas, catalogoA);
+        args as { itens?: ItemPedido[]; cliente_nome?: string; cliente_contato?: string; entrega?: string; endereco?: string }, tabelas, catalogoA);
       if ((anotado as { ok?: boolean }).ok) await db.from('conversations').update({ carrinho: [] }).eq('id', conversationId);
       return anotado;
     }
@@ -734,16 +762,14 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
     );
     // sem itens na chamada, fecha o que está no carrinho
     if (!Array.isArray(args.itens) || !args.itens.length) {
-      const { data: conv } = await db.from('conversations').select('carrinho').eq('id', conversationId).maybeSingle();
-      const doCarrinho = (Array.isArray(conv?.carrinho) ? conv.carrinho : []) as { produto: string; quantidade: number }[];
-      args = { ...args, itens: doCarrinho.map((i) => ({ produto: i.produto, quantidade: i.quantidade })) };
+      args = { ...args, itens: itensDoCarrinho(await carrinhoDaConversa(db, conversationId)) };
     }
     const resultado = await fecharPedido(db, {
       ownerId: assistant.owner_id, assistantId: assistant.id, conversationId,
       negocio: valueOf(cfg, 'nome_negocio'), teste: r.teste,
       baixarEstoque: !/^n[aã]o/i.test(valueOf(cfg, 'venda_estoque')),
       regraFrete: valueOf(cfg, 'frete_chat'),
-    }, args as { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; entrega?: string; endereco?: string }, tabelas, catalogo);
+    }, args as { itens?: ItemPedido[]; cliente_nome?: string; entrega?: string; endereco?: string }, tabelas, catalogo);
     // pedido criado: o carrinho vira o pedido
     if ((resultado as { ok?: boolean }).ok) await db.from('conversations').update({ carrinho: [] }).eq('id', conversationId);
     return resultado;

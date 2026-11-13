@@ -54,7 +54,38 @@ export async function vendeOnline(db: SupabaseClient, ownerId: string): Promise<
 }
 
 type TabelaPedido = { id: string; nome: string; fonte: string; colunas: { chave: string; rotulo: string }[] };
-type Item = { produto: string; quantidade: number; preco: number; subtotal: number; tabela_id?: string; linha_id?: string; estoque_chave?: string };
+// `produto` é o nome que aparece no pedido, já com a opção e a observação ("Calabresa (broto; sem cebola)");
+// `base` é o nome no catálogo, para achar o item de novo.
+type Item = { produto: string; quantidade: number; preco: number; subtotal: number; base?: string; opcao?: string; obs?: string; tabela_id?: string; linha_id?: string; estoque_chave?: string };
+
+/** O que o assistente manda de cada item: `opcao` quando o preço muda (tamanho, versão), `obs` para o resto (cor, sabor, recado). */
+export type ItemPedido = { produto: string; quantidade: number; opcao?: string; obs?: string };
+
+const simples = (t: unknown) => String(t ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+
+/**
+ * Preço por opção escrito numa célula só: "Grande 48; Broto 18", "P: R$ 30 / M: R$ 40",
+ * "300 ml 12; 500 ml 18". Devolve vazio quando é um preço só.
+ */
+export function precosPorOpcao(v: unknown): { rotulo: string; preco: number }[] {
+  const partes = String(v ?? '').split(/[;|\n/]+|\s+e\s+/).map((p) => p.trim()).filter(Boolean);
+  if (partes.length < 2) return [];
+  const out: { rotulo: string; preco: number }[] = [];
+  for (const p of partes) {
+    const m = /^(.*?)[\s:=–-]*(?:r\$\s*)?(\d[\d.,]*)\s*(?:reais)?$/i.exec(p);
+    const rotulo = (m?.[1] ?? '').replace(/[\s:=–-]+$/, '').trim();
+    const preco = m ? lerPreco(m[2]) : null;
+    if (!rotulo || !/[a-zà-ú]/i.test(rotulo) || !preco) return [];
+    out.push({ rotulo, preco });
+  }
+  return out;
+}
+
+/** O nome do item como vai para o pedido: com a opção escolhida e a observação. */
+const nomeNoPedido = (nome: string, opcao: string, obs: string) => {
+  const extra = [opcao, obs].map((x) => x.trim()).filter(Boolean).join('; ');
+  return extra ? `${nome} (${extra})`.slice(0, 160) : nome;
+};
 
 /**
  * Acha cada produto pedido nas tabelas do assistente (ou nas listas do
@@ -73,7 +104,7 @@ export async function reservadoEmPedidos(db: SupabaseClient, ownerId: string, co
 
 export async function montarItens(
   db: SupabaseClient,
-  pedidos: { produto: string; quantidade: number }[],
+  pedidos: ItemPedido[],
   tabelas: TabelaPedido[],
   catalogo: Record<string, string>[],
   // com isto, o que já está separado em pedidos abertos de outras pessoas sai do estoque livre
@@ -99,6 +130,14 @@ export async function montarItens(
       t.colunas.find((c) => !ehCodigo(c) && NOME.test(`${c.chave} ${c.rotulo}`)) ??
       t.colunas[0];
 
+  // a célula do preço pode trazer um valor só ou um por opção ("Grande 48; Broto 18")
+  const precoDaCelula = (celula: unknown) => {
+    const opcoes = precosPorOpcao(celula);
+    // mais de um número sem dar para saber de qual opção é cada um: melhor ficar sem preço do que cobrar errado
+    const numeros = String(celula ?? '').match(/\d[\d.,]*/g) ?? [];
+    return { opcoes, preco: opcoes.length ? Math.min(...opcoes.map((o) => o.preco)) : numeros.length > 1 ? null : lerPreco(celula) };
+  };
+
   const registros = [
     ...(linhas ?? []).map((l) => {
       const t = locais.find((x) => x.id === l.tabela_id)!;
@@ -109,7 +148,7 @@ export async function montarItens(
           String(l.dados?.[t.colunas[0]?.chave] ?? ''),
         forte: principais.map((c) => String(l.dados?.[c.chave] ?? '')).join(' '),
         resto: Object.values(l.dados ?? {}).join(' '),
-        preco: lerPreco(l.dados?.[precoChave(t.id) ?? '']),
+        ...precoDaCelula(l.dados?.[precoChave(t.id) ?? '']),
         estoqueChave: estoqueChave(t.id),
         // célula de estoque vazia = não controla estoque (não é "zero")
         estoque: estoqueChave(t.id) && String(l.dados?.[estoqueChave(t.id)!] ?? '').trim() !== ''
@@ -122,7 +161,7 @@ export async function montarItens(
     ...catalogo.map((it) => {
       const precoK = Object.keys(it).find((k) => /preco|valor|price/i.test(k));
       const nome = String(Object.values(it)[0] ?? '');
-      return { nome, forte: nome, resto: Object.values(it).join(' '), preco: lerPreco(precoK ? it[precoK] : null), estoqueChave: undefined, estoque: null, tabela_id: undefined, linha_id: undefined };
+      return { nome, forte: nome, resto: Object.values(it).join(' '), ...precoDaCelula(precoK ? it[precoK] : null), estoqueChave: undefined, estoque: null, tabela_id: undefined, linha_id: undefined };
     }),
   ];
 
@@ -147,21 +186,41 @@ export async function montarItens(
       continue;
     }
     if (!achado.preco) {
-      problemas.push(`"${achado.nome}": está sem preço no catálogo, então não dá para cobrar pelo chat. Ofereça a equipe.`);
+      problemas.push(`"${achado.nome}": está sem um preço claro no catálogo, então não dá para pôr no pedido. Diga que a equipe confirma o valor e ofereça chamar alguém.`);
       continue;
+    }
+    // preço por opção (tamanho, versão): precisa saber qual; o que não muda preço vira observação do item
+    let preco = achado.preco;
+    let opcao = '';
+    let obs = String(p.obs ?? '').trim().slice(0, 120);
+    const pedidaOpcao = simples(p.opcao);
+    if (achado.opcoes.length) {
+      const noNome = simples(p.produto);
+      const o = (pedidaOpcao && (achado.opcoes.find((x) => simples(x.rotulo) === pedidaOpcao) ??
+        achado.opcoes.find((x) => simples(x.rotulo).includes(pedidaOpcao) || pedidaOpcao.includes(simples(x.rotulo))))) ||
+        achado.opcoes.find((x) => ` ${noNome} `.includes(` ${simples(x.rotulo)} `));
+      if (!o) {
+        problemas.push(`"${achado.nome}" tem preço por opção (${achado.opcoes.map((x) => `${x.rotulo}: ${reais(x.preco)}`).join(', ')}). Pergunte qual a pessoa quer e mande em "opcao".`);
+        continue;
+      }
+      preco = o.preco;
+      opcao = o.rotulo;
+    } else if (pedidaOpcao) {
+      obs = [String(p.opcao).trim().slice(0, 60), obs].filter(Boolean).join('; ');
     }
     if (achado.estoque != null && Number.isFinite(achado.estoque)) {
       const separado = achado.linha_id ? reservado.get(achado.linha_id) ?? 0 : 0;
       const livre = achado.estoque - separado;
       if (livre < qtd) {
         problemas.push(separado > 0 && livre <= 0
-          ? `"${achado.nome}": já está separado no pedido de outra pessoa. Diga que essa peça acabou de ser separada e ofereça outras parecidas. Não diga que tem.`
+          ? `"${achado.nome}": já está separado no pedido de outra pessoa. Diga que esse item acabou de ser separado e ofereça outros parecidos. Não diga que tem.`
           : `"${achado.nome}": só há ${Math.max(0, livre)} em estoque (pediram ${qtd}).`);
         continue;
       }
     }
     itens.push({
-      produto: achado.nome, quantidade: qtd, preco: achado.preco, subtotal: Math.round(achado.preco * qtd * 100) / 100,
+      produto: nomeNoPedido(achado.nome, opcao, obs), quantidade: qtd, preco, subtotal: Math.round(preco * qtd * 100) / 100,
+      ...(opcao || obs ? { base: achado.nome, ...(opcao ? { opcao } : {}), ...(obs ? { obs } : {}) } : {}),
       ...(achado.tabela_id ? { tabela_id: achado.tabela_id, linha_id: achado.linha_id, estoque_chave: achado.estoqueChave } : {}),
     });
   }
@@ -287,7 +346,7 @@ export async function cancelarPedido(db: SupabaseClient, ownerId: string, pedido
 export async function anotarPedido(
   db: SupabaseClient,
   ctx: { ownerId: string; assistantId: string; conversationId: string; teste: boolean; regraFrete?: string },
-  args: { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; cliente_contato?: string; entrega?: string; endereco?: string },
+  args: { itens?: ItemPedido[]; cliente_nome?: string; cliente_contato?: string; entrega?: string; endereco?: string },
   tabelas: TabelaPedido[],
   catalogo: Record<string, string>[],
 ) {
@@ -434,7 +493,7 @@ export async function devolverEstoqueDoPedido(db: SupabaseClient, pedidoId: stri
 export async function fecharPedido(
   db: SupabaseClient,
   ctx: { ownerId: string; assistantId: string; conversationId: string; negocio: string; teste: boolean; baixarEstoque: boolean; regraFrete?: string },
-  args: { itens?: { produto: string; quantidade: number }[]; cliente_nome?: string; entrega?: string; endereco?: string },
+  args: { itens?: ItemPedido[]; cliente_nome?: string; entrega?: string; endereco?: string },
   tabelas: TabelaPedido[],
   catalogo: Record<string, string>[],
 ) {
