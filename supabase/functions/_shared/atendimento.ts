@@ -697,7 +697,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       (cfg.collections[c.key] ?? []).map((it) => Object.fromEntries(c.item_fields.map((f) => [f.key, String(it?.[f.key] ?? '')])))
     );
     const pedidos = (Array.isArray(args.itens) ? args.itens : []).slice(0, 30) as { produto: string; quantidade: number }[];
-    const { itens, problemas } = pedidos.length ? await montarItens(db, pedidos, tabelas, catalogo) : { itens: [], problemas: [] };
+    const { itens, problemas } = pedidos.length ? await montarItens(db, pedidos, tabelas, catalogo, { ownerId: assistant.owner_id, conversationId }) : { itens: [], problemas: [] };
     if (problemas.length) return { erro: 'O carrinho NÃO mudou.', problemas };
     const carrinho = itens.map((i) => ({ produto: i.produto, quantidade: i.quantidade, preco: i.preco, subtotal: i.subtotal }));
     await db.from('conversations').update({ carrinho }).eq('id', conversationId);
@@ -1103,6 +1103,12 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     ? (((await r.db.from('pedidos').select('numero, status, total, itens').eq('conversation_id', r.conversationId)
       .in('status', ['anotado', 'aguardando', 'pago', 'finalizado']).order('criado_em').limit(10)).data ?? []) as { numero: number; status: string; total: number; itens: { produto: string; quantidade: number }[] }[])
     : [];
+  // peças já separadas em pedidos abertos de outras pessoas: a tabela ainda mostra, mas não estão livres
+  const separados = loja && r.conversationId
+    ? (((await r.db.from('pedidos').select('itens, conversation_id').eq('owner_id', a.owner_id)
+      .in('status', ['anotado', 'aguardando']).neq('conversation_id', r.conversationId).limit(60)).data ?? []) as { itens: { produto: string; quantidade: number }[] }[])
+      .flatMap((p) => p.itens ?? []).slice(0, 40)
+    : [];
   // respostas que a equipe deu em Avisos: confirmadas, valem mais que tabela e ficha
   const daEquipe = ((a.config.collections?.faq ?? []) as Array<Record<string, string>>)
     .filter((f) => f?.equipe && f?.pergunta && f?.resposta)
@@ -1133,6 +1139,12 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
       ? [{
         type: 'text' as const,
         text: `CARRINHO ATUAL (${r.canal ? 'a pessoa NÃO vê o carrinho neste app: quando ele mudar ou antes de fechar, escreva a lista com o total' : 'o cliente vê na tela e pode mudar a quantidade por lá'}): ${carrinho.length ? carrinho.map((i) => `${i.quantidade}x ${i.produto} (${reaisBR(i.subtotal)})`).join('; ') : 'vazio'}.`,
+      }]
+      : []),
+    ...(separados.length
+      ? [{
+        type: 'text' as const,
+        text: `JÁ SEPARADO EM PEDIDOS DE OUTRAS PESSOAS (desconte do estoque da tabela; se não sobrar, não ofereça e diga que acabou de ser separado): ${separados.map((i) => `${i.quantidade}x ${i.produto}`).join('; ')}.`,
       }]
       : []),
     ...(pedidosDaConversa.length
