@@ -185,11 +185,11 @@ const CORE_HEAD: Section[] = [
       { key: 'nome_negocio', label: 'Em nome de quem ele fala', type: 'text', importance: 'critical', hint: 'Empresa, escola, escritório, ou o seu próprio nome' },
       {
         key: 'descricao_negocio', label: 'Para que ele serve', type: 'textarea', importance: 'critical',
-        hint: 'Duas ou três frases: o que ele resolve e para quem. Ex.: tira dúvidas de quem quer comprar tênis de corrida',
+        hint: 'Duas ou três frases: o que ele resolve e para quem. Ex.: tira dúvidas e anota pedidos dos clientes; ajuda os alunos do 7º ano a estudar',
       },
       {
         key: 'publico_alvo', label: 'Com quem ele conversa', type: 'textarea', importance: 'important',
-        hint: 'Quem chega até ele. Ex.: clientes que já compraram; gente pesquisando preço',
+        hint: 'Quem chega até ele. Ex.: clientes novos pesquisando; pacientes marcando consulta; alunos de uma turma',
       },
       {
         key: 'tom_de_voz', label: 'Como ele fala', type: 'textarea', importance: 'critical',
@@ -197,7 +197,7 @@ const CORE_HEAD: Section[] = [
       },
       {
         key: 'regras', label: 'O que ele nunca deve fazer', type: 'textarea', importance: 'important', accumulates: true,
-        hint: 'Proibições. Ex.: nunca dar desconto, nunca falar de concorrente',
+        hint: 'Proibições. Ex.: nunca prometer o que não está aqui; nunca dar a resposta pronta de uma prova',
       },
       { key: 'saudacao', label: 'Como ele abre a conversa', type: 'textarea', importance: 'optional', hint: 'A primeira mensagem. Pode deixar em branco e ele improvisa' },
     ],
@@ -211,7 +211,7 @@ const CORE_HEAD: Section[] = [
       { key: 'assuntos_cobertos', label: 'Assuntos que ele domina', type: 'textarea', importance: 'important', hint: 'Lista solta dos temas que aparecem nas conversas' },
       {
         key: 'foco_atual', label: 'Foco do momento', type: 'textarea', importance: 'optional',
-        hint: 'Algo passageiro que ele precisa saber agora. Ex.: promoção até sexta; loja fechada no feriado',
+        hint: 'Algo passageiro que ele precisa saber agora. Ex.: promoção até sexta; fechado no feriado; semana de provas',
       },
     ],
     collections: [],
@@ -231,12 +231,12 @@ const CORE_TAIL: Section[] = [
       },
       {
         key: 'quando_chamar_humano', label: 'Quando abrir chamado', type: 'textarea', importance: 'important',
-        hint: 'Ex.: reclamação, negociação de preço, pedido de reembolso, assunto fora do escopo',
+        hint: 'Ex.: reclamação, pedido fora do comum, assunto que só uma pessoa resolve',
         depende: { campo: 'chamados_ativos', valores: ['Sim'] },
       },
       {
         key: 'nunca_chamar_humano', label: 'Quando NÃO abrir chamado', type: 'textarea', importance: 'optional',
-        hint: 'Ex.: pedido de desconto (ele mesmo explica que não tem); dúvida que está no FAQ',
+        hint: 'Ex.: dúvida que já está nas perguntas frequentes; pedido que ele mesmo sabe recusar',
         depende: { campo: 'chamados_ativos', valores: ['Sim'] },
       },
       {
