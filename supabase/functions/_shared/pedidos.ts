@@ -60,12 +60,26 @@ type Item = { produto: string; quantidade: number; preco: number; subtotal: numb
  * Acha cada produto pedido nas tabelas do assistente (ou nas listas do
  * documento) e confere preço e estoque.
  */
+/** Quanto de cada linha da tabela já está separado em pedidos abertos (anotados ou esperando pagamento) de outras conversas. */
+export async function reservadoEmPedidos(db: SupabaseClient, ownerId: string, conversationId?: string | null): Promise<Map<string, number>> {
+  const { data: abertos } = await db.from('pedidos').select('itens, conversation_id').eq('owner_id', ownerId).in('status', ['anotado', 'aguardando']).limit(300);
+  const reservado = new Map<string, number>();
+  for (const p of abertos ?? []) {
+    if (conversationId && p.conversation_id === conversationId) continue; // o pedido desta conversa é o mesmo cliente
+    for (const it of (p.itens ?? []) as Item[]) if (it.linha_id) reservado.set(it.linha_id, (reservado.get(it.linha_id) ?? 0) + Number(it.quantidade || 0));
+  }
+  return reservado;
+}
+
 export async function montarItens(
   db: SupabaseClient,
   pedidos: { produto: string; quantidade: number }[],
   tabelas: TabelaPedido[],
   catalogo: Record<string, string>[],
+  // com isto, o que já está separado em pedidos abertos de outras pessoas sai do estoque livre
+  reserva?: { ownerId: string; conversationId?: string | null },
 ): Promise<{ itens: Item[]; problemas: string[] }> {
+  const reservado = reserva ? await reservadoEmPedidos(db, reserva.ownerId, reserva.conversationId) : new Map<string, number>();
   const locais = tabelas.filter((t) => t.fonte === 'manual' || t.fonte === 'url');
   const ids = locais.map((t) => t.id);
   const [{ data: linhas }, { data: tipos }] = await Promise.all([
@@ -136,9 +150,15 @@ export async function montarItens(
       problemas.push(`"${achado.nome}": está sem preço no catálogo, então não dá para cobrar pelo chat. Ofereça a equipe.`);
       continue;
     }
-    if (achado.estoque != null && Number.isFinite(achado.estoque) && achado.estoque < qtd) {
-      problemas.push(`"${achado.nome}": só há ${Math.max(0, achado.estoque)} em estoque (pediram ${qtd}).`);
-      continue;
+    if (achado.estoque != null && Number.isFinite(achado.estoque)) {
+      const separado = achado.linha_id ? reservado.get(achado.linha_id) ?? 0 : 0;
+      const livre = achado.estoque - separado;
+      if (livre < qtd) {
+        problemas.push(separado > 0 && livre <= 0
+          ? `"${achado.nome}": já está separado no pedido de outra pessoa. Diga que essa peça acabou de ser separada e ofereça outras parecidas. Não diga que tem.`
+          : `"${achado.nome}": só há ${Math.max(0, livre)} em estoque (pediram ${qtd}).`);
+        continue;
+      }
     }
     itens.push({
       produto: achado.nome, quantidade: qtd, preco: achado.preco, subtotal: Math.round(achado.preco * qtd * 100) / 100,
@@ -273,7 +293,7 @@ export async function anotarPedido(
 ) {
   const pedidos = Array.isArray(args.itens) ? args.itens.slice(0, 30) : [];
   if (!pedidos.length) return { erro: 'Diga quais produtos e quantas unidades.' };
-  const { itens: achados, problemas } = await montarItens(db, pedidos, tabelas, catalogo);
+  const { itens: achados, problemas } = await montarItens(db, pedidos, tabelas, catalogo, { ownerId: ctx.ownerId, conversationId: ctx.conversationId });
   if (problemas.length) return { erro: 'O pedido NÃO foi anotado.', problemas };
   // a chave do estoque fica no item: quando a equipe finaliza, a peça sai da tabela
   const itens = achados;
@@ -423,7 +443,7 @@ export async function fecharPedido(
   const conta = await contaDaLoja(db, ctx.ownerId);
   if (!conta) return { erro: 'O pagamento pelo chat não está ligado nesta empresa. Ofereça a equipe para fechar a compra.' };
 
-  const { itens: achados, problemas } = await montarItens(db, pedidos, tabelas, catalogo);
+  const { itens: achados, problemas } = await montarItens(db, pedidos, tabelas, catalogo, { ownerId: ctx.ownerId, conversationId: ctx.conversationId });
   if (problemas.length) return { erro: 'O pedido NÃO foi criado.', problemas };
   // sem baixa de estoque: o item não leva a coluna, e o pagamento não mexe na tabela
   const itens = ctx.baixarEstoque ? achados : achados.map(({ estoque_chave: _, ...i }) => i);
