@@ -489,7 +489,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
         campos_do_ramo: {
           type: 'array',
           description:
-            'Obrigatório para quem vende (produto, servico, curso, assinatura, agendamento). A ficha tem campos que só fazem sentido em alguns ramos. Para cada um, diga se serve para ESTE negócio e, se servir, dê o nome e a dica na língua dele. variacoes (só em produto): o que o cliente escolhe em cada item. Pizzaria: "Tamanhos e sabores". Loja de roupa: "Cores e tamanhos". Maquiagem: "Tons e cores". Não serve quando os itens não têm opção. garantia_trocas: o que acontece quando dá problema. Comida: "Se o pedido vier errado". Eletrônico: "Garantia e trocas". Não serve quando não existe o que trocar, devolver nem garantir (ex.: triagem de escritório). entrega (só em produto): como o pedido chega. Delivery: "Entrega e retirada". Loja online: "Entrega e frete". promocoes: desconto, combo, cupom. fora_do_catalogo: serve SÓ para quem vende peças, componentes ou materiais que o cliente junta num conjunto e pode completar em outro lugar (informática, autopeças, construção, eletrônica); em qualquer outro ramo, serve=false.',
+            'Obrigatório para quem vende (produto, servico, curso, assinatura, agendamento). A ficha tem campos que só fazem sentido em alguns ramos. Para cada um, diga se serve para ESTE negócio e, se servir, dê o nome e a dica na língua dele. variacoes (só em produto): o que o cliente escolhe em cada item. Pizzaria: "Tamanhos e sabores". Loja de roupa: "Cores e tamanhos". Maquiagem: "Tons e cores". Não serve quando os itens não têm opção. garantia_trocas: o que acontece quando dá problema. Comida: "Se o pedido vier errado". Eletrônico: "Garantia e trocas". Não serve quando não existe o que trocar, devolver nem garantir (ex.: triagem de escritório). entrega (só em produto): como o pedido chega. Delivery: "Entrega e retirada". Loja online: "Entrega e frete". promocoes: desconto, combo, cupom. fora_do_catalogo: serve SÓ para quem vende peças, componentes ou materiais que o cliente junta num conjunto e pode completar em outro lugar (informática, autopeças, construção, eletrônica); em qualquer outro ramo, serve=false. Este é de escolha fixa: diga só se serve, sem rotulo nem dica.',
           items: {
             type: 'object',
             properties: {
@@ -744,7 +744,10 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
         ramo[k] = c.serve !== false;
         const nome = String(c.rotulo ?? '').trim();
         const dica = String(c.dica ?? '').trim();
-        if (c.serve !== false && (nome || dica)) s.meta.core_labels[k] = { ...(nome ? { label: nome } : {}), ...(dica ? { hint: dica } : {}) };
+        // campo de escolha fixa mantém o nome: as opções dele só fazem sentido com a pergunta original
+        const fixo = allFields(buildSchema({ ...s.meta, campos_ramo: undefined }, s.config)).find((f) => f.key === k)?.type === 'select';
+        if (c.serve !== false && !fixo && (nome || dica)) s.meta.core_labels[k] = { ...(nome ? { label: nome } : {}), ...(dica ? { hint: dica } : {}) };
+        if (fixo) delete s.meta.core_labels[k];
       }
       // Faltou dizer de algum: pede uma vez. Se não vier, vale o padrão (nome neutro; "fora do catálogo" fica de fora).
       const faltam = camposDoRamo(modelo).filter((k) => !(k in ramo));
