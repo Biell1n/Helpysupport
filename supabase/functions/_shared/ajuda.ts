@@ -82,6 +82,22 @@ O teste tem limite de 300 mensagens por dia.`,
 Para atender direto no WhatsApp, Instagram ou Discord, veja a categoria de canais.`,
   },
 
+  {
+    id: 'chat-no-site',
+    cat: 'comecar',
+    titulo: 'Colocar o chat no seu site',
+    resumo: 'Um botão de chat no canto do site, com uma linha de código.',
+    busca: 'site widget botão chat código script incorporar embutir wordpress wix shopify nuvemshop integrar',
+    texto: `Em **Assistentes**, abra o menu ⋯ do assistente e clique em **Colocar no meu site**. Copie o código e cole no seu site, antes de </body>.
+
+- Aparece um botão de chat no canto. O cliente clica e conversa com o assistente sem sair da página.
+- Funciona em WordPress, Wix, Shopify, Nuvemshop e sites próprios, onde der para colar um código.
+- Não mexe em quem cuida do site? Mande o código para essa pessoa: é só colar.
+- Para mudar a cor ou o lado do botão, acrescente data-cor="#0a7d4f" ou data-lado="esquerda" no código.
+
+Sem site, use o link do assistente na bio, no cartão ou no QR code.`,
+  },
+
   // ---------- respostas ----------
   {
     id: 'resposta-errada',
@@ -107,6 +123,29 @@ Depois de editar a ficha, clique em **Publicar alterações**.`,
     texto: `Quando o cliente pergunta algo que não está na ficha, o assistente não inventa: ele avisa que vai confirmar e registra a pergunta.
 
 Essas perguntas aparecem no sino de **Avisos** como "Não soube responder: …", com quantas vezes perguntaram. Responda ali mesmo: a resposta vira pergunta frequente do assistente e ele passa a saber na próxima vez.`,
+  },
+  {
+    id: 'aprendizado',
+    cat: 'respostas',
+    titulo: 'O assistente aprende com a sua equipe',
+    resumo: 'O que a equipe responde num atendimento vira resposta do assistente. E o modo "Só aprendendo".',
+    busca: 'aprender aprendizado treinar treino ensinar equipe respondeu modo aprendiz só aprendendo observar',
+    texto: `Quando alguém da equipe responde um cliente em **Atendimentos** e o atendimento é encerrado, o Helpy lê a conversa alguns minutos depois e guarda o que serve para os próximos clientes: regras, prazos, formas de pagamento, como resolver um problema comum. O assistente passa a responder isso sozinho.
+
+- Ele não guarda exceção feita para um cliente, dados pessoais, nem preço e estoque de produto (isso fica em **Dados**).
+- Em **Assistentes → Aprendizado** você vê tudo o que ele aprendeu e pode corrigir ou apagar.
+- Chega um aviso por dia quando ele aprende algo novo.
+
+**Modo "Só aprendendo"**
+
+Na mesma tela dá para escolher **Só aprendendo**: a equipe atende todas as conversas e o assistente só observa e aprende, sem falar com ninguém. Serve para treinar antes de colocar ele para atender. Quando achar que está pronto, escolha **Atendendo**. O teste do painel continua respondendo, para você conferir como ele se sai.
+
+**Onde ensinar cada coisa**
+
+- Como o negócio funciona (horário, endereço, regras): **Assistentes → Editar**.
+- Preços, estoque e listas: **Dados**.
+- Pergunta que ele não soube responder: **Avisos**.
+- O resto ele aprende sozinho com os atendimentos.`,
   },
   {
     id: 'tom-de-voz',
@@ -162,7 +201,7 @@ As causas mais comuns:
 - Quando alguém da equipe assume, o cliente recebe aviso no tópico e no privado.
 - Pedido fechado e pagamento confirmado também chegam no privado do cliente.
 
-Se o bot ficou offline, confira em **Verificar minha conta**. O canal de avisos é opcional.`,
+O cliente escreve direto no tópico e o assistente responde em alguns segundos. Não precisa instalar nem deixar nada ligado. O canal de avisos é opcional.`,
   },
 
   // ---------- vendas ----------
