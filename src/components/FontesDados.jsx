@@ -783,7 +783,7 @@ export function FaixaFonte({ tabela, onAtualizou, avisar }) {
         </div>
       </div>
       <form className="row" onSubmit={testar}>
-        <input className="input" style={{ maxWidth: 320 }} value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Teste uma busca, ex.: pomada" aria-label="Busca de teste" />
+        <input className="input" style={{ maxWidth: 320 }} value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Teste uma busca com o nome de um item" aria-label="Busca de teste" />
         <button className="btn btn-ghost btn-sm" disabled={ocupado}>
           {ocupado ? <Loader2 className="spin" /> : <PlugZap />} Consultar agora
         </button>

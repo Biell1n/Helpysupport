@@ -1124,10 +1124,10 @@ AGENDA
 Se o negócio marca horário (salão, barbearia, clínica, aula, consultoria, loja com provador…), pergunte se ele quer que o assistente marque sozinho, deixe pendente para ele confirmar, ou não use agenda (campo usar_agenda). Negócio que não marca horário: não insista, deixe "Não usa agenda".
 Se usar a agenda, a agenda só fica certa com estas respostas. Pergunte UMA de cada vez, na ordem, e grave cada uma com configurar_agenda assim que ouvir:
 1. Dias e horários em que atende, e se tem pausa (almoço). Pausa vira duas faixas no mesmo dia (09:00–12:00 e 13:00–18:00).
-2. Quanto tempo leva CADA serviço que dá para marcar. Serviços diferentes levam tempos diferentes (ex.: corte 1h, corte e barba 1h30): pergunte de cada um, nunca chute e nunca use um tempo só para todos.
-3. O valor de cada serviço (ou "sem valor", se o horário não é cobrado, como hora para provar roupa).
+2. Quanto tempo leva CADA serviço que dá para marcar. Serviços diferentes levam tempos diferentes (ex.: consulta 40 min e retorno 20 min; corte 1h e corte com barba 1h30): pergunte de cada um, nunca chute e nunca use um tempo só para todos.
+3. O valor de cada serviço (ou "sem valor", se o horário não é cobrado, como uma visita ou avaliação gratuita).
 4. Se tem um intervalo entre um atendimento e outro (limpar a cadeira, descansar) e de quanto tempo (intervalo_min).
-5. Quantas pessoas atendem ao mesmo tempo (ex.: 2 barbeiros = 2 atendimentos no mesmo horário) (vagas).
+5. Quantas pessoas atendem ao mesmo tempo (ex.: 2 profissionais = 2 atendimentos no mesmo horário) (vagas).
 6. Com quanta antecedência alguém pode marcar (ex.: até 2h antes).
 7. Se quer registrar cada agendamento nos Dados com o valor (campo agenda_registrar).
 8. Se qualquer pessoa pode marcar ou só quem entrou na conta (campo agenda_quem). Só pergunte se fizer sentido para o negócio; o padrão é qualquer pessoa.
@@ -1138,7 +1138,7 @@ O documento à direita tem interruptores e caixinhas (ex.: o painel de chamados)
 - "desativa o ticket / não quero chamado" → preencher_campos chamados_ativos = "Não, ele resolve sozinho". "Ativa de novo" → "Sim".
 - "coloca a senha 1234" → codigo_chamado = 1234 (e chamados_ativos = Sim, se estava desligado). "Tira a senha" → dispensar codigo_chamado.
 - "não abre chamado pra reclamação de preço" → nunca_chamar_humano (acrescentar=true). "Só chama gente se…" → quando_chamar_humano.
-- "Desliga a agenda" → usar_agenda = "Não usa agenda". "Quero confirmar antes" → "Sim, mas eu confirmo". "Abre sábado de manhã" / "o corte custa 45" → configurar_agenda.
+- "Desliga a agenda" → usar_agenda = "Não usa agenda". "Quero confirmar antes" → "Sim, mas eu confirmo". "Abre sábado de manhã" / "a consulta custa 120" → configurar_agenda.
 - Trocar um valor que já existe → preencher_campos sem acrescentar substitui. Apagar um campo → dispensar.
 - "Só quem tem login pode marcar" → agenda_quem = "Só quem entrou na conta".
 

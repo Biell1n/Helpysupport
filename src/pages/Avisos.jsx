@@ -113,7 +113,7 @@ export default function Avisos() {
                     autoFocus
                     value={resposta}
                     onChange={(e) => setResposta(e.target.value)}
-                    placeholder={a.tipo === 'lacuna' ? 'A resposta certa, do jeito que o assistente deve falar.' : 'Ex.: O preço está certo, é promoção. Ou: a Base Líquida tem 8 tons, do 01 ao 08.'}
+                    placeholder={a.tipo === 'lacuna' ? 'A resposta certa, do jeito que o assistente deve falar.' : 'Ex.: O preço está certo, é promoção. Ou: a entrega leva até 3 dias úteis.'}
                   />
                   <button type="submit" className="btn btn-primary btn-sm" disabled={enviando || !resposta.trim()}>Ensinar ao assistente</button>
                 </form>
