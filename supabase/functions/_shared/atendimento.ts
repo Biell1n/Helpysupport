@@ -1274,8 +1274,17 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
 
   // disse que passou para a equipe sem chamar a ferramenta: registra a dúvida mesmo assim,
   // senão a promessa fica falsa e ninguém responde
-  const prometeu = /\b(registrei|anotei|encaminhei|repassei|passei para a equipe|já pedi (para|pra) a equipe|vou confirmar com a equipe|confirmo com a equipe|vou verificar com a equipe)\b/i;
-  if (texto && prometeu.test(texto) && !['registrar_lacuna', 'avisar_equipe', 'chamar_atendente'].some((n) => usadas.has(n))) {
+  // Só vale promessa de levar uma DÚVIDA à equipe. "Anotei seu pedido" ou "anotei que você trabalhou 3 anos"
+  // não é dúvida: antes isso virava um aviso falso de "não soube responder" para o dono.
+  const prometeu = new RegExp(
+    '\\b(?:vou (?:confirmar|verificar|checar|conferir|perguntar)(?: isso| essa informação)? (?:com|para|pra) a equipe' +
+      '|confirmo com a equipe|já pedi (?:para|pra) a equipe' +
+      '|(?:registrei|encaminhei|repassei|passei)\\b[^.!?\\n]{0,40}\\b(?:dúvida|pergunta)' +
+      '|(?:encaminhei|repassei|passei)\\b[^.!?\\n]{0,30}\\b(?:para|pra) a equipe)',
+    'i',
+  );
+  const jaFez = ['registrar_lacuna', 'avisar_equipe', 'chamar_atendente', 'fechar_pedido', 'agendar', 'alterar_agendamento', 'registrar_contato'];
+  if (texto && prometeu.test(texto) && !jaFez.some((n) => usadas.has(n))) {
     const pergunta = [...historico].reverse().find((m) => m.role === 'user')?.content.replace(/^\[[^\]]*\]\n/, '').trim() ?? '';
     if (pergunta) {
       await executar(rr, 'registrar_lacuna', { assunto: pergunta.slice(0, 80), pergunta }, tabelas, agenda)

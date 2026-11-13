@@ -105,6 +105,7 @@ export default function Plano() {
   const [assinar, setAssinar] = useState(null);
   const [ciclo, setCiclo] = useState('anual');
   const [tudo, setTudo] = useState(false);
+  const [extraNoTeto, setExtraNoTeto] = useState(false);
   const precos = usePrecos();
 
   const carregar = useCallback(async () => {
@@ -170,7 +171,9 @@ export default function Plano() {
             <span>
               <b>{acabou === 'atendimentos' ? 'Os atendimentos' : 'As mensagens'} deste mês acabaram.</b>{' '}
               {USO_EXTRA_DISPONIVEL && !teste && profile?.extra_ativo
-                ? 'O uso extra está ligado: o assistente continua respondendo e o excedente entra na próxima fatura.'
+                ? extraNoTeto
+                  ? 'O uso extra também chegou ao limite que você definiu: as conversas novas vão para a equipe. Aumente o limite em Uso extra, logo abaixo, para o assistente voltar a responder.'
+                  : 'O uso extra está ligado: o assistente continua respondendo e o excedente entra na próxima fatura.'
                 : `As conversas novas viram recado para a equipe até a cota renovar.${teste ? ' Assine um plano para continuar atendendo.' : ` Para continuar atendendo, ${USO_EXTRA_DISPONIVEL ? 'ligue o uso extra ou ' : ''}mude de plano.`}`}
             </span>
           </div>
@@ -191,7 +194,7 @@ export default function Plano() {
 
       <MinhaAssinatura dados={pagamentos} onMudou={carregar} />
 
-      {USO_EXTRA_DISPONIVEL && !teste && <UsoExtra plano={atual} />}
+      {USO_EXTRA_DISPONIVEL && !teste && <UsoExtra plano={atual} onTeto={setExtraNoTeto} />}
 
       <div className="plano-cab" id="planos">
         <h2>Planos</h2>

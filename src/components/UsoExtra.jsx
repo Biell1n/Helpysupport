@@ -12,7 +12,7 @@ const moeda = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency',
  * passar vira uma fatura separada no começo do mês seguinte, até o limite do
  * mês que o dono escolhe.
  */
-export default function UsoExtra({ plano }) {
+export default function UsoExtra({ plano, onTeto }) {
   const { user, profile, reloadProfile } = useAuth();
   const avisar = useToast();
   const [ativo, setAtivo] = useState(!!profile?.extra_ativo);
@@ -43,6 +43,13 @@ export default function UsoExtra({ plano }) {
   const mudouLimite = ativo && valorLimite !== limiteSalvo;
   const usado = Number(gasto?.valor ?? 0);
   const pct = valorLimite ? Math.min(100, (usado / valorLimite) * 100) : 0;
+  // no teto: o próximo atendimento ou mensagem já não cabe no limite salvo (em centavos, para não errar na soma)
+  const maisCaro = Math.max(PRECO_EXTRA.atendimento, PRECO_EXTRA.mensagem);
+  const noTeto = !!profile?.extra_ativo && usado > 0 && Math.round((usado + maisCaro) * 100) > Math.round(limiteSalvo * 100);
+
+  useEffect(() => {
+    onTeto?.(noTeto);
+  }, [noTeto, onTeto]);
 
   const salvar = async (ligado, teto) => {
     if (ligado && teto < 1) return avisar('Defina um limite', { erro: true, texto: 'Coloque pelo menos R$ 1,00 por mês.' });
@@ -110,7 +117,7 @@ export default function UsoExtra({ plano }) {
 
           {usado > 0 ? (
             <div className="uso-extra-gasto">
-              <div className="meter" data-nivel={pct >= 85 ? 'alto' : undefined}><span style={{ width: `${pct}%` }} /></div>
+              <div className="meter" data-nivel={noTeto || pct >= 85 ? 'alto' : undefined}><span style={{ width: `${noTeto ? 100 : pct}%` }} /></div>
               <span className="faint">
                 {moeda(usado)} usados de {moeda(valorLimite)} ·{' '}
                 {gasto.atendimentos} {gasto.atendimentos === 1 ? 'atendimento' : 'atendimentos'} e {gasto.mensagens}{' '}
@@ -119,6 +126,11 @@ export default function UsoExtra({ plano }) {
             </div>
           ) : (
             <span className="faint uso-extra-nota">Nada usado além do plano neste mês.</span>
+          )}
+          {noTeto && (
+            <span className="uso-extra-nota">
+              <b>O limite chegou.</b> As conversas novas vão para a equipe. Aumente o valor acima para o assistente voltar a responder.
+            </span>
           )}
 
           <span className="faint uso-extra-nota">
