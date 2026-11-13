@@ -32,7 +32,7 @@ import { inicioDoMes, planOf, trialExpirado } from '../_shared/plans.ts';
 import { colunasDe, lerAbas, registrosDe } from '../_shared/planilha.ts';
 import { retomarComRetorno } from '../_shared/canal-atender.ts';
 import {
-  allCollections, allFields, buildSchema, type CollectionDef, computeState, type Config,
+  allCollections, allFields, buildSchema, camposDoRamo, DO_RAMO, type CollectionDef, computeState, type Config,
   EMPTY_CONFIG, type FieldDef, hardenCollection, limpo, type Material, type MensagemBuilder, type Meta, missingCritical,
   type Modelo, MODELOS, normalizeConfig, normalizeMeta, PRICE_RE, type Schema, semNoItem, slug, valueOf, VENDA_ANOTA, VENDA_NAO, VENDA_SIM, VENDE,
 } from '../_shared/schema.ts';
@@ -391,7 +391,7 @@ function nextGoal(s: Session): Goal {
       key: 'pendencias',
       text: `Na tabela de produtos há anotações pendentes que o assistente acabaria repetindo para o cliente:
 ${pend.map((p) => `- "${p.nota}"${p.produtos.length ? ` (em ${p.produtos.slice(0, 4).join(', ')}${p.produtos.length > 4 ? '…' : ''})` : ''}`).join('\n')}
-Pergunte a informação certa (ex.: quais tons existem de cada produto) para o assistente vender sem precisar confirmar. Grave a resposta no campo que couber (tons, cores e tamanhos vão em variacoes) e diga que, se preferir, ela pode apagar a anotação da tabela em Dados. Se ela disser que não tem a informação, grave isso e siga.${insist('pendencias')}`,
+Pergunte a informação certa (ex.: quais opções existem de cada produto) para o assistente vender sem precisar confirmar. Grave a resposta no campo que couber (as opções de cada produto, como tamanho, cor ou sabor, vão em variacoes) e diga que, se preferir, ela pode apagar a anotação da tabela em Dados. Se ela disser que não tem a informação, grave isso e siga.${insist('pendencias')}`,
     };
   }
 
@@ -457,7 +457,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: 'definir_negocio',
     description:
-      'Define o modelo de negócio e o ramo assim que ficar claro o que a pessoa faz. Pode também desenhar a lista do catálogo sob medida e reescrever rótulos do núcleo na língua deste negócio. Chame de novo só se a pessoa descrever um negócio de natureza claramente diferente.',
+      'Define o modelo de negócio e o ramo assim que ficar claro o que a pessoa faz. Para quem vende, diz também quais campos do ramo servem e com que nome (campos_do_ramo). Pode desenhar a lista do catálogo sob medida e reescrever rótulos do núcleo na língua deste negócio. Chame de novo só se a pessoa descrever um negócio de natureza claramente diferente, ou se o resultado pedir os campos do ramo que faltaram.',
     input_schema: {
       type: 'object',
       properties: {
@@ -485,6 +485,21 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
             },
           },
           required: ['secao', 'lista', 'atributos'],
+        },
+        campos_do_ramo: {
+          type: 'array',
+          description:
+            'Obrigatório para quem vende (produto, servico, curso, assinatura, agendamento). A ficha tem campos que só fazem sentido em alguns ramos. Para cada um, diga se serve para ESTE negócio e, se servir, dê o nome e a dica na língua dele. variacoes (só em produto): o que o cliente escolhe em cada item. Pizzaria: "Tamanhos e sabores". Loja de roupa: "Cores e tamanhos". Maquiagem: "Tons e cores". Não serve quando os itens não têm opção. garantia_trocas: o que acontece quando dá problema. Comida: "Se o pedido vier errado". Eletrônico: "Garantia e trocas". Não serve quando não existe o que trocar, devolver nem garantir (ex.: triagem de escritório). entrega (só em produto): como o pedido chega. Delivery: "Entrega e retirada". Loja online: "Entrega e frete". promocoes: desconto, combo, cupom. fora_do_catalogo: serve SÓ para quem vende peças, componentes ou materiais que o cliente junta num conjunto e pode completar em outro lugar (informática, autopeças, construção, eletrônica); em qualquer outro ramo, serve=false.',
+          items: {
+            type: 'object',
+            properties: {
+              chave: { type: 'string', enum: [...DO_RAMO] },
+              serve: { type: 'boolean' },
+              rotulo: { type: 'string', description: 'Nome do campo na língua deste ramo, até 40 letras' },
+              dica: { type: 'string', description: 'Exemplo de resposta deste ramo, até 140 letras' },
+            },
+            required: ['chave', 'serve'],
+          },
         },
         rotulos: {
           type: 'object',
@@ -714,11 +729,36 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
       for (const [k, v] of Object.entries(rot).slice(0, 8)) {
         if (v && typeof v === 'object') s.meta.core_labels[slug(k)] = { label: v.label, hint: v.hint };
       }
+
+      // Campos que dependem do ramo: o que não serve sai da ficha, o que serve ganha o nome do ramo.
+      if (trocou || !s.meta.campos_ramo) {
+        s.meta.campos_ramo = {};
+        s.meta.ramo_cobrado = false;
+        if (trocou) for (const k of DO_RAMO) delete s.meta.core_labels[k];
+      }
+      const ramo = s.meta.campos_ramo;
+      const doRamo = Array.isArray(input.campos_do_ramo) ? (input.campos_do_ramo as Array<Record<string, unknown>>) : [];
+      for (const c of doRamo) {
+        const k = String(c?.chave ?? '');
+        if (!DO_RAMO.includes(k)) continue;
+        ramo[k] = c.serve !== false;
+        const nome = String(c.rotulo ?? '').trim();
+        const dica = String(c.dica ?? '').trim();
+        if (c.serve !== false && (nome || dica)) s.meta.core_labels[k] = { ...(nome ? { label: nome } : {}), ...(dica ? { hint: dica } : {}) };
+      }
+      // Faltou dizer de algum: pede uma vez. Se não vier, vale o padrão (nome neutro; "fora do catálogo" fica de fora).
+      const faltam = camposDoRamo(modelo).filter((k) => !(k in ramo));
+      const cobrar = faltam.length > 0 && !s.meta.ramo_cobrado;
+      if (faltam.length) s.meta.ramo_cobrado = true;
+
       rebuild();
       touched.add('negocio');
       return {
         ok: true,
         listas: allCollections(s.schema).map((c) => ({ chave: c.key, atributos: c.item_fields.map((f) => f.key) })),
+        ...(cobrar
+          ? { falta: `Chame definir_negocio de novo agora, com o mesmo modelo e ramo, e campos_do_ramo dizendo se servem para este negócio (e com que nome): ${faltam.join(', ')}.` }
+          : {}),
       };
     }
 
@@ -1049,7 +1089,7 @@ Cada resultado de ferramenta traz o que foi gravado e o próximo assunto. Só di
 Se uma ferramenta devolver erro, corrija e tente de novo ou pergunte à pessoa.
 
 PRIMEIRO, ENTENDA O NEGÓCIO
-Assim que ficar claro o que a pessoa faz, chame definir_negocio com o modelo certo e, de preferência, desenhe o catálogo sob medida e reescreva os rótulos do núcleo na língua dela.
+Assim que ficar claro o que a pessoa faz, chame definir_negocio com o modelo certo e, de preferência, desenhe o catálogo sob medida e reescreva os rótulos do núcleo na língua dela. Para quem vende, mande junto campos_do_ramo: a ficha só mostra os campos que servem para aquele ramo, com o nome que aquele ramo usa (uma pizzaria tem "Tamanhos e sabores", nunca "Tons e cores").
 Atenção ao arquétipo: quem ENSINA ou TIRA DÚVIDA de aluno é "educacional" — o catálogo não tem preço. Quem ajuda cliente com problema é "suporte".
 
 PENSE NO QUE O ASSISTENTE VAI PRECISAR
@@ -1135,7 +1175,7 @@ O QUE O HELPY JÁ FAZ SOZINHO (nunca crie lista, campo ou tabela para isto)
 Tabelas em Dados servem só para o que o assistente CONSULTA ao responder: produtos, serviços, preços, estoque, unidades. O assistente não escreve em tabelas. Se a pessoa pedir para "registrar pedidos", "guardar solicitações" ou "anotar clientes", explique em uma frase onde isso já aparece (Atendimentos, Pedidos, Agenda) e siga. Nunca ofereça isso por conta própria.
 
 CAMPOS QUE SE CONFUNDEM
-- fora_do_catalogo ("indicar o que procurar fora, com preço de mercado") só faz sentido para quem vende peças, componentes ou materiais que o cliente pode completar em outro lugar (informática, construção, autopeças, eletrônica). Em comida, moda, beleza, saúde, serviços e cursos não pergunte isso: dispense o campo sem comentar.
+- Campo que não está no documento não existe para este negócio: não pergunte sobre ele.
 - tom_de_voz = o jeito de falar, inclusive listas de comportamento ("simpático, nunca pressionar").
 - regras = proibições. Sempre acrescentar, nunca substituir.
 - assuntos_cobertos = lista de temas. Não é FAQ.

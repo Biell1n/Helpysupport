@@ -115,6 +115,10 @@ export interface Meta {
   extra_fields: Record<string, FieldDef[]>; // campos criados, por seção
   extra_collections: Record<string, CollectionDef[]>;
   core_labels: Record<string, { label?: string; hint?: string }>;
+  /** campos do ramo (DO_RAMO): serve ou não para este negócio. Sem isto, a ficha é de antes da regra e mostra todos. */
+  campos_ramo?: Record<string, boolean>;
+  /** o construtor já foi lembrado de dizer quais campos do ramo servem */
+  ramo_cobrado?: boolean;
   ask_counts: Record<string, number>;
   ask_turnos: Record<string, number>;
   turno: number;
@@ -335,12 +339,12 @@ const OPERACAO: Record<string, FieldDef[]> = {
       options: ['Só presencial', 'Só online', 'Presencial e online'],
     },
     { key: 'formas_pagamento', label: 'Formas de pagamento', type: 'textarea', importance: 'important', hint: 'Pix, cartão, parcelamento, boleto, dinheiro' },
-    { key: 'garantia_trocas', label: 'Garantia e trocas', type: 'textarea', importance: 'important', hint: 'Prazo de garantia, política de troca e devolução' },
-    { key: 'promocoes', label: 'Promoções e condições', type: 'textarea', importance: 'optional', hint: 'Desconto na primeira compra, cupom, frete grátis acima de tanto' },
+    { key: 'garantia_trocas', label: 'Se der problema: troca, devolução e garantia', type: 'textarea', importance: 'important', hint: 'O que vocês fazem quando algo vem errado, com defeito ou a pessoa desiste, e em que prazo' },
+    { key: 'promocoes', label: 'Promoções e condições', type: 'textarea', importance: 'optional', hint: 'Desconto, cupom, combo ou condição especial que esteja valendo' },
     {
       key: 'fora_do_catalogo', label: 'Quando pedirem algo que vocês não têm', type: 'select', importance: 'optional',
       options: ['Montar com o que temos e indicar o que procurar fora, com preço de mercado', 'Só oferecer o que temos e chamar a equipe para o resto'],
-      hint: 'O assistente sempre monta a melhor opção com o que vocês têm. Aqui você decide se, para o que falta, ele pode indicar a peça certa para buscar fora, com o preço médio do mercado (sem citar outras lojas).',
+      hint: 'Para quem vende peças ou materiais que o cliente junta num conjunto. O assistente sempre monta a melhor opção com o que vocês têm. Aqui você decide se, para o que falta, ele pode indicar o item certo para buscar fora, com o preço médio do mercado (sem citar outras lojas).',
     },
     {
       key: 'venda_no_chat', label: 'Fechar a venda no chat?', type: 'select', importance: 'optional',
@@ -355,14 +359,14 @@ const OPERACAO: Record<string, FieldDef[]> = {
     },
   ],
   produto: [
-    { key: 'entrega', label: 'Entrega e frete', type: 'textarea', importance: 'important', hint: 'Prazo, valor do frete, retirada no local, para onde entrega' },
+    { key: 'entrega', label: 'Entrega e retirada', type: 'textarea', importance: 'important', hint: 'Para onde entrega, em quanto tempo, quanto custa e se dá para retirar no local' },
     {
       key: 'frete_chat', label: 'Frete na venda pelo chat', type: 'text', importance: 'important',
       hint: 'O Helpy não calcula frete por distância: escreva a regra que ele aplica no link. Ex.: "R$ 12", "grátis acima de R$ 100, senão R$ 12", "só retirada" ou "grátis". Se preferir, embuta o frete no preço.',
     },
     {
-      key: 'variacoes', label: 'Tons, cores e tamanhos', type: 'textarea', importance: 'important',
-      hint: 'As opções de cada produto, para o assistente vender sem precisar confirmar. Ex.: Base Líquida em 8 tons (01 claro a 08 escuro); camisetas P, M, G e GG. Se nada tiver variação, dispense.',
+      key: 'variacoes', label: 'Opções de cada produto', type: 'textarea', importance: 'important',
+      hint: 'O que o cliente escolhe em cada item (tamanho, sabor, cor, modelo), para o assistente vender sem precisar confirmar. Se nada tiver opção, dispense.',
     },
   ],
   agendamento: [
@@ -387,6 +391,19 @@ const OPERACAO: Record<string, FieldDef[]> = {
   ],
 };
 
+/**
+ * Campos de "Como funciona" que mudam de nome, ou nem existem, conforme o ramo:
+ * pizzaria não tem "tons e cores", escritório de advocacia não tem "trocas".
+ * Ao definir o negócio, o construtor diz de cada um se serve e com que nome.
+ */
+export const DO_RAMO = ['variacoes', 'garantia_trocas', 'entrega', 'promocoes', 'fora_do_catalogo'];
+/** Estes só entram na ficha quando o construtor diz que servem para o ramo. */
+const SO_SE_SERVIR = ['fora_do_catalogo'];
+
+/** Os campos do ramo que existem neste modelo de negócio. */
+export const camposDoRamo = (model: Modelo | null) =>
+  camposDeOperacao(model).map((f) => f.key).filter((k) => DO_RAMO.includes(k));
+
 function camposDeOperacao(model: Modelo | null): FieldDef[] {
   const out = model === 'educacional' ? [] : [...OPERACAO._comum];
   if (!model) return out;
@@ -409,7 +426,7 @@ export const FALLBACK: Record<Modelo, Section> = {
     { key: 'nome', label: 'Nome do produto', type: 'text', required: true },
     { key: 'categoria', label: 'Categoria', type: 'text' },
     { key: 'descricao', label: 'Descrição', type: 'textarea' },
-    { key: 'variacoes', label: 'Cores e tamanhos', type: 'text' },
+    { key: 'variacoes', label: 'Opções (tamanho, cor, sabor)', type: 'text' },
     { key: 'preco', label: 'Preço', type: 'text', required: true },
     { key: 'disponibilidade', label: 'Disponibilidade', type: 'text' },
   ]),
@@ -574,11 +591,19 @@ export function buildSchema(metaIn: Partial<Meta>, config?: Config): Schema {
     };
   };
 
+  // campo que não serve para o ramo sai da ficha; o que já tem resposta nunca some
+  const decidido = meta.campos_ramo;
+  const serve = (f: FieldDef) => {
+    if (!decidido || !DO_RAMO.includes(f.key)) return true;
+    if (String(campos[f.key]?.value ?? '').trim()) return true;
+    return SO_SE_SERVIR.includes(f.key) ? decidido[f.key] === true : decidido[f.key] !== false;
+  };
+
   const operacao: Section = {
     key: 'operacao',
     label: 'Como funciona',
     note: 'Onde encontram vocês e o que acontece na hora de fechar.',
-    fields: camposDeOperacao(model),
+    fields: camposDeOperacao(model).filter(serve),
     collections: [],
   };
 
