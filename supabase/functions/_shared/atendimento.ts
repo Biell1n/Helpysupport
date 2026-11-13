@@ -1079,7 +1079,7 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
   // venda no chat e cobrança do horário: o dono liga no assistente, e só valem com o recebimento conectado
   const querVenda = vende && /^sim/i.test(valueOf(a.config, 'venda_no_chat'));
   // anota o pedido para a equipe: vende pelo chat sem cobrar, então não precisa da Carteira
-  const anota = vende && valueOf(a.config, 'venda_no_chat') === VENDA_ANOTA;
+  const pediuAnotar = vende && valueOf(a.config, 'venda_no_chat') === VENDA_ANOTA;
   const querCobrar = usarAgenda && /^sim/i.test(valueOf(a.config, 'agenda_pagamento'));
   const [tabelas, agenda, recebe, ondeFalar] = await Promise.all([
     carregarTabelas(r.db, a.id),
@@ -1087,6 +1087,9 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     querVenda || querCobrar ? vendeOnline(r.db, a.owner_id) : Promise.resolve(false),
     canaisDaEmpresa(r.db, a).catch(() => [] as string[]),
   ]);
+  // quis o link de pagamento mas a Carteira ainda não está ativa: enquanto isso o pedido fica anotado
+  // (em vez de o assistente ficar sem vender); quando a Carteira ativar, o link passa a sair sozinho
+  const anota = pediuAnotar || (querVenda && !recebe);
   const loja = (querVenda && recebe) || anota;
   rr.vendas = { loja, anota, agendaPaga: querCobrar && recebe && !!agenda };
 
@@ -1126,13 +1129,6 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
         type: 'text' as const,
         text: `APRENDIDO COM A EQUIPE (respostas que a equipe deu em atendimentos anteriores; valem como informação confirmada do negócio e, se forem diferentes da ficha, valem mais):\n${aprendido.join('\n')}\nUse quando o cliente tocar no assunto, aplicando ao caso dele. Não diga que "aprendeu" nem cite outros atendimentos.`,
         cache_control: { type: 'ephemeral' as const },
-      }]
-      : []),
-    // o dono ligou "vender no chat", mas a conta de recebimento não está pronta: nada de prometer link
-    ...(querVenda && !recebe
-      ? [{
-        type: 'text' as const,
-        text: 'VENDA PELO CHAT AINDA NÃO ESTÁ ATIVA: aqui você não gera link de pagamento nem fecha pedido. Nunca prometa link ("já gero o link", "te mando o link"). Para comprar, explique o caminho que a ficha indica (forma de pagamento, retirada, contato) ou ofereça a equipe para finalizar. Não some frete nem monte total com frete: diga a regra de frete exatamente como está na ficha (ex.: "grátis acima de R$ 150") e, se a pessoa perguntar se o pedido dela se encaixa, compare com o subtotal com cuidado.',
       }]
       : []),
     ...(loja

@@ -1130,6 +1130,7 @@ O QUE O HELPY JÁ FAZ SOZINHO (nunca crie lista, campo ou tabela para isto)
 - Vendas fechadas no chat viram pedidos em Pedidos (itens, total, pagamento por Pix ou cartão), e o estoque da tabela baixa sozinho quando o pagamento cai. Isso depende da Carteira e de "Fechar a venda no chat?".
 - Quem quer vender pelo chat SEM receber por aqui (o assistente monta o pedido e a equipe combina o pagamento) escolhe "Fechar a venda no chat?" = "Anota o pedido e a equipe finaliza": não precisa da Carteira, e o pedido aparece em Pedidos como anotado.
 - PEDIDO PELO CHAT É LIGADO POR VOCÊ: quando a pessoa disser que quer que o assistente anote, pegue, receba ou feche pedidos (ex.: "anotar os pedidos", "pegar pedido no WhatsApp", "vender pelo chat"), grave venda_no_chat NA MESMA resposta, sem esperar ela pedir de novo: "Anota o pedido e a equipe finaliza" quando ela cobra por fora (na entrega, no balcão, Pix combinado) ou não falou de pagamento; "Sim, manda o link de pagamento" só quando ela pedir cobrança automática pelo chat. Avise em uma frase que os pedidos vão aparecer em Pedidos. Se o negócio vende produto ou comida e a pessoa não tocou no assunto, pergunte uma vez, perto do fim: "Quer que ele anote os pedidos pelo chat?". Sem isso ligado o assistente só tira dúvida e não monta pedido.
+- LINK DE PAGAMENTO PRECISA DA CARTEIRA (veja "CARTEIRA DESTA CONTA" no estado). Se a pessoa pedir cobrança automática pelo chat (link, Pix na hora, cartão) e a Carteira não estiver ativa, grave "Sim, manda o link de pagamento" do mesmo jeito e deixe claro, em poucas frases: a Carteira se ativa depois de publicar, em Carteira, no menu do painel (leva poucos minutos e pede CPF ou CNPJ e os dados para receber); enquanto ela não estiver ativa, o assistente anota o pedido e a equipe combina o pagamento; quando ela for ativada, o link passa a sair sozinho, sem precisar voltar aqui. Se a Carteira ainda não estiver disponível para a conta, diga que o Helpy está liberando aos poucos e que até lá o pedido fica anotado. Nunca diga que o link já funciona sem a Carteira ativa.
 - Horários marcados ficam na Agenda. Contatos que o cliente deixa ficam no próprio atendimento e nos Relatórios.
 Tabelas em Dados servem só para o que o assistente CONSULTA ao responder: produtos, serviços, preços, estoque, unidades. O assistente não escreve em tabelas. Se a pessoa pedir para "registrar pedidos", "guardar solicitações" ou "anotar clientes", explique em uma frase onde isso já aparece (Atendimentos, Pedidos, Agenda) e siga. Nunca ofereça isso por conta própria.
 
@@ -1389,10 +1390,22 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
     ],
   });
 
+  // o montador precisa saber se o link de pagamento já funciona nesta conta
+  const [recebeJa, carteiraAberta] = await Promise.all([
+    vendeOnline(admin, ctx.userId).catch(() => false),
+    configLigada('carteira_disponivel').catch(() => false),
+  ]);
+  const carteiraDaConta = recebeJa
+    ? 'ativa (o link de pagamento já funciona).'
+    : carteiraAberta
+      ? 'ainda não ativada (a pessoa ativa em Carteira, no menu do painel, depois de publicar).'
+      : 'ainda não disponível para esta conta (o Helpy está liberando aos poucos).';
+
   // instruções fixas em cache; o estado do documento muda a cada turno
   const system: Anthropic.Beta.BetaTextBlockParam[] = [
     { type: 'text', text: STATIC_PROMPT, cache_control: { type: 'ephemeral' } },
     { type: 'text', text: docState(s) },
+    { type: 'text', text: `CARTEIRA DESTA CONTA: ${carteiraDaConta}` },
   ];
   const usesFallback = /claude-(sonnet|opus)-5-5/.test(model);
 
@@ -1739,13 +1752,15 @@ Deno.serve(async (req) => {
       }
       s.meta.conversa = conversaDe(s.messages).slice(-80);
 
-      // venda com link sem a Carteira disponível: o assistente anota o pedido para a equipe, em vez de travar a venda
-      let vendaAjustada = false;
+      // quis o link de pagamento e a Carteira não está ativa: a escolha fica guardada, o assistente anota
+      // o pedido enquanto isso (atendimento.ts) e a tela diz o que falta
+      let avisoCarteira = '';
       if (valueOf(s.config, 'venda_no_chat') === VENDA_SIM) {
         const [recebe, carteira] = await Promise.all([vendeOnline(admin, user.id).catch(() => false), configLigada('carteira_disponivel').catch(() => false)]);
-        if (!recebe && !carteira) {
-          s.config.fields.venda_no_chat = { value: VENDA_ANOTA, status: 'confirmado' };
-          vendaAjustada = true;
+        if (!recebe) {
+          avisoCarteira = carteira
+            ? 'Para o assistente mandar o link de pagamento, falta ativar a Carteira: abra Carteira no menu e ative (leva poucos minutos). Enquanto isso, ele anota o pedido e ele aparece em Pedidos para a sua equipe combinar o pagamento. Quando a Carteira estiver ativa, o link passa a sair sozinho.'
+            : 'O pagamento por link (Carteira) ainda não está disponível para a sua conta. Por enquanto o assistente anota o pedido e ele aparece em Pedidos para a sua equipe combinar o pagamento. Quando a Carteira abrir e você ativar, o link passa a sair sozinho.';
         }
       }
 
@@ -1803,7 +1818,7 @@ Deno.serve(async (req) => {
       return json({
         assistant,
         sugerir_venda: vendeProduto && !/^sim/i.test(valueOf(s.config, 'venda_no_chat')) && valueOf(s.config, 'venda_no_chat') !== VENDA_ANOTA,
-        ...(vendaAjustada ? { aviso: 'O pagamento por link (Carteira) ainda não está disponível. Por enquanto o assistente anota o pedido e ele aparece em Pedidos para a sua equipe combinar o pagamento. Quando a Carteira abrir, é só ligar o link.' } : {}),
+        ...(avisoCarteira ? { aviso: avisoCarteira } : {}),
       });
     }
 
