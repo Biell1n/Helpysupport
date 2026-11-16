@@ -25,7 +25,7 @@ import { admin, aparaEquipe, configLigada, precosDeTeste, requireUser } from '..
 import { type Ciclo, PAGOS, PLANS, type PlanId, type PlanoPago, precosVigentes, valorDaAssinatura } from '../_shared/plans.ts';
 import { type Ambiente, asaas, conferirConta, documentoValido, ErroAsaas, garantirWebhook, hojeBr, novoToken, pago, tokenAceito } from '../_shared/asaas.ts';
 import { AMBIENTE, contaHelpy, desteAmbiente, fecharUsoExtra, guardarFatura, MINIMO_FATURA } from '../_shared/cobranca.ts';
-import { baixarEstoqueDoPedido, contaDaLoja, devolverEstoqueDoPedido, pagamentoDaLoja, tirarTaxa } from '../_shared/pedidos.ts';
+import { baixarEstoqueDoPedido, contaDaLoja, devolverEstoqueDoPedido, estoqueFaltando, pagamentoDaLoja, tirarTaxa } from '../_shared/pedidos.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const depois = (p: Promise<unknown>) => {
@@ -723,6 +723,16 @@ Deno.serve(async (req) => {
       // pedido com link de pagamento segue o caminho do pagamento (cancelar ou estornar)
       if (ped.link_id || !['anotado', 'finalizado', 'cancelado'].includes(ped.status) || (ped.status === 'cancelado' && novo !== 'anotado')) {
         throw new UserError('Este pedido é pago pelo link: use Cancelar ou Estornar.');
+      }
+      // finalizar ou reabrir um pedido de item que já acabou (ex.: peça única vendida em outro pedido): não deixa
+      if ((novo === 'finalizado' && ped.status === 'anotado') || (novo === 'anotado' && ped.status === 'cancelado')) {
+        const falta = await estoqueFaltando(admin, id, novo === 'anotado');
+        if (falta.length) {
+          throw new UserError(
+            `${novo === 'anotado' ? 'Não dá para reabrir' : 'Não dá para finalizar'}: ${falta.join(', ')}. Confira o estoque em Dados${novo === 'anotado' ? ' ou cancele o outro pedido' : ''}.`,
+            409,
+          );
+        }
       }
       const { data: mudou, error } = await admin.from('pedidos').update({ status: novo }).eq('id', id).eq('status', ped.status).select('id');
       if (error) throw error;

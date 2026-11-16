@@ -88,7 +88,7 @@ export default function Aprendizado() {
     setA((x) => ({ ...x, modo }));
     avisar(modo === 'aprendiz' ? `${a.name} está só aprendendo` : `${a.name} voltou a atender`, {
       texto: modo === 'aprendiz'
-        ? 'As conversas novas vão direto para a equipe, em Atendimentos.'
+        ? 'As conversas novas vão para a equipe, em Atendimentos. No chat do site, quem ainda não entrou na conta é convidado a entrar para falar com a equipe.'
         : 'Ele responde os clientes e chama a equipe quando precisar.',
     });
   };
@@ -148,7 +148,7 @@ export default function Aprendizado() {
             </button>
             <button type="button" role="radio" aria-checked={aprendiz} disabled={mudando} onClick={() => mudarModo('aprendiz')}>
               <b>Só aprendendo</b>
-              <span>A equipe atende todas as conversas. Ele observa, aprende e não fala com ninguém.</span>
+              <span>A equipe atende todas as conversas. Ele observa, aprende e não fala com ninguém. No chat do site, o cliente entra na conta para falar com a equipe.</span>
             </button>
           </div>
           {aprendiz && (

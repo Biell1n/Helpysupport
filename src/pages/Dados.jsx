@@ -184,6 +184,7 @@ export default function Dados() {
   const [colado, setColado] = useState('');
   const [excluir, setExcluir] = useState(null);
   const timers = useRef({});
+  const mexidas = useRef({});
 
   const ativa = tabelas?.find((t) => t.id === ativaId);
 
@@ -267,10 +268,17 @@ export default function Dados() {
     setLinhas((prev) => {
       const nova = prev.map((l) => (l.id === linhaId ? { ...l, dados: { ...l.dados, [chave]: valor } } : l));
       clearTimeout(timers.current[linhaId]);
+      // só as células que a pessoa mexeu: o resto da linha vem do banco na hora de gravar
+      // (o estoque pode ter mudado com um pedido enquanto a tela estava aberta)
+      mexidas.current[linhaId] = { ...(mexidas.current[linhaId] ?? {}), [chave]: valor };
       timers.current[linhaId] = setTimeout(async () => {
-        const atual = nova.find((l) => l.id === linhaId);
-        const { error } = await supabase.from('tabela_linhas').update({ dados: atual?.dados ?? {} }).eq('id', linhaId);
+        const mudou = mexidas.current[linhaId] ?? {};
+        delete mexidas.current[linhaId];
+        const { data: noBanco } = await supabase.from('tabela_linhas').select('dados').eq('id', linhaId).maybeSingle();
+        const dados = { ...(noBanco?.dados ?? nova.find((l) => l.id === linhaId)?.dados ?? {}), ...mudou };
+        const { error } = await supabase.from('tabela_linhas').update({ dados }).eq('id', linhaId);
         if (error) avisar('Uma célula não foi salva', { erro: true, texto: error.message });
+        else setLinhas((prev) => prev.map((l) => (l.id === linhaId ? { ...l, dados: { ...dados, ...(mexidas.current[linhaId] ?? {}) } } : l)));
       }, 600);
       return nova;
     });
