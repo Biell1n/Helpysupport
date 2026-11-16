@@ -61,7 +61,7 @@ export async function vendeOnline(db: SupabaseClient, ownerId: string): Promise<
 type TabelaPedido = { id: string; nome: string; fonte: string; colunas: { chave: string; rotulo: string }[] };
 // `produto` é o nome que aparece no pedido, já com a opção e a observação ("Calabresa (broto; sem cebola)");
 // `base` é o nome no catálogo, para achar o item de novo.
-type Item = { produto: string; quantidade: number; preco: number; subtotal: number; base?: string; opcao?: string; obs?: string; tabela_id?: string; linha_id?: string; estoque_chave?: string };
+type Item = { produto: string; quantidade: number; preco: number; subtotal: number; base?: string; opcao?: string; obs?: string; tabela_id?: string; linha_id?: string; estoque_chave?: string; baixado?: number };
 
 /** O que o assistente manda de cada item: `opcao` quando o preço muda (tamanho, versão), `obs` para o resto (cor, sabor, recado). */
 export type ItemPedido = { produto: string; quantidade: number; opcao?: string; obs?: string };
@@ -474,11 +474,15 @@ export async function baixarEstoqueDoPedido(db: SupabaseClient, pedidoId: string
   const { data: marcou } = await db.from('pedidos').update({ estoque_baixado: true }).eq('id', pedidoId).eq('estoque_baixado', false).select('id');
   if (!marcou?.length) return;
   const faltou: string[] = [];
-  for (const it of (ped.itens ?? []) as Item[]) {
+  const itens = [...((ped.itens ?? []) as Item[])];
+  for (const [i, it] of itens.entries()) {
     if (!it.linha_id || !it.estoque_chave) continue;
     const { data: antes } = await db.rpc('helpy_baixar_estoque', { p_linha: it.linha_id, p_chave: it.estoque_chave, p_qtd: it.quantidade });
     if (antes != null && Number(antes) < it.quantidade) faltou.push(`${it.produto} (havia ${Math.max(0, Number(antes))})`);
+    // o que saiu de verdade (o estoque não fica negativo): é isso que volta se o pedido for reaberto ou cancelado
+    if (antes != null) itens[i] = { ...it, baixado: Math.max(0, Math.min(it.quantidade, Number(antes))) };
   }
+  await db.from('pedidos').update({ itens }).eq('id', pedidoId);
   if (faltou.length) {
     await db.from('alertas').insert({
       owner_id: ped.owner_id, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',
@@ -495,8 +499,34 @@ export async function devolverEstoqueDoPedido(db: SupabaseClient, pedidoId: stri
   if (!ped) return;
   for (const it of (ped.itens ?? []) as Item[]) {
     if (!it.linha_id || !it.estoque_chave) continue;
-    await db.rpc('helpy_baixar_estoque', { p_linha: it.linha_id, p_chave: it.estoque_chave, p_qtd: -it.quantidade });
+    const volta = it.baixado ?? it.quantidade;
+    if (volta > 0) await db.rpc('helpy_baixar_estoque', { p_linha: it.linha_id, p_chave: it.estoque_chave, p_qtd: -volta });
   }
+}
+
+/**
+ * Antes de finalizar ou reabrir um pedido anotado: os itens com estoque ainda estão disponíveis?
+ * Finalizar confere o estoque da tabela; reabrir confere também o que já está separado em outros pedidos.
+ * Devolve o que falta, em texto, ou lista vazia.
+ */
+export async function estoqueFaltando(db: SupabaseClient, pedidoId: string, reabrindo: boolean): Promise<string[]> {
+  const { data: ped } = await db.from('pedidos').select('owner_id, conversation_id, itens').eq('id', pedidoId).maybeSingle();
+  const itens = ((ped?.itens ?? []) as Item[]).filter((it) => it.linha_id && it.estoque_chave);
+  if (!ped || !itens.length) return [];
+  const { data: linhas } = await db.from('tabela_linhas').select('id, dados').in('id', itens.map((i) => i.linha_id!));
+  const separado = reabrindo ? await reservadoEmPedidos(db, ped.owner_id, ped.conversation_id) : new Map<string, number>();
+  const usado = new Map<string, number>();
+  const falta: string[] = [];
+  for (const it of itens) {
+    const celula = String(((linhas ?? []).find((l) => l.id === it.linha_id)?.dados as Record<string, unknown> | undefined)?.[it.estoque_chave!] ?? '').trim();
+    if (!celula) continue; // célula vazia: o item não controla estoque
+    const tem = Number(celula.replace(',', '.'));
+    if (!Number.isFinite(tem)) continue;
+    const livre = tem - (separado.get(it.linha_id!) ?? 0) - (usado.get(it.linha_id!) ?? 0);
+    usado.set(it.linha_id!, (usado.get(it.linha_id!) ?? 0) + it.quantidade);
+    if (livre < it.quantidade) falta.push(`${it.produto} (${livre <= 0 ? 'acabou' : `só ${livre} disponível`})`);
+  }
+  return falta;
 }
 
 export async function fecharPedido(
@@ -784,11 +814,14 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   // Marca antes de baixar: o estorno devolve o que foi baixado, e um aviso repetido não baixa duas vezes
   const faltou: string[] = [];
   const { data: baixa } = await db.from('pedidos').update({ estoque_baixado: true }).eq('id', ped.id).eq('estoque_baixado', false).select('id');
-  for (const it of (baixa?.length ? (ped.itens ?? []) : []) as Item[]) {
+  const itensPagos = [...((ped.itens ?? []) as Item[])];
+  for (const [i, it] of (baixa?.length ? itensPagos : []).entries()) {
     if (!it.linha_id || !it.estoque_chave) continue;
     const { data: antes } = await db.rpc('helpy_baixar_estoque', { p_linha: it.linha_id, p_chave: it.estoque_chave, p_qtd: it.quantidade });
     if (antes != null && Number(antes) < it.quantidade) faltou.push(`${it.produto} (havia ${Math.max(0, Number(antes))}, venderam ${it.quantidade})`);
+    if (antes != null) itensPagos[i] = { ...it, baixado: Math.max(0, Math.min(it.quantidade, Number(antes))) };
   }
+  if (baixa?.length) await db.from('pedidos').update({ itens: itensPagos }).eq('id', ped.id);
   if (faltou.length) {
     await db.from('alertas').insert({
       owner_id: ownerId, assistant_id: ped.assistant_id, conversation_id: ped.conversation_id, origem: 'sistema',

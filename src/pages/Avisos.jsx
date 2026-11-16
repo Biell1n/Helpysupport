@@ -99,7 +99,7 @@ export default function Avisos() {
               {a.resposta && <p className="aviso-resposta"><Check size={14} /> Respondido: {a.resposta}</p>}
               {a.tipo === 'lacuna' && a.resolvida && !a.resposta && <p className="aviso-resposta"><Check size={14} /> Resolvida</p>}
 
-              {respondendo === a.chave && a.assistantId && (
+              {respondendo === a.chave && a.assistantId && a.origem !== 'sistema' && (
                 <form
                   className="alertas-resposta"
                   onSubmit={(e) => {

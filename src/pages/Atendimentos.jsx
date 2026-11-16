@@ -361,7 +361,9 @@ export default function Atendimentos() {
     if (!conversas) return conversas;
     return conversas.filter((c) =>
       (!etapaFiltro || etapas[c.id] === etapaFiltro)
-      && (!q || [c.titulo, c.motivo, c.resumo, c.lead_nome, c.lead_contato, String(c.numero)].some((v) => String(v ?? '').toLowerCase().includes(q))),
+      // o número vale como aparece na tela ("0025", "Nº 0025") ou sem zeros ("25")
+      && (!q || [c.titulo, c.motivo, c.resumo, c.lead_nome, c.lead_contato].some((v) => String(v ?? '').toLowerCase().includes(q))
+        || (/\d/.test(q) && String(c.numero) === q.replace(/\D/g, '').replace(/^0+(?=\d)/, ''))),
     );
   }, [conversas, busca, etapaFiltro, etapas]);
 
