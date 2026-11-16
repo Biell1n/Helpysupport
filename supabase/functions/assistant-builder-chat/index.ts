@@ -649,6 +649,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     input_schema: {
       type: 'object',
       properties: {
+          mesma_agenda: { type: 'boolean', description: 'true só depois que o dono concordou em usar a mesma agenda de outro assistente da conta' },
         horarios: {
           type: 'object',
           description: 'Dia da semana (0=domingo … 6=sábado) → faixas ["HH:MM","HH:MM"]. Dia fechado = []. Ex.: {"1":[["09:00","12:00"],["13:00","18:00"]],"0":[]}',
@@ -1034,6 +1035,22 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
 
     case 'configurar_agenda': {
       const { data: atual } = await admin.from('agenda_config').select('*').eq('owner_id', ctx.userId).maybeSingle();
+      // a agenda é uma só por conta: se outro assistente já marca nela, mudar aqui muda para ele também
+      const mexeNaGrade = !!input.horarios || input.vagas != null || input.intervalo_min != null || input.duracao_min != null;
+      if (mexeNaGrade && input.mesma_agenda !== true && Object.values(atual?.horarios ?? {}).some((f) => Array.isArray(f) && f.length)) {
+        let outros = admin.from('assistants').select('name, config').eq('owner_id', ctx.userId);
+        if (s.assistant_id) outros = outros.neq('id', s.assistant_id);
+        const { data: lista } = await outros;
+        const usam = (lista ?? []).filter((a) => /^sim/i.test(valueOf(normalizeConfig(a.config as never), 'usar_agenda'))).map((a) => a.name);
+        if (usam.length) {
+          const dias = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+          const grade = Object.entries(atual!.horarios as Record<string, Array<[string, string]>>)
+            .filter(([, f]) => f?.length).map(([d, f]) => `${dias[Number(d)]} ${f.map(([a, b]) => `${a}–${b}`).join(' e ')}`).join('; ');
+          return {
+            erro: `NADA FOI GRAVADO. A agenda é uma só para a conta inteira e ${usam.join(', ')} já marca nela (${grade}${atual?.vagas ? `, ${atual.vagas} atendimento(s) ao mesmo tempo` : ''}). Mudar aqui muda para ${usam.length > 1 ? 'eles' : 'ele'} também. Explique isso ao dono em poucas palavras e pergunte se este assistente marca na mesma agenda, somando os dias e horários dele aos que já existem. Só se ele concordar, chame configurar_agenda de novo com mesma_agenda=true, mandando apenas os dias novos (os outros continuam). Se ele não quiser misturar, deixe este assistente sem agenda (usar_agenda = "Não usa agenda") e diga que a equipe marca à mão.`,
+          };
+        }
+      }
       const novo: Record<string, unknown> = { owner_id: ctx.userId, ativa: true };
       if (input.horarios && typeof input.horarios === 'object') {
         const h: Record<string, Array<[string, string]>> = { ...(atual?.horarios ?? {}) };
@@ -1076,6 +1093,7 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
       const falta: string[] = [];
       if (!Object.values(final.horarios ?? {}).some((f) => Array.isArray(f) && f.length)) falta.push('os dias e horários de atendimento');
       if (!final.servicos?.length) falta.push('os serviços que dá para marcar, com quanto tempo leva cada um');
+      if ((final as { intervalo_min?: number | null }).intervalo_min == null) falta.push('se tem intervalo entre um atendimento e outro');
       const semTempo = (final.servicos ?? []).filter((x) => !x.duracao_min).map((x) => x.nome);
       if (semTempo.length) falta.push(`quanto tempo leva: ${semTempo.join(', ')}`);
       return {
@@ -1148,7 +1166,9 @@ Se usar a agenda, a agenda só fica certa com estas respostas. Pergunte UMA de c
 6. Com quanta antecedência alguém pode marcar (ex.: até 2h antes).
 7. Se quer registrar cada agendamento nos Dados com o valor (campo agenda_registrar).
 8. Se qualquer pessoa pode marcar ou só quem entrou na conta (campo agenda_quem). Só pergunte se fizer sentido para o negócio; o padrão é qualquer pessoa.
-O resultado de configurar_agenda diz o que ainda falta: pergunte isso antes de passar para outro assunto.
+O resultado de configurar_agenda diz o que ainda falta: pergunte isso antes de passar para outro assunto. Mande só os dias que a pessoa disse: nunca mande um dia vazio que ela não disse que fecha. Só diga que a agenda está completa depois de ter perguntado o intervalo entre atendimentos e quantas pessoas atendem ao mesmo tempo.
+Se a pessoa falar de marcar horário logo no começo, trate da agenda cedo, logo depois do básico (nome, para que serve, como fala), e pergunte se ele marca sozinho ou se ela confirma antes; não escolha por ela.
+A agenda é uma só para a conta inteira. Se configurar_agenda avisar que outro assistente já usa a agenda, siga o que o aviso pede.
 
 TUDO QUE A PESSOA CLICA, VOCÊ TAMBÉM FAZ
 O documento à direita tem interruptores e caixinhas (ex.: o painel de chamados). Qualquer coisa que ela poderia clicar ela pode pedir no chat, e você faz na hora, sem mandar ela clicar:
@@ -1231,7 +1251,8 @@ function docState(s: Session): string {
     for (const f of sec.fields) {
       const e = s.config.fields[f.key];
       const v = valueOf(s.config, f.key);
-      const estado = e?.status === 'ignorado' ? 'DISPENSADO' : v ? `= ${JSON.stringify(v.slice(0, 300))}` : 'vazio';
+      // campos que acumulam (regras) vão inteiros: o modelo às vezes reescreve o campo todo e não pode perder o fim
+      const estado = e?.status === 'ignorado' ? 'DISPENSADO' : v ? `= ${JSON.stringify(v.slice(0, f.accumulates ? 4000 : 300))}` : 'vazio';
       linhas.push(`  campo ${f.key} · ${f.label} [${f.importance}]${f.options ? ` opções: ${f.options.join(' / ')}` : ''} → ${estado}`);
     }
     for (const c of sec.collections) {

@@ -407,7 +407,8 @@ export const camposDoRamo = (model: Modelo | null) =>
 function camposDeOperacao(model: Modelo | null): FieldDef[] {
   const out = model === 'educacional' ? [] : [...OPERACAO._comum];
   if (!model) return out;
-  if (VENDE.includes(model)) out.push(...OPERACAO.vende);
+  // quem marca horário cobra pela agenda (sinal ou valor do serviço): venda pelo chat e "o que não temos" são de loja
+  if (VENDE.includes(model)) out.push(...OPERACAO.vende.filter((f) => model !== 'agendamento' || !['venda_no_chat', 'venda_estoque', 'fora_do_catalogo'].includes(f.key)));
   if (OPERACAO[model]) out.push(...OPERACAO[model]);
   return out;
 }
@@ -594,8 +595,10 @@ export function buildSchema(metaIn: Partial<Meta>, config?: Config): Schema {
   // campo que não serve para o ramo sai da ficha; o que já tem resposta nunca some
   const decidido = meta.campos_ramo;
   const serve = (f: FieldDef) => {
-    if (!decidido || !DO_RAMO.includes(f.key)) return true;
+    if (!DO_RAMO.includes(f.key)) return true;
     if (String(campos[f.key]?.value ?? '').trim()) return true;
+    // sem o construtor ter dito (ficha montada à mão, ou de antes desta regra): os de ramo específico ficam de fora
+    if (!decidido) return !SO_SE_SERVIR.includes(f.key);
     return SO_SE_SERVIR.includes(f.key) ? decidido[f.key] === true : decidido[f.key] !== false;
   };
 
