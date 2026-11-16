@@ -1,5 +1,6 @@
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { chamar } from '@/lib/supabase';
 
 /**
@@ -56,6 +57,7 @@ export default function PoliticaEmpresa() {
 
   return (
     <main className="politica">
+      <Link to={`/c/${token}`} className="voltar"><ArrowLeft size={16} /> Voltar para a conversa</Link>
       <h1>Política de privacidade</h1>
       <p className="muted">{d.empresa} · atendimento pelo assistente {d.assistente}</p>
       <div className="stack stack-lg" style={{ marginTop: 28 }}>

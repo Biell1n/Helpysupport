@@ -33,8 +33,10 @@ function Inicio({ abrirChamado }) {
 
 /** Central de ajuda aberta (sem login): artigos e o caminho para abrir chamado. */
 export default function AjudaPublica() {
-  const { user } = useAuth();
-  const abrirChamado = user ? formulario : pelaEntrada;
+  const { user, tipo } = useAuth();
+  // cliente de um negócio não tem chamados com o Helpy: o caminho dele é "Minhas conversas"
+  const cliente = user && tipo === 'cliente';
+  const abrirChamado = user && !cliente ? formulario : pelaEntrada;
   useEffect(() => {
     document.title = 'Ajuda · Helpy';
   }, []);
@@ -44,14 +46,16 @@ export default function AjudaPublica() {
         <Link to="/" aria-label="Helpy, página inicial"><Logo size={28} /></Link>
         <span className="ajuda-publica-titulo">Central de ajuda</span>
         <span className="spacer" />
-        {user ? (
+        {cliente ? (
+          <Link to="/painel" className="btn btn-primary btn-sm">Minhas conversas</Link>
+        ) : user ? (
           <Link to="/painel/suporte" className="btn btn-primary btn-sm">Meus chamados</Link>
         ) : (
           <Link to={`/entrar?de=${encodeURIComponent('/painel/suporte')}`} className="btn btn-ghost btn-sm">Entrar</Link>
         )}
       </header>
       <main className="page suporte">
-        {user && <StatusHelpy />}
+        {user && !cliente && <StatusHelpy />}
         <Routes>
           <Route index element={<Inicio abrirChamado={abrirChamado} />} />
           <Route path="categoria/:cat" element={<CategoriaPagina base={BASE} abrirChamado={abrirChamado} />} />
