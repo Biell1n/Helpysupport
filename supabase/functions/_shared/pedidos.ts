@@ -399,7 +399,8 @@ export async function anotarPedido(
   if (ctx.teste) {
     return {
       ok: true, teste: true, total: reais(total), itens: resumoItens,
-      mensagem: `Isto é um teste do dono: o pedido NÃO foi salvo. Responda como se tivesse anotado (${reais(total)}) e diga que, num atendimento de verdade, ele aparece em Pedidos para a equipe finalizar.`,
+      ...(frete != null ? { frete: frete ? reais(frete) : 'grátis' } : entrega === 'entrega' ? { frete: 'a combinar com a equipe' } : {}),
+      mensagem: `Isto é um teste do dono: o pedido NÃO foi salvo. Responda como se tivesse anotado (${reais(total)}${frete === 0 ? ', com frete grátis' : frete ? `, com frete de ${reais(frete)}` : ''}) e diga que, num atendimento de verdade, ele aparece em Pedidos para a equipe finalizar.`,
     };
   }
   // o mesmo pedido de novo na mesma conversa (a pessoa confirmou duas vezes): não duplica
@@ -442,8 +443,8 @@ export async function anotarPedido(
     numero: ped.numero,
     total: reais(total),
     itens: resumoItens,
-    ...(frete != null ? { frete: reais(frete) } : entrega === 'entrega' ? { frete: 'a combinar com a equipe' } : {}),
-    mensagem: `Pedido nº ${ped.numero} anotado (${reais(total)}${frete != null ? `, com frete de ${reais(frete)}` : entrega === 'entrega' ? ', frete a combinar' : ''}). Confirme os itens e o total para a pessoa e diga que a equipe vai entrar em contato por aqui${contato ? ' ou pelo contato que ela deixou' : ''} para combinar o pagamento${entrega ? (entrega === 'retirada' ? ' e a retirada' : ' e a entrega') : ''}. Não mande link de pagamento e não diga que está pago.`,
+    ...(frete != null ? { frete: frete ? reais(frete) : 'grátis' } : entrega === 'entrega' ? { frete: 'a combinar com a equipe' } : {}),
+    mensagem: `Pedido nº ${ped.numero} anotado (${reais(total)}${frete === 0 ? ', com frete grátis' : frete != null ? `, com frete de ${reais(frete)}` : entrega === 'entrega' ? ', frete a combinar' : ''}). Confirme os itens e o total para a pessoa e diga que a equipe vai entrar em contato por aqui${contato ? ' ou pelo contato que ela deixou' : ''} para combinar o pagamento${entrega ? (entrega === 'retirada' ? ' e a retirada' : ' e a entrega') : ''}. Não mande link de pagamento e não diga que está pago.`,
   };
 }
 
