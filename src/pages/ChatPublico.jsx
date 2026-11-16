@@ -57,6 +57,12 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
   const [info, setInfo] = useState(null);
   const [fatal, setFatal] = useState(null);
   const [conversa, setConversa] = useState(() => ler(chaveConversa));
+  // abrindo uma conversa que já existe: não mostra saudação e sugestões de conversa nova enquanto o histórico chega
+  const [abrindo, setAbrindo] = useState(() => !!(new URLSearchParams(window.location.search).get('conversa') || ler(chaveConversa)));
+  // a página recarregou com a última mensagem da pessoa ainda sem resposta: a resposta chega sozinha
+  const [esperando, setEsperando] = useState(false);
+  // a conversa do link é de uma conta: sem entrar, não dá para abrir
+  const [precisaEntrar, setPrecisaEntrar] = useState(false);
   const [estado, setEstado] = useState({ status: 'bot' });
   const [mensagens, setMensagens] = useState([]);
   const [texto, setTexto] = useState('');
@@ -96,6 +102,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         const i = await chamar('public-chat', { ...base, action: 'info' });
         if (!vivo) return;
         setInfo(i);
+        if (!modoTeste) document.title = [i.name, i.negocio].filter(Boolean).join(' · ') || document.title;
         // a barreira contra robôs roda enquanto a pessoa lê e digita
         if (!modoTeste && i.desafio) {
           prova.current = resolverDesafio({ token, visitante: visitorId, agora: i.desafio.agora, bits: i.desafio.bits });
@@ -114,13 +121,20 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
             setMensagens(h.messages);
             absorver(h);
             ultimoAgente.current = [...h.messages].reverse().find((m) => m.role === 'agent' || m.role === 'system')?.created_at ?? null;
+            if (h.messages.at(-1)?.role === 'user' && (h.status ?? 'bot') === 'bot') setEsperando(true);
+          } else if (doLink && !user) {
+            // conversa de uma conta, aberta sem entrar (sessão vencida, outro navegador): pede para entrar
+            setPrecisaEntrar(true);
           } else {
             lembrar(chaveConversa, null);
             setConversa(null);
           }
         }
+        setAbrindo(false);
       } catch (e) {
         if (vivo) setFatal(e.message);
+      } finally {
+        if (vivo) setAbrindo(false);
       }
     })();
     return () => {
@@ -128,6 +142,28 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, assistantId]);
+
+  // ---- resposta que estava sendo escrita quando a página recarregou ----
+  useEffect(() => {
+    if (!esperando || !conversa) return undefined;
+    let vezes = 0;
+    const t = setInterval(async () => {
+      vezes++;
+      try {
+        const h = await chamar('public-chat', { ...base, action: 'history', conversation_id: conversa, visitor_id: visitorId });
+        if (h.messages?.length && h.messages.at(-1).role !== 'user') {
+          setMensagens(h.messages);
+          absorver(h);
+          setEsperando(false);
+        }
+      } catch {
+        /* tenta de novo na próxima volta */
+      }
+      if (vezes >= 20) setEsperando(false);
+    }, 3000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esperando, conversa]);
 
   // ---- respostas da equipe chegam por consulta periódica ----
   useEffect(() => {
@@ -139,6 +175,8 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
         if (d.messages?.length) {
           ultimoAgente.current = d.messages.at(-1).created_at;
           setMensagens((p) => juntar(p, d.messages));
+          // a equipe respondeu com a aba em segundo plano: o título da aba avisa
+          if (document.hidden && d.messages.some((m) => m.role === 'agent')) avisarNaAba();
         }
       } catch {
         /* consulta de fundo: silenciosa */
@@ -259,6 +297,14 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
 
   const novaConversa = () => {
     lembrar(chaveConversa, null);
+    // tira o ?conversa do endereço: senão, ao recarregar, a conversa antiga voltaria
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('conversa')) {
+      url.searchParams.delete('conversa');
+      window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    }
+    setPrecisaEntrar(false);
+    setEsperando(false);
     setConversa(null);
     setMensagens([]);
     setEstado({ status: 'bot' });
@@ -284,7 +330,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
   const humano = estado.status === 'waiting' || estado.status === 'human';
 
   return (
-    <div className="publico" style={modoTeste ? { minHeight: 0, height: '100%' } : undefined}>
+    <div className="publico" data-site={EM_SITE || undefined} style={modoTeste ? { minHeight: 0, height: '100%' } : undefined}>
       {cabecalho && (
         <header className="publico-top">
           <div className="publico-top-in">
@@ -318,13 +364,22 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
 
       <div className="chat-scroll publico-in" aria-live="polite">
         {/* a saudação fica no topo da conversa (o assistente não se reapresenta) */}
-        {info && (
+        {abrindo && <div className="skeleton" style={{ height: 64, borderRadius: 14 }} aria-label="Abrindo a conversa" />}
+        {precisaEntrar && (
+          <div className="msg msg-system">
+            <div className="msg-body">
+              Esta conversa está guardada na sua conta.{' '}
+              <Link className="link-btn" to={`/entrar?de=${encodeURIComponent(`/c/${token}${window.location.search}`)}`} {...NOVA_ABA}>Entre</Link> para continuar de onde parou.
+            </div>
+          </div>
+        )}
+        {info && !abrindo && (
           <div className="msg msg-bot">
             <span className="msg-who">{nome}</span>
             <div className="msg-body">{info.saudacao || `Oi! Sou ${nome}${info.negocio ? `, do atendimento de ${info.negocio}` : ''}. Como posso ajudar?`}</div>
           </div>
         )}
-        {mensagens.length === 0 && !pensando && info?.sugestoes?.length > 0 && (
+        {mensagens.length === 0 && !pensando && !abrindo && !precisaEntrar && info?.sugestoes?.length > 0 && (
           <Sugestoes
             rotulo="Toque para perguntar"
             sugestoes={info.sugestoes.map((r, i) => ({ id: `${i}-${r}`, rotulo: r }))}
@@ -348,7 +403,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           </div>
         ))}
 
-        {pensando && !humano && (
+        {(pensando || esperando) && !humano && (
           <div className="msg msg-bot">
             <span className="msg-who">{nome}</span>
             <div className="msg-body pensando"><BolinhasPensando /></div>
@@ -399,13 +454,13 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
           <div className="card stack ticket-aviso">
             <b>{typeof pedeLogin === 'string' ? `Entre com sua conta ${pedeLogin}` : 'Para falar com a equipe, entre com sua conta'}</b>
             <p className="muted" style={{ fontSize: 13 }}>
-              Assim a equipe sabe quem é você e pode responder também por e-mail. Depois de entrar, você volta para esta conversa.
+              Assim a equipe sabe quem é você e a conversa fica guardada em Minhas conversas. Depois de entrar, você volta para esta conversa.
             </p>
             <div className="row row-wrap">
-              <Link className="btn btn-primary" to={`/entrar?de=${encodeURIComponent(`/c/${token}`)}`}>
+              <Link className="btn btn-primary" to={`/entrar?de=${encodeURIComponent(`/c/${token}`)}`} {...NOVA_ABA}>
                 <LogIn size={16} /> Entrar
               </Link>
-              <Link className="btn btn-ghost" to={`/criar-conta?de=${encodeURIComponent(`/c/${token}`)}`}>Criar conta</Link>
+              <Link className="btn btn-ghost" to={`/criar-conta?de=${encodeURIComponent(`/c/${token}`)}`} {...NOVA_ABA}>Criar conta</Link>
             </div>
           </div>
         )}
@@ -451,7 +506,7 @@ export function Conversa({ token, assistantId, modoTeste = false, cabecalho = tr
               <span>
                 Atendimento automático.{' '}
                 {/* falar com a equipe não exige conta (nome e telefone bastam); entrar só guarda o histórico */}
-                <Link className="link-btn" to={`/entrar?de=${encodeURIComponent(`/c/${token}`)}`}>Entrar</Link> para guardar suas conversas.
+                <Link className="link-btn" to={`/entrar?de=${encodeURIComponent(`/c/${token}${window.location.search}`)}`} {...NOVA_ABA}>Entrar</Link> para guardar suas conversas.
               </span>
             )}
           </div>
@@ -475,6 +530,33 @@ const EVENTOS = {
   assumido: { titulo: 'Atendimento assumido', tom: 'info', Icone: UserCheck },
   pago: { titulo: 'Pagamento confirmado', tom: 'ok', Icone: CircleCheckBig },
 };
+// dentro do botão de chat no site de alguém (iframe): entrar e criar conta abrem numa aba própria,
+// e não espremidos no quadro pequeno
+const EM_SITE = (() => {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+})();
+const NOVA_ABA = EM_SITE ? { target: '_blank', rel: 'noreferrer' } : {};
+
+// resposta da equipe com a aba escondida: "(1) Nova resposta" no título até a pessoa voltar
+let tituloOriginal = null;
+function avisarNaAba() {
+  if (tituloOriginal === null) {
+    tituloOriginal = document.title;
+    const voltar = () => {
+      if (document.hidden) return;
+      document.title = tituloOriginal;
+      tituloOriginal = null;
+      document.removeEventListener('visibilitychange', voltar);
+    };
+    document.addEventListener('visibilitychange', voltar);
+  }
+  document.title = `(1) Nova resposta · ${tituloOriginal}`;
+}
+
 // a mesma mensagem pode chegar pela consulta periódica e pela resposta do envio: entra uma vez só
 const chaveDa = (m) => `${m.role}|${m.author_name ?? ''}|${m.created_at ?? ''}|${m.content}`;
 const juntar = (atuais, novas) => {
@@ -491,7 +573,7 @@ const lerPedido = (texto) => {
   const linhas = String(texto ?? '').split('\n');
   const [, numero, total] = linhas[0].match(/nº\s*(\d+)\s*·\s*(R\$\s?[\d.,]+)/) ?? [];
   const link = linhas.find((l) => l.startsWith('Pagar: '))?.slice(7).trim();
-  const itens = linhas.slice(1).filter((l) => !l.startsWith('Pagar: ')).map((l) => {
+  const itens = linhas.slice(1).filter((l) => !l.startsWith('Pagar: ') && !l.startsWith('Anotado:')).map((l) => {
     const [nome, valor] = l.split(' — ');
     return { nome, valor };
   });
@@ -524,6 +606,8 @@ function MarcoPago({ m }) {
 /** Pedido fechado pelo assistente: recibo com os itens, o total e o botão de pagar. */
 function Pedido({ m, pago }) {
   const { numero: n, total, link, itens } = lerPedido(m.content);
+  // pedido anotado: a equipe combina o pagamento (não há link)
+  const anotado = /\nAnotado:/.test(String(m.content ?? ''));
   return (
     <div className="chat-recibo-sombra" role="status">
       <div className="chat-recibo" data-tom={pago ? undefined : 'info'} data-tipo="pedido" data-pago={pago || undefined}>
@@ -534,7 +618,7 @@ function Pedido({ m, pago }) {
         {pago && <span className="chat-recibo-carimbo" aria-hidden="true">Pago</span>}
         <div className="chat-recibo-corpo">
           <span className="chat-recibo-status">
-            <ReceiptText size={14} aria-hidden="true" /> {pago ? 'Seu pedido' : 'Pedido fechado'}
+            <ReceiptText size={14} aria-hidden="true" /> {pago ? 'Seu pedido' : anotado ? 'Pedido anotado' : 'Pedido fechado'}
           </span>
           <ul className="chat-recibo-itens">
             {itens.map((it, i) => (
@@ -545,7 +629,7 @@ function Pedido({ m, pago }) {
           {link && !pago && (
             <a className="btn btn-primary btn-sm chat-recibo-pagar" href={link} target="_blank" rel="noreferrer">Pagar agora</a>
           )}
-          {!pago && <p>Pix, cartão ou boleto. A confirmação aparece aqui.</p>}
+          {!pago && <p>{anotado ? 'A equipe vai falar com você para combinar o pagamento.' : 'Pix, cartão ou boleto. A confirmação aparece aqui.'}</p>}
         </div>
       </div>
     </div>

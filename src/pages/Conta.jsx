@@ -137,7 +137,7 @@ export default function Conta() {
           <label className="field">
             <span className="label">Seu nome</span>
             <input className="input" maxLength={120} autoComplete="name" value={f.full_name} onChange={set('full_name')} />
-            <span className="hint">É o nome que o cliente vê quando você responde um chamado.</span>
+            {tipo !== 'cliente' && <span className="hint">É o nome que o cliente vê quando você responde um chamado.</span>}
           </label>
           {tipo === 'empresa' && (
           <label className="field">

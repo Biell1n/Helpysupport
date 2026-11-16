@@ -42,7 +42,7 @@ const MSGS_REDE_DIA = 80;
 // conversas novas num dia, da mesma rede, para a mesma empresa
 const CONVERSAS_REDE_DIA = 5;
 const PEDE_LOGIN =
-  'Para falar com a equipe, entre com sua conta tocando em "Entrar para falar com a equipe", aqui embaixo. Leva poucos segundos e a conversa continua de onde parou.';
+  'Para falar com a equipe, entre com sua conta tocando em "Entrar", aqui embaixo. Leva poucos segundos e a conversa continua de onde parou.';
 const MUITA_PROCURA =
   'Estamos recebendo muitas conversas agora. Para continuar, entre com sua conta tocando em "Entrar", aqui embaixo. Leva poucos segundos.';
 
@@ -214,9 +214,10 @@ Deno.serve(async (req) => {
         .select('role, content, author_name, created_at')
         .eq('conversation_id', c.id)
         .in('role', ['user', 'assistant', 'agent', 'system'])
-        .order('created_at', { ascending: true })
+        // as 100 mais recentes (numa conversa longa, as novas é que importam), na ordem em que aconteceram
+        .order('created_at', { ascending: false })
         .limit(100);
-      return json({ ...estado(c), messages: (msgs ?? []).filter(paraOCliente) });
+      return json({ ...estado(c), messages: (msgs ?? []).reverse().filter(paraOCliente) });
     }
 
     if (action === 'poll') {
@@ -355,7 +356,7 @@ Deno.serve(async (req) => {
           return json({
             conversation_id: null,
             status: 'bot',
-            message: 'O atendimento automático está indisponível no momento. Para deixar um recado para a equipe, entre com sua conta tocando em "Entrar para falar com a equipe", aqui embaixo.',
+            message: 'O atendimento automático está indisponível no momento. Para deixar um recado para a equipe, entre com sua conta tocando em "Entrar", aqui embaixo.',
             modo: 'login',
             precisa_login: true,
           });

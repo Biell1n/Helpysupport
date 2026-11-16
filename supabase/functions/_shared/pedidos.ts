@@ -437,6 +437,19 @@ export async function anotarPedido(
       assunto: `Pedido nº ${ped.numero} anotado: ${reais(total)}`,
       detalhe: `${nome}${contato ? ` (${contato})` : ''} pediu ${itens.map((i) => `${i.quantidade}x ${i.produto}`).join(', ')}${entrega === 'retirada' ? ', para retirar' : entrega === 'entrega' ? `, entrega em ${endereco}` : ''}. Combine o pagamento e marque como finalizado em Pedidos.`,
     }).then(() => {}, () => {});
+    // chat do site: o pedido anotado também vira um recibo na conversa (sem botão de pagar)
+    const { data: conv } = await db.from('conversations').select('canal_id').eq('id', ctx.conversationId).maybeSingle();
+    if (conv && !conv.canal_id) {
+      await db.from('conversation_messages').insert({
+        conversation_id: ctx.conversationId, role: 'system', author_name: 'evento:pedido',
+        content: [
+          `Pedido nº ${ped.numero} · ${reais(total)}`,
+          ...itens.map((i) => `${i.quantidade}x ${i.produto} — ${reais(i.subtotal)}`),
+          frete ? `Frete — ${reais(frete)}` : frete === 0 && entrega === 'entrega' ? 'Frete — grátis' : entrega === 'retirada' ? 'Retirada no local' : '',
+          'Anotado: a equipe combina o pagamento',
+        ].filter(Boolean).join('\n'),
+      });
+    }
   }
   return {
     ok: true,

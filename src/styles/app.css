@@ -1612,6 +1612,13 @@
   background: var(--papel);
 }
 
+/* dentro do botão de chat no celular: o X de fechar fica no canto de cima, à direita */
+@media (max-width: 520px) {
+  .publico[data-site] .publico-top-in {
+    padding-right: 56px;
+  }
+}
+
 .publico-top {
   background: var(--noite);
   border-bottom: 1px solid var(--linha);
@@ -3680,11 +3687,6 @@
 
 /* toque: alvo mínimo de 44px nos botões pequenos */
 @media (pointer: coarse) {
-  /* atalhos de teclado não valem no toque */
-  .composer-note {
-    display: none;
-  }
-
   .btn-sm,
   .btn-icon,
   .chip {

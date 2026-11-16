@@ -39,7 +39,7 @@ export default function Recuperar() {
         </>
       ) : (
         <form className="stack" onSubmit={enviar}>
-          <p className="muted">Mandamos um link para você criar uma senha nova.</p>
+          <p className="muted">Vamos mandar um link para o seu e-mail. Por ele você cria uma senha nova.</p>
           <label className="field">
             <span className="label">E-mail</span>
             <input className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
