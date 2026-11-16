@@ -123,7 +123,9 @@ export async function horariosLivres(
   dia: string,
   duracaoMin?: number,
   ignorarId?: string,
-): Promise<{ dia?: string; duracao_min?: number; livres?: string[]; aviso?: string; erro?: string }> {
+  // um horário fora da grade que a pessoa pediu (ex.: 14:00 numa grade 13:40, 14:20): cabe se não bater com nada
+  pedida?: string,
+): Promise<{ dia?: string; duracao_min?: number; livres?: string[]; aviso?: string; erro?: string; cabe?: boolean }> {
   if (!DIA_RE.test(dia)) return { erro: 'Data inválida. Use AAAA-MM-DD.' };
   const dur = Math.max(5, Math.min(480, duracaoMin || cfg.duracao_min));
   const semana = new Date(`${dia}T12:00:00Z`).getUTCDay();
@@ -155,7 +157,14 @@ export async function horariosLivres(
       t += passo;
     }
   }
-  return { dia, duracao_min: dur, livres };
+  let cabe = false;
+  if (pedida && HORA_RE.test(pedida)) {
+    const t = localToUtc(dia, pedida.padStart(5, '0'), cfg.fuso).getTime();
+    const fim = t + dur * 60000;
+    const naFaixa = faixas.some(([abre, fecha]) => t >= localToUtc(dia, abre, cfg.fuso).getTime() && fim <= localToUtc(dia, fecha, cfg.fuso).getTime());
+    cabe = naFaixa && t >= minimo && quantosBatem(busy, t, fim, iv) < vagas;
+  }
+  return { dia, duracao_min: dur, livres, ...(pedida ? { cabe } : {}) };
 }
 
 export async function marcar(
@@ -209,9 +218,9 @@ export async function marcar(
     }
   }
 
-  const { livres } = await horariosLivres(db, cfg, input.dia, input.duracao_min);
   const hora = input.hora.padStart(5, '0');
-  if (!livres?.includes(hora)) {
+  const { livres, cabe } = await horariosLivres(db, cfg, input.dia, input.duracao_min, undefined, hora);
+  if (!livres?.includes(hora) && !cabe) {
     return { erro: 'Esse horário não está livre.', livres: livres ?? [] };
   }
 
@@ -327,8 +336,8 @@ export async function alterarAgendamento(
     const hora = (input.hora || fusoData(a.inicio, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })).padStart(5, '0');
     if (!DIA_RE.test(dia) || !HORA_RE.test(hora)) return { erro: 'Data ou hora inválida.' };
     const dur = Math.round((new Date(a.fim).getTime() - new Date(a.inicio).getTime()) / 60000);
-    const { livres } = await horariosLivres(db, cfg, dia, dur, a.id);
-    if (!livres?.includes(hora)) return { erro: 'Esse horário não está livre.', livres: livres ?? [] };
+    const { livres, cabe } = await horariosLivres(db, cfg, dia, dur, a.id, hora);
+    if (!livres?.includes(hora) && !cabe) return { erro: 'Esse horário não está livre.', livres: livres ?? [] };
     const inicio = localToUtc(dia, hora, cfg.fuso);
     patch.inicio = inicio.toISOString();
     patch.fim = new Date(inicio.getTime() + dur * 60000).toISOString();

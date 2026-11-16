@@ -1634,6 +1634,13 @@ Deno.serve(async (req) => {
       if (payload.builderRestantes <= 0) {
         throw new UserError('Você usou todas as mensagens de montagem deste mês. O documento continua editável à mão.', 429);
       }
+      // assistente novo com o plano no limite: avisa já, antes de gastar a montagem num assistente que não vai poder ser publicado
+      if (!assistantId) {
+        const { count } = await admin.from('assistants').select('id', { count: 'exact', head: true }).eq('owner_id', user.id);
+        if ((count ?? 0) >= plan.assistentes) {
+          throw new UserError(`O plano ${plan.nome} permite ${plan.assistentes} assistente${plan.assistentes > 1 ? 's' : ''}. Mude de plano para criar mais.`, 402);
+        }
+      }
 
       const s = await loadSession(user.id, assistantId);
       const before = JSON.stringify(s.config);

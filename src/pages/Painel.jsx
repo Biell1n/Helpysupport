@@ -192,11 +192,16 @@ export default function Painel() {
               : 'Nenhum chamado esperando. O atendimento está em dia.'}
           </p>
         </div>
-        {assistentes?.length > 0 && (
+        {assistentes?.length > 0 && (assistentes.length < plano.assistentes ? (
           <Link to="/painel/assistentes/novo" className="btn btn-primary">
             <Plus /> Novo assistente
           </Link>
-        )}
+        ) : (
+          // no limite do plano: em vez de deixar montar um assistente que não vai poder ser publicado
+          <Link to="/painel/plano" className="btn btn-ghost" title={`Seu plano tem até ${plano.assistentes} ${plano.assistentes === 1 ? 'assistente' : 'assistentes'}`}>
+            <Plus /> Mais assistentes
+          </Link>
+        ))}
       </header>
 
       <AlertasDaConta />

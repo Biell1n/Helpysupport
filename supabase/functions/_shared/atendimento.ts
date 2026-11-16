@@ -160,6 +160,21 @@ async function carrinhoDaConversa(db: SupabaseClient, conversationId: string): P
 const itensDoCarrinho = (c: NoCarrinho[]): ItemPedido[] =>
   c.map((i) => ({ produto: i.base ?? i.produto, quantidade: i.quantidade, ...(i.opcao ? { opcao: i.opcao } : {}), ...(i.obs ? { obs: i.obs } : {}) }));
 
+/**
+ * A regra de frete que o pedido aplica. Frete grátis acima de um valor às vezes fica escrito em
+ * Promoções ou em Entrega, e não na regra: aí entra junto, para o pedido cobrar o que o assistente promete.
+ */
+function regraDeFrete(cfg: Config): string {
+  const base = valueOf(cfg, 'frete_chat');
+  if (!base.trim() || /gr[aá]tis/i.test(base)) return base;
+  for (const campo of ['promocoes', 'entrega']) {
+    const m = /frete\s+gr[aá]tis[^.;\n]{0,40}?(?:acima|a partir|mais)\s+de\s+(?:r\$\s*)?[\d.,]+/i.exec(valueOf(cfg, campo))
+      ?? /(?:acima|a partir|mais)\s+de\s+(?:r\$\s*)?[\d.,]+[^.;\n]{0,30}?frete\s+gr[aá]tis/i.exec(valueOf(cfg, campo));
+    if (m) return `${base}; ${m[0]}${/gr[aá]tis/i.test(m[0]) ? '' : ' grátis'}`;
+  }
+  return base;
+}
+
 /** Ferramentas que só avisam a equipe: não mudam o que está sendo dito ao cliente. */
 const SO_AVISAM = new Set(['registrar_lacuna', 'avisar_equipe', 'registrar_contato']);
 
@@ -230,7 +245,7 @@ Nunca afirme preço, disponibilidade, quantidade ou detalhe destes itens sem con
 
   const blocoAgenda = agenda
     ? `AGENDA
-Você pode ver horários livres (ver_horarios), marcar (agendar) e mudar ou cancelar o que já marcou nesta conversa (alterar_agendamento). Antes de marcar, confirme serviço, dia, hora, nome e um contato. Nunca diga que marcou sem a ferramenta confirmar.
+Nunca diga que um horário está livre ou ocupado sem consultar ver_horarios na mesma resposta (com "hora", quando a pessoa pediu uma hora específica). Você pode ver horários livres (ver_horarios), marcar (agendar) e mudar ou cancelar o que já marcou nesta conversa (alterar_agendamento). Antes de marcar, confirme serviço, dia, hora, nome e um contato. Nunca diga que marcou sem a ferramenta confirmar.
 - Os horários que esta conversa já marcou aparecem no fim destas instruções, em "JÁ MARCADO NESTA CONVERSA". Eles valem: não diga que não marcou, não marque de novo.
 - Um horário que você mesma marcou aparece como ocupado em ver_horarios. Isso é normal: é o horário desta pessoa.
 - Pessoa quer mudar a hora, anotar um detalhe (uma preferência, um pedido especial) ou desmarcar: use alterar_agendamento com o id. Nunca crie um segundo horário para isso.
@@ -268,7 +283,7 @@ ${materiais.map((m) => `<material nome="${m.nome}">\n${m.texto}\n</material>`).j
     ? `CHAMADOS
 - A pessoa pediu para falar com alguém da equipe: chame chamar_atendente na hora.
 - Faltou uma informação importante, reclamação ou negociação: NÃO abra sozinho. Diga em uma frase que não tem a resposta (ou que isso é com a equipe) e pergunte se ela quer que você abra um chamado para a equipe responder. Só chame chamar_atendente depois que ela aceitar ("sim", "pode", "quero"). Se ela não quiser, siga ajudando no que der.
-- A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui.
+- A pessoa continua nesta mesma conversa e vê a resposta da equipe aqui. Depois de abrir o chamado, quem responde é a equipe: na mesma mensagem, responda o que ainda dá para responder com a ficha e diga que a equipe continua por aqui. Não termine com pergunta nem ofereça mais ajuda sua, porque você não vai ver a resposta.
 - No site, quem não entrou na conta precisa deixar o nome e um WhatsApp ou telefone, para a equipe ter como responder se a pessoa sair. Peça os dois numa frase só e chame chamar_atendente com nome e contato. Quem entrou na conta ou fala pelo WhatsApp, Instagram ou Discord não precisa disso. Se a ferramenta recusar, o chamado ainda não existe: nunca diga que já foi aberto.
 ${chamados.quando ? `- O dono quer chamado nestes casos (aqui pode abrir direto, sem perguntar): ${chamados.quando}\n` : ''}${chamados.nunca ? `- NÃO abra chamado nestes casos (resolva você ou explique com educação): ${chamados.nunca}\n` : ''}${chamados.codigo ? '- Para abrir chamado a pessoa precisa informar a senha de atendimento. Peça a senha antes; nunca diga qual é, nem dê dicas. Sem a senha certa, não há chamado: ajude no que puder.\n' : ''}`
     : `SEM EQUIPE NESTE ATENDIMENTO
@@ -301,7 +316,7 @@ Você fecha a compra aqui mesmo. Quando a pessoa disser claramente o que quer (p
 
 ENTREGA NA VENDA PELO CHAT (vale mais que as observações da ficha sobre entrega e retirada)
 ${(() => {
-    const regra = valueOf(cfg, 'frete_chat').trim();
+    const regra = regraDeFrete(cfg).trim();
     if (!regra) {
       return 'A empresa ainda não definiu a regra de frete. Entrega com pagamento pelo chat não fecha (fechar_pedido recusa). Retirada no local fecha só se a ficha permitir sem confirmação da equipe. Se nenhuma das duas fecha, diga isso UMA vez, com clareza, logo que a pessoa quiser comprar ("para fechar por aqui, a equipe ainda precisa confirmar a entrega; já pedi e a resposta chega aqui"), registre com registrar_lacuna e ofereça chamar a equipe. Nunca ofereça uma opção que não dá para fechar.';
     }
@@ -323,7 +338,10 @@ ${model === 'educacional' ? '' : '- Interesse real: peça nome e um contato e ch
 - Antes de dizer que não sabe, confira as PERGUNTAS FREQUENTES da ficha: são respostas da equipe e valem mais que anotações da tabela ("a confirmar").
 - Faltou um dado DESTE negócio (não conhecimento geral): chame registrar_lacuna e diga que vai confirmar com a equipe e que a resposta chega aqui na conversa. Siga ajudando com o resto. Não peça nome e contato por isso (a resposta chega aqui mesmo). Sempre que disser que vai confirmar algo com a equipe, chame registrar_lacuna na mesma resposta: sem isso ninguém da equipe fica sabendo. Tente resolver você primeiro; não ofereça chamado só por falta de informação${chamados.ativos ? '. Chamado é o último recurso: quando a pessoa pedir para falar com alguém, tiver pressa, voltar dizendo que a resposta não chegou, ou quando o caso precisa mesmo de uma pessoa (reclamação, troca, problema que você não resolve)' : ''}.
 - Não pergunte nem peça para confirmar de novo o que a pessoa já informou nesta conversa (nome, data, endereço, tamanho, preferência, orçamento): use o dado e siga. Só confirme o que ficou ambíguo de verdade (ex.: "sexta", "mês passado"). Use na resposta tudo o que ela já contou.
-- Não termine respostas seguidas com a mesma pergunta.${loja ? `
+- Não termine respostas seguidas com a mesma pergunta.
+- Você só lê texto: não peça foto, áudio nem arquivo; peça para a pessoa descrever.
+- Só ofereça reservar, separar ou guardar algo se a ficha disser que o negócio faz isso.
+- Prazo de entrega, "sai agora" e pedido para já só valem com o negócio aberto: confira o horário de funcionamento da ficha com "Agora" (no fim destas instruções). Se estiver fechado, diga quando abre e pergunte se a pessoa quer deixar o pedido para esse horário.${loja ? `
 - Não repita o resumo do carrinho a cada mensagem: só quando ele mudar ou antes de fechar.
 - Quantidade estranha (negativa, zero, fração, muito alta): pergunte o que a pessoa quis dizer antes de mexer no carrinho; nunca troque o sinal por conta própria.` : ''}
 - Só registre dúvida para a equipe (registrar_lacuna) sobre o que a pessoa perguntou ou precisa para resolver o que veio fazer; não abra dúvidas por conta própria.
@@ -523,7 +541,7 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
         properties: {
           titulo: { type: 'string', description: 'Título curto, até 60 caracteres. Ex.: Pedido chegou com item errado' },
           motivo: { type: 'string', description: 'O problema, em uma frase' },
-          resumo: { type: 'string', description: 'O que foi conversado, para quem assumir' },
+          resumo: { type: 'string', description: 'O que foi conversado, para quem assumir, com todos os dados que a pessoa já deu. Só o que ela disse: não acrescente nada.' },
           prioridade: { type: 'string', enum: ['baixa', 'normal', 'alta'] },
           nome: { type: 'string', description: 'Nome da pessoa (no site, obrigatório para quem não entrou na conta)' },
           contato: { type: 'string', description: 'WhatsApp ou telefone com DDD (no site, obrigatório para quem não entrou na conta)' },
@@ -601,6 +619,7 @@ function ferramentas(a: Assistant, tabelas: Tabela[], agenda: AgendaConfig | nul
           properties: {
             data: { type: 'string', description: 'AAAA-MM-DD' },
             duracao_min: { type: 'integer', description: 'Duração do serviço em minutos, se souber' },
+            hora: { type: 'string', description: 'HH:MM, quando a pessoa pediu uma hora específica: a resposta diz em "cabe" se ela está livre' },
           },
           required: ['data'],
         },
@@ -760,7 +779,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       if (!Array.isArray(args.itens) || !args.itens.length) {
         args = { ...args, itens: itensDoCarrinho(await carrinhoDaConversa(db, conversationId)) };
       }
-      const anotado = await anotarPedido(db, { ownerId: assistant.owner_id, assistantId: assistant.id, conversationId, teste: r.teste, regraFrete: valueOf(cfg, 'frete_chat') },
+      const anotado = await anotarPedido(db, { ownerId: assistant.owner_id, assistantId: assistant.id, conversationId, teste: r.teste, regraFrete: regraDeFrete(cfg) },
         args as { itens?: ItemPedido[]; cliente_nome?: string; cliente_contato?: string; entrega?: string; endereco?: string }, tabelas, catalogoA);
       if ((anotado as { ok?: boolean }).ok) await db.from('conversations').update({ carrinho: [] }).eq('id', conversationId);
       return anotado;
@@ -776,7 +795,7 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       ownerId: assistant.owner_id, assistantId: assistant.id, conversationId,
       negocio: valueOf(cfg, 'nome_negocio'), teste: r.teste,
       baixarEstoque: !/^n[aã]o/i.test(valueOf(cfg, 'venda_estoque')),
-      regraFrete: valueOf(cfg, 'frete_chat'),
+      regraFrete: regraDeFrete(cfg),
     }, args as { itens?: ItemPedido[]; cliente_nome?: string; entrega?: string; endereco?: string }, tabelas, catalogo);
     // pedido criado: o carrinho vira o pedido
     if ((resultado as { ok?: boolean }).ok) await db.from('conversations').update({ carrinho: [] }).eq('id', conversationId);
@@ -1003,7 +1022,11 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
   }
 
   if (agenda && nome === 'ver_horarios') {
-    return await horariosLivres(db, agenda, String(args.data ?? ''), Number(args.duracao_min) || undefined);
+    const pedida = typeof args.hora === 'string' && args.hora ? String(args.hora) : undefined;
+    const r2 = await horariosLivres(db, agenda, String(args.data ?? ''), Number(args.duracao_min) || undefined, undefined, pedida);
+    return pedida
+      ? { ...r2, nota: r2.cabe ? `${pedida} está livre: pode marcar nessa hora.` : `${pedida} não está livre. Ofereça os da lista.` }
+      : { ...r2, nota: 'A lista traz sugestões. Uma hora que a pessoa pedir fora dela também pode estar livre: consulte de novo com "hora".' };
   }
   if (agenda && nome === 'agendar') {
     if (/^s[oó]/i.test(valueOf(cfg, 'agenda_quem')) && !r.cliente && !r.canal && !r.teste) {
@@ -1029,6 +1052,16 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       });
     }
     const aguardar = cobrar != null && cobrar >= MINIMO_COBRANCA;
+    // teste do dono: confere se o horário cabe, mas não ocupa a agenda de verdade (igual ao pedido de teste)
+    if (r.teste) {
+      const hora = String(args.hora ?? '').padStart(5, '0');
+      const v = await horariosLivres(db, agenda, String(args.data ?? ''), Number(args.duracao_min) || undefined, undefined, hora);
+      if (v.erro || !(v.livres?.includes(hora) || v.cabe)) return { erro: v.erro ?? 'Esse horário não está livre.', livres: v.livres ?? [] };
+      return {
+        ok: true, teste: true,
+        mensagem: `Isto é um teste do dono: o horário NÃO foi gravado na agenda. Responda como se tivesse marcado (${String(args.data)} às ${hora}) e diga que, num atendimento de verdade, ele aparece na Agenda.`,
+      };
+    }
     const marcado = await marcar(db, agenda, {
       aguardarPagamento: aguardar,
       dia: String(args.data ?? ''),
@@ -1315,7 +1348,14 @@ export async function responder(r: Rodada, historico: Array<{ role: string; cont
     msgs.push({ role: 'user', content: results });
   }
 
-  const inicio = ditoAntes.filter((p) => p !== texto && !texto.includes(p));
+  // o modelo às vezes repete no final o que já tinha escrito antes da ferramenta: aí não junta de novo
+  const palavras = (t: string) => new Set(t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[a-z0-9]{3,}/g) ?? []);
+  const finais = palavras(texto);
+  const repetido = (p: string) => {
+    const ps = [...palavras(p)];
+    return ps.length > 0 && ps.filter((w) => finais.has(w)).length / ps.length >= 0.6;
+  };
+  const inicio = ditoAntes.filter((p) => p !== texto && !texto.includes(p) && !repetido(p));
   if (inicio.length) texto = [...inicio, texto].join(' ');
 
   // disse que passou para a equipe sem chamar a ferramenta: registra a dúvida mesmo assim,
