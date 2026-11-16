@@ -59,7 +59,9 @@ export async function logUsage(
   db: SupabaseClient,
   ownerId: string,
   assistantId: string | null,
-  kind: 'builder' | 'atendimento',
+  // atendimento: conversa real com cliente (conta na cota) · teste: modo Testar do dono ·
+  // interno: custo do próprio Helpy (resumo, leitura de anexo, relatório, suporte, aprendizado). Os dois últimos não contam na cota.
+  kind: 'builder' | 'atendimento' | 'teste' | 'interno',
   model: string,
   t: UsageTotals,
 ) {

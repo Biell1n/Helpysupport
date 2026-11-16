@@ -49,14 +49,14 @@ export async function usarExtra(db: SupabaseClient, p: PerfilExtra, tipo: 'atend
       if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(fechar);
     }
     await alertar(db, p.id, {
-      origem: 'sistema', chave: `extra:inicio:${mes}`,
+      origem: 'sistema', unico: true, chave: `extra:inicio:${mes}`,
       assunto: 'O uso extra começou',
       detalhe: `A cota do plano acabou e o atendimento seguiu pelo uso extra (${reais(preco.atendimento)} por atendimento e ${reais(preco.mensagem)} por mensagem além do plano), até o limite de ${reais(limite)} neste mês. Acompanhe em Plano.`,
     });
     return true;
   }
   await alertar(db, p.id, {
-    origem: 'sistema', chave: `extra:limite:${mes}`,
+    origem: 'sistema', unico: true, chave: `extra:limite:${mes}`,
     assunto: 'O limite do uso extra chegou',
     detalhe: `O uso extra chegou ao limite de ${reais(limite)} deste mês. Até o mês virar, as conversas novas vão para a equipe. Para continuar, aumente o limite ou mude de plano em Plano.`,
   });

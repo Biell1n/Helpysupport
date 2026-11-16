@@ -385,6 +385,14 @@ Deno.serve(async (req) => {
 
       const { data: guardada } = await admin.from('assinaturas').select('*').eq('owner_id', conta).maybeSingle();
       const atual = desteAmbiente(guardada);
+      // "Assinar" de novo no mesmo plano, com a fatura anterior ainda em aberto: devolve a mesma fatura
+      // (antes criava outra assinatura no Asaas, e a primeira ficava cobrando sozinha)
+      const recente = atual?.atualizada_em && Date.now() - new Date(String(atual.atualizada_em)).getTime() < 30 * 60e3;
+      if (atual?.status === 'pendente' && atual.asaas_assinatura && atual.plano === plano && atual.ciclo === ciclo && recente) {
+        const abertas = await c.pedir<{ data?: Record<string, unknown>[] }>(`/subscriptions/${atual.asaas_assinatura}/payments`).catch(() => null);
+        const fatura = abertas?.data?.find((p) => p.invoiceUrl && ['PENDING', 'OVERDUE'].includes(String(p.status)));
+        if (fatura) return json({ url: fatura.invoiceUrl, ambiente: AMBIENTE });
+      }
       let cliente = (atual?.asaas_cliente ?? undefined) as string | undefined;
       if (cliente) {
         await c.pedir(`/customers/${cliente}`, { method: 'PUT', body: { name: nome, cpfCnpj: documento } }).catch(() => {});
@@ -671,7 +679,10 @@ Deno.serve(async (req) => {
         throw e;
       }
       const { data: devolvido } = await admin.from('pedidos').update({ status: 'estornado' }).eq('id', id).eq('status', 'pago').select('id');
-      if (devolvido?.length) await tirarTaxa(admin, conta, Number(ped.taxa ?? 0));
+      if (devolvido?.length) {
+        await tirarTaxa(admin, conta, Number(ped.taxa ?? 0));
+        await devolverEstoqueDoPedido(admin, id);
+      }
       if (ped.agendamento_id) await admin.from('agendamentos').update({ status: 'cancelado' }).eq('id', ped.agendamento_id);
       if (ped.conversation_id) {
         await admin.from('conversation_messages').insert({

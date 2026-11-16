@@ -1591,7 +1591,7 @@ async function resumirIntencao(s: Session): Promise<string> {
   });
   addUsage(usage, res.usage);
   // o resumo ao publicar é custo do Helpy, não uma "mensagem de montagem" do dono: não entra na cota do montador
-  await logUsage(admin, s.owner_id, s.assistant_id, 'atendimento', MODELS.atendimento, usage);
+  await logUsage(admin, s.owner_id, s.assistant_id, 'interno', MODELS.atendimento, usage);
   return textOf(res.content as Array<{ type: string; text?: string }>).slice(0, 2500);
 }
 
@@ -1653,7 +1653,7 @@ Deno.serve(async (req) => {
       }
       await logUsage(admin, user.id, assistantId, 'builder', model, usage);
       // a transcrição dos arquivos é Haiku; entra no custo sem contar como mensagem de montagem
-      if (usageMateriais.input) await logUsage(admin, user.id, assistantId, 'atendimento', MODELS.atendimento, usageMateriais);
+      if (usageMateriais.input) await logUsage(admin, user.id, assistantId, 'interno', MODELS.atendimento, usageMateriais);
 
       // o que mudou, para a tela piscar os campos certos
       const after = s.config;

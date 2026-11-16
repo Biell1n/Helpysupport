@@ -93,12 +93,19 @@ export async function fecharUsoExtra(ownerId: string, incluirAtual = false) {
 
   const descricao = `${temExtra && temTaxa ? 'Uso extra e taxa de vendas' : temTaxa ? 'Taxa de vendas' : 'Uso extra'} de ${lote.map(nomeMes).join(', ')}`;
   const vence = hojeBr(5);
+  // a referência identifica este lote de meses: se uma tentativa anterior criou a fatura no Asaas
+  // mas não chegou a gravar aqui (o Asaas demorou a responder), reaproveita em vez de cobrar de novo
+  const referencia = `extra:${ownerId}:${lote.join(',')}`;
   try {
-    const pg = await contaHelpy().pedir<Record<string, unknown> & { id: string }>('/payments', {
+    const existentes = await contaHelpy().pedir<{ data?: (Record<string, unknown> & { id: string })[] }>(
+      `/payments?customer=${encodeURIComponent(String(ass.asaas_cliente))}&externalReference=${encodeURIComponent(referencia)}`,
+    );
+    const ja = existentes.data?.find((p) => !p.deleted && Math.abs(Number(p.value ?? 0) - valor) < 0.01);
+    const pg = ja ?? await contaHelpy().pedir<Record<string, unknown> & { id: string }>('/payments', {
       method: 'POST',
       body: {
         customer: ass.asaas_cliente, billingType: 'UNDEFINED', value: valor, dueDate: vence,
-        description: `Helpy — ${descricao.toLowerCase()}`, externalReference: `extra:${ownerId}`,
+        description: `Helpy — ${descricao.toLowerCase()}`, externalReference: referencia,
       },
     });
     await admin.from('uso_extra').update({ status: 'cobrado', fatura_id: pg.id, cobrado_em: new Date().toISOString() })

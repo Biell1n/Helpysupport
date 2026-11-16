@@ -481,16 +481,16 @@ Deno.serve(async (req) => {
     if (!teste) {
       const n = (await usoDoMes(admin, assistant.owner_id)).mensagens;
       const mes = inicioDoMes().slice(0, 7);
-      if (n === Math.ceil(plan.mensagens * 0.8)) {
+      if (n >= Math.ceil(plan.mensagens * 0.8) && n <= plan.mensagens) {
         await alertar(admin, assistant.owner_id, {
-          origem: 'sistema', chave: `cota80:${mes}`, assunto: 'Você já usou 80% das mensagens do mês',
+          origem: 'sistema', unico: true, chave: `cota80:${mes}`, assunto: 'Você já usou 80% das mensagens do mês',
           detalhe: `Foram ${n} de ${plan.mensagens} mensagens de clientes no plano ${plan.nome}. Quando acabar, a equipe passa a responder pelos chamados até o mês virar${COBRANCA_EXTRA_PRONTA ? ', a não ser que o uso extra esteja ligado' : ''}. Veja em Plano.`,
         });
       }
       // passou do plano: o uso extra cobre esta mensagem, se estiver ligado e couber no limite
       if (n > plan.mensagens && !(await usarExtra(admin, profile, 'mensagem'))) {
         await alertar(admin, assistant.owner_id, {
-          origem: 'sistema', chave: `cota100:${mes}`, assunto: 'As mensagens do mês acabaram',
+          origem: 'sistema', unico: true, chave: `cota100:${mes}`, assunto: 'As mensagens do mês acabaram',
           detalhe: `O plano ${plan.nome} inclui ${plan.mensagens} mensagens de clientes por mês. Até o mês virar, as conversas novas vão para a equipe. Para continuar com o atendimento automático, ${COBRANCA_EXTRA_PRONTA ? 'ligue o uso extra ou ' : ''}mude de plano em Plano.`,
         });
         if (!cliente) {
@@ -553,7 +553,7 @@ Deno.serve(async (req) => {
         (hist ?? []).reverse(),
       );
       resposta = r.texto;
-      await logUsage(admin, assistant.owner_id, assistant.id, 'atendimento', r.model, r.usage);
+      await logUsage(admin, assistant.owner_id, assistant.id, teste ? 'teste' : 'atendimento', r.model, r.usage);
     } catch (e) {
       console.error('[public-chat] IA falhou:', e);
       throw new UserError('Não consegui responder agora. Pode mandar de novo?', 502);

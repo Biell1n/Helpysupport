@@ -20,6 +20,11 @@ import { type Canal, enviarPeloCanal, noPrivadoDoDiscord } from './canais.ts';
 import { horarioPago, RESERVA_MIN } from './agenda.ts';
 import { type PlanId, TAXA_VENDAS } from './plans.ts';
 
+/** Dias que o link de pagamento de um pedido vale. */
+const LINK_DIAS = 3;
+/** Pedido anotado que a equipe não finalizou nem cancelou deixa de segurar o item depois disto. */
+const RESERVA_ANOTADO_DIAS = 7;
+
 const reais = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 /** "1.499,90", "R$ 79,9", "1499.9" → número */
@@ -93,10 +98,15 @@ const nomeNoPedido = (nome: string, opcao: string, obs: string) => {
  */
 /** Quanto de cada linha da tabela já está separado em pedidos abertos (anotados ou esperando pagamento) de outras conversas. */
 export async function reservadoEmPedidos(db: SupabaseClient, ownerId: string, conversationId?: string | null): Promise<Map<string, number>> {
-  const { data: abertos } = await db.from('pedidos').select('itens, conversation_id').eq('owner_id', ownerId).in('status', ['anotado', 'aguardando']).limit(300);
+  const { data: abertos } = await db.from('pedidos').select('itens, conversation_id, status, criado_em').eq('owner_id', ownerId).in('status', ['anotado', 'aguardando']).limit(300);
   const reservado = new Map<string, number>();
+  const agora = Date.now();
   for (const p of abertos ?? []) {
     if (conversationId && p.conversation_id === conversationId) continue; // o pedido desta conversa é o mesmo cliente
+    // pedido parado não segura o item para sempre: o link de pagamento vence em LINK_DIAS dias,
+    // e o anotado que a equipe não finalizou em RESERVA_ANOTADO_DIAS dias já não vale como reserva
+    const idade = (agora - new Date(p.criado_em).getTime()) / 864e5;
+    if (idade > (p.status === 'aguardando' ? LINK_DIAS : RESERVA_ANOTADO_DIAS)) continue;
     for (const it of (p.itens ?? []) as Item[]) if (it.linha_id) reservado.set(it.linha_id, (reservado.get(it.linha_id) ?? 0) + Number(it.quantidade || 0));
   }
   return reservado;
@@ -167,6 +177,8 @@ export async function montarItens(
 
   const itens: Item[] = [];
   const problemas: string[] = [];
+  // o mesmo item em duas linhas do pedido (ex.: tamanhos diferentes da mesma peça) soma no estoque
+  const jaNoPedido = new Map<string, number>();
   for (const p of pedidos) {
     const pedida = Math.floor(Number(p.quantidade));
     if (!Number.isFinite(pedida) || pedida < 1) {
@@ -210,7 +222,7 @@ export async function montarItens(
     }
     if (achado.estoque != null && Number.isFinite(achado.estoque)) {
       const separado = achado.linha_id ? reservado.get(achado.linha_id) ?? 0 : 0;
-      const livre = achado.estoque - separado;
+      const livre = achado.estoque - separado - (achado.linha_id ? jaNoPedido.get(achado.linha_id) ?? 0 : 0);
       if (livre < qtd) {
         problemas.push(separado > 0 && livre <= 0
           ? `"${achado.nome}": já está separado no pedido de outra pessoa. Diga que esse item acabou de ser separado e ofereça outros parecidos. Não diga que tem.`
@@ -218,6 +230,7 @@ export async function montarItens(
         continue;
       }
     }
+    if (achado.linha_id) jaNoPedido.set(achado.linha_id, (jaNoPedido.get(achado.linha_id) ?? 0) + qtd);
     itens.push({
       produto: nomeNoPedido(achado.nome, opcao, obs), quantidade: qtd, preco, subtotal: Math.round(preco * qtd * 100) / 100,
       ...(opcao || obs ? { base: achado.nome, ...(opcao ? { opcao } : {}), ...(obs ? { obs } : {}) } : {}),
@@ -490,6 +503,20 @@ export async function fecharPedido(
   const itens = ctx.baixarEstoque ? achados : achados.map(({ estoque_chave: _, ...i }) => i);
   const subtotal = Math.round(itens.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
 
+  // "pode fechar" repetido na mesma conversa: devolve o link que já existe em vez de criar outro pedido
+  if (ctx.conversationId && !ctx.teste) {
+    const assinar = (lista: { produto: string; quantidade: number }[]) => lista.map((i) => `${i.quantidade}x${i.produto}`.toLowerCase()).sort().join('|');
+    const { data: recentes } = await db.from('pedidos').select('numero, itens, total, link_url').eq('conversation_id', ctx.conversationId).eq('status', 'aguardando')
+      .gte('criado_em', new Date(Date.now() - 6 * 3600e3).toISOString());
+    const igual = (recentes ?? []).find((p) => p.link_url && assinar((p.itens ?? []) as Item[]) === assinar(itens));
+    if (igual) {
+      return {
+        ok: true, ja_criado: true, numero: igual.numero, total: reais(Number(igual.total)), link: igual.link_url,
+        mensagem: `Este pedido (nº ${igual.numero}) já foi criado nesta conversa e o link continua valendo. Não crie outro: mande de novo este link exatamente como está.`,
+      };
+    }
+  }
+
   // entrega ou retirada: o frete sai da regra da empresa, nunca da conversa
   const regra = freteDaRegra(ctx.regraFrete ?? '', subtotal);
   const entrega = args.entrega === 'retirada' || regra.soRetirada ? 'retirada' : args.entrega === 'entrega' ? 'entrega' : null;
@@ -537,7 +564,7 @@ export async function fecharPedido(
     itens.map((i) => `${i.quantidade}x ${i.produto}`).join(', '),
     frete ? `frete ${reais(frete)}` : entrega === 'retirada' ? 'retirada no local' : '',
   ].filter(Boolean).join(' + ').slice(0, 450);
-  const link = await criarLink(conta, ped.id, `Pedido ${ped.numero}${ctx.negocio ? ` — ${ctx.negocio}` : ''}`, descricao, total, 3);
+  const link = await criarLink(conta, ped.id, `Pedido ${ped.numero}${ctx.negocio ? ` — ${ctx.negocio}` : ''}`, descricao, total, LINK_DIAS);
   if (!link) {
     await db.from('pedidos').update({ status: 'cancelado' }).eq('id', ped.id);
     return { erro: 'Não consegui gerar o link de pagamento agora. Peça desculpas e ofereça a equipe para fechar a compra.' };
@@ -655,10 +682,11 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   if (['PAYMENT_REFUNDED', 'PAYMENT_CHARGEBACK_REQUESTED'].includes(String(evento.event))) {
     const { data: dev } = await db.from('pedidos').update({ status: 'estornado' })
       .eq('owner_id', ownerId).eq('link_id', linkId).eq('pagamento_id', String(pg.id ?? '')).eq('status', 'pago')
-      .select('taxa, agendamento_id, conversation_id, total, tipo');
+      .select('id, taxa, agendamento_id, conversation_id, total, tipo');
     const d = dev?.[0];
     if (d) {
       await tirarTaxa(db, ownerId, Number(d.taxa));
+      await devolverEstoqueDoPedido(db, d.id);
       if (d.agendamento_id) await db.from('agendamentos').update({ status: 'cancelado' }).eq('id', d.agendamento_id);
       await avisarCliente(db, d.conversation_id, 'cancelado',
         `${d.tipo === 'agendamento' ? 'Horário cancelado. ' : ''}O valor de ${reais(Number(d.total))} foi devolvido pela mesma forma de pagamento.`);
@@ -738,9 +766,11 @@ export async function pagamentoDaLoja(db: SupabaseClient, ownerId: string, event
   }
 
   // venda: baixa de estoque nas linhas da tabela (só os itens que levaram a coluna de estoque)
-  // (a baixa é uma conta só no banco: dois pagamentos juntos não perdem uma das vendas)
+  // (a baixa é uma conta só no banco: dois pagamentos juntos não perdem uma das vendas).
+  // Marca antes de baixar: o estorno devolve o que foi baixado, e um aviso repetido não baixa duas vezes
   const faltou: string[] = [];
-  for (const it of (ped.itens ?? []) as Item[]) {
+  const { data: baixa } = await db.from('pedidos').update({ estoque_baixado: true }).eq('id', ped.id).eq('estoque_baixado', false).select('id');
+  for (const it of (baixa?.length ? (ped.itens ?? []) : []) as Item[]) {
     if (!it.linha_id || !it.estoque_chave) continue;
     const { data: antes } = await db.rpc('helpy_baixar_estoque', { p_linha: it.linha_id, p_chave: it.estoque_chave, p_qtd: it.quantidade });
     if (antes != null && Number(antes) < it.quantidade) faltou.push(`${it.produto} (havia ${Math.max(0, Number(antes))}, venderam ${it.quantidade})`);

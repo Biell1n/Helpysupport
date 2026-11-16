@@ -123,7 +123,7 @@ export async function aprenderDaConversa(db: SupabaseClient, conversaId: string)
     messages: [{ role: 'user', content: pedido }],
   });
   addUsage(usage, res.usage);
-  await logUsage(db, c.owner_id, a.id, 'atendimento', modelo, usage);
+  await logUsage(db, c.owner_id, a.id, 'interno', modelo, usage);
   if (res.stop_reason !== 'end_turn') return 0;
 
   let itens: Array<{ pergunta?: string; resposta?: string; substitui?: number }> = [];
@@ -192,7 +192,9 @@ export async function aprenderPendentes(db: SupabaseClient): Promise<{ lidas: nu
     try {
       novos += await aprenderDaConversa(db, id);
     } catch (e) {
+      // falhou (IA fora do ar, por exemplo): a conversa volta para a fila e é lida na próxima rodada
       console.error('[aprender]', id, e);
+      await db.from('conversations').update({ aprendido_em: null }).eq('id', id);
     }
   }
   return { lidas, novos };
