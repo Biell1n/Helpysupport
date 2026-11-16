@@ -10,7 +10,7 @@
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
 import { admin, profileOf, requireUser } from '../_shared/db.ts';
-import { planOf } from '../_shared/plans.ts';
+import { planOf, trialExpirado } from '../_shared/plans.ts';
 import { addUsage, anthropic, emptyUsage, logUsage, MODELS } from '../_shared/ai.ts';
 import { type ApiConfig, baixarCsv, consultarApi, sincronizarUrl } from '../_shared/fontes.ts';
 import { configSql, consultarSql } from '../_shared/sql.ts';
@@ -106,6 +106,11 @@ Deno.serve(async (req) => {
     const user = await requireUser(req);
     const body = await req.json().catch(() => ({}));
     const action = String(body.action ?? '');
+
+    // tudo aqui é da empresa (Dados e Relatórios): cliente e funcionário não usam, e teste vencido não conecta nada
+    const { data: quem } = await admin.from('profiles').select('tipo, plan, trial_ends_at').eq('id', user.id).maybeSingle();
+    if ((quem?.tipo ?? 'empresa') !== 'empresa') throw new UserError('Só a conta da empresa usa isso.', 403);
+    if (action !== 'assuntos' && trialExpirado(quem)) throw new UserError('O teste grátis terminou. Escolha um plano em Plano para continuar.', 402);
 
     if (action === 'previa_url') {
       const { cabecalho, linhas } = await baixarCsv(String(body.url ?? ''));

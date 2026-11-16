@@ -121,7 +121,7 @@ export default function Equipe() {
       <header className="page-head">
         <div>
           <h1>Equipe</h1>
-          <p>Funcionários atendem os chamados e veem a agenda. Não mexem em assistentes, dados nem plano.</p>
+          <p>Funcionários atendem os chamados, cuidam dos pedidos (finalizar e cancelar) e da agenda (marcar e cancelar horários) e podem bloquear quem abusa do chat. Não mexem em assistentes, dados, canais, Carteira, equipe nem plano.</p>
         </div>
         <button type="button" className="btn btn-primary" disabled={!d || cheia || ocupado} onClick={() => acao('convite_criar', {}, (r) => copiar(r.token))}>
           <Link2 size={16} /> Gerar link de convite

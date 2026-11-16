@@ -51,7 +51,12 @@ export function AuthProvider({ children }) {
       return;
     }
     let { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-    // voltando para a aba a rede pode ainda estar acordando: mantém o perfil que já tinha
+    // a rede pode estar acordando (voltando para a aba, celular trocando de rede): tenta mais duas vezes
+    for (let i = 0; error && i < 2; i++) {
+      await new Promise((r) => setTimeout(r, 1200 * (i + 1)));
+      ({ data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle());
+    }
+    // ainda sem resposta: mantém o perfil que já tinha
     if (error) {
       setProfile((p) => p ?? { id: userId, plan: 'trial' });
       return;
@@ -69,7 +74,9 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      loading: session === undefined || (session && nivel === null),
+      // espera o perfil: sem ele não dá para saber se é empresa, funcionário ou cliente, e a tela
+      // mostraria por um instante o menu e as telas da empresa para quem não é
+      loading: session === undefined || (session && (nivel === null || profile?.id !== session.user.id)),
       precisaCodigo: nivel?.currentLevel === 'aal1' && nivel?.nextLevel === 'aal2',
       recarregarNivel,
       session,
