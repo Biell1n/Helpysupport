@@ -172,7 +172,7 @@ ${artigos.map((a) => `### ${a.titulo}\n${a.texto}`).join('\n\n')}`;
       messages: [{ role: 'user', content: `Categoria: ${CATEGORIAS.find((c) => c.id === cat)?.nome ?? cat}\nAssunto: ${assunto}\n\n${descricao}` }],
     });
     addUsage(uso, r.usage);
-    await logUsage(admin, conta, null, 'atendimento', MODELS.atendimento, uso);
+    await logUsage(admin, conta, null, 'interno', MODELS.atendimento, uso);
     let texto = textOf(r.content as Array<{ type: string; text?: string }>);
     const equipe = texto.includes(PEDE_EQUIPE);
     texto = texto.replaceAll(PEDE_EQUIPE, '').trim();

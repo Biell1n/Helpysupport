@@ -669,8 +669,13 @@ export interface Rodada {
 export async function alertar(
   db: SupabaseClient,
   ownerId: string,
-  a: { assistant_id?: string; conversation_id?: string | null; origem: 'assistente' | 'sistema'; assunto: string; detalhe?: string; chave?: string },
+  // unico: o aviso sai uma vez só para esta chave (o banco, sozinho, só impede repetir no mesmo dia)
+  a: { assistant_id?: string; conversation_id?: string | null; origem: 'assistente' | 'sistema'; assunto: string; detalhe?: string; chave?: string; unico?: boolean },
 ) {
+  if (a.unico && a.chave) {
+    const { count } = await db.from('alertas').select('id', { count: 'exact', head: true }).eq('owner_id', ownerId).eq('chave', a.chave.slice(0, 200));
+    if (count) return;
+  }
   const { error } = await db.from('alertas').insert({
     owner_id: ownerId,
     assistant_id: a.assistant_id ?? null,

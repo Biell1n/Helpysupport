@@ -81,7 +81,7 @@ async function agruparAssuntos(userId: string, dias: number): Promise<{ assuntos
     messages: [{ role: 'user', content: `Mensagens dos clientes:\n\n${lista}` }],
   });
   addUsage(usage, res.usage);
-  await logUsage(admin, userId, null, 'atendimento', MODELS.atendimento, usage);
+  await logUsage(admin, userId, null, 'interno', MODELS.atendimento, usage);
 
   const bloco = res.content.find((b) => b.type === 'tool_use');
   const brutos = ((bloco?.type === 'tool_use' ? bloco.input : {}) as { assuntos?: Array<{ assunto: string; mensagens: number[] }> })

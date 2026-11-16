@@ -901,7 +901,11 @@ export async function sondarTickets(o: { seParado?: boolean; duracaoMs?: number 
       .select('thread_id, canal_id, cliente_id, cliente_nome, status_avisado, fechado_em, lido_ate, ativo_em, criado_em')
       .is('fechado_em', null).order('criado_em', { ascending: false }).limit(200);
     const abertos = (data ?? []) as TicketAberto[];
-    if (!abertos.length) break;
+    if (!abertos.length) {
+      // sem ticket aberto também é sinal de vida: a vigia só avisa quando a rodada para de vez
+      await admin.from('helpy_servicos').upsert({ nome: SONDAGEM, visto_em: new Date().toISOString(), info: { tickets: 0 } });
+      break;
+    }
     const agora = Date.now();
     const daVez = abertos.filter((t) => {
       const parado = agora - new Date(t.ativo_em ?? t.criado_em).getTime();
