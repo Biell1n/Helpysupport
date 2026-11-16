@@ -166,7 +166,8 @@ const itensDoCarrinho = (c: NoCarrinho[]): ItemPedido[] =>
  */
 function regraDeFrete(cfg: Config): string {
   const base = valueOf(cfg, 'frete_chat');
-  if (!base.trim() || /gr[aá]tis/i.test(base)) return base;
+  // a regra já diz a partir de quanto fica grátis: vale ela
+  if (!base.trim() || /(?:acima|a partir|mais)\s+de\s+(?:r\$\s*)?\d/i.test(base)) return base;
   for (const campo of ['promocoes', 'entrega']) {
     const m = /frete\s+gr[aá]tis[^.;\n]{0,40}?(?:acima|a partir|mais)\s+de\s+(?:r\$\s*)?[\d.,]+/i.exec(valueOf(cfg, campo))
       ?? /(?:acima|a partir|mais)\s+de\s+(?:r\$\s*)?[\d.,]+[^.;\n]{0,30}?frete\s+gr[aá]tis/i.exec(valueOf(cfg, campo));
