@@ -208,7 +208,7 @@ export default function Plano() {
           onMudar={setCiclo}
           abas={[
             { id: 'mensal', rotulo: 'Mensal' },
-            { id: 'anual', rotulo: 'Anual', extra: <small className="plano-ciclo-desconto">−{Math.max(...[PLANS.essencial, PLANS.profissional, PLANS.business].map(descontoAnual))}%</small> },
+            { id: 'anual', rotulo: 'Anual', extra: <small className="plano-ciclo-desconto">até −{Math.max(...[PLANS.essencial, PLANS.profissional, PLANS.business].map(descontoAnual))}%</small> },
           ]}
         />
         {precos.teste && (

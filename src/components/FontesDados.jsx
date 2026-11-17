@@ -218,10 +218,12 @@ export function NovaTabela({ aberto, onFechar, onCriada, assistentes, userId }) 
   const criarManual = () =>
     concluir(async () => {
       const t = await criarTabelaBase({ userId, nome: nome.trim(), assistentes });
-      await supabase.from('tabela_colunas').insert([
+      // as duas linhas com os mesmos campos: num insert em lote, campo que falta numa vai como vazio e o banco recusa
+      const { error } = await supabase.from('tabela_colunas').insert([
         { tabela_id: t.id, chave: 'nome', rotulo: 'Nome', tipo: 'texto', ordem: 0, obrigatoria: true, identifica: true, chave_primaria: true },
-        { tabela_id: t.id, chave: 'preco', rotulo: 'Preço', tipo: 'moeda', ordem: 1 },
+        { tabela_id: t.id, chave: 'preco', rotulo: 'Preço', tipo: 'moeda', ordem: 1, obrigatoria: false, identifica: false, chave_primaria: false },
       ]);
+      if (error) throw error;
       return t.id;
     });
 
@@ -636,8 +638,10 @@ export function ImportarParaTabela({ aberto, onFechar, tabela, colunas, onImport
 
   const linhas = lido?.abas[aba]?.linhas ?? [];
   const cabecalho = linhas[0] ?? [];
-  const porRotulo = new Map(colunas.map((c) => [c.rotulo.trim().toLowerCase(), c]));
-  const novas = cabecalho.filter((h) => h && !porRotulo.has(String(h).trim().toLowerCase()));
+  // "preco", "Preço" e "PRECO" são a mesma coluna: casa pelo nome sem acento, pelo rótulo ou pela chave
+  const igual = (t) => String(t ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const porRotulo = new Map(colunas.flatMap((c) => [[igual(c.rotulo), c], [igual(c.chave), c]]));
+  const novas = cabecalho.filter((h) => h && !porRotulo.has(igual(h)));
 
   const fechar = () => {
     setLido(null);
@@ -657,7 +661,7 @@ export function ImportarParaTabela({ aberto, onFechar, tabela, colunas, onImport
       let ordem = colunas.length;
       const criar = [];
       const mapa = cabecalho.map((h, i) => {
-        const existente = porRotulo.get(String(h).trim().toLowerCase());
+        const existente = porRotulo.get(igual(h));
         if (existente) return existente;
         if (!String(h).trim()) return null;
         const s = { ...sugeridas[i] };

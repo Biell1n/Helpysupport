@@ -71,7 +71,7 @@ export function AssinarModal({ plano, ciclo: cicloInicial = 'mensal', precos, pr
           </span>
         </div>
         {profile?.plan && profile.plan !== 'trial' && profile.plan !== plano && (
-          <div className="alert"><span><b>Troca de plano:</b> quando esta fatura for paga, o {PLANS[profile.plan]?.nome ?? 'plano atual'} é encerrado e o {p.nome} começa a contar do zero. O que falta do período já pago não é descontado.</span></div>
+          <div className="alert"><span><b>Troca de plano:</b> quando esta fatura for paga, o {PLANS[profile.plan]?.nome ?? 'plano atual'} é encerrado e o {p.nome} começa a contar do zero. O que falta do período já pago não é descontado.{PLANS[profile.plan] && p.assistentes < PLANS[profile.plan].assistentes ? ` No ${p.nome} cabem até ${p.assistentes} ${p.assistentes === 1 ? 'assistente' : 'assistentes'} e ${p.atendimentos.toLocaleString('pt-BR')} atendimentos por mês: com mais assistentes que isso, não dá para criar novos.` : ''}</span></div>
         )}
         {ambiente === 'sandbox' && (
           <div className="alert"><span><b>Modo de teste:</b> nada é cobrado de verdade. Use o cartão de teste do Asaas ou simule o Pix no painel de teste.</span></div>

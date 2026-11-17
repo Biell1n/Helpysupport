@@ -104,14 +104,15 @@ export default function QrAssistente({ assistente, link, onFechar }) {
     const w = window.open('', '_blank', 'width=700,height=900');
     if (!w) return;
     const png = await cartazPng(link, assistente?.name);
+    // a página inteira de uma vez (com <body>): montar aos pedaços deixava a janela em branco
+    w.document.open();
     w.document.write(
-      '<!doctype html><title>QR code</title><style>@page{margin:12mm}body{margin:0;display:grid;place-items:center;min-height:100vh}img{width:100%;max-width:150mm}</style>',
+      `<!doctype html><html><head><meta charset="utf-8"><title>QR code</title><style>@page{margin:12mm}body{margin:0;display:grid;place-items:center;min-height:100vh}img{width:100%;max-width:150mm}</style></head><body><img src="${png}" alt="QR code do assistente"></body></html>`,
     );
-    const img = w.document.createElement('img');
-    img.onload = () => setTimeout(() => w.print(), 150);
-    img.src = png;
-    w.document.body.appendChild(img);
     w.document.close();
+    const img = w.document.querySelector('img');
+    if (img?.complete) setTimeout(() => w.print(), 150);
+    else if (img) img.onload = () => setTimeout(() => w.print(), 150);
   };
 
   return (
