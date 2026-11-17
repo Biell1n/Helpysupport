@@ -21,17 +21,20 @@ export default function Assistentes() {
   const avisar = useToast();
   const plano = planOf(profile);
   const [lista, setLista] = useState(null);
+  // a consulta falhou: avisa em vez de mostrar "nenhum assistente" (parecia que tudo tinha sumido)
+  const [falhou, setFalhou] = useState(false);
   const [excluir, setExcluir] = useState(null);
   const [trocando, setTrocando] = useState(null);
   const [qr, setQr] = useState(null);
   const [noSite, setNoSite] = useState(null);
 
   const carregar = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('assistants')
       .select('id, name, business_type, business_model, public_token, is_public, updated_at, foto_url, modo')
       .order('created_at');
-    setLista(data ?? []);
+    setFalhou(!!error);
+    if (!error) setLista(data ?? []);
   }, []);
 
   useEffect(() => {
@@ -99,7 +102,13 @@ export default function Assistentes() {
         )}
       </header>
 
-      {lista === null && <div className="skeleton" style={{ height: 120 }} />}
+      {falhou && (
+        <div className="alert alert-erro" style={{ marginBottom: 16 }}>
+          <span>Não deu para carregar os seus assistentes agora. Nada foi apagado.</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={carregar}>Tentar de novo</button>
+        </div>
+      )}
+      {lista === null && !falhou && <div className="skeleton" style={{ height: 120 }} />}
 
       <CartaoRascunho rascunho={rascunho} />
 

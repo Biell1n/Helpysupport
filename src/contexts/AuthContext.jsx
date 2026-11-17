@@ -58,7 +58,8 @@ export function AuthProvider({ children }) {
     }
     // ainda sem resposta: mantém o perfil que já tinha
     if (error) {
-      setProfile((p) => p ?? { id: userId, plan: 'trial' });
+      // sem perfil nenhum: marca a falha para a tela mostrar "tentar de novo" (e não um aviso de termos)
+      setProfile((p) => p ?? { id: userId, plan: 'trial', _falhou: true });
       return;
     }
     // volta do Google: grava o aceite dos termos e o tipo escolhidos antes de sair

@@ -171,6 +171,7 @@ export default function Dados() {
   const plano = planOf(profile);
 
   const [tabelas, setTabelas] = useState(null);
+  const [falhou, setFalhou] = useState(false);
   const [assistentes, setAssistentes] = useState([]);
   const [ativaId, setAtivaId] = useState(null);
   const [colunas, setColunas] = useState([]);
@@ -189,10 +190,13 @@ export default function Dados() {
   const ativa = tabelas?.find((t) => t.id === ativaId);
 
   const carregarTabelas = useCallback(async () => {
-    const [{ data: t }, { data: a }] = await Promise.all([
+    const [{ data: t, error }, { data: a }] = await Promise.all([
       supabase.from('tabelas').select('*, tabela_linhas(count)').order('criada_em'),
       supabase.from('assistants').select('id, name, materiais:meta->materiais').order('created_at'),
     ]);
+    // a consulta falhou: avisa em vez de mostrar "nenhuma tabela"
+    setFalhou(!!error);
+    if (error) return;
     setTabelas(t ?? []);
     setAssistentes(a ?? []);
     setAtivaId((id) => id ?? t?.[0]?.id ?? null);
@@ -387,7 +391,13 @@ export default function Dados() {
         )}
       </header>
 
-      {tabelas === null && <div className="skeleton" style={{ height: 200 }} />}
+      {falhou && (
+        <div className="alert alert-erro" style={{ marginBottom: 16 }}>
+          <span>Não deu para carregar as suas tabelas agora. Nada foi apagado.</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={carregarTabelas}>Tentar de novo</button>
+        </div>
+      )}
+      {tabelas === null && !falhou && <div className="skeleton" style={{ height: 200 }} />}
 
       {tabelas?.length === 0 && (
         <div className="empty">
