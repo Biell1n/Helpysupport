@@ -386,6 +386,8 @@ const ESPERA_ENTRE_ATIVACOES = 8 * 3600e3;
 export interface Ativacao {
   status: 'ativo' | 'pendente' | 'erro';
   erro: string | null;
+  /** o que a Meta respondeu nesta conferência (vai para config.meta_lido) */
+  lido?: Record<string, unknown>;
   /** quando o Helpy pode tentar ativar de novo (vai para config.registro_apos) */
   registro_apos: string | null;
 }
@@ -399,17 +401,23 @@ export interface Ativacao {
 export async function ativarWhatsApp(o: { numero: string; waba?: string | null; token: string; pin: string; registroApos?: string | null }): Promise<Ativacao> {
   const id = encodeURIComponent(o.numero);
   const cab = { Authorization: `Bearer ${o.token}` };
+  // o que a Meta disse nesta conferência (fica gravado no canal, para saber em que pé está)
+  const lido: Record<string, unknown> = { em: new Date().toISOString() };
   try {
-    const st = await pedir(`${GRAPH}/${id}?fields=platform_type`, { headers: cab }, 'O WhatsApp') as { platform_type?: string };
-    if (st?.platform_type === 'CLOUD_API') return { status: 'ativo', erro: null, registro_apos: null };
-  } catch { /* não deu para conferir: segue */ }
+    const st = await pedir(`${GRAPH}/${id}?fields=platform_type,status,code_verification_status,name_status`, { headers: cab }, 'O WhatsApp') as Record<string, unknown>;
+    Object.assign(lido, { plataforma: st?.platform_type ?? null, numero: st?.status ?? null, verificacao: st?.code_verification_status ?? null, nome: st?.name_status ?? null });
+    if (st?.platform_type === 'CLOUD_API') return { status: 'ativo', erro: null, registro_apos: null, lido };
+  } catch (e) {
+    lido.erro_numero = (e as Error).message.slice(0, 200);
+  }
 
   const revisao = await revisaoDaContaWhatsApp(o.waba, o.token);
-  if (revisao === 'PENDING') return { status: 'pendente', erro: ESPERA_META, registro_apos: o.registroApos ?? null };
-  if (revisao === 'REJECTED') return { status: 'erro', erro: RECUSADA_META, registro_apos: null };
+  lido.revisao = revisao;
+  if (revisao === 'PENDING') return { status: 'pendente', erro: ESPERA_META, registro_apos: o.registroApos ?? null, lido };
+  if (revisao === 'REJECTED') return { status: 'erro', erro: RECUSADA_META, registro_apos: null, lido };
 
   const libera = o.registroApos ? Date.parse(o.registroApos) : 0;
-  if (libera > Date.now()) return { status: 'pendente', erro: LIMITE_META, registro_apos: o.registroApos! };
+  if (libera > Date.now()) return { status: 'pendente', erro: LIMITE_META, registro_apos: o.registroApos!, lido };
 
   try {
     await pedir(`${GRAPH}/${id}/register`, {
@@ -417,13 +425,14 @@ export async function ativarWhatsApp(o: { numero: string; waba?: string | null; 
       headers: { ...cab, 'Content-Type': 'application/json' },
       body: JSON.stringify({ messaging_product: 'whatsapp', pin: o.pin }),
     }, 'O WhatsApp');
-    return { status: 'ativo', erro: null, registro_apos: null };
+    return { status: 'ativo', erro: null, registro_apos: null, lido };
   } catch (e) {
     const erro = (e as Error).message.slice(0, 500);
+    lido.registro = erro.slice(0, 200);
     if (erro === ESPERA_META || erro === LIMITE_META) {
-      return { status: 'pendente', erro, registro_apos: new Date(Date.now() + ESPERA_ENTRE_ATIVACOES).toISOString() };
+      return { status: 'pendente', erro, registro_apos: new Date(Date.now() + ESPERA_ENTRE_ATIVACOES).toISOString(), lido };
     }
-    return { status: 'erro', erro, registro_apos: null };
+    return { status: 'erro', erro, registro_apos: null, lido };
   }
 }
 
@@ -433,7 +442,7 @@ export async function ativarEGravar(db: SupabaseClient, canal: Pick<Canal, 'id' 
     numero: canal.externo_id, waba: canal.config?.waba_id as string | undefined, token, pin,
     registroApos: canal.config?.registro_apos as string | undefined,
   });
-  const config: Record<string, unknown> = { ...(canal.config ?? {}) };
+  const config: Record<string, unknown> = { ...(canal.config ?? {}), ...(r.lido ? { meta_lido: r.lido } : {}) };
   if (r.registro_apos) config.registro_apos = r.registro_apos;
   else delete config.registro_apos;
   const status = r.status === 'ativo' ? (canal.status === 'pausado' ? 'pausado' : 'ativo') : r.status;

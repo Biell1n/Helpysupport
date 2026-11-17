@@ -8,7 +8,7 @@
 // plano fica com pelo menos 70% de margem mesmo com tudo usado no limite.
 // ============================================================
 
-export type PlanId = 'trial' | 'essencial' | 'profissional' | 'business';
+export type PlanId = 'trial' | 'essencial' | 'profissional' | 'business' | 'interno';
 
 export interface Plan {
   id: PlanId;
@@ -46,6 +46,11 @@ export const PLANS: Record<PlanId, Plan> = {
   business: {
     id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 120, atendimentos: 1400, mensagens: 8000,
     ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, msgsPorAtendimento: 40, funcionarios: 20,
+  },
+  // contas da própria equipe do Helpy (teste e demonstração): tudo liberado, sem cobrança. Não aparece para venda.
+  interno: {
+    id: 'interno', nome: 'Interno', preco: 0, precoMensal: 0, assistentes: 100, builderIA: true, builderMsgs: 5000, atendimentos: 100000, mensagens: 1000000,
+    ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 100, tabelas: 500, msgsPorAtendimento: 40, funcionarios: 100,
   },
 };
 
@@ -111,7 +116,7 @@ export interface Precos {
  * tem motivo para subir de plano. Fica abaixo do que marketplaces cobram
  * (10% a 20%) porque a venda e o cliente são da empresa.
  */
-export const TAXA_VENDAS: Record<PlanId, number> = { trial: 2, essencial: 2, profissional: 1.5, business: 1 };
+export const TAXA_VENDAS: Record<PlanId, number> = { trial: 2, essencial: 2, profissional: 1.5, business: 1, interno: 0 };
 
 const COTA_TESTE = { atendimentos: 30, mensagens: 400 };
 

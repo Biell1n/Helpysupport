@@ -21,6 +21,9 @@ import {
 } from './agenda.ts';
 import { type ApiConfig, consultarApi, linhasDasTabelas, sincronizarUrl, VALIDADE_URL_MS } from './fontes.ts';
 import { configSql, consultarSql } from './sql.ts';
+import { profileOf } from './db.ts';
+import { planOf } from './plans.ts';
+import { tabelasNoPlano } from './limites.ts';
 import {
   allCollections, COBRA_SINAL, type CollectionDef, type Config, describeConfig, normalizeConfig, type Schema, slug, valueOf, VENDA_ANOTA, VENDE,
 } from './schema.ts';
@@ -400,14 +403,17 @@ export async function carregarTabelas(db: SupabaseClient, assistantId: string): 
     db.from('assistente_tabelas').select('tabela_id').eq('assistant_id', assistantId),
     db.from('assistants').select('owner_id').eq('id', assistantId).maybeSingle(),
   ]);
-  const ids = (links ?? []).map((l) => l.tabela_id);
-  if (!ids.length || !dono) return [];
+  if (!dono) return [];
+  // só as tabelas que o plano cobre (a conta pode ter descido de plano)
+  const cobre = await tabelasNoPlano(db, dono.owner_id, planOf(await profileOf(dono.owner_id)));
+  const ids = (links ?? []).map((l) => l.tabela_id).filter((id) => cobre.ids.has(id));
+  if (!ids.length) return [];
   const [{ data: tabs }, { data: cols }] = await Promise.all([
     // só tabelas do dono do assistente, mesmo que alguém tenha ligado outra
     db.from('tabelas').select('id, nome, proposito, fonte, api_config, api_segredo, sincronizada_em').in('id', ids).eq('owner_id', dono.owner_id),
     db.from('tabela_colunas').select('tabela_id, chave, rotulo, ordem').in('tabela_id', ids).order('ordem'),
   ]);
-  const lista = await Promise.all((tabs ?? []).map(async ({ api_segredo, ...t }) => {
+  const lista = await Promise.all((tabs ?? []).filter((t) => cobre.integracoes || (t.fonte !== 'api' && t.fonte !== 'sql')).map(async ({ api_segredo, ...t }) => {
     // a chave da API mora criptografada no Vault; só o servidor abre, na hora de usar
     if ((t.fonte === 'api' || t.fonte === 'sql') && t.api_config && api_segredo) {
       const { data: valor } = await db.rpc('helpy_segredo_api', { p_tabela: t.id });

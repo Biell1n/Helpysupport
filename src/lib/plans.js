@@ -18,6 +18,11 @@ export const PLANS = {
     id: 'business', nome: 'Business', preco: 497, precoMensal: 597, assistentes: 10, builderIA: true, builderMsgs: 120, atendimentos: 1400, mensagens: 8000,
     ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 20, tabelas: 50, msgsPorAtendimento: 40, funcionarios: 20,
   },
+  // contas da própria equipe do Helpy (teste e demonstração): tudo liberado, sem cobrança. Não aparece para venda.
+  interno: {
+    id: 'interno', nome: 'Interno', preco: 0, precoMensal: 0, assistentes: 100, builderIA: true, builderMsgs: 5000, atendimentos: 100000, mensagens: 1000000,
+    ticketsAbertos: null, chamados: true, chamadosAvancados: true, integracoes: true, canaisMeta: 100, tabelas: 500, msgsPorAtendimento: 40, funcionarios: 100,
+  },
 };
 
 /** Dias de teste grátis para quem cria a conta. */
@@ -64,7 +69,7 @@ export const PRECOS_PADRAO = {
   extra: PRECO_EXTRA,
   extraPlano: { essencial: PRECO_EXTRA, profissional: PRECO_EXTRA, business: PRECO_EXTRA_BUSINESS },
   // % do Helpy sobre cada venda paga pelo chat (espelha TAXA_VENDAS de plans.ts)
-  vendas: { trial: 2, essencial: 2, profissional: 1.5, business: 1 },
+  vendas: { trial: 2, essencial: 2, profissional: 1.5, business: 1, interno: 0 },
   carteira: false,
 };
 

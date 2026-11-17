@@ -12,6 +12,7 @@ import { alertar, type Assistant, responder } from './atendimento.ts';
 import { profileOf, usoDoMes } from './db.ts';
 import { bloqueioAtivo } from './bloqueios.ts';
 import { limitePorConversa, planOf, trialExpirado } from './plans.ts';
+import { assistenteNoPlano, canalNoPlano } from './limites.ts';
 import { type Canal, enviarPeloCanal, noPrivadoDoDiscord, NOMES } from './canais.ts';
 import { MOTIVO_APRENDIZ, MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from './extra.ts';
 
@@ -54,6 +55,15 @@ export async function atenderNoCanal(
   if (!assistant) return null;
   const profile = await profileOf(canal.owner_id);
   const plan = planOf(profile);
+  // a conta desceu de plano: o canal ou o assistente que passou do limite não responde (avisa o dono uma vez por dia)
+  if (!(await canalNoPlano(db, canal.owner_id, canal, plan)) || !(await assistenteNoPlano(db, canal.owner_id, assistant.id, plan))) {
+    await alertar(db, canal.owner_id, {
+      origem: 'sistema', chave: `plano:limite:${canal.id}`,
+      assunto: `${NOMES[canal.tipo]} sem resposta: passou do limite do plano`,
+      detalhe: `Chegou uma mensagem pelo ${NOMES[canal.tipo]}, mas este canal ou o assistente ligado a ele passa do que o plano ${plan.nome} cobre. Mude de plano em Plano, ou apague um assistente ou canal mais antigo, para ele voltar a responder.`,
+    });
+    return null;
+  }
   // modo aprendiz: a equipe atende tudo e o assistente só aprende com os atendimentos
   const aprendiz = (assistant as Assistant).modo === 'aprendiz';
   await db.from('canais').update({ ultimo_evento_em: new Date().toISOString() }).eq('id', canal.id);

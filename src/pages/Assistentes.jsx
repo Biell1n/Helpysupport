@@ -122,7 +122,7 @@ export default function Assistentes() {
       )}
 
       <div className="stack">
-        {lista?.map((a) => (
+        {lista?.map((a, i) => (
           <article key={a.id} className="card assistente-cartao">
             <div className="assistente-topo">
               <TrocarFoto
@@ -166,6 +166,8 @@ export default function Assistentes() {
             <div className="assistente-link">
               <span className={`badge ${a.is_public ? 'badge-closed' : 'badge-bot'}`}>{a.is_public ? 'Link no ar' : 'Link desligado'}</span>
               {a.modo === 'aprendiz' && <Link to={`/painel/assistentes/${a.id}/aprendizado`} className="badge badge-human">Só aprendendo</Link>}
+              {/* a conta desceu de plano: os mais novos, além do limite, não atendem até mudar de plano */}
+              {i >= plano.assistentes && <Link to="/painel/plano" className="badge badge-waiting" title={`O plano ${plano.nome} cobre ${plano.assistentes}`}>Fora do plano: não atende</Link>}
               <code className="mono">{linkPublico(a.public_token)}</code>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => copiar(a.public_token)}><Copy /> Copiar link</button>
             </div>
