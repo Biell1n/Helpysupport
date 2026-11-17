@@ -118,7 +118,11 @@ function Conversa() {
             </div>
             <div className="stack stack-sm">
               {SUGESTOES.map((s) => (
-                <button key={s} type="button" className="btn btn-ghost btn-sm" style={{ height: 'auto', padding: '8px 12px', whiteSpace: 'normal', textAlign: 'left', justifyContent: 'flex-start' }} onClick={() => enviar(s)}>
+                <button key={s} type="button" className="btn btn-ghost btn-sm" style={{ height: 'auto', padding: '8px 12px', whiteSpace: 'normal', textAlign: 'left', justifyContent: 'flex-start' }} onClick={() => {
+                  // o exemplo vai para a caixa, para a pessoa trocar pelo negócio dela antes de mandar
+                  setTexto(s);
+                  area.current?.focus();
+                }}>
                   {s}
                 </button>
               ))}
@@ -356,6 +360,12 @@ function Tela() {
             <b style={{ display: 'block' }}>{b.editando ? 'Editar assistente' : 'Novo assistente'}</b>
             <span className="faint" style={{ fontSize: 12.5 }}>{b.ramo || 'Conte sobre o negócio'}</span>
           </div>
+          {/* no celular a ficha (com o Publicar) fica em outra aba: quando está pronto, o botão aparece aqui também */}
+          {b.ready && (
+            <button type="button" className="btn btn-senha btn-sm builder-chat-publicar" disabled={publicando} onClick={publicar}>
+              {publicando ? <Loader2 className="spin" /> : <Check />} Publicar
+            </button>
+          )}
         </div>
         {b.plano?.builderIA ? <Conversa /> : <ModoFormulario />}
       </aside>

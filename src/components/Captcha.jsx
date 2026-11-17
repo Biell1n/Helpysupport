@@ -32,6 +32,8 @@ export default function Captcha({ onToken, rodada = 0 }) {
   const id = useRef(null);
   const aviso = useRef(onToken);
   aviso.current = onToken;
+  // a verificação não carregou (bloqueador, rede da empresa): diz o que fazer, em vez de uma caixa vazia
+  const [falhou, setFalhou] = useState(false);
 
   useEffect(() => {
     if (!SITE) return undefined;
@@ -46,12 +48,23 @@ export default function Captcha({ onToken, rodada = 0 }) {
           theme: document.documentElement.dataset.tema === 'escuro' ? 'dark' : 'light',
           callback: (token) => aviso.current(token),
           'expired-callback': () => aviso.current(null),
-          'error-callback': () => aviso.current(null),
+          'error-callback': () => {
+            aviso.current(null);
+            setFalhou(true);
+          },
         });
       })
-      .catch(() => aviso.current(null));
+      .catch(() => {
+        aviso.current(null);
+        if (vivo) setFalhou(true);
+      });
+    // passou do tempo e nada apareceu na caixa: também conta como falha
+    const espera = setTimeout(() => {
+      if (vivo && caixa.current && !caixa.current.querySelector('iframe')) setFalhou(true);
+    }, 12000);
     return () => {
       vivo = false;
+      clearTimeout(espera);
       if (id.current != null) window.turnstile?.remove(id.current);
       id.current = null;
     };
@@ -66,7 +79,17 @@ export default function Captcha({ onToken, rodada = 0 }) {
   }, [rodada]);
 
   if (!SITE) return null;
-  return <div ref={caixa} className="captcha" />;
+  return (
+    <>
+      <div ref={caixa} className="captcha" />
+      {falhou && (
+        <p className="hint" role="alert">
+          A verificação de segurança não carregou. Desligue o bloqueador de anúncios ou tente outra rede (a do celular, por exemplo) e{' '}
+          <button type="button" className="link-btn" onClick={() => window.location.reload()}>recarregue a página</button>.
+        </p>
+      )}
+    </>
+  );
 }
 
 /** Estado do captcha numa tela: token atual, se falta, e como pedir outro depois de enviar. */

@@ -975,6 +975,10 @@ async function executar(r: Rodada, nome: string, args: Record<string, unknown>, 
       escalado_em: new Date().toISOString(),
       ...(r.cliente ? { cliente_id: r.cliente.id, cliente_email: r.cliente.email } : {}),
     }).eq('id', conversationId);
+    // conversa de teste do dono não aparece em Atendimentos: a resposta diz isso, para ninguém ficar esperando
+    if (r.teste) {
+      return { ok: true, teste: true, mensagem: 'Isto é um teste do dono: num atendimento de verdade, o chamado iria para Atendimentos e alguém da equipe responderia aqui. Responda como se tivesse aberto e diga, numa frase, que no teste o chamado não vai para a fila.' };
+    }
     return { ok: true, mensagem: 'Chamado aberto. Avise que alguém da equipe vai responder nesta mesma conversa (se a pessoa sair, a resposta fica guardada aqui quando ela voltar). Não prometa e-mail, ligação nem prazo.' };
   }
 

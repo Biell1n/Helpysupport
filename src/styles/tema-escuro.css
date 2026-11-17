@@ -353,3 +353,7 @@
 .lp-robo-escuro { display: none; }
 [data-tema='escuro'] .lp-robo-claro { display: none; }
 [data-tema='escuro'] .lp-robo-escuro { display: block; }
+
+/* selos: no escuro, os tons claros da paleta já dão contraste */
+[data-tema='escuro'] .badge-waiting { color: var(--brasa); }
+[data-tema='escuro'] .badge-closed { color: var(--folha); }

@@ -21,7 +21,10 @@ export default function TextoQueAcende({ texto, className = '' }) {
   return (
     <div ref={ref} className={`acende ${className}`}>
       <div className="acende-preso">
-        <p className="acende-texto" aria-label={texto.replace(/\*/g, '')}>
+        {/* o leitor de tela lê a frase uma vez só (aria-label em <p> não vale: ele lia cada palavra duas vezes) */}
+        <p className="acende-texto">
+          <span className="sr-only">{texto.replace(/\*/g, '')}</span>
+          <span aria-hidden="true">
           {palavras.map((p, i) => {
             const ini = i / palavras.length;
             return (
@@ -30,6 +33,7 @@ export default function TextoQueAcende({ texto, className = '' }) {
               </Palavra>
             );
           })}
+          </span>
         </p>
       </div>
     </div>

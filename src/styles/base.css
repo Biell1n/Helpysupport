@@ -495,7 +495,8 @@ button, input, select, textarea {
 
 .badge-waiting {
   background: var(--brasa-clara);
-  color: var(--brasa);
+  /* um tom mais escuro que a brasa: o texto pequeno passa de 4,5:1 de contraste */
+  color: #a83a20;
 }
 
 .badge-human {
@@ -505,7 +506,7 @@ button, input, select, textarea {
 
 .badge-closed {
   background: var(--folha-clara);
-  color: var(--folha);
+  color: #156b43;
 }
 
 /* ---------- a senha: canhoto picotado ----------
