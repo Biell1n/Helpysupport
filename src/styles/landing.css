@@ -1700,7 +1700,8 @@
 .abertura-fundo {
   position: absolute;
   inset: 0;
-  background: #f2f6fa;
+  /* o mesmo fundo da página: no tema escuro não dá clarão */
+  background: var(--papel, #f2f6fa);
 }
 
 .abertura[data-fase='sai'] {
@@ -2268,7 +2269,8 @@
   line-height: 0.8;
   letter-spacing: -0.06em;
   text-align: center;
-  margin: 40px 0 -0.06em;
+  /* sem margem negativa: a palavra gigante não passa por cima dos links e do texto legal */
+  margin: 40px 0 0;
   color: transparent;
   -webkit-text-stroke: 1.5px color-mix(in srgb, var(--senha) 45%, transparent);
   background: linear-gradient(180deg, color-mix(in srgb, var(--senha) 16%, transparent), transparent 80%);

@@ -145,6 +145,20 @@ function AceiteTermos({ children }) {
       gravarAceitePendente().then((ok) => ok && reloadProfile());
     }
   }, [profile, tentou, reloadProfile]);
+  if (profile?._falhou) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 16 }}>
+        <div className="empty" style={{ maxWidth: 420 }}>
+          <h3>Não conseguimos carregar a sua conta</h3>
+          <p>Pode ser a internet. Confira a conexão e tente de novo.</p>
+          <div className="row" style={{ gap: 8, justifyContent: 'center' }}>
+            <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>Tentar de novo</button>
+            <button type="button" className="btn btn-ghost" onClick={signOut}>Sair</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!profile || profile.termos_versao === TERMOS_VERSAO) return children;
   return (
     <div className="modal-fundo">

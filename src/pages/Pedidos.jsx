@@ -53,10 +53,13 @@ export default function Pedidos() {
     return () => clearInterval(t);
   }, [carregar]);
 
+  // 'erro' quando a consulta falhou: as contas e a lista trabalham com lista vazia
+  const todos = Array.isArray(pedidos) ? pedidos : [];
   const resumo = useMemo(() => {
+    const todos = Array.isArray(pedidos) ? pedidos : [];
     // vendido = pago pelo link ou finalizado pela equipe; em aberto = esperando pagamento ou anotado
-    const pagos = (pedidos ?? []).filter((p) => p.status === 'pago' || p.status === 'finalizado');
-    const aguardando = (pedidos ?? []).filter((p) => p.status === 'aguardando' || p.status === 'anotado');
+    const pagos = todos.filter((p) => p.status === 'pago' || p.status === 'finalizado');
+    const aguardando = todos.filter((p) => p.status === 'aguardando' || p.status === 'anotado');
     return {
       vendido: pagos.reduce((s, p) => s + Number(p.total), 0),
       pagos: pagos.length,
@@ -65,7 +68,7 @@ export default function Pedidos() {
     };
   }, [pedidos]);
 
-  const lista = (pedidos ?? []).filter((p) => filtro === 'todos' || p.status === filtro);
+  const lista = todos.filter((p) => filtro === 'todos' || p.status === filtro);
 
   const copiar = async (url) => {
     try {

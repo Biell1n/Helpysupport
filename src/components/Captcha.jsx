@@ -42,7 +42,8 @@ export default function Captcha({ onToken, rodada = 0 }) {
         id.current = t.render(caixa.current, {
           sitekey: SITE,
           language: 'pt-br',
-          theme: 'light',
+          // acompanha o tema do painel (no escuro, a caixa branca destoava)
+          theme: document.documentElement.dataset.tema === 'escuro' ? 'dark' : 'light',
           callback: (token) => aviso.current(token),
           'expired-callback': () => aviso.current(null),
           'error-callback': () => aviso.current(null),

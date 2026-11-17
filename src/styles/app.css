@@ -1399,6 +1399,8 @@
   overflow: auto;
   max-height: calc(100vh - 230px);
   min-height: 420px;
+  /* faixa de horas curta: a grade fica junto dos dias, sem um vão no meio */
+  align-content: start;
 }
 .cal-ev-hora { font-weight: 500; opacity: 0.8; }
 
@@ -4790,7 +4792,7 @@
 
 /* Plano: mensal/anual no mesmo controle dos períodos de Relatórios; o plano atual é texto, não botão */
 .plano-ciclo { margin-top: 10px; align-self: flex-start; width: fit-content; }
-.plano-ciclo-desconto { margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--folha, #0e8a44); }
+.plano-ciclo-desconto { white-space: nowrap; margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--folha, #0e8a44); }
 .plano-atual {
   display: flex;
   align-items: center;
