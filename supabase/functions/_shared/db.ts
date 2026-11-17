@@ -49,7 +49,8 @@ const TOLERANCIA_ATRASO_DIAS = 5;
  * o plano volta ao teste encerrado. Feito aqui porque é por onde o servidor lê o plano.
  */
 async function planoEmDia<T extends { id: string; plan: string | null }>(p: T): Promise<T> {
-  if (!p.plan || p.plan === 'trial') return p;
+  // teste grátis segue a data; conta interna do Helpy não depende de assinatura
+  if (!p.plan || p.plan === 'trial' || p.plan === 'interno') return p;
   const { data: ass } = await admin.from('assinaturas').select('status, proximo_vencimento').eq('owner_id', p.id).maybeSingle();
   // só a assinatura em dia segura o plano; atrasada ou com troca pendente ganha uns dias de folga
   if (!ass?.proximo_vencimento || ass.status === 'ativa') return p;

@@ -173,3 +173,27 @@ language sql stable security invoker set search_path = public as $$
     )
   );
 $$;
+
+-- 4) Plano "interno": contas da equipe do Helpy, com tudo liberado e sem cobrança
+alter table public.profiles drop constraint if exists profiles_plan_check;
+alter table public.profiles add constraint profiles_plan_check
+  check (plan in ('trial', 'essencial', 'profissional', 'business', 'interno'));
+
+create or replace function public.helpy_limite_tabelas()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  limite int;
+  total int;
+begin
+  select case coalesce(p.plan, 'trial') when 'interno' then 500 when 'business' then 50 when 'profissional' then 10 else 3 end
+    into limite from public.profiles p where p.id = new.owner_id;
+  select count(*) into total from public.tabelas where owner_id = new.owner_id;
+  if total >= coalesce(limite, 3) then
+    raise exception 'O seu plano permite % tabelas de dados. Mude de plano para criar mais.', coalesce(limite, 3) using errcode = 'P0001';
+  end if;
+  return new;
+end $function$;

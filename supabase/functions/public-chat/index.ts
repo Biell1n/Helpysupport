@@ -27,6 +27,7 @@ import { inicioDoMes, limitePorConversa, planOf, trialExpirado } from '../_share
 import { normalizeConfig, sugestoesIniciais, valueOf } from '../_shared/schema.ts';
 import { COBRANCA_EXTRA_PRONTA, MOTIVO_APRENDIZ, MOTIVO_RECADO, recadoPodeSeguir, usarExtra } from '../_shared/extra.ts';
 import { ehDoCanal, receberDoCanal } from '../_shared/canal-webhook.ts';
+import { assistenteNoPlano, FORA_DO_PLANO } from '../_shared/limites.ts';
 
 const MAX_CHARS = 2000;
 const BITS_DESAFIO = 17;
@@ -164,6 +165,19 @@ Deno.serve(async (req) => {
     }
     if (!assistant) throw new UserError('Este link não existe ou foi trocado.', 404);
     const cfg = normalizeConfig(assistant.config);
+
+    // assistente além do que o plano cobre (a conta desceu de plano): não atende
+    if (action === 'info' || action === 'message') {
+      const planoDono = planOf(await profileOf(assistant.owner_id));
+      if (!(await assistenteNoPlano(admin, assistant.owner_id, assistant.id, planoDono))) {
+        throw new UserError(
+          teste
+            ? `O plano ${planoDono.nome} cobre ${planoDono.assistentes} ${planoDono.assistentes === 1 ? 'assistente' : 'assistentes'}, e este passou do limite: ele não atende até você mudar de plano ou apagar outro.`
+            : FORA_DO_PLANO,
+          teste ? 402 : 403,
+        );
+      }
+    }
 
     if (action === 'info') {
       return json({

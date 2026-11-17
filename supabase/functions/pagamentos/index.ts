@@ -180,7 +180,8 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
     const agoraIso = new Date().toISOString();
     const ontem = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
     await admin.from('assinaturas').update({ status: 'cancelada', asaas_anterior: null, proximo_vencimento: ontem, atualizada_em: agoraIso }).eq('owner_id', dono);
-    await admin.from('profiles').update({ plan: 'trial', trial_ends_at: agoraIso, funcionarios_extra: 0 }).eq('id', dono);
+    // conta interna do Helpy: o plano não muda com cobrança nenhuma
+    await admin.from('profiles').update({ plan: 'trial', trial_ends_at: agoraIso, funcionarios_extra: 0 }).eq('id', dono).neq('plan', 'interno');
     await aparaEquipe(dono);
     await admin.from('alertas').insert({
       owner_id: dono, origem: 'sistema', chave: `fatura:devolvida:${pg.id}`,
@@ -202,7 +203,7 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
     if (pago(String(pg.status), evento.event)) {
       if (ass.status === 'cancelada') return;
       // pagou o plano de antes: ele continua valendo e a troca segue esperando
-      if (plano) await admin.from('profiles').update({ plan: plano, trial_ends_at: null }).eq('id', ass.owner_id);
+      if (plano) await admin.from('profiles').update({ plan: plano, trial_ends_at: null }).eq('id', ass.owner_id).neq('plan', 'interno');
       await admin.from('assinaturas').update({
         status: 'ativa', atualizada_em: agora,
         // o vencimento segue o ciclo da assinatura que foi paga (a antiga), não o da troca
@@ -221,7 +222,7 @@ async function avisoDoHelpy(evento: { event?: string; payment?: Record<string, u
     // cobrança antiga que caiu depois do cancelamento: guarda a fatura, mas não reativa o plano
     if (ass.status === 'cancelada') return;
     const { ciclo: cicloPago } = await dadosDaAssinatura(subId);
-    await admin.from('profiles').update({ plan: ass.plano, trial_ends_at: null }).eq('id', ass.owner_id);
+    await admin.from('profiles').update({ plan: ass.plano, trial_ends_at: null }).eq('id', ass.owner_id).neq('plan', 'interno');
     await admin.from('assinaturas').update({
       status: 'ativa', asaas_anterior: null, atualizada_em: agora,
       ...(cicloPago ? { ciclo: cicloPago } : {}),
