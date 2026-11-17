@@ -76,7 +76,7 @@ O teste tem limite de 300 mensagens por dia.`,
     texto: `Cada assistente tem um link próprio. Em **Assistentes**, use **Copiar link** e cole na bio do Instagram, no WhatsApp, no Google Meu Negócio ou no seu site.
 
 - No menu ⋯ do cartão tem o **QR code** para imprimir no balcão ou no cardápio.
-- **Desligar o link** tira o assistente do ar sem apagar nada.
+- **Desligar o link** tira do ar o link e o botão no seu site, sem apagar nada. WhatsApp, Instagram e Discord continuam respondendo: para parar um deles, use **Pausar** em Canais.
 - **Trocar link** gera um endereço novo e desativa o antigo (útil se o link vazou para quem não devia). O QR code antigo para de funcionar.
 
 Para atender direto no WhatsApp, Instagram ou Discord, veja a categoria de canais.`,
@@ -211,9 +211,10 @@ O cliente escreve direto no tópico e o assistente responde em alguns segundos. 
     titulo: 'Receber pelo chat: ativar a Carteira',
     resumo: 'Pix, cartão e boleto direto na conversa.',
     busca: 'carteira receber pagamento pix cartão boleto asaas ativar vender pelo chat',
-    texto: `Em **Carteira**, preencha os dados da empresa para abrir a conta de recebimento. Com ela ativa, o assistente fecha o pedido, gera o link de pagamento (Pix, cartão ou boleto) e avisa na conversa quando o pagamento cai.
+    texto: `Em **Carteira**, ligue a conta que recebe os pagamentos. Com ela ativa, o assistente fecha o pedido, gera o link de pagamento (Pix, cartão ou boleto) e avisa na conversa quando o pagamento cai.
 
-- O dinheiro fica na sua Carteira; você pede o saque para a sua conta.
+- Hoje a conta é a sua no Asaas: você cria a conta lá, copia a chave de acesso e cola em Carteira. O dinheiro cai no Asaas e o saque é feito por lá.
+- Enquanto a Carteira não estiver ativa, o assistente anota o pedido e a equipe combina o pagamento.
 - O Helpy cobra uma taxa por venda paga, conforme o plano (de 1% a 2%).
 - Venda devolvida (estorno) tira a taxa daquela venda.`,
   },

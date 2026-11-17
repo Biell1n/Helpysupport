@@ -30,7 +30,8 @@ const dataBr = (d) => (d ? new Date(`${d}T12:00:00`).toLocaleDateString('pt-BR')
 export default function Carteira() {
   const avisar = useToast();
   const { profile } = useAuth();
-  const taxa = usePrecos().vendas?.[planOf(profile).id];
+  const precosCarteira = usePrecos();
+  const taxa = precosCarteira.vendas?.[planOf(profile).id];
   const [dados, setDados] = useState(undefined);
   const [sacando, setSacando] = useState(false);
   const [pausar, setPausar] = useState(false);
@@ -93,7 +94,11 @@ export default function Carteira() {
       <header className="page-head">
         <div>
           <h1>Carteira</h1>
-          <p>O dinheiro que o assistente vende no chat cai aqui. Você vê o saldo, o extrato e saca por Pix, sem sair do Helpy.</p>
+          <p>
+            {carteira || (!rec && precosCarteira.carteira)
+              ? 'O dinheiro que o assistente vende no chat cai aqui. Você vê o saldo, o extrato e saca por Pix, sem sair do Helpy.'
+              : 'O assistente cobra pelo chat na sua conta Asaas: o dinheiro cai lá, e o saque também é feito lá. Aqui você liga a conta e acompanha as vendas.'}
+          </p>
         </div>
         {rec && <button type="button" className="btn btn-ghost btn-sm" onClick={carregar}><RefreshCw size={15} /> Atualizar</button>}
       </header>
