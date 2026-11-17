@@ -420,7 +420,7 @@ Pergunte a informação certa (ex.: quais opções existem de cada produto) para
     };
   }
 
-  return { key: null, text: 'Nada mais a perguntar. Resuma em duas frases o que o assistente sabe e avise que é só clicar em Publicar.' };
+  return { key: null, text: 'Nada mais a perguntar. Resuma em duas frases o que o assistente sabe e avise que é só tocar no botão amarelo Publicar, no alto da tela (no celular, no alto da conversa). Diga também o próximo passo depois de publicar: o link do chat e o QR code ficam em Assistentes, para mandar aos clientes ou pôr no Instagram e no WhatsApp.' };
 }
 
 function marcarPergunta(s: Session, goal: Goal) {
@@ -1210,7 +1210,7 @@ O QUE O HELPY JÁ FAZ SOZINHO (nunca crie lista, campo ou tabela para isto)
 - Vendas fechadas no chat viram pedidos em Pedidos (itens, total, pagamento por Pix ou cartão), e o estoque da tabela baixa sozinho quando o pagamento cai. Isso depende da Carteira e de "Fechar a venda no chat?".
 - Quem quer vender pelo chat SEM receber por aqui (o assistente monta o pedido e a equipe combina o pagamento) escolhe "Fechar a venda no chat?" = "Anota o pedido e a equipe finaliza": não precisa da Carteira, e o pedido aparece em Pedidos como anotado.
 - PEDIDO PELO CHAT É LIGADO POR VOCÊ: quando a pessoa disser que quer que o assistente anote, pegue, receba ou feche pedidos (ex.: "anotar os pedidos", "pegar pedido no WhatsApp", "vender pelo chat"), grave venda_no_chat NA MESMA resposta, sem esperar ela pedir de novo: "Anota o pedido e a equipe finaliza" quando ela cobra por fora (na entrega, no balcão, Pix combinado) ou não falou de pagamento; "Sim, manda o link de pagamento" só quando ela pedir cobrança automática pelo chat. Avise em uma frase que os pedidos vão aparecer em Pedidos. Se o negócio vende produto ou comida e a pessoa não tocou no assunto, pergunte uma vez, perto do fim: "Quer que ele anote os pedidos pelo chat?". Sem isso ligado o assistente só tira dúvida e não monta pedido.
-- LINK DE PAGAMENTO PRECISA DA CARTEIRA (veja "CARTEIRA DESTA CONTA" no estado). Se a pessoa pedir cobrança automática pelo chat (link, Pix na hora, cartão) e a Carteira não estiver ativa, grave "Sim, manda o link de pagamento" do mesmo jeito e deixe claro, em poucas frases: a Carteira se ativa depois de publicar, em Carteira, no menu do painel (leva poucos minutos e pede CPF ou CNPJ e os dados para receber); enquanto ela não estiver ativa, o assistente anota o pedido e a equipe combina o pagamento; quando ela for ativada, o link passa a sair sozinho, sem precisar voltar aqui. Se a Carteira ainda não estiver disponível para a conta, diga que o Helpy está liberando aos poucos e que até lá o pedido fica anotado. Nunca diga que o link já funciona sem a Carteira ativa.
+- LINK DE PAGAMENTO PRECISA DA CARTEIRA (veja "CARTEIRA DESTA CONTA" no estado). Se a pessoa pedir cobrança automática pelo chat (link, Pix na hora, cartão) e a Carteira não estiver ativa, grave "Sim, manda o link de pagamento" do mesmo jeito e deixe claro, em poucas frases: a Carteira se ativa depois de publicar, em Carteira, no menu do painel (leva poucos minutos e pede CPF ou CNPJ e os dados para receber); enquanto ela não estiver ativa, o assistente anota o pedido e a equipe combina o pagamento; quando ela for ativada, o link passa a sair sozinho, sem precisar voltar aqui. Se a Carteira ainda não estiver ligada, diga que hoje ela funciona com uma conta do Asaas da própria empresa: a pessoa cria a conta lá e cola a chave em Carteira; até lá o pedido fica anotado. Nunca diga que o link já funciona sem a Carteira ativa.
 - Horários marcados ficam na Agenda. Contatos que o cliente deixa ficam no próprio atendimento e nos Relatórios.
 Tabelas em Dados servem só para o que o assistente CONSULTA ao responder: produtos, serviços, preços, estoque, unidades. O assistente não escreve em tabelas. Se a pessoa pedir para "registrar pedidos", "guardar solicitações" ou "anotar clientes", explique em uma frase onde isso já aparece (Atendimentos, Pedidos, Agenda) e siga. Nunca ofereça isso por conta própria.
 
@@ -1484,7 +1484,7 @@ async function chat(s: Session, userText: string, ctx: Ctx, anexos: Anexo[] = []
     ? 'ativa (o link de pagamento já funciona).'
     : carteiraAberta
       ? 'ainda não ativada (a pessoa ativa em Carteira, no menu do painel, depois de publicar).'
-      : 'ainda não disponível para esta conta (o Helpy está liberando aos poucos).';
+      : 'ainda não ligada (a pessoa liga a própria conta do Asaas em Carteira, no menu do painel, colando a chave de acesso; sem isso, o assistente anota o pedido).';
 
   // instruções fixas em cache; o estado do documento muda a cada turno
   const system: Anthropic.Beta.BetaTextBlockParam[] = [
@@ -1852,7 +1852,7 @@ Deno.serve(async (req) => {
         if (!recebe) {
           avisoCarteira = carteira
             ? 'Para o assistente mandar o link de pagamento, falta ativar a Carteira: abra Carteira no menu e ative (leva poucos minutos). Enquanto isso, ele anota o pedido e ele aparece em Pedidos para a sua equipe combinar o pagamento. Quando a Carteira estiver ativa, o link passa a sair sozinho.'
-            : 'O pagamento por link (Carteira) ainda não está disponível para a sua conta. Por enquanto o assistente anota o pedido e ele aparece em Pedidos para a sua equipe combinar o pagamento. Quando a Carteira abrir e você ativar, o link passa a sair sozinho.';
+            : 'Para o assistente mandar o link de pagamento, ligue a sua conta do Asaas em Carteira, no menu (você cria a conta lá e cola a chave de acesso). Enquanto isso, ele anota o pedido e ele aparece em Pedidos para a sua equipe combinar o pagamento. Quando a conta estiver ligada, o link passa a sair sozinho.';
         }
       }
 

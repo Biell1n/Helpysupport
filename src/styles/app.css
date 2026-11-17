@@ -761,6 +761,17 @@
   grid-column: 1 / -1;
 }
 
+.builder-chat-publicar {
+  display: none;
+  margin-left: auto;
+}
+
+@media (max-width: 1000px) {
+  .builder-chat-publicar {
+    display: inline-flex;
+  }
+}
+
 .builder-abas {
   display: none;
 }
@@ -4420,7 +4431,8 @@
 
   .nav-celular {
     position: fixed;
-    z-index: 40;
+    /* acima da folha "Mais" (45): o botão Mais continua à vista para fechar */
+    z-index: 46;
     left: 0;
     right: 0;
     bottom: 0;
@@ -4510,6 +4522,10 @@
     background: var(--branco);
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     animation: subir 0.18s ease;
+    /* celular pequeno: a folha cabe na tela e rola por dentro */
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .nav-mais-folha .side-link {
@@ -4698,7 +4714,7 @@
 .assistente-nome { flex: 1; min-width: 180px; }
 .assistente-nome h2 { font-size: 20px; }
 .assistente-nome p { font-size: 14px; margin: 2px 0 0; }
-.assistente-acoes { display: flex; align-items: center; gap: 6px; }
+.assistente-acoes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .assistente-link {
   display: flex;
   align-items: center;

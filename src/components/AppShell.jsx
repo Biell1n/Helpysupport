@@ -10,6 +10,7 @@ import { useUso } from '@/lib/useUso';
 import { diasDeTeste, planOf } from '@/lib/plans';
 import { usePrecos } from '@/lib/precos';
 import { iniciais } from '@/lib/format';
+import { useFocoPreso } from '@/lib/foco';
 import { Avatar } from '@/components/TrocarFoto';
 import EscolherTema from '@/components/EscolherTema';
 import { useMenu } from '@/lib/menu';
@@ -202,6 +203,7 @@ export default function AppShell() {
   usePrecos(!!profile && tipo !== 'cliente'); // com os preços de teste, ajusta a cota do Essencial antes das telas lerem
   const { pathname, search } = useLocation();
   const [mais, setMais] = useState(false);
+  const focoMais = useFocoPreso(mais, () => setMais(false));
   useEffect(() => setMais(false), [pathname, search]);
   // chamados abertos no título da aba: quem atende vê de longe que tem gente esperando
   const abertos = uso?.tickets_abertos ?? 0;
@@ -357,7 +359,7 @@ export default function AppShell() {
               </button>
             </nav>
             {mais && (
-              <div className="nav-mais" role="dialog" aria-modal="true" aria-label="Mais seções">
+              <div className="nav-mais" role="dialog" aria-modal="true" aria-label="Mais seções" ref={focoMais} tabIndex={-1}>
                 <button type="button" className="nav-mais-fundo" aria-label="Fechar" onClick={() => setMais(false)} />
                 <div className="nav-mais-folha">
                   {resto.map(({ to, label, icon: Icon, end }) => (

@@ -422,7 +422,7 @@ const LOGOS = [
 const COM_HELPY = [
   'Responde na hora, de madrugada e no fim de semana',
   'Consulta preço e estoque de verdade antes de responder',
-  'Marca horário e fecha a venda com link de Pix',
+  'Marca horário, anota pedidos e manda link de Pix (com a sua conta de pagamento)',
   'O mesmo assistente no site, WhatsApp, Instagram e Discord',
   'Chama você só quando precisa, com o resumo pronto',
   'Mostra o que os clientes mais perguntam',
@@ -455,7 +455,7 @@ const FAQ = [
   ['O que conta como atendimento?', 'Uma conversa de um cliente com o seu assistente, do começo ao fim. Cada plano tem uma cota de atendimentos e um total de mensagens de clientes no mês, que folga para conversas de todos os tamanhos.'],
   ['E quando a cota acaba?', 'O assistente não some: as conversas passam a virar recados e chamados para a sua equipe até a cota renovar, e você recebe um aviso no painel antes de chegar lá.'],
   ['Consigo ligar no meu sistema?', 'Sim. Ele lê planilhas do Excel (inclusive no OneDrive e no SharePoint), Google Planilhas, bancos PostgreSQL, MySQL e SQL Server direto, e sistemas com API REST, como SAP e TOTVS Protheus. Sempre só leitura, e só com a sua autorização.'],
-  ['Funciona no WhatsApp?', 'Funciona, em todos os planos e no teste grátis. O assistente responde no WhatsApp e no Instagram pela API oficial da Meta (sem chip no celular e sem risco de bloqueio): o Essencial conecta 1 conta, o Profissional 2 e o Business até 20. O painel mostra o passo a passo, e se preferir a gente conecta com você. Também dá para usar o link do chat, o QR code e um bot no Discord.'],
+  ['Funciona no WhatsApp?', 'Funciona, em todos os planos e no teste grátis. O assistente responde no WhatsApp e no Instagram pelo caminho oficial da Meta (sem celular ligado e sem risco de bloqueio, com um número só para o atendimento). Na primeira vez, a Meta analisa a conta, o que leva de algumas horas a poucos dias. O Essencial conecta 1 conta, o Profissional 2 e o Business até 20. O painel mostra o passo a passo, e se preferir a gente conecta com você. Também dá para usar o link do chat, o QR code e um bot no Discord.'],
 ];
 
 export default function Landing() {

@@ -7,22 +7,35 @@ const BASE = import.meta.env.VITE_VIDEO_DEMO || '/videos/helpy-demo';
 export const reduzido = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-/** O vídeo de demonstração do Helpy, sem som e em loop. */
+/**
+ * O vídeo de demonstração do Helpy, sem som e em loop. Só baixa e toca quando
+ * chega perto da tela (antes eram uns 3 MB logo ao abrir a página, mesmo sem rolar).
+ */
 export default function VideoDemo({ className = '', rotulo = 'Demonstração do Helpy' }) {
   const video = useRef(null);
   useEffect(() => {
-    if (reduzido()) video.current?.pause();
+    const el = video.current;
+    if (!el || reduzido()) return undefined;
+    if (typeof IntersectionObserver === 'undefined') {
+      el.play?.().catch(() => {});
+      return undefined;
+    }
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) el.play?.().catch(() => {});
+      else el.pause?.();
+    }, { rootMargin: '200px' });
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
   const externo = /\.(mp4|webm)$/.test(BASE);
   return (
     <video
       ref={video}
       className={className}
-      autoPlay={!reduzido()}
       muted
       loop
       playsInline
-      preload="metadata"
+      preload="none"
       poster={externo ? undefined : `${BASE}.jpg`}
       aria-label={rotulo}
     >

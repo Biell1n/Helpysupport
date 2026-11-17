@@ -6,6 +6,12 @@ const CHAVE = 'helpy_recarregou_em';
 
 /** Recarrega uma vez para pegar a versão nova (nunca em laço). */
 export function recarregarParaVersaoNova() {
+  // sem internet o arquivo não carrega por falta de rede, não por versão nova: recarregar deixaria a
+  // página de erro do navegador no lugar do painel. Espera a rede voltar e só então recarrega.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    window.addEventListener('online', () => window.location.reload(), { once: true });
+    return false;
+  }
   try {
     const ultima = Number(sessionStorage.getItem(CHAVE) || 0);
     if (Date.now() - ultima < 30_000) return false;

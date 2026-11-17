@@ -61,7 +61,7 @@ Quando a barra chegar no que é obrigatório, clique em **Publicar**. O link do 
     titulo: 'Testar o assistente antes de divulgar',
     resumo: 'Converse como se fosse um cliente, sem gastar a cota.',
     busca: 'testar teste simular cliente conversa antes divulgar',
-    texto: `Em **Assistentes**, clique em **Testar** no cartão do assistente. A conversa de teste não conta na cota do mês e aparece marcada como teste.
+    texto: `Em **Assistentes**, clique em **Testar** no cartão do assistente. A conversa de teste não conta na cota do mês e não aparece em Atendimentos. Pedido, horário e chamado feitos no teste não são gravados de verdade: o assistente mostra como seria.
 
 Faça as perguntas que os seus clientes mais fazem: preço, horário, entrega, "quero falar com alguém". Se a resposta não ficou boa, clique em **Editar** e ajuste a ficha, ou explique no chat do montador o que mudar ("quando perguntarem de estacionamento, diga que tem na rua de trás").
 
@@ -165,7 +165,7 @@ Publique as alterações e teste uma conversa para ver o resultado.`,
     titulo: 'Conectar o WhatsApp',
     resumo: 'Pela API oficial da Meta, com um número da empresa.',
     busca: 'whatsapp conectar api meta número token business',
-    texto: `Em **Canais → WhatsApp**, siga o passo a passo da tela (leva uns 15 minutos). Você vai precisar de:
+    texto: `Em **Canais → WhatsApp**, siga o passo a passo da tela (leva uns 20 minutos). Você vai precisar de:
 
 - Acesso ao Gerenciador de Negócios da empresa no Facebook.
 - Um número que **não** esteja em uso no aplicativo do WhatsApp (pode ser um número novo).
@@ -290,7 +290,7 @@ Em **Assistentes → Editar → Chamados e equipe** você define quando ele abre
     titulo: 'Convidar funcionário',
     resumo: 'Link de convite para a equipe atender os chamados.',
     busca: 'convidar funcionário equipe convite link atendente membro',
-    texto: `Em **Equipe**, clique em **Convidar** e mande o link para a pessoa. Ela cria a conta (ou entra) pelo link e já vê a fila de atendimentos, os pedidos e a agenda da empresa. Funcionário não vê a cobrança nem o plano.
+    texto: `Em **Equipe**, clique em **Gerar link de convite** e mande o link para a pessoa. Ela cria a conta (ou entra) pelo link e já vê a fila de atendimentos, os pedidos e a agenda da empresa. Funcionário não vê a cobrança nem o plano.
 
 Cada plano inclui um número de pessoas; acima disso, cada vaga extra custa à parte por mês. Se o plano diminuir, os acessos mais novos acima do limite saem da equipe.`,
   },

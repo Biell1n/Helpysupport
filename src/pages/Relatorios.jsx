@@ -634,7 +634,7 @@ export default function Relatorios() {
             <Numero
               rotulo="Viraram chamado"
               valor={fmt(r.chamados)}
-              detalhe={r.chamados_abertos ? `${fmt(r.chamados_abertos)} ainda abertos` : 'nenhum aberto'}
+              detalhe={r.chamados_abertos ? `${fmt(r.chamados_abertos)} ainda ${r.chamados_abertos === 1 ? 'aberto' : 'abertos'}` : 'nenhum aberto'}
             />
             <Numero
               rotulo="Tempo até a equipe assumir"
