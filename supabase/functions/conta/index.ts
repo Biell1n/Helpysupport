@@ -15,7 +15,7 @@
 // ============================================================
 
 import { corsHeaders, json, UserError } from '../_shared/cors.ts';
-import { admin, profileOf, requireUser } from '../_shared/db.ts';
+import { admin, avisarSaidaDaEquipe, profileOf, requireUser } from '../_shared/db.ts';
 import { planOf } from '../_shared/plans.ts';
 import { agendamentosDaConversa, alterarAgendamento, descreverAgendamento, horariosLivres, marcar, type AgendaConfig } from '../_shared/agenda.ts';
 
@@ -104,6 +104,8 @@ Deno.serve(async (req) => {
       for (const m of membros ?? []) {
         await admin.from('profiles').update({ tipo: 'cliente', empresa_id: null }).eq('id', m.user_id);
       }
+      // o aviso sai antes de apagar a conta: depois dela, o nome da empresa já não existe
+      await avisarSaidaDaEquipe((membros ?? []).map((m) => m.user_id as string), user.id, 'excluida');
       // apaga o usuário; o banco apaga em cascata assistentes, tabelas, conversas, agenda e o cofre das chaves
       const { error } = await admin.auth.admin.deleteUser(user.id);
       if (error) throw error;
@@ -307,6 +309,7 @@ Deno.serve(async (req) => {
       const { data: removido } = await admin.from('equipe').delete().eq('owner_id', user.id).eq('user_id', alvo).select('user_id').maybeSingle();
       if (!removido) throw new UserError('Essa pessoa não está na sua equipe.', 404);
       await admin.from('profiles').update({ tipo: 'cliente', empresa_id: null }).eq('id', alvo);
+      await avisarSaidaDaEquipe([alvo], user.id, 'removido');
       // a sessão dela deixa de enxergar os dados da empresa na hora (o banco consulta a equipe a cada pedido)
       return json({ ok: true });
     }

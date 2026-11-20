@@ -64,6 +64,25 @@ async function planoEmDia<T extends { id: string; plan: string | null }>(p: T): 
 }
 
 /**
+ * Quem saiu da equipe (empresa excluída, removido pelo dono, plano que deixou de cobrir a vaga)
+ * vê um aviso na próxima vez que abrir o painel, em vez de cair numa conta vazia sem explicação.
+ */
+export async function avisarSaidaDaEquipe(userIds: string[], ownerId: string, motivo: 'excluida' | 'removido' | 'plano') {
+  if (!userIds.length) return;
+  const { data: dono } = await admin.from('profiles').select('company_name, full_name').eq('id', ownerId).maybeSingle();
+  const empresa = dono?.company_name || dono?.full_name || 'A empresa';
+  const texto = {
+    excluida: `${empresa} excluiu a conta no Helpy. Você não faz mais parte da equipe, e a sua conta continua aqui como conta pessoal.`,
+    removido: `${empresa} tirou você da equipe. A sua conta continua aqui como conta pessoal.`,
+    plano: `${empresa} mudou de plano e a sua vaga na equipe deixou de estar incluída. A sua conta continua aqui como conta pessoal; se for engano, fale com a empresa.`,
+  }[motivo];
+  for (const id of userIds) {
+    const { data } = await admin.auth.admin.getUserById(id);
+    await admin.auth.admin.updateUserById(id, { user_metadata: { ...(data?.user?.user_metadata ?? {}), aviso_equipe: texto } }).catch(() => {});
+  }
+}
+
+/**
  * A equipe cabe no que a conta paga: quando o plano cai ou vagas extras não são
  * pagas, os convites abertos somem e quem entrou por último sai da equipe (volta
  * a ser conta comum) até caber no limite.
@@ -78,6 +97,7 @@ export async function aparaEquipe(ownerId: string) {
   if (sobra.length) {
     await admin.from('equipe').delete().eq('owner_id', ownerId).in('user_id', sobra);
     await admin.from('profiles').update({ tipo: 'cliente', empresa_id: null }).in('id', sobra);
+    await avisarSaidaDaEquipe(sobra, ownerId, 'plano');
     await admin.from('alertas').insert({
       owner_id: ownerId, origem: 'sistema', chave: `equipe:aparada:${new Date().toISOString().slice(0, 10)}`,
       assunto: 'Equipe acima do limite do plano',
