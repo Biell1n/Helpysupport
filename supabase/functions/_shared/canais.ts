@@ -413,11 +413,13 @@ export async function ativarWhatsApp(o: { numero: string; waba?: string | null; 
 
   const revisao = await revisaoDaContaWhatsApp(o.waba, o.token);
   lido.revisao = revisao;
-  if (revisao === 'PENDING') return { status: 'pendente', erro: ESPERA_META, registro_apos: o.registroApos ?? null, lido };
+  // em análise: a Meta às vezes já deixa ativar o número antes de mudar o status da conta, então tenta,
+  // mas só uma vez por dia (o limite dela é de 10 tentativas em 3 dias)
+  const emAnalise = revisao === 'PENDING';
   if (revisao === 'REJECTED') return { status: 'erro', erro: RECUSADA_META, registro_apos: null, lido };
 
   const libera = o.registroApos ? Date.parse(o.registroApos) : 0;
-  if (libera > Date.now()) return { status: 'pendente', erro: LIMITE_META, registro_apos: o.registroApos!, lido };
+  if (libera > Date.now()) return { status: 'pendente', erro: emAnalise ? ESPERA_META : LIMITE_META, registro_apos: o.registroApos!, lido };
 
   try {
     await pedir(`${GRAPH}/${id}/register`, {
@@ -429,8 +431,9 @@ export async function ativarWhatsApp(o: { numero: string; waba?: string | null; 
   } catch (e) {
     const erro = (e as Error).message.slice(0, 500);
     lido.registro = erro.slice(0, 200);
-    if (erro === ESPERA_META || erro === LIMITE_META) {
-      return { status: 'pendente', erro, registro_apos: new Date(Date.now() + ESPERA_ENTRE_ATIVACOES).toISOString(), lido };
+    if (erro === ESPERA_META || erro === LIMITE_META || emAnalise) {
+      const espera = emAnalise ? 24 * 3600e3 : ESPERA_ENTRE_ATIVACOES;
+      return { status: 'pendente', erro: emAnalise ? ESPERA_META : erro, registro_apos: new Date(Date.now() + espera).toISOString(), lido };
     }
     return { status: 'erro', erro, registro_apos: null, lido };
   }
