@@ -46,7 +46,10 @@ export default function Captcha({ onToken, rodada = 0 }) {
           language: 'pt-br',
           // acompanha o tema do painel (no escuro, a caixa branca destoava)
           theme: document.documentElement.dataset.tema === 'escuro' ? 'dark' : 'light',
-          callback: (token) => aviso.current(token),
+          callback: (token) => {
+            setFalhou(false);
+            aviso.current(token);
+          },
           'expired-callback': () => aviso.current(null),
           'error-callback': () => {
             aviso.current(null);
@@ -58,9 +61,10 @@ export default function Captcha({ onToken, rodada = 0 }) {
         aviso.current(null);
         if (vivo) setFalhou(true);
       });
-    // passou do tempo e nada apareceu na caixa: também conta como falha
+    // passou do tempo e a caixa continua vazia (nem o quadro da verificação apareceu): conta como falha.
+    // O quadro fica dentro de uma área própria da Cloudflare, então basta a caixa ter recebido algo.
     const espera = setTimeout(() => {
-      if (vivo && caixa.current && !caixa.current.querySelector('iframe')) setFalhou(true);
+      if (vivo && caixa.current && caixa.current.childElementCount === 0 && !caixa.current.shadowRoot) setFalhou(true);
     }, 12000);
     return () => {
       vivo = false;
