@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { chamar, supabase } from '@/lib/supabase';
@@ -238,6 +239,8 @@ export default function Conta() {
               <label className="field" style={{ maxWidth: 360 }}>
                 <span className="label">Digite sua senha para confirmar</span>
                 <input className="input" type="password" autoComplete="current-password" required value={excluir.senha} onChange={(e) => setExcluir((x) => ({ ...x, senha: e.target.value }))} />
+                {/* quem entra pelo Google às vezes nem lembra que criou uma senha */}
+                <span className="hint">Entra pelo Google e não lembra a senha? <Link to="/recuperar-senha">Crie uma nova</Link> e volte aqui.</span>
               </label>
             ) : (
               <label className="field" style={{ maxWidth: 360 }}>
