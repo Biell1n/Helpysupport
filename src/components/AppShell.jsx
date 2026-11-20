@@ -133,6 +133,35 @@ function EscolherTipo({ children }) {
   );
 }
 
+/**
+ * Saiu da equipe de uma empresa (ela excluiu a conta, tirou a pessoa ou mudou de plano):
+ * um aviso uma vez só, em vez de a pessoa cair numa conta vazia sem entender por quê.
+ */
+function AvisoDaEquipe() {
+  const [texto, setTexto] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    // lê o usuário de novo no servidor: o aviso pode ter sido gravado depois que a sessão começou
+    supabase.auth.getUser().then(({ data }) => {
+      if (vivo) setTexto(data?.user?.user_metadata?.aviso_equipe ?? null);
+    }).catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  if (!texto) return null;
+  const entendi = async () => {
+    setTexto(null);
+    await supabase.auth.updateUser({ data: { aviso_equipe: null } }).catch(() => {});
+  };
+  return (
+    <div className="alert alert-aviso" role="status" style={{ margin: '16px 16px 0' }}>
+      <span>{texto}</span>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={entendi}>Entendi</button>
+    </div>
+  );
+}
+
 /** Conta criada pelo Google (ou termos novos): aceite antes de usar o painel. */
 function AceiteTermos({ children }) {
   const { profile, reloadProfile, signOut } = useAuth();
@@ -330,6 +359,7 @@ export default function AppShell() {
       </aside>
 
       <main className="main">
+        <AvisoDaEquipe />
         <Outlet context={{ uso, recarregarUso }} />
       </main>
 
