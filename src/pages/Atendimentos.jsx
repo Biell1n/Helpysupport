@@ -313,6 +313,22 @@ export default function Atendimentos() {
         },
   });
 
+  // a conversa está com outra pessoa da equipe: só responde quem assumir no lugar dela (fica claro para os dois)
+  const deOutro = aberta?.status === 'human' && aberta.assumido_por && aberta.assumido_por !== user?.id;
+  const assumirNoLugar = async () => {
+    const antes = aberta.assumido_por;
+    const { data: mudou, error } = await supabase.from('conversations')
+      .update({ assumido_por: user.id, assumido_nome: atendente, assumido_em: new Date().toISOString() })
+      .eq('id', aberta.id).eq('assumido_por', antes).select('id');
+    if (error || !mudou?.length) {
+      await Promise.all([carregarAberta(aberta.id), carregar()]);
+      return avisar('Não deu para assumir', { erro: true, texto: error?.message ?? 'O chamado mudou de mãos agora mesmo. A tela foi atualizada.' });
+    }
+    avisarNoCanal(aberta);
+    avisar('Agora você está atendendo', { texto: `${aberta.assumido_nome || 'A outra pessoa'} deixa de responder esta conversa.` });
+    await Promise.all([carregarAberta(aberta.id), carregar()]);
+  };
+
   const responder = async () => {
     const texto = resposta.trim();
     if (!texto || enviando) return;
@@ -324,7 +340,7 @@ export default function Atendimentos() {
         content: texto,
         author_name: atendente,
       }).select('id, role, content, author_name, created_at').single();
-      if (error) throw error;
+      if (error) throw new Error(/conversa_de_outro/.test(error.message) ? 'Outra pessoa da equipe está atendendo esta conversa. Para responder, assuma no lugar dela.' : error.message);
       // a resposta aparece na hora (sem esperar a próxima atualização), para ninguém mandar de novo
       setMensagens((p) => (p.some((x) => x.id === msg.id) ? p : [...p, msg]));
       setResposta('');
@@ -336,12 +352,13 @@ export default function Atendimentos() {
           avisar(`Não chegou no ${NOME_DO_CANAL[canalDe(aberta)] ?? 'canal'}`, { erro: true, texto: e.message });
         }
       }
-      // responder já é assumir: o assistente para de falar por cima
+      // responder já é assumir: o assistente para de falar por cima (sem passar por cima de quem assumiu no meio-tempo)
       if (aberta.status !== 'human') {
         await supabase
           .from('conversations')
           .update({ status: 'human', assumido_por: user.id, assumido_nome: atendente, assumido_em: aberta.assumido_em ?? new Date().toISOString() })
-          .eq('id', aberta.id);
+          .eq('id', aberta.id)
+          .or(`status.neq.human,assumido_por.eq.${user.id}`);
         avisarNoCanal(aberta);
       }
       setResposta('');
@@ -567,6 +584,12 @@ export default function Atendimentos() {
                   <button type="button" className="link-btn" onClick={reabrir}>Reabrir para responder</button>
                 </p>
               ) : (
+                deOutro ? (
+                  <p className="faint" style={{ fontSize: 14 }}>
+                    <b>{aberta.assumido_nome || 'Outra pessoa da equipe'}</b> está atendendo esta conversa.{' '}
+                    <button type="button" className="link-btn" onClick={() => setConfirmar('no-lugar')}>Assumir no lugar</button>
+                  </p>
+                ) : (
                 <>
                   <div className="composer-row">
                     <textarea
@@ -591,6 +614,7 @@ export default function Atendimentos() {
                     O cliente vê como {atendente}, na mesma conversa.{aberta.status !== 'human' && ' Responder assume o chamado e pausa o assistente.'}
                   </div>
                 </>
+                )
               )}
             </div>
           </>
@@ -646,6 +670,17 @@ export default function Atendimentos() {
         onConfirmar={() => {
           setConfirmar(null);
           devolver();
+        }}
+        onFechar={() => setConfirmar(null)}
+      />
+      <Confirmar
+        aberto={confirmar === 'no-lugar'}
+        titulo={`Assumir no lugar de ${aberta?.assumido_nome || 'quem está atendendo'}?`}
+        texto="Você passa a responder esta conversa e a outra pessoa deixa de poder responder. Combine antes com ela, se puder."
+        acao="Assumir"
+        onConfirmar={() => {
+          setConfirmar(null);
+          assumirNoLugar();
         }}
         onFechar={() => setConfirmar(null)}
       />
