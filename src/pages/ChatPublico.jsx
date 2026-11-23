@@ -690,5 +690,14 @@ function Evento({ m }) {
 
 export default function ChatPublico() {
   const { token } = useParams();
+  // dentro do botão de chat de um site: Esc fecha o quadro (quem fecha é o site, então avisa por mensagem)
+  useEffect(() => {
+    if (!EM_SITE) return undefined;
+    const tecla = (e) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) window.parent.postMessage('helpy:fechar', '*');
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, []);
   return <Conversa token={token} />;
 }

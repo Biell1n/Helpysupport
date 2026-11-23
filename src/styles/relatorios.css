@@ -548,3 +548,5 @@
   gap: 4px;
   margin-bottom: 16px;
 }
+
+.rel-topo-acoes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
