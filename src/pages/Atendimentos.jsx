@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUp, Ban, CheckCircle2, Headset, Columns3, Hand, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Ban, BellOff, BellRing, Flag, CheckCircle2, Headset, Columns3, Hand, RotateCcw, Search, Trash2 } from 'lucide-react';
 import QuadroChamados from './QuadroChamados';
 import { chamar, supabase } from '@/lib/supabase';
 import { canalDe, NOME_DO_CANAL, SeloCanal } from '@/components/IconesCanais';
@@ -11,6 +11,7 @@ import AgendaDoChamado from '@/components/AgendaDoChamado';
 import SwipeRow from '@/components/SwipeRow';
 import Abas from '@/components/Abas';
 import { numero, quando, STATUS } from '@/lib/format';
+import { ligarSom, somLigado } from '@/lib/avisoDeChamado';
 import { avisarNoCanal } from '@/lib/canais';
 import { bloqueioDa, rotuloDoBloqueio } from '@/lib/bloqueio';
 import { DO_PEDIDO, ETAPAS, etapaDa, SeloEtapa } from '@/components/EtapaCompra';
@@ -381,7 +382,8 @@ export default function Atendimentos() {
       // o número vale como aparece na tela ("0025", "Nº 0025") ou sem zeros ("25")
       && (!q || [c.titulo, c.motivo, c.resumo, c.lead_nome, c.lead_contato].some((v) => String(v ?? '').toLowerCase().includes(q))
         || (/\d/.test(q) && String(c.numero) === q.replace(/\D/g, '').replace(/^0+(?=\d)/, ''))),
-    );
+    // urgente primeiro; o resto segue a ordem da fila (sort estável)
+    ).sort((a, b) => Number(b.prioridade === 'alta') - Number(a.prioridade === 'alta'));
   }, [conversas, busca, etapaFiltro, etapas]);
 
   if (modo === 'quadro' && !abertaId) {
@@ -405,9 +407,12 @@ export default function Atendimentos() {
         <div className="inbox-list-head">
           <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
             <h1 style={{ fontSize: 26 }}>Atendimentos</h1>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { abrir(null); setModo('quadro'); }}>
-              <Columns3 size={15} /> Quadro
-            </button>
+            <div className="row" style={{ gap: 6 }}>
+              <AvisoDeChamadoBotao />
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { abrir(null); setModo('quadro'); }}>
+                <Columns3 size={15} /> Quadro
+              </button>
+            </div>
           </div>
           <Abas
             rotulo="Situação dos atendimentos"
@@ -520,6 +525,17 @@ export default function Atendimentos() {
                 )}
                 {aberta.status === 'closed' && (
                   <button type="button" className="btn btn-ghost" onClick={reabrir}><RotateCcw /> Reabrir</button>
+                )}
+                {aberta.status !== 'closed' && (
+                  // a equipe marca o que é urgente (o assistente também marca quando percebe)
+                  <button
+                    type="button"
+                    className="btn btn-quiet btn-sm"
+                    aria-pressed={aberta.prioridade === 'alta'}
+                    onClick={() => atualizar({ prioridade: aberta.prioridade === 'alta' ? 'normal' : 'alta' }, { titulo: aberta.prioridade === 'alta' ? 'Prioridade normal' : 'Marcado como urgente', texto: 'Aparece no topo da fila para toda a equipe.' })}
+                  >
+                    <Flag /> {aberta.prioridade === 'alta' ? 'Tirar urgente' : 'Marcar urgente'}
+                  </button>
                 )}
                 {!bloqueioDa(aberta) && !aberta.teste && (
                   <button type="button" className="btn btn-quiet btn-sm" title="Timeout ou banir" onClick={() => setBloquear(true)}><Ban /> Bloquear</button>
@@ -685,6 +701,30 @@ export default function Atendimentos() {
         onFechar={() => setConfirmar(null)}
       />
     </div>
+  );
+}
+
+/** Liga ou desliga o som de chamado novo e pede a permissão do aviso do navegador. */
+function AvisoDeChamadoBotao() {
+  const [ligado, setLigado] = useState(somLigado);
+  const [permissao, setPermissao] = useState(() => ('Notification' in window ? Notification.permission : 'denied'));
+  const alternar = async () => {
+    const novo = !ligado;
+    ligarSom(novo);
+    setLigado(novo);
+    // ao ligar, aproveita para pedir o aviso do navegador (aparece mesmo com a aba em segundo plano)
+    if (novo && permissao === 'default') setPermissao(await Notification.requestPermission().catch(() => 'default'));
+  };
+  return (
+    <button
+      type="button"
+      className="btn btn-quiet btn-sm"
+      aria-pressed={ligado}
+      title={ligado ? `Som de chamado novo ligado${permissao === 'granted' ? ', com aviso do navegador' : ''}` : 'Som de chamado novo desligado'}
+      onClick={alternar}
+    >
+      {ligado ? <BellRing size={15} /> : <BellOff size={15} />} {ligado ? 'Som ligado' : 'Som desligado'}
+    </button>
   );
 }
 

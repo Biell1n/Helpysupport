@@ -50,7 +50,8 @@ export async function guardarFatura(ownerId: string, pg: Record<string, unknown>
 // ------------------------------------------------------------
 export const MINIMO_FATURA = 5; // o Asaas não emite cobrança menor que isso
 export const reais = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const mesUtc = () => new Date().toISOString().slice(0, 7) + '-01';
+// o mês corrente no horário de Brasília (o mesmo do banco: helpy_mes)
+const mesUtc = () => `${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' }).format(new Date())}-01`;
 const nomeMes = (mes: string) => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${mes}T00:00:00Z`));
 
 /**

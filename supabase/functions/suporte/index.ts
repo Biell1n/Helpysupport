@@ -39,10 +39,8 @@ const MAX_POR_DIA = 10;
 const MAX_MSGS_CLIENTE = 60;
 const DIA = 864e5;
 
-const inicioDoMes = () => {
-  const d = new Date();
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
-};
+// meia-noite do dia 1 em Brasília (igual a _shared/plans.ts)
+const inicioDoMes = () => `${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' }).format(new Date())}-01T03:00:00.000Z`;
 const limpo = (v: unknown, max: number) => String(v ?? '').replace(/\u0000/g, '').trim().slice(0, max);
 
 /** De quem é a conta: o dono vê a empresa toda; o funcionário fala em nome da empresa dele. */
