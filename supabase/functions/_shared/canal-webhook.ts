@@ -255,7 +255,9 @@ const efemera = (content: string) => jsonOk({ type: 4, data: { content, flags: 6
  */
 async function discord(req: Request, alvo: string): Promise<Response> {
   if (req.method !== 'POST') return ok('', 404);
-  if (alvo === 'gateway') return gateway(req);
+  // o programa que ficava ligado no Discord foi trocado pela leitura dos tickets pelo próprio servidor
+  // (sondarTickets): este caminho devolvia o token do robô para quem tivesse a chave, então fica desligado
+  if (alvo === 'gateway') return ok('', 410);
   const doHelpy = alvo === 'helpy';
   let canal: Canal | null = null;
   if (!doHelpy) {

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
 /** Mude quando os termos mudarem: quem aceitou a versão antiga aceita de novo. */
-export const TERMOS_VERSAO = '2026-10';
+export const TERMOS_VERSAO = '2026-11';
 
 const CHAVE = 'helpy_termos_pendente';
 // o aceite marcado antes do Google só vale para o login que acabou de acontecer
