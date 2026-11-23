@@ -22,6 +22,7 @@
     'background:' + cor + ';color:#fff;cursor:pointer;display:grid;place-items:center;padding:0;' +
     'box-shadow:0 10px 28px rgba(11,26,44,.28),0 2px 6px rgba(11,26,44,.18);transition:transform .45s cubic-bezier(.16,1,.3,1)}' +
     '.helpy-w-botao:hover{transform:scale(1.06)}.helpy-w-botao:active{transform:scale(.94)}' +
+    '.helpy-w-botao:focus-visible{outline:3px solid ' + cor + ';outline-offset:3px}' +
     '.helpy-w-botao svg{width:28px;height:28px;transition:transform .45s cubic-bezier(.16,1,.3,1),opacity .2s}' +
     '.helpy-w-botao .helpy-w-x{position:absolute;opacity:0;transform:rotate(-90deg) scale(.6)}' +
     '.helpy-w-botao[aria-expanded=true] .helpy-w-x{opacity:1;transform:none}' +
@@ -34,7 +35,7 @@
     '.helpy-w-painel[data-aberto]{opacity:1;visibility:visible;transform:none;transition:opacity .25s ease,transform .5s cubic-bezier(.16,1,.3,1)}' +
     '.helpy-w-painel iframe{width:100%;height:100%;border:0;display:block}' +
     '@media (max-width:520px){.helpy-w-painel{inset:0;width:100%;max-width:none;height:100%;border-radius:0;bottom:0}' +
-    '.helpy-w-botao[aria-expanded=true]{bottom:auto;top:10px;width:40px;height:40px;' + lado + ':10px}' +
+    '.helpy-w-botao[aria-expanded=true]{bottom:auto;top:8px;width:44px;height:44px;' + lado + ':10px}' +
     '.helpy-w-botao[aria-expanded=true] svg{width:20px;height:20px}}' +
     '@media (prefers-reduced-motion:reduce){.helpy-w-botao,.helpy-w-botao svg,.helpy-w-painel{transition:none!important}}';
   document.head.appendChild(css);
@@ -67,10 +68,17 @@
     else painel.removeAttribute('data-aberto');
     botao.setAttribute('aria-expanded', String(aberto));
     botao.setAttribute('aria-label', aberto ? 'Fechar o atendimento' : 'Abrir o atendimento');
+    // quem usa teclado vai direto para o chat ao abrir e volta para o botão ao fechar
+    if (aberto) setTimeout(function () { try { quadro.focus(); } catch (e) {} }, 60);
+    else if (painel.contains(document.activeElement) || document.activeElement === quadro) botao.focus();
   }
 
   botao.addEventListener('click', function () { alternar(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && aberto) alternar(false); });
+  // Esc apertado dentro do chat (o quadro não deixa a tecla sair): o chat avisa por mensagem
+  window.addEventListener('message', function (e) {
+    if (e.origin === base && quadro && e.source === quadro.contentWindow && e.data === 'helpy:fechar' && aberto) alternar(false);
+  });
 
   function montar() {
     document.body.appendChild(painel);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDownRight, ArrowUpRight, BarChart3, Link2, RefreshCw, Table as TableIcon } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, BarChart3, Download, Link2, RefreshCw, Table as TableIcon } from 'lucide-react';
 import { chamar, supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { quando } from '@/lib/format';
@@ -568,6 +568,43 @@ function Numero({ rotulo, valor, detalhe, variacao }) {
 // abaixo disso, os gráficos de detalhe ficam escondidos (poucos dados enganam)
 const POUCO = 20;
 
+// planilha (CSV) com o resumo e as conversas de cada dia; ";" e vírgula decimal abrem certo no Excel em português
+function baixarPlanilha(dados, dias) {
+  const r = dados.resumo ?? {};
+  const cel = (v) => {
+    const t = v == null ? '' : typeof v === 'number' ? String(v).replace('.', ',') : String(v);
+    return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const linhas = [
+    ['Relatório do Helpy', `últimos ${dias} dias`],
+    [],
+    ['Conversas', r.conversas],
+    [`Conversas nos ${dias} dias anteriores`, r.conversas_antes],
+    ['Resolvidas pelo assistente', r.resolvidas_sozinho],
+    ['Com resposta', r.com_resposta],
+    ['Viraram chamado', r.chamados],
+    ['Chamados ainda abertos', r.chamados_abertos],
+    ['Minutos até a equipe assumir (mediana)', r.resposta_equipe_min],
+    ['Nota média', r.nota_media],
+    ['Avaliações', r.notas],
+    ['Contatos captados', r.leads],
+    ['Horários marcados', r.agendamentos],
+    [],
+    ['Dia', 'Conversas', 'Chamados'],
+    ...(dados.por_dia ?? []).map((d) => [d.dia.split('-').reverse().join('/'), d.conversas, d.chamados]),
+    [],
+    ['Assistente', 'Conversas', 'Chamados', 'Nota'],
+    ...(dados.por_assistente ?? []).map((a) => [a.nome, a.conversas, a.chamados, a.nota]),
+  ];
+  const texto = '\ufeff' + linhas.map((l) => l.map(cel).join(';')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `helpy-relatorio-${dias}-dias.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export default function Relatorios() {
   const { user } = useAuth();
   const [dias, setDias] = useState(30);
@@ -602,6 +639,10 @@ export default function Relatorios() {
           <h1>Relatórios</h1>
           <p>Como o seu atendimento está indo: volume, o que resolve sozinho, quando o movimento aperta e o que os clientes mais querem saber.</p>
         </div>
+        <div className="rel-topo-acoes">
+        <button type="button" className="btn btn-ghost btn-sm" disabled={!dados} onClick={() => baixarPlanilha(dados, dias)}>
+          <Download size={15} aria-hidden="true" /> Baixar planilha
+        </button>
         <Abas
           className="rel-periodo"
           rotulo="Período"
@@ -609,6 +650,7 @@ export default function Relatorios() {
           onMudar={setDias}
           abas={PERIODOS.map((p) => ({ id: p.dias, rotulo: p.rotulo }))}
         />
+        </div>
       </header>
 
       {erro && <div className="alert alert-erro" style={{ marginBottom: 16 }}>Não foi possível carregar: {erro}</div>}
