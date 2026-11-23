@@ -5,7 +5,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { alertar } from './atendimento.ts';
-import { inicioDoMes, type Plan, type PlanId, precoExtraDoPlano, precosVigentes, trialExpirado } from './plans.ts';
+import { inicioDoMes, mesBr, type Plan, type PlanId, precoExtraDoPlano, precosVigentes, trialExpirado } from './plans.ts';
 import { fecharUsoExtra } from './cobranca.ts';
 import { usoDoMes } from './db.ts';
 
@@ -43,7 +43,7 @@ export async function usarExtra(db: SupabaseClient, p: PerfilExtra, tipo: 'atend
   if (data === true) {
     // ainda há uso extra de mês que já acabou sem fatura (plano anual não tem mensalidade para puxar): fatura agora
     const { count: antigos } = await db.from('uso_extra').select('mes', { count: 'exact', head: true })
-      .eq('owner_id', p.id).eq('status', 'aberto').lt('mes', new Date().toISOString().slice(0, 7) + '-01');
+      .eq('owner_id', p.id).eq('status', 'aberto').lt('mes', `${mesBr()}-01`);
     if (antigos) {
       const fechar = fecharUsoExtra(p.id).catch((e) => console.error('[extra] fatura', (e as Error).message));
       if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(fechar);

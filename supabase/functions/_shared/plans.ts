@@ -155,7 +155,8 @@ export function trialExpirado(profile: Pick<Profile, 'plan' | 'trial_ends_at'> |
   return new Date(profile.trial_ends_at).getTime() < Date.now();
 }
 
-export const inicioDoMes = () => {
-  const d = new Date();
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
-};
+/** "2026-11" no horário de Brasília (o mês das cotas vira à meia-noite daqui, não em UTC). */
+export const mesBr = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' }).format(d);
+
+/** Começo do mês corrente: meia-noite do dia 1 em Brasília (03:00 UTC; o Brasil não tem horário de verão). */
+export const inicioDoMes = () => `${mesBr()}-01T03:00:00.000Z`;

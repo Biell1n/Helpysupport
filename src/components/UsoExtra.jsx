@@ -31,7 +31,8 @@ export default function UsoExtra({ plano, onTeto }) {
 
   useEffect(() => {
     const d = new Date();
-    const mes = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0, 10);
+    // o mês das cotas vira à meia-noite de Brasília (igual ao servidor)
+    const mes = `${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' }).format(d)}-01`;
     supabase.from('uso_extra').select('atendimentos, mensagens, valor').eq('mes', mes).maybeSingle()
       .then(({ data }) => setGasto(data ?? { atendimentos: 0, mensagens: 0, valor: 0 }));
     supabase.from('uso_extra').select('mes', { count: 'exact', head: true }).eq('status', 'atrasado')

@@ -11,6 +11,8 @@ import { diasDeTeste, planOf } from '@/lib/plans';
 import { usePrecos } from '@/lib/precos';
 import { iniciais } from '@/lib/format';
 import { useFocoPreso } from '@/lib/foco';
+import { useAvisoDeChamado } from '@/lib/avisoDeChamado';
+import { useToast } from '@/components/Toasts';
 import { Avatar } from '@/components/TrocarFoto';
 import EscolherTema from '@/components/EscolherTema';
 import { useMenu } from '@/lib/menu';
@@ -228,6 +230,12 @@ function AceiteTermos({ children }) {
 export default function AppShell() {
   const { user, profile, nome, signOut, tipo } = useAuth();
   const [uso, recarregarUso] = useUso();
+  const avisarNaTela = useToast();
+  // chamado novo na fila: som, aviso do navegador (aba em segundo plano) e um aviso na tela
+  useAvisoDeChamado(tipo === 'empresa' || tipo === 'funcionario', (c, texto) => {
+    recarregarUso();
+    avisarNaTela('Chamado novo', { texto });
+  });
   const usa = useMenu(user?.id, tipo);
   usePrecos(!!profile && tipo !== 'cliente'); // com os preços de teste, ajusta a cota do Essencial antes das telas lerem
   const { pathname, search } = useLocation();
