@@ -162,6 +162,13 @@ function desenhar(t, el) {
   const acha = 0.045 * sino(t, T.pisca + 0.28, T.pisca + 0.6) + clique + nasceEstica;
   const s = e * (1 + respiraOnda + respira);
   el.cabeca.setAttribute('transform', `translate(0 ${pulo + flutua + queda}) rotate(${rot} 100 92)`);
+  // sombra no chão: dá peso ao balão. Quando ele sobe, ela encolhe e clareia; some antes do voo
+  const altura = Math.min(0, pulo + flutua + queda); // negativo = mais alto
+  const perto = cl(1 + altura / 40);
+  el.sombra.setAttribute('cy', 92 + h / 2 + 22 + 24 * tp); // logo abaixo do balão (e da pontinha, quando ela sai)
+  el.sombra.setAttribute('rx', (w / 2.6) * e * (0.7 + 0.3 * perto));
+  el.sombra.setAttribute('ry', 6.5 * e * (0.75 + 0.25 * perto));
+  el.sombra.setAttribute('opacity', (0.16 * cl(e) * (0.45 + 0.55 * perto) * (1 - voando)).toFixed(3));
   el.corpo.setAttribute('transform', `translate(100 92) scale(${s * (1 + acha)} ${s * (1 - acha)}) translate(-100 -92)`);
 
   // 3) os pontinhos digitam e as pontas viram os olhinhos (que depois olham para o nome)
@@ -379,6 +386,7 @@ export default function IntroLogo({ onSaindo, onFim }) {
       borraCorpo: r.querySelector('#ab-goo-corpo feGaussianBlur'),
       borraOlhos: r.querySelector('#ab-goo-olhos feGaussianBlur'),
       letras: [...r.querySelectorAll('.ab-letra')],
+      sombra: r.querySelector('.ab-sombra'),
     };
     desenhar(0, el);
     const inicio = performance.now();
@@ -444,6 +452,7 @@ export default function IntroLogo({ onSaindo, onFim }) {
           </defs>
           <g className="ab-conjunto">
             <rect className="ab-caixa" width="200" height="200" fill="none" />
+            <ellipse className="ab-sombra" cx="100" cy="206" rx="0" ry="0" fill={CORES.marinho} opacity="0" />
             <g className="ab-cabeca">
               <g className="ab-liquido">
                 <g className="ab-corpo">
